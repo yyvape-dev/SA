@@ -60,6 +60,7 @@ body {
       <div id="pad" aria-label="移動パッド"><div id="knob"></div></div>
       <div class="btns">
         <button class="btn s u" id="btnU" type="button">必殺</button>
+        <button class="btn s" id="btnT" type="button">突き</button>
         <button class="btn s" id="btnP" type="button">吸引</button>
         <button class="btn s" id="btnS" type="button">衝撃波</button>
         <button class="btn a" id="btnA" type="button">攻撃</button>
@@ -69,10 +70,11 @@ body {
   <div class="keys">
     <span><b>← ↑ ↓ →</b>移動（WASDも可）</span>
     <span><b>Shift</b>走る</span>
-    <span><b>J / Space</b>攻撃</span>
+    <span><b>J / Space</b>攻撃（連打で縦斬り→横薙ぎ）</span>
     <span><b>L</b>吸引（敵を引き寄せて拘束）</span>
     <span><b>U</b>必殺技（回転斬り・周囲一掃）</span>
     <span><b>K</b>衝撃波</span>
+    <span><b>I</b>貫通の突き（前方を一直線に貫く）</span>
     <span><b>1 2 3</b>強化を選ぶ</span>
     <span><b>R</b>やり直す</span>
   </div>
@@ -96,8 +98,10 @@ body {
 
   /* ---------- 素材 ---------- */
   var RUN_K = 0.86; // 走りの動画はキャラが約1.15倍の大きさで出たため、足元を基準に縮める
-  var M = { ax: 362, ay: 379, k: 0.6, clips: { walk: 24, run: 10, atk: 19, rec: 17, idle: 1, ult: 59 } }; // 待機・歩き・走りは1.0倍で保存。0.6倍で描くと従来と同じ大きさ
+  var M = { ax: 362, ay: 379, k: 0.6, clips: { walk: 24, run: 10, atk: 19, rec: 17, idle: 1, ult: 59, atb: 49, thr: 24 } }; // 待機・歩き・走りは1.0倍で保存。0.6倍で描くと従来と同じ大きさ
   var ATK_A = { ax: 235.2, ay: 328.2, k: 1 }; // 攻撃・構え直しは旧素材（0.6倍で保存）。攻撃の動画を撮り直したら置き換える
+  var ATB_A = { ax: 458, ay: 536, k: 0.6 };   // 攻撃B（横薙ぎ）。動画のコマ12〜37と50〜72（頭上の静止は省く）
+  var THR_A = { ax: 553.1, ay: 697, k: 0.508 }; // 貫通の突き。元の絵が大きいので、0.508倍で主人公と同じ背丈
   var ULT_A = { ax: 446, ay: 568, k: 0.6 }, ULT_F0 = 8; // 必殺技の連番は、動画のコマ8〜66。足元の基準は主人公と同じ高さ
   var IMG = {}, loaded = 0, total = 1, failed = 0, started = false;
   function pad2(n) { return (n < 10 ? '0' : '') + n; }
@@ -127,8 +131,8 @@ body {
     G = {
       state: 'title', t: 0, wave: 0, enemies: [], drops: [], parts: [], fx: [], texts: [], booms: [],
       queue: [], qT: 0, shake: 0, freeze: 0, combo: 0, comboT: 0, bestCombo: 0, kills: 0, gold: 0, rare: 0,
-      skCD: 0, skMax: 3.2, pullCD: 0, pullMax: 6, ultCD: 0, ultMax: 14, flash: 0, picks: [], pickOpts: [], upgraded: [],
-      hero: { x: 340, y: 560, face: 1, hp: 120, max: 120, state: 'idle', t: 0, anim: 0, sk: false, kind: 'atk', fxT: 0, ringT: 0, h1: false, h2: false, buf: 0, cancelT: 0, total: 0, inv: 0, flash: 0 }
+      skCD: 0, skMax: 3.2, pullCD: 0, pullMax: 6, thrCD: 0, thrMax: 8, ultCD: 0, ultMax: 14, flash: 0, picks: [], pickOpts: [], upgraded: [],
+      hero: { x: 340, y: 560, face: 1, hp: 120, max: 120, state: 'idle', t: 0, anim: 0, sk: false, kind: 'atk', fxT: 0, ringT: 0, h1: false, h2: false, h3: false, v: 0, lastAtkEnd: -9, lastAtkKind: '', x0: 0, buf: 0, cancelT: 0, total: 0, inv: 0, flash: 0 }
     };
   }
 
@@ -156,6 +160,7 @@ body {
     if (code === 'KeyK' || code === 'KeyX') tryAttack('sk');
     if (code === 'KeyL' || code === 'KeyC') tryAttack('pull');
     if (code === 'KeyU' || code === 'KeyV') tryAttack('ult');
+    if (code === 'KeyI' || code === 'KeyB') tryAttack('thr');
   }
 
   function canvasPoint(ev) {
@@ -203,6 +208,7 @@ body {
   tapBtn('btnS', function () { tryAttack('sk'); });
   tapBtn('btnP', function () { tryAttack('pull'); });
   tapBtn('btnU', function () { tryAttack('ult'); });
+  tapBtn('btnT', function () { tryAttack('thr'); });
 
   /* ---------- 進行 ---------- */
   function startRun() { G.state = 'play'; G.t = 0; startWave(1); }
@@ -233,6 +239,7 @@ body {
     var h = G.hero;
     if (h.state === 'atk' && h.kind === 'ult') return; // 必殺技の最中は、入力を受けない
     if (kind === 'ult' && G.ultCD > 0) { addText(h.x, h.y - 250, '必殺 再使用まで ' + G.ultCD.toFixed(1) + '秒', 20, '#ffb3b3', 0.7); return; }
+    if (kind === 'thr' && G.thrCD > 0) { addText(h.x, h.y - 250, '突き 再使用まで ' + G.thrCD.toFixed(1) + '秒', 20, '#a8dcff', 0.7); return; }
     if (kind === 'sk' && G.skCD > 0) { addText(h.x, h.y - 250, '再使用まで ' + G.skCD.toFixed(1) + '秒', 20, '#9aa0ff', 0.7); return; }
     if (kind === 'pull' && G.pullCD > 0) { addText(h.x, h.y - 250, '吸引 再使用まで ' + G.pullCD.toFixed(1) + '秒', 20, '#b7a6ff', 0.7); return; }
     if (h.state === 'atk' && h.t < h.cancelT) { h.buf = kind; return; }
@@ -240,10 +247,15 @@ body {
   }
   function beginAttack(kind) {
     var h = G.hero, a = S.aspd;
-    h.state = 'atk'; h.t = 0; h.kind = kind; h.sk = kind === 'sk'; h.h1 = h.h2 = false; h.buf = 0;
+    // 通常攻撃の連打：直前の攻撃から0.5秒以内なら、縦斬り(A)→横薙ぎ(B)→縦斬り…と順に出る
+    var recent = h.lastAtkKind === 'atk' && G.t - h.lastAtkEnd < 0.5;
+    h.v = (kind === 'atk' && recent && h.v === 0) ? 1 : 0; h.lastAtkKind = kind; h.lastAtkEnd = G.t;
+    h.state = 'atk'; h.t = 0; h.kind = kind; h.sk = kind === 'sk'; h.h1 = h.h2 = h.h3 = false; h.buf = 0;
     // 吸引は、引いた直後に次の技へつなげられるよう、キャンセル可能になる時点を早める
     h.cancelT = kind === 'pull' ? (10 / 48 + 0.14) / a : (10 / 48 + 9 / 32 + 5 / 48) / a;
     h.total = (10 / 48 + 9 / 32 + 17 / 48) / a;
+    if (kind === 'atk' && h.v === 1) { h.cancelT = ATB.cancel / a; h.total = ATB.total / a; }
+    if (kind === 'thr') { h.cancelT = THR.cancel; h.total = THR.total; h.x0 = h.x; h.fxT = 0; G.thrCD = G.thrMax; }
     if (kind === 'sk') G.skCD = G.skMax * S.cd;
     if (kind === 'pull') G.pullCD = G.pullMax * S.pcd;
     if (kind === 'ult') { h.cancelT = ULT.total; h.total = ULT.total; h.fxT = 0; h.ringT = 0; G.ultCD = G.ultMax; }
@@ -296,6 +308,69 @@ body {
     for (i = 0; i < 40; i++) { var dr = i % 2 ? 1 : -1; G.parts.push({ x: h.x + dr * rnd(40, 400), y: h.y - rnd(0, 30), vx: dr * rnd(80, 520), vy: -rnd(120, 520), g: 900, life: rnd(0.4, 0.9), t: 0, c: i % 3 ? '#d9d2bd' : '#ffe9a8', s: rnd(3, 8) }); }
     addText(h.x, h.y - 280, '必殺！', 58, '#ffe9a8', 1.0);
     if (hits) addText(h.x, h.y - 340, hits + '体 撃破', 30, '#ffb3b3', 1.0);
+  }
+  // 攻撃B：横薙ぎ。元動画のコマ番号ごとの再生時間(ms)。当たりは、前方(コマ28)→背面(コマ30)→頭上からの払い・背面(コマ55)
+  var ATB_SRC = [], ATB_T = [], ATB = {}, i0;
+  for (i0 = 12; i0 <= 37; i0++) ATB_SRC.push(i0);
+  for (i0 = 50; i0 <= 72; i0++) ATB_SRC.push(i0);
+  function atbMs(s) { return s <= 18 ? 25 : s <= 26 ? 22 : s === 27 ? 30 : s === 28 ? 35 : s === 29 ? 25 : s === 30 ? 30 : s <= 37 ? 30 : s <= 53 ? 35 : s <= 55 ? 30 : s === 56 ? 35 : 34; }
+  (function () {
+    var t = 0;
+    for (var i = 0; i < ATB_SRC.length; i++) { ATB_T.push(t); t += atbMs(ATB_SRC[i]) / 1000; }
+    ATB.total = t; ATB.h1 = ATB_T[ATB_SRC.indexOf(28)]; ATB.h2 = ATB_T[ATB_SRC.indexOf(30)]; ATB.h3 = ATB_T[ATB_SRC.indexOf(55)]; ATB.cancel = ATB.h3 + 0.14;
+  })();
+  // 貫通の突き：動画の24コマ。溜め(コマ1〜11)は0.35倍に詰め、突き(12〜20)は等倍、戻り(21〜24)は0.7倍
+  var THR_MS = [220, 280, 120, 100, 110, 150, 190, 200, 230, 270, 180, 70, 30, 30, 40, 30, 50, 80, 100, 90, 60, 90, 130, 180];
+  var THR_T = [], THR = {};
+  (function () {
+    var t = 0;
+    for (var i = 0; i < 24; i++) { THR_T.push(t); t += THR_MS[i] * (i < 11 ? 0.35 : i >= 20 ? 0.7 : 1) / 1000; }
+    THR.total = t; THR.move0 = THR_T[11]; THR.move1 = THR_T[17]; THR.hit = THR_T[15]; THR.safe = THR_T[20]; THR.cancel = t - 0.2;
+  })();
+  function tIdx(T, t) { var i = 0; while (i + 1 < T.length && T[i + 1] <= t) i++; return i; }
+  function atbTick(h) {
+    var tt = h.t * S.aspd;
+    if (!h.h1 && tt >= ATB.h1) { h.h1 = true; doHitB(1); }
+    if (!h.h2 && tt >= ATB.h2) { h.h2 = true; doHitB(2); }
+    if (!h.h3 && tt >= ATB.h3) { h.h3 = true; doHitB(3); }
+  }
+  function doHitB(n) {
+    var h = G.hero, side = n === 1 ? 1 : -1, R = (n === 1 ? 380 : 320) * S.range, lane = 84, hits = 0;
+    var dmg = (n === 1 ? 22 : n === 2 ? 14 : 18) * S.dmg;
+    for (var i = 0; i < G.enemies.length; i++) {
+      var e = G.enemies[i]; if (e.state !== 'walk') continue;
+      var dx = (e.x - h.x) * h.face * side, dy = Math.abs(e.y - h.y);
+      if (dx > -50 && dx < R && dy < lane) { hurt(e, dmg * (0.9 + Math.random() * 0.2), e.x >= h.x ? 1 : -1, n === 3); hits++; }
+    }
+    G.fx.push({ type: 'arc', x: h.x, y: h.y, face: h.face * side, R: R, t: 0, life: 0.22, second: n === 2 });
+    if (hits) { G.freeze = Math.max(G.freeze, 0.05 + Math.min(hits, 10) * 0.008); G.shake = Math.max(G.shake, 5 + Math.min(hits, 12) * 1.1); }
+    else G.shake = Math.max(G.shake, 1.5);
+  }
+  function thrTick(h, dt) {
+    var t = h.t;
+    if (t < THR.hit) { // 溜め：細い光の粒が剣先へ集まる
+      h.fxT -= dt;
+      if (h.fxT <= 0) { h.fxT = 0.05; G.parts.push({ x: h.x + h.face * rnd(40, 160), y: h.y - rnd(30, 200), vx: -h.face * rnd(40, 120), vy: -rnd(20, 90), g: 0, life: rnd(0.3, 0.5), t: 0, c: '#bfe4ff', s: rnd(3, 6) }); }
+    }
+    var k = clamp((t - THR.move0) / (THR.move1 - THR.move0), 0, 1); k = 1 - Math.pow(1 - k, 2); // 踏み込みで前へ滑る
+    h.x = clamp(h.x0 + h.face * 110 * k, 70, W - 70);
+    if (!h.h1 && t >= THR.hit) { h.h1 = true; doThr(h); }
+  }
+  // 貫通の突き：前方520pxの一直線を貫く。拘束した敵には1.5倍。吸引で集めた敵をまとめて貫く
+  function doThr(h) {
+    var R = 520 * S.range, lane = 72, base = 70 * S.dmg, hits = 0, i;
+    for (i = 0; i < G.enemies.length; i++) {
+      var e = G.enemies[i]; if (e.state !== 'walk') continue;
+      var dx = (e.x - h.x) * h.face, dy = Math.abs(e.y - h.y);
+      if (dx > -40 && dx < R && dy < lane) { hurt(e, base * (e.bind > 0 ? 1.5 : 1) * (0.9 + Math.random() * 0.2), h.face, true); hits++; }
+    }
+    G.fx.push({ type: 'lance', x: h.x, y: h.y, face: h.face, R: R, t: 0, life: 0.34 });
+    G.fx.push({ type: 'shock', x: h.x, y: h.y, dir: h.face, t: 0, life: 0.5 });
+    G.freeze = Math.max(G.freeze, 0.06 + Math.min(hits, 12) * 0.008);
+    G.shake = Math.max(G.shake, 8 + Math.min(hits, 12) * 1.4);
+    for (i = 0; i < 18; i++) G.parts.push({ x: h.x + h.face * rnd(60, R), y: h.y - rnd(20, 120), vx: h.face * rnd(100, 500), vy: -rnd(40, 240), g: 500, life: rnd(0.25, 0.6), t: 0, c: i % 2 ? '#d9f0ff' : '#ffffff', s: rnd(3, 6) });
+    addText(h.x + h.face * 200, h.y - 250, '貫通！', 40, '#bfe4ff', 0.9);
+    if (hits) addText(h.x + h.face * 200, h.y - 300, hits + '体 貫く', 24, '#d9f0ff', 0.9);
   }
   function atkFrame(t, a) {
     var P = [['atk', 0, 9, 48], ['atk', 10, 18, 32], ['rec', 0, 16, 48]];
@@ -416,6 +491,7 @@ body {
     var h = G.hero;
     if (G.skCD > 0) G.skCD = Math.max(0, G.skCD - dt);
     if (G.pullCD > 0) G.pullCD = Math.max(0, G.pullCD - dt);
+    if (G.thrCD > 0) G.thrCD = Math.max(0, G.thrCD - dt);
     if (G.ultCD > 0) G.ultCD = Math.max(0, G.ultCD - dt);
     if (G.comboT > 0) { G.comboT -= dt; if (G.comboT <= 0) G.combo = 0; }
     if (h.inv > 0) h.inv -= dt;
@@ -435,12 +511,17 @@ body {
     } else if (h.state === 'atk') {
       h.t += dt;
       var a = S.aspd, t1 = 10 / (48 * a), t2 = t1 + 3 / (32 * a);
-      if (!h.h1 && h.t >= t1) { h.h1 = true; if (h.kind === 'pull') doPull(h); else doHit(1); }
-      if (h.kind === 'atk' && !h.h2 && h.t >= t2) { h.h2 = true; doHit(2); }
+      if (h.kind === 'atk') h.lastAtkEnd = G.t;
+      if (h.kind === 'thr') thrTick(h, dt);
+      else if (h.kind === 'atk' && h.v === 1) atbTick(h);
+      else {
+        if (!h.h1 && h.t >= t1) { h.h1 = true; if (h.kind === 'pull') doPull(h); else doHit(1); }
+        if (h.kind === 'atk' && !h.h2 && h.t >= t2) { h.h2 = true; doHit(2); }
+      }
       if (h.t >= h.cancelT) {
         if (h.buf) {
           var bk = h.buf;
-          if ((bk === 'sk' && G.skCD > 0) || (bk === 'pull' && G.pullCD > 0) || (bk === 'ult' && G.ultCD > 0)) bk = 'atk';
+          if ((bk === 'sk' && G.skCD > 0) || (bk === 'pull' && G.pullCD > 0) || (bk === 'ult' && G.ultCD > 0) || (bk === 'thr' && G.thrCD > 0)) bk = 'atk';
           beginAttack(bk);
         }
         else if (mag > 0.2) h.state = 'idle';
@@ -489,7 +570,7 @@ body {
         if (Math.abs(dx) > 52 * e.size) e.x += Math.sign(dx) * e.sp * dt;
         if (Math.abs(dy) > 6) e.y += Math.sign(dy) * e.sp * 0.55 * dt;
         e.atkCD -= dt;
-        if (Math.abs(dx) < 70 * e.size && Math.abs(dy) < 28 && e.atkCD <= 0 && h.inv <= 0 && !(h.state === 'atk' && h.kind === 'ult')) { // 必殺技の最中は、無敵
+        if (Math.abs(dx) < 70 * e.size && Math.abs(dy) < 28 && e.atkCD <= 0 && h.inv <= 0 && !(h.state === 'atk' && (h.kind === 'ult' || (h.kind === 'thr' && h.t < THR.safe)))) { // 必殺技と、突きの溜め〜突きの間は、無敵
           e.atkCD = 1.1; h.hp -= e.dmg; h.inv = 0.45; h.flash = 0.25; G.shake = Math.max(G.shake, 4);
           addText(h.x, h.y - 230, '-' + e.dmg, 26, '#ff6b6b', 0.7);
           if (h.hp <= 0) { h.hp = 0; G.state = 'dead'; }
@@ -567,6 +648,8 @@ body {
       name = 'ult_' + pad2(ultFrame(h.t)); anch = ULT_A;
       if (h.t >= ULT.charge && h.t < ULT.charge + ULT.tame) jit = (Math.random() - 0.5) * 5; // 溜めを止める間の震え
     }
+    else if (h.state === 'atk' && h.kind === 'thr') { name = 'thr_' + pad2(tIdx(THR_T, h.t)); anch = THR_A; }
+    else if (h.state === 'atk' && h.kind === 'atk' && h.v === 1) { name = 'atb_' + pad2(tIdx(ATB_T, h.t * S.aspd)); anch = ATB_A; }
     else if (h.state === 'atk') { var f = atkFrame(h.t, S.aspd); name = f.c + '_' + pad2(f.i); anch = ATK_A; }
     var blink = h.inv > 0 && Math.floor(G.t * 24) % 2 === 0;
     ctx.globalAlpha = blink ? 0.55 : 1;
@@ -620,6 +703,12 @@ body {
         ctx.beginPath(); ctx.ellipse(0, f.second ? 30 : 0, rx, ry, 0, f.second ? -0.9 : -1.75, f.second ? 0.9 : 0.75); ctx.stroke();
         ctx.strokeStyle = 'rgba(255,255,255,' + (0.9 * (1 - p)) + ')'; ctx.lineWidth = (f.big ? 16 : 10) * (1 - p) + 1;
         ctx.beginPath(); ctx.ellipse(0, f.second ? 30 : 0, rx * 0.97, ry * 0.97, 0, f.second ? -0.8 : -1.6, f.second ? 0.8 : 0.65); ctx.stroke();
+        ctx.restore();
+      } else if (f.type === 'lance') { // 突きの光：前へ一気に伸びる細い槍
+        ctx.save(); ctx.translate(f.x, f.y - 95 * depthScale(f.y)); ctx.scale(f.face, 1);
+        var Ll = f.R * Math.min(1, p * 3.2), fl = 1 - p, wl = 36 * fl + 2;
+        ctx.fillStyle = 'rgba(120,190,255,' + (0.55 * fl) + ')'; ctx.beginPath(); ctx.moveTo(40, 0); ctx.lineTo(40 + Ll * 0.15, -wl); ctx.lineTo(40 + Ll, 0); ctx.lineTo(40 + Ll * 0.15, wl); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,' + (0.95 * fl) + ')'; ctx.beginPath(); ctx.moveTo(40, 0); ctx.lineTo(40 + Ll * 0.15, -wl * 0.35); ctx.lineTo(40 + Ll, 0); ctx.lineTo(40 + Ll * 0.15, wl * 0.35); ctx.closePath(); ctx.fill();
         ctx.restore();
       } else if (f.type === 'ring') {
         ctx.strokeStyle = 'rgba(' + (f.rgb || '255,205,110') + ',' + (1 - p) + ')'; ctx.lineWidth = 16 * (1 - p) + 2;
@@ -694,9 +783,10 @@ body {
       ctx.fillStyle = 'rgba(255,154,90,0.85)'; ctx.fillRect(W - 28 - 180 * (G.comboT / 2.4), 108 + (s - 34) * 0.4, 180 * (G.comboT / 2.4), 5);
     }
     // スキル（左：吸引 / 右：衝撃波）
-    skillIcon(W / 2 - 92, H - 64, 'L', '吸引', G.pullCD, G.pullMax * S.pcd, '#b7a6ff', '#e6deff');
-    skillIcon(W / 2, H - 64, 'K', '衝撃波', G.skCD, G.skMax * S.cd, '#ffcd6e', '#ffe9b8');
-    skillIcon(W / 2 + 92, H - 64, 'U', '必殺', G.ultCD, G.ultMax, '#ff8a8a', '#ffd6d6');
+    skillIcon(W / 2 - 138, H - 64, 'L', '吸引', G.pullCD, G.pullMax * S.pcd, '#b7a6ff', '#e6deff');
+    skillIcon(W / 2 - 46, H - 64, 'K', '衝撃波', G.skCD, G.skMax * S.cd, '#ffcd6e', '#ffe9b8');
+    skillIcon(W / 2 + 46, H - 64, 'I', '貫通突き', G.thrCD, G.thrMax, '#8fd0ff', '#d6efff');
+    skillIcon(W / 2 + 138, H - 64, 'U', '必殺', G.ultCD, G.ultMax, '#ff8a8a', '#ffd6d6');
   }
   function skillIcon(cx, cy, key, label, cd, max, ring, keyCol) {
     var r = 36, ready = cd <= 0;
