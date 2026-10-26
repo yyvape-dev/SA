@@ -1,6 +1,9 @@
 <!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>月夜の回廊 試作</title>
 <meta name="claude:viewport-fit-sides" content="cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&display=swap">
@@ -17,57 +20,56 @@
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
-body {
-  background: var(--bg); color: var(--fg); font-family: var(--font);
-  font-size: 14px; line-height: 1.6;
-  padding-block: 12px 28px;
-  padding-left: max(16px, env(safe-area-inset-left, 0px));
-  padding-right: max(16px, env(safe-area-inset-right, 0px));
-}
-.wrap { max-width: none; margin: 0 auto; display: grid; gap: 8px; }
-.head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; }
-.head h1 { margin: 0; font-size: 17px; font-weight: 900; letter-spacing: .04em; }
-.head p { margin: 0; color: var(--muted); font-size: 12.5px; }
-#stage { position: relative; width: 100%; max-width: calc((100vh - 96px) * 16 / 9); margin: 0 auto; aspect-ratio: 16 / 9; background: #000; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; touch-action: none; }
+html, body { height: 100%; }
+body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--fg); font-family: var(--font); font-size: 14px; line-height: 1.6; overscroll-behavior: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+/* 画面いっぱいに表示。16:9の絵は、余った所を黒帯にして収める（横画面前提） */
+.wrap { position: fixed; inset: 0; }
+.head { display: none; }
+#stage { position: absolute; inset: 0; background: #000; overflow: hidden; touch-action: none; }
 #game { display: block; width: 100%; height: 100%; outline: none; object-fit: contain; }
-#stage:fullscreen { max-width: none; width: 100vw; height: 100vh; aspect-ratio: auto; border: 0; border-radius: 0; }
-#fs { position: absolute; top: 6px; left: 50%; transform: translateX(-50%); z-index: 3; font: inherit; font-size: 12px; font-weight: 700; padding: 3px 12px; border-radius: 6px; border: 1px solid var(--line); background: rgba(12,10,17,.7); color: var(--fg); cursor: pointer; }
-.keys { display: flex; flex-wrap: wrap; gap: 6px 14px; color: var(--muted); font-size: 12.5px; }
-.keys b { color: var(--fg); font-weight: 700; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 0 6px; margin-right: 4px; }
-.touch { display: none; position: absolute; left: 0; right: 0; bottom: 0; padding: 10px 14px; justify-content: space-between; align-items: flex-end; pointer-events: none; touch-action: none; user-select: none; -webkit-user-select: none; z-index: 2; }
-@media (pointer: coarse) { .touch { display: flex; } .keys { display: none; } }
-@media (pointer: coarse) and (orientation: landscape) { .head, .note { display: none; } #stage { max-width: calc((100vh - 16px) * 16 / 9); } body { padding-block: 8px; } }
-#pad { width: 22%; max-width: 170px; aspect-ratio: 1; border-radius: 50%; background: rgba(23,19,31,.55); border: 2px solid rgba(255,255,255,.25); position: relative; flex: 0 0 auto; pointer-events: auto; }
+#fs { position: absolute; top: max(6px, env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); z-index: 3; font: inherit; font-size: 12px; font-weight: 700; padding: 3px 12px; border-radius: 6px; border: 1px solid var(--line); background: rgba(12,10,17,.55); color: var(--fg); cursor: pointer; opacity: .75; }
+.keys { transition: opacity 1.2s; position: absolute; left: 10px; bottom: 8px; z-index: 2; display: flex; flex-direction: column; gap: 1px; padding: 6px 8px; border-radius: 6px; background: rgba(8,6,12,.5); color: var(--muted); font-size: 11.5px; line-height: 1.5; pointer-events: none; }
+.keys b { color: var(--fg); font-weight: 700; margin-right: 6px; }
+.note { position: absolute; left: 50%; bottom: 4px; transform: translateX(-50%); z-index: 2; margin: 0; color: var(--muted); font-size: 12px; pointer-events: none; text-shadow: 0 1px 3px #000; }
+/* タッチ操作：左下に移動パッド、右下に大きな攻撃ボタン。その周りに、一回り小さいスキルが弧を描いて並ぶ */
+.touch { display: none; position: absolute; inset: 0; z-index: 2; pointer-events: none; touch-action: none; user-select: none; -webkit-user-select: none; }
+@media (pointer: coarse) { .touch { display: block; } .keys { display: none; } }
+#stage.t .touch { display: block; }
+.wrap.t .keys { display: none; }
+#pad { position: absolute; left: calc(max(14px, env(safe-area-inset-left, 0px)) + 2vw); bottom: calc(max(10px, env(safe-area-inset-bottom, 0px)) + 5vh); width: clamp(110px, 34vh, 190px); aspect-ratio: 1; border-radius: 50%; background: rgba(23,19,31,.5); border: 2px solid rgba(255,255,255,.25); pointer-events: auto; }
 #knob { position: absolute; width: 38%; height: 38%; border-radius: 50%; background: var(--accent); opacity: .8; left: 31%; top: 31%; pointer-events: none; }
-.btns { display: flex; gap: 14px; align-items: center; }
-.btn { font: inherit; font-weight: 900; border-radius: 50%; border: 2px solid rgba(255,255,255,.3); background: rgba(23,19,31,.6); color: var(--fg); touch-action: none; pointer-events: auto; }
-.btn.a { width: min(18vw, 120px); height: min(18vw, 120px); font-size: 20px; background: rgba(58,42,20,.75); border-color: var(--accent); }
-.btn.s { width: min(13vw, 88px); height: min(13vw, 88px); font-size: 14px; }
-.btn.u { border-color: #ff8a8a; background: rgba(70,24,30,.75); }
-.btn:active { filter: brightness(1.4); }
-.note { color: var(--muted); font-size: 12px; margin: 0; }
+.btns { --A: clamp(96px, 30vh, 150px); --s: calc(var(--A) * .58); --r: calc((var(--A) + var(--s)) / 2 + 8px);
+  position: absolute; right: calc(max(14px, env(safe-area-inset-right, 0px)) + 3.5vw); bottom: calc(max(10px, env(safe-area-inset-bottom, 0px)) + 5vh); width: var(--A); height: var(--A); pointer-events: none; }
+.btn { position: absolute; font: inherit; font-weight: 900; border-radius: 50%; border: 2px solid rgba(255,255,255,.32); background: rgba(23,19,31,.62); color: var(--fg); touch-action: none; pointer-events: auto; padding: 0; line-height: 1.15; }
+.btn.a { left: 0; top: 0; width: var(--A); height: var(--A); font-size: calc(var(--A) * .2); background: rgba(58,42,20,.78); border-color: var(--accent); }
+.btn.s { left: 50%; top: 50%; width: var(--s); height: var(--s); margin: calc(var(--s) / -2) 0 0 calc(var(--s) / -2); font-size: calc(var(--s) * .2); transform: translate(calc(var(--cx) * var(--r)), calc(var(--cy) * var(--r))); overflow: hidden; }
+.btn.s::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(rgba(8,6,14,.74) calc(var(--cd, 0) * 1turn), transparent 0); pointer-events: none; }
+.btn.s.cool { border-color: rgba(255,255,255,.14); color: #9d93ab; }
+.btn.s small { display: block; font-size: .72em; font-weight: 700; opacity: .8; }
+.btn.l { border-color: #b7a6ff; } .btn.k { border-color: #ffcd6e; } .btn.i { border-color: #8fd0ff; } .btn.u { border-color: #ff8a8a; background: rgba(70,24,30,.78); }
+.btn:active { filter: brightness(1.45); }
+#rot { display: none; position: absolute; inset: 0; z-index: 10; background: #0c0a11; flex-direction: column; align-items: center; justify-content: center; gap: 10px; font-size: 20px; font-weight: 900; text-align: center; }
+@media (pointer: coarse) and (orientation: portrait) { #rot { display: flex; } }
 </style>
 
-<div class="wrap">
-  <div class="head">
-    <h1>月夜の回廊 試作</h1>
-    <p>敵の群れをスキルで一掃する爽快感を試す、最小の遊べる版です。敵は仮の絵です。</p>
-  </div>
+<div class="wrap" id="wrap">
+  <div class="head"><h1>月夜の回廊 試作</h1></div>
   <div id="stage">
     <canvas id="game" tabindex="0" aria-label="ゲーム画面"></canvas>
     <button id="fs" type="button">全画面</button>
     <div class="touch">
       <div id="pad" aria-label="移動パッド"><div id="knob"></div></div>
       <div class="btns">
-        <button class="btn s u" id="btnU" type="button">必殺</button>
-        <button class="btn s" id="btnT" type="button">突き</button>
-        <button class="btn s" id="btnP" type="button">吸引</button>
-        <button class="btn s" id="btnS" type="button">衝撃波</button>
+        <button class="btn s l" id="btnP" type="button" style="--cx:-0.985;--cy:0.174">吸引</button>
+        <button class="btn s k" id="btnS" type="button" style="--cx:-0.829;--cy:-0.559">衝撃波</button>
+        <button class="btn s i" id="btnT" type="button" style="--cx:-0.208;--cy:-0.978">突き</button>
+        <button class="btn s u" id="btnU" type="button" style="--cx:0.53;--cy:-0.848">必殺</button>
         <button class="btn a" id="btnA" type="button">攻撃</button>
       </div>
     </div>
+    <div id="rot"><div>画面を横向きにしてください</div></div>
   </div>
-  <div class="keys">
+  <div class="keys" id="keys">
     <span><b>← ↑ ↓ →</b>移動（WASDも可）</span>
     <span><b>Shift</b>走る</span>
     <span><b>J / Space</b>攻撃（連打で縦斬り→横薙ぎ）</span>
@@ -87,10 +89,12 @@ body {
   var W = 1280, H = 720;
   var cv = document.getElementById('game'), ctx = cv.getContext('2d');
   cv.width = W; cv.height = H;
+  var TOUCH = !!((window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || (window.location && /[?&]touch=1/.test(window.location.search || '')));
+  (function () { var w = document.getElementById('wrap'), st = document.getElementById('stage'); if (TOUCH && w && w.classList) { w.classList.add('t'); st.classList.add('t'); } })();
   var RES = 1, resTick = 0;
   function fitRes() { // 画面に映る実際の大きさに合わせて内部解像度を上げる（最大2倍）。論理座標は1280×720のまま
     var r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
-    var want = Math.max(1, Math.min(2, Math.round((r.width * dpr / W) * 4) / 4));
+    var want = Math.max(1, Math.min(2, Math.round((Math.min(r.width / W, r.height / H) * dpr) * 4) / 4));
     if (!(r.width > 0)) want = RES;
     if (want !== RES || cv.width !== Math.round(W * want)) { RES = want; cv.width = Math.round(W * RES); cv.height = Math.round(H * RES); }
     ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
@@ -212,7 +216,17 @@ body {
   tapBtn('btnT', function () { tryAttack('thr'); });
 
   /* ---------- 進行 ---------- */
-  function startRun() { G.state = 'play'; G.t = 0; startWave(1); }
+  var fsTried = false;
+  function tryFs() { // 最初の操作で全画面と横向き固定を試す（対応していない端末では何も起きない）
+    if (fsTried || !TOUCH) return; fsTried = true;
+    try { var st = document.getElementById('stage'); if (!document.fullscreenElement && st.requestFullscreen) st.requestFullscreen().then(function () { try { if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(function () {}); } catch (e) {} }).catch(function () {}); } catch (e) {}
+  }
+  function startRun() {
+    tryFs(); G.state = 'play'; G.t = 0; startWave(1);
+    var kz = document.getElementById('keys'), nt = document.getElementById('loadnote'); // 操作の説明と読み込みの表示は、始めたらしまう
+    if (nt && nt.style) nt.style.display = 'none';
+    if (kz && kz.style) setTimeout(function () { kz.style.opacity = '0'; }, 7000);
+  }
 
   function startWave(n) {
     G.wave = n; G.queue = []; G.qT = 0;
@@ -812,10 +826,10 @@ body {
       ctx.fillStyle = 'rgba(255,154,90,0.85)'; ctx.fillRect(W - 28 - 180 * (G.comboT / 2.4), 108 + (s - 34) * 0.4, 180 * (G.comboT / 2.4), 5);
     }
     // スキル（左：吸引 / 右：衝撃波）
-    skillIcon(W / 2 - 138, H - 64, 'L', '吸引', G.pullCD, G.pullMax * S.pcd, '#b7a6ff', '#e6deff');
-    skillIcon(W / 2 - 46, H - 64, 'K', '衝撃波', G.skCD, G.skMax * S.cd, '#ffcd6e', '#ffe9b8');
-    skillIcon(W / 2 + 46, H - 64, 'I', '貫通突き', G.thrCD, G.thrMax, '#8fd0ff', '#d6efff');
-    skillIcon(W / 2 + 138, H - 64, 'U', '必殺', G.ultCD, G.ultMax, '#ff8a8a', '#ffd6d6');
+    if (!TOUCH) skillIcon(W / 2 - 138, H - 64, 'L', '吸引', G.pullCD, G.pullMax * S.pcd, '#b7a6ff', '#e6deff');
+    if (!TOUCH) skillIcon(W / 2 - 46, H - 64, 'K', '衝撃波', G.skCD, G.skMax * S.cd, '#ffcd6e', '#ffe9b8');
+    if (!TOUCH) skillIcon(W / 2 + 46, H - 64, 'I', '貫通突き', G.thrCD, G.thrMax, '#8fd0ff', '#d6efff');
+    if (!TOUCH) skillIcon(W / 2 + 138, H - 64, 'U', '必殺', G.ultCD, G.ultMax, '#ff8a8a', '#ffd6d6');
   }
   function skillIcon(cx, cy, key, label, cd, max, ring, keyCol) {
     var r = 36, ready = cd <= 0;
@@ -872,8 +886,19 @@ body {
     for (var k = 0; k < lines.length; k++) txt(lines[k], x, y + k * size * (1 + (lh || 2) * 0.1 + 0.25), size, col, align, 3);
   }
 
+  var CDB = null;
+  function updateTouchCd() { // スキルボタンの円グラフ（残り時間の割合）と、使えない間の暗さ
+    if (!TOUCH) return;
+    if (!CDB) CDB = [['btnP', 'pullCD', function () { return G.pullMax * S.pcd; }], ['btnS', 'skCD', function () { return G.skMax * S.cd; }], ['btnT', 'thrCD', function () { return G.thrMax; }], ['btnU', 'ultCD', function () { return G.ultMax; }]].map(function (d) { return { el: document.getElementById(d[0]), key: d[1], max: d[2], last: -1 }; });
+    for (var i = 0; i < CDB.length; i++) {
+      var b = CDB[i], v = Math.round(Math.max(0, Math.min(1, G[b.key] / b.max())) * 50) / 50;
+      if (v === b.last || !b.el.style || !b.el.style.setProperty) continue;
+      b.last = v; b.el.style.setProperty('--cd', String(v)); if (b.el.classList) b.el.classList.toggle('cool', v > 0);
+    }
+  }
   function draw() {
     if (resTick++ % 30 === 0) fitRes();
+    updateTouchCd();
     ctx.setTransform(RES, 0, 0, RES, 0, 0);
     ctx.save();
     ctx.clearRect(0, 0, W, H);
@@ -906,7 +931,7 @@ body {
   var last = 0;
   function frame(ts) {
     var dt = Math.min(0.05, (ts - last) / 1000 || 0.016); last = ts;
-    update(dt); draw();
+    if (!(TOUCH && window.innerHeight > window.innerWidth)) update(dt); draw();
     requestAnimationFrame(frame);
   }
   function boot() {
