@@ -147,7 +147,7 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
      戦場に入るとカメラが固定され、敵を全滅させるとGOが出て、次の戦場へ進める。最後の戦場は右端の出口から次の部屋へ。
      h が画面の高さ(720)より大きい部屋では、カメラが上下にも追従する（y0〜y1 はその部屋で動ける奥行きの帯。背景の絵ができたら使う）。 */
   var ROOMS = [
-    { name: '月夜の回廊', w: BW * 3, h: 720, y0: 520, y1: 660, segs: 3, stage: 's1', hz: 500, par: 0.6, zk: 0.8, ds0: 0.9, ds1: 1.15, spread: 50 }, // 手前まで広い床の部屋：帯は広く、判定の奥行きは薄く、敵は奥行きに散る
+    { name: '月夜の回廊', w: BW * 3, h: 720, y0: 540, y1: 690, segs: 3, stage: 's1', hz: 437, par: 0.6, zk: 0.8, ds0: 0.92, ds1: 1.2, spread: 60 }, // 手前まで広い床の部屋：帯は広く、判定の奥行きは薄く、敵は奥行きに散る
     { name: '崩れた回廊', w: BW * 4, h: 720, y0: 528, y1: 590, segs: 4 }
   ];
   var ROOM = ROOMS[0], LANE_Y0 = ROOM.y0, LANE_Y1 = ROOM.y1, ZK = ROOM.zk || 1, camX = 0, camY = 0;
