@@ -120,11 +120,12 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
 
   /* ---------- 素材 ---------- */
   var RUN_K = 0.86; // 走りの動画はキャラが約1.15倍の大きさで出たため、足元を基準に縮める
-  var M = { ax: 362, ay: 379, k: 0.6, clips: { walk: 24, run: 10, atk: 19, rec: 17, idle: 1, ult: 59, atb: 49, thr: 24, atc: 33 } }; // 待機・歩き・走りは1.0倍で保存。0.6倍で描くと従来と同じ大きさ
+  var M = { ax: 362, ay: 379, k: 0.6, clips: { walk: 24, run: 10, atk: 19, rec: 17, idle: 1, ult: 59, atb: 49, thr: 24, atc: 33, dmg: 4 } }; // 待機・歩き・走りは1.0倍で保存。0.6倍で描くと従来と同じ大きさ
   var ATK_A = { ax: 235.2, ay: 328.2, k: 1 }; // 攻撃・構え直しは旧素材（0.6倍で保存）。攻撃の動画を撮り直したら置き換える
   var ATC_A = { ax: 419, ay: 543, k: 0.6 };   // 攻撃A（縦斬り・新）。動画のコマ9〜60から、静止を詰めて使う
   var ATB_A = { ax: 458, ay: 536, k: 0.6 };   // 攻撃B（横薙ぎ）。動画のコマ12〜37と50〜72（頭上の静止は省く）
   var THR_A = { ax: 553.1, ay: 697, k: 0.508 }; // 貫通の突き。元の絵が大きいので、0.508倍で主人公と同じ背丈
+  var DMG_A = { ax: 215, ay: 261, k: 0.846 }; // 被弾・死亡（静止画4枚：被弾→のけぞり→踏ん張り→立ち直り）。元絵が小さいので、拡大率で主人公の背丈にそろえた
   var ULT_A = { ax: 446, ay: 568, k: 0.6 }, ULT_F0 = 8; // 必殺技の連番は、動画のコマ8〜66。足元の基準は主人公と同じ高さ
   var IMG = {}, loaded = 0, total = 1, failed = 0, started = false;
   function pad2(n) { return (n < 10 ? '0' : '') + n; }
@@ -173,7 +174,7 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
       state: 'title', t: 0, wave: 0, enemies: [], drops: [], parts: [], fx: [], texts: [], booms: [],
       queue: [], qT: 0, shake: 0, freeze: 0, combo: 0, comboT: 0, bestCombo: 0, kills: 0, gold: 0, rare: 0,
       skCD: 0, skMax: 3.2, pullCD: 0, pullMax: 6, thrCD: 0, thrMax: 8, ultCD: 0, ultMax: 14, flash: 0, picks: [], pickOpts: [], upgraded: [],
-      hero: { x: 340, y: 560, face: 1, hp: 120, max: 120, state: 'idle', t: 0, anim: 0, sk: false, kind: 'atk', fxT: 0, ringT: 0, h1: false, h2: false, h3: false, v: 0, lastAtkEnd: -9, lastAtkKind: '', x0: 0, buf: 0, cancelT: 0, total: 0, inv: 0, flash: 0 }
+      hero: { x: 340, y: 560, face: 1, hp: 120, max: 120, state: 'idle', t: 0, anim: 0, sk: false, kind: 'atk', fxT: 0, ringT: 0, h1: false, h2: false, h3: false, v: 0, lastAtkEnd: -9, lastAtkKind: '', x0: 0, buf: 0, cancelT: 0, total: 0, inv: 0, flash: 0, kb: 0 }
     };
   }
 
@@ -327,7 +328,7 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
     if (kind === 'thr' && G.thrCD > 0) { addText(h.x, h.y - 250, '突き 再使用まで ' + G.thrCD.toFixed(1) + '秒', 20, '#a8dcff', 0.7); return; }
     if (kind === 'sk' && G.skCD > 0) { addText(h.x, h.y - 250, '再使用まで ' + G.skCD.toFixed(1) + '秒', 20, '#9aa0ff', 0.7); return; }
     if (kind === 'pull' && G.pullCD > 0) { addText(h.x, h.y - 250, '吸引 再使用まで ' + G.pullCD.toFixed(1) + '秒', 20, '#b7a6ff', 0.7); return; }
-    if (h.state === 'atk' && h.t < h.cancelT) { h.buf = kind; return; }
+    if (h.state === 'hurt' || (h.state === 'atk' && h.t < h.cancelT)) { h.buf = kind; return; }
     beginAttack(kind);
   }
   function beginAttack(kind) {
@@ -346,6 +347,9 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
     if (kind === 'pull') G.pullCD = G.pullMax * S.pcd;
     if (kind === 'ult') { h.cancelT = ULT.total; h.total = ULT.total; h.fxT = 0; h.ringT = 0; G.ultCD = G.ultMax; }
   }
+  // 被弾：のけぞり(0.08秒)→大きくのけぞる(0.10)→踏ん張る(0.10)→立ち直る(0.08)。攻撃中は、のけぞらない（一掃の流れを止めない）。のけぞり中の入力は、先行入力として受け、終わったら出す
+  var HURT = { cut: [0, 0.08, 0.18, 0.28], total: 0.36 };
+  function hurtFrame(t) { var i = 0; while (i + 1 < HURT.cut.length && HURT.cut[i + 1] <= t) i++; return i; }
   // 必殺技：回転斬り。溜め→一瞬止める→斬る(当たり)→振り抜き→戻り。動画の3秒を、約1.5秒に詰める
   var ULT = { charge: 0.75, tame: 0.15, slash: 0.10, post: 0.22, ret: 0.30 };
   ULT.hit = ULT.charge + ULT.tame + ULT.slash; ULT.total = ULT.hit + ULT.post + ULT.ret;
@@ -597,6 +601,7 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
     if (G.shake > 0.1) G.shake *= Math.pow(0.002, dt); else G.shake = 0;
     if (G.state === 'title') return;
     if (G.freeze > 0) { G.freeze -= dt; return; }
+    if (G.state === 'dead') G.deadT = (G.deadT || 0) + dt;
     if (G.state === 'pick' || G.state === 'dead') { updateFx(dt); return; }
     if (G.trans) { // 部屋の移動中：暗転の真ん中で次の部屋へ切り替える
       var tr = G.trans; tr.t += dt;
@@ -646,7 +651,11 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
       }
       if (h.state === 'atk' && h.t >= h.total) h.state = 'idle';
     }
-    if (h.state !== 'atk') {
+    if (h.state === 'hurt') { // のけぞり：少し押し戻され、終わったら先行入力を出す
+      h.t += dt; h.x += h.kb * dt; h.kb *= Math.pow(0.02, dt);
+      if (h.t >= HURT.total) { h.state = 'idle'; h.anim = 0; if (h.buf) { var hb = h.buf; h.buf = 0; if (!((hb === 'sk' && G.skCD > 0) || (hb === 'pull' && G.pullCD > 0) || (hb === 'ult' && G.ultCD > 0) || (hb === 'thr' && G.thrCD > 0))) beginAttack(hb); } }
+    }
+    if (h.state !== 'atk' && h.state !== 'hurt') {
       if (mag > 0.2) {
         var sp = run ? 380 : 190;
         h.x += ax / Math.max(1, Math.hypot(ax, ay)) * sp * dt * (mag > 1 ? 1 : 1);
@@ -698,7 +707,8 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
         if (Math.abs(dx) < 70 * e.size && Math.abs(dy) < 28 && e.atkCD <= 0 && h.inv <= 0 && !(h.state === 'atk' && (h.kind === 'ult' || (h.kind === 'thr' && h.t < THR.safe)))) { // 必殺技と、突きの溜め〜突きの間は、無敵
           e.atkCD = 1.1; h.hp -= e.dmg; h.inv = 0.45; h.flash = 0.25; G.shake = Math.max(G.shake, 4);
           addText(h.x, h.y - 230, '-' + e.dmg, 26, '#ff6b6b', 0.7);
-          if (h.hp <= 0) { h.hp = 0; G.state = 'dead'; }
+          if (h.state !== 'atk' && h.hp > 0) { h.state = 'hurt'; h.t = 0; h.buf = 0; h.kb = (h.x >= e.x ? 1 : -1) * 240; }
+          if (h.hp <= 0) { h.hp = 0; G.state = 'dead'; G.deadT = 0; }
         }
       }
       e.y = clamp(e.y, LANE_Y0 - 6, LANE_Y1 + 6);
@@ -756,10 +766,10 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
     ctx.fillStyle = 'rgba(0,0,0,0.38)'; ctx.beginPath(); ctx.ellipse(x, y + 2, w, w * 0.2, 0, 0, 7); ctx.fill();
   }
 
-  function drawSprite(name, x, y, face, sc, sy, an) {
+  function drawSprite(name, x, y, face, sc, sy, an, rot) {
     var im = IMG[name]; if (!im || !im.complete || !im.naturalWidth) return;
     var A = an || M;
-    ctx.save(); ctx.translate(x, y); var kk = A.k || 1; ctx.scale(face * sc * kk, sc * kk * (sy || 1)); ctx.drawImage(im, -A.ax, -A.ay); ctx.restore();
+    ctx.save(); ctx.translate(x, y); if (rot) ctx.rotate(rot); var kk = A.k || 1; ctx.scale(face * sc * kk, sc * kk * (sy || 1)); ctx.drawImage(im, -A.ax, -A.ay); ctx.restore();
   }
 
   function drawHero() {
@@ -769,6 +779,7 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
     if (h.state === 'idle') sy = 1 + 0.012 * Math.sin(h.anim * 2 * Math.PI / 1.7);
     else if (h.state === 'walk') name = 'walk_' + pad2(Math.floor(h.anim) % 24);
     else if (h.state === 'run') name = 'run_' + pad2(Math.floor(h.anim) % 10);
+    else if (h.state === 'hurt') { name = 'dmg_' + pad2(hurtFrame(h.t)); anch = DMG_A; }
     else if (h.state === 'atk' && h.kind === 'ult') {
       name = 'ult_' + pad2(ultFrame(h.t)); anch = ULT_A;
       if (h.t >= ULT.charge && h.t < ULT.charge + ULT.tame) jit = (Math.random() - 0.5) * 5; // 溜めを止める間の震え
@@ -777,9 +788,13 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
     else if (h.state === 'atk' && h.kind === 'atk' && h.v === 1) { name = 'atb_' + pad2(tIdx(ATB_T, h.t * S.aspd)); anch = ATB_A; }
     else if (h.state === 'atk' && h.kind === 'atk') { name = 'atc_' + pad2(tIdx(ATC_T, h.t * S.aspd)); anch = ATC_A; }
     else if (h.state === 'atk') { var f = atkFrame(h.t, S.aspd); name = f.c + '_' + pad2(f.i); anch = ATK_A; }
-    var blink = h.inv > 0 && Math.floor(G.t * 24) % 2 === 0;
+    var rot = 0;
+    if (G.state === 'dead') { // やられ：のけぞった姿のまま、足元を軸に後ろへ倒れる（静止画＋コードの動き）
+      name = 'dmg_01'; anch = DMG_A; sy = 1; var dk = Math.min(1, (G.deadT || 0) / 0.7); rot = -h.face * 1.4 * (1 - Math.pow(1 - dk, 3));
+    }
+    var blink = h.inv > 0 && Math.floor(G.t * 24) % 2 === 0 && G.state !== 'dead';
     ctx.globalAlpha = blink ? 0.55 : 1;
-    drawSprite(name, h.x + jit, h.y, h.face, sc * (h.state === 'run' ? RUN_K : 1), sy, anch);
+    drawSprite(name, h.x + jit, h.y, h.face, sc * (h.state === 'run' ? RUN_K : 1), sy, anch, rot);
     ctx.globalAlpha = 1;
   }
 
