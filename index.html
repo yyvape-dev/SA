@@ -133,8 +133,9 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
   function loadAll() {
     var names = [];
     Object.keys(M.clips).forEach(function (c) { for (var i = 0; i < M.clips[c]; i++) names.push(c + '_' + pad2(i)); });
-    total = names.length + 1;
+    total = names.length + 3;
     var bg = new Image(); bg.onload = onDone; bg.onerror = function () { failed++; onDone(); }; bg.src = 'bg.jpg'; IMG.bg = bg;
+    ['s1_back', 's1_floor'].forEach(function (k) { var im = new Image(); im.onload = onDone; im.onerror = function () { failed++; onDone(); }; im.src = 'stage/' + k + '.jpg'; IMG[k] = im; });
     names.forEach(function (n) {
       var im = new Image(); im.onload = onDone; im.onerror = function () { failed++; onDone(); };
       im.src = 'sprites/' + n + '.png'; IMG[n] = im;
@@ -146,12 +147,13 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
      戦場に入るとカメラが固定され、敵を全滅させるとGOが出て、次の戦場へ進める。最後の戦場は右端の出口から次の部屋へ。
      h が画面の高さ(720)より大きい部屋では、カメラが上下にも追従する（y0〜y1 はその部屋で動ける奥行きの帯。背景の絵ができたら使う）。 */
   var ROOMS = [
-    { name: '月夜の回廊', w: BW * 3, h: 720, y0: 528, y1: 590, segs: 3 },
+    { name: '月夜の回廊', w: BW * 3, h: 720, y0: 480, y1: 665, segs: 3, stage: 's1', hz: 437, par: 0.6, zk: 0.8, ds0: 0.84, ds1: 1.14, spread: 70 }, // 手前まで広い床の部屋：帯は広く、判定の奥行きは薄く、敵は奥行きに散る
     { name: '崩れた回廊', w: BW * 4, h: 720, y0: 528, y1: 590, segs: 4 }
   ];
-  var ROOM = ROOMS[0], LANE_Y0 = ROOM.y0, LANE_Y1 = ROOM.y1, camX = 0, camY = 0;
+  var ROOM = ROOMS[0], LANE_Y0 = ROOM.y0, LANE_Y1 = ROOM.y1, ZK = ROOM.zk || 1, camX = 0, camY = 0;
+  function setRoomVars() { LANE_Y0 = ROOM.y0; LANE_Y1 = ROOM.y1; ZK = ROOM.zk || 1; }
   function LK(k) { return ROOM.segs < 2 ? 0 : Math.round(k * (ROOM.w - W) / (ROOM.segs - 1)); } // k番目の戦場のカメラ位置（画面の左端）
-  function depthScale(y) { return 0.9 + 0.16 * ((y - LANE_Y0) / (LANE_Y1 - LANE_Y0)); }
+  function depthScale(y) { var a = ROOM.ds0 || 0.9, b = ROOM.ds1 || 1.06; return a + (b - a) * ((y - LANE_Y0) / (LANE_Y1 - LANE_Y0)); }
   function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
   function rnd(a, b) { return a + Math.random() * (b - a); }
   function heroMinX() { return LK(G.seg) + 70; }
@@ -168,7 +170,7 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
 
   function newGame() {
     S = { dmg: 1, range: 1, aspd: 1.5, cd: 1, chain: 0, pcd: 1, bind: 0.8 };
-    ROOM = ROOMS[0]; LANE_Y0 = ROOM.y0; LANE_Y1 = ROOM.y1; camX = 0; camY = 0;
+    ROOM = ROOMS[0]; setRoomVars(); camX = 0; camY = 0;
     G = {
       roomNo: 0, seg: 0, phase: 'fight', trans: null,
       state: 'title', t: 0, wave: 0, enemies: [], drops: [], parts: [], fx: [], texts: [], booms: [],
@@ -300,7 +302,7 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
   }
   // 部屋に入る：戦場0に立ち、カメラをその位置へ合わせて、最初の波を始める
   function enterRoom(i) {
-    G.roomNo = i; ROOM = ROOMS[i % ROOMS.length]; LANE_Y0 = ROOM.y0; LANE_Y1 = ROOM.y1;
+    G.roomNo = i; ROOM = ROOMS[i % ROOMS.length]; setRoomVars();
     G.seg = 0; G.phase = 'fight'; G.enemies = []; G.drops = []; G.parts = []; G.fx = []; G.texts = []; G.booms = []; G.queue = [];
     var h = G.hero; h.x = LK(0) + 340; h.y = Math.round((LANE_Y0 + LANE_Y1) / 2); h.state = 'idle'; h.t = 0; h.buf = 0; h.inv = 0;
     updateCam(0, true); startWave(G.wave + 1);
@@ -311,7 +313,7 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
   function spawn(q) {
     var side = Math.random() < 0.5 ? -1 : 1, n = G.wave, cl = LK(G.seg); // 今の戦場の左右の外から出す
     var e = {
-      x: side < 0 ? cl - 60 : cl + W + 60, y: rnd(LANE_Y0, LANE_Y1), face: -side,
+      x: side < 0 ? cl - 60 : cl + W + 60, y: rnd(LANE_Y0, LANE_Y1), yo: rnd(-1, 1) * (ROOM.spread || 20), face: -side,
       size: q.elite ? 1.6 : rnd(0.92, 1.08), elite: q.elite,
       max: (22 + n * 5) * (q.elite ? 10 : 1), hp: 0, sp: (78 + rnd(0, 40) + n * 3) * (q.elite ? 0.8 : 1),
       state: 'walk', t: rnd(0, 6), atkCD: rnd(0.2, 0.8), stun: 0, kx: 0, flash: 0, dt: 0, dmg: 6 + n * (q.elite ? 2 : 1)
@@ -424,7 +426,7 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
     if (!h.h2 && tt >= ATC.h2) { h.h2 = true; doHitC(2); }
   }
   function doHitC(n) { // 1：前方への斬り下ろし 2：背面への払い（ダメージは従来の20・13）
-    var h = G.hero, side = n === 1 ? 1 : -1, R = (n === 1 ? 340 : 300) * S.range, lane = 72, hits = 0, dmg = (n === 1 ? 20 : 13) * S.dmg;
+    var h = G.hero, side = n === 1 ? 1 : -1, R = (n === 1 ? 340 : 300) * S.range, lane = 72 * ZK, hits = 0, dmg = (n === 1 ? 20 : 13) * S.dmg;
     for (var i = 0; i < G.enemies.length; i++) {
       var e = G.enemies[i]; if (e.state !== 'walk') continue;
       var dx = (e.x - h.x) * h.face * side, dy = Math.abs(e.y - h.y);
@@ -450,7 +452,7 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
     if (!h.h3 && tt >= ATB.h3) { h.h3 = true; doHitB(3); }
   }
   function doHitB(n) {
-    var h = G.hero, side = n === 1 ? 1 : -1, R = (n === 1 ? 380 : 320) * S.range, lane = 84, hits = 0;
+    var h = G.hero, side = n === 1 ? 1 : -1, R = (n === 1 ? 380 : 320) * S.range, lane = 84 * ZK, hits = 0;
     var dmg = (n === 1 ? 22 : n === 2 ? 14 : 18) * S.dmg;
     for (var i = 0; i < G.enemies.length; i++) {
       var e = G.enemies[i]; if (e.state !== 'walk') continue;
@@ -473,7 +475,7 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
   }
   // 貫通の突き：前方520pxの一直線を貫く。拘束した敵には1.5倍。吸引で集めた敵をまとめて貫く
   function doThr(h) {
-    var R = 520 * S.range, lane = 72, base = 70 * S.dmg, hits = 0, i;
+    var R = 520 * S.range, lane = 72 * ZK, base = 70 * S.dmg, hits = 0, i;
     for (i = 0; i < G.enemies.length; i++) {
       var e = G.enemies[i]; if (e.state !== 'walk') continue;
       var dx = (e.x - h.x) * h.face, dy = Math.abs(e.y - h.y);
@@ -501,7 +503,7 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
 
   function doHit(n) {
     var h = G.hero, sk = h.sk, hits = 0;
-    var R = (sk ? 430 : 340) * S.range, lane = sk ? 160 : 72;
+    var R = (sk ? 430 : 340) * S.range, lane = (sk ? 160 : 72) * ZK;
     var dmg = (sk ? 62 : (n === 1 ? 20 : 13)) * S.dmg;
     for (var i = 0; i < G.enemies.length; i++) {
       var e = G.enemies[i];
@@ -702,7 +704,9 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
         var dx = h.x - e.x, dy = h.y - e.y;
         e.face = dx >= 0 ? 1 : -1;
         if (Math.abs(dx) > 52 * e.size) e.x += Math.sign(dx) * e.sp * dt;
-        if (Math.abs(dy) > 6) e.y += Math.sign(dy) * e.sp * 0.55 * dt;
+        var fk = clamp((Math.abs(dx) - 60) / 260, 0.25, 1); // 遠いほど奥行きにばらけ、近づくと主人公の奥行きへ寄る
+        var tgy = clamp(h.y + e.yo * fk, LANE_Y0, LANE_Y1), ddy2 = tgy - e.y;
+        if (Math.abs(ddy2) > 6) e.y += Math.sign(ddy2) * e.sp * 0.55 * dt;
         e.atkCD -= dt;
         if (Math.abs(dx) < 70 * e.size && Math.abs(dy) < 28 && e.atkCD <= 0 && h.inv <= 0 && !(h.state === 'atk' && (h.kind === 'ult' || (h.kind === 'thr' && h.t < THR.safe)))) { // 必殺技と、突きの溜め〜突きの間は、無敵
           e.atkCD = 1.1; h.hp -= e.dmg; h.inv = 0.45; h.flash = 0.25; G.shake = Math.max(G.shake, 4);
@@ -996,7 +1000,32 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
     }
   }
   // 背景：元絵(BW×H)を横にも縦にも並べる。隣どうしは鏡写しにして、つなぎ目の絵柄を合わせる（部屋ごとの一枚絵ができたら差し替える）
+  var FLC = null; // 床の上端を溶かした画像（読み込み後に一度だけ作る）
+  function drawStage() { // 奥の背景（視差つき・鏡写しで繰り返し）＋ 床（1:1・横に繰り返せる）
+    var bk = IMG.s1_back, fl = IMG.s1_floor, hz = ROOM.hz, m = G.shake > 0.5 ? 12 : 0;
+    var bw = BW, bh = hz + 8; // 背景は地平線の少し下まで描き、床の溶けた上端の下に敷く
+    ctx.fillStyle = '#16171f'; ctx.fillRect(camX - m, camY - m, W + 2 * m, H + 2 * m);
+    var off = camX * ROOM.par, i0 = Math.floor((off - m) / bw), i1 = Math.floor((off + W + m - 0.01) / bw);
+    for (var i = i0; i <= i1; i++) {
+      ctx.save(); ctx.translate(i * bw - off + camX, 0);
+      if (((i % 2) + 2) % 2) { ctx.translate(bw, 0); ctx.scale(-1, 1); }
+      ctx.drawImage(bk, 0, 0, bk.naturalWidth, bk.naturalHeight, 0, 0, bw + 1, hz + 1); ctx.restore();
+    }
+    ctx.fillStyle = '#1b1c26'; ctx.fillRect(camX - m, hz, W + 2 * m, H - hz + m);
+    if (!FLC) {
+      FLC = document.createElement('canvas'); FLC.width = fl.naturalWidth; FLC.height = fl.naturalHeight;
+      var c = FLC.getContext('2d'); c.drawImage(fl, 0, 0);
+      var g = c.createLinearGradient(0, 0, 0, 90); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,1)');
+      c.globalCompositeOperation = 'destination-in'; c.fillStyle = g; c.fillRect(0, 0, FLC.width, FLC.height);
+    }
+    var sc = (H - hz) / FLC.height, fw = FLC.width * sc;
+    var j0 = Math.floor((camX - m) / fw), j1 = Math.floor((camX + W + m - 0.01) / fw);
+    for (var j = j0; j <= j1; j++) ctx.drawImage(FLC, 0, 0, FLC.width, FLC.height, Math.round(j * fw), hz, Math.ceil(fw) + 1, H - hz + m);
+    var mg = ctx.createLinearGradient(0, hz - 16, 0, hz + 70); mg.addColorStop(0, 'rgba(70,74,96,0)'); mg.addColorStop(0.3, 'rgba(70,74,96,0.42)'); mg.addColorStop(1, 'rgba(70,74,96,0)'); // 地平線に薄い霧
+    ctx.fillStyle = mg; ctx.fillRect(camX - m, hz - 16, W + 2 * m, 86);
+  }
   function drawBg() {
+    if (ROOM.stage && IMG.s1_back && IMG.s1_back.naturalWidth && IMG.s1_floor && IMG.s1_floor.naturalWidth) { drawStage(); return; }
     var im = IMG.bg; if (!im || !im.naturalWidth) return;
     var m = G.shake > 0.5 ? 12 : 0; // 画面の揺れで端が見えないよう、揺れている間だけ余白を描く
     var i0 = Math.floor((camX - m) / BW), i1 = Math.floor((camX + W + m - 0.01) / BW);
