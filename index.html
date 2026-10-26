@@ -1,5 +1,6 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>月夜の回廊 試作</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -20,7 +21,7 @@
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
-html, body { height: 100%; }
+html, body { height: 100%; touch-action: none; -webkit-text-size-adjust: 100%; }
 body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--fg); font-family: var(--font); font-size: 14px; line-height: 1.6; overscroll-behavior: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 /* 画面いっぱいに表示。16:9の絵は、余った所を黒帯にして収める（横画面前提） */
 .wrap { position: fixed; inset: 0; }
@@ -47,6 +48,7 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
 .btn.s.cool { border-color: rgba(255,255,255,.14); color: #9d93ab; }
 .btn.s small { display: block; font-size: .72em; font-weight: 700; opacity: .8; }
 .btn.l { border-color: #b7a6ff; } .btn.k { border-color: #ffcd6e; } .btn.i { border-color: #8fd0ff; } .btn.u { border-color: #ff8a8a; background: rgba(70,24,30,.78); }
+.btn { -webkit-tap-highlight-color: transparent; }
 .btn:active { filter: brightness(1.45); }
 #rot { display: none; position: absolute; inset: 0; z-index: 10; background: #0c0a11; flex-direction: column; align-items: center; justify-content: center; gap: 10px; font-size: 20px; font-weight: 900; text-align: center; }
 @media (pointer: coarse) and (orientation: portrait) { #rot { display: flex; } }
@@ -86,13 +88,21 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
 <script>
 (function () {
   'use strict';
-  var W = 1280, H = 720;
+  var W = 1280, H = 720, BW = 1280; // BW=絵の基準の幅。Wは画面の縦横比に合わせて 1280〜1680 に広がる（黒帯を出さない）
   var cv = document.getElementById('game'), ctx = cv.getContext('2d');
   cv.width = W; cv.height = H;
+  function fitW() {
+    var st = document.getElementById('stage'), r = st ? st.getBoundingClientRect() : null;
+    if (!r || !(r.width > 0) || !(r.height > 0)) return false;
+    var nw = Math.max(BW, Math.min(1680, Math.round(H * r.width / r.height)));
+    if (Math.abs(nw - W) < 2) return false;
+    W = nw; return true;
+  }
   var TOUCH = !!((window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || (window.location && /[?&]touch=1/.test(window.location.search || '')));
   (function () { var w = document.getElementById('wrap'), st = document.getElementById('stage'); if (TOUCH && w && w.classList) { w.classList.add('t'); st.classList.add('t'); } })();
   var RES = 1, resTick = 0;
   function fitRes() { // 画面に映る実際の大きさに合わせて内部解像度を上げる（最大2倍）。論理座標は1280×720のまま
+    fitW();
     var r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
     var want = Math.max(1, Math.min(2, Math.round((Math.min(r.width / W, r.height / H) * dpr) * 4) / 4));
     if (!(r.width > 0)) want = RES;
@@ -181,7 +191,7 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
     if (G.state === 'dead') { newGame(); startRun(); return; }
     if (G.state === 'pick') {
       for (var i = 0; i < 3; i++) {
-        var cx = 190 + i * 290;
+        var cx = (W - BW) / 2 + 190 + i * 290;
         if (p.x >= cx && p.x <= cx + 270 && p.y >= 210 && p.y <= 520) { choose(i); return; }
       }
     }
@@ -200,6 +210,18 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
   padEl.addEventListener('pointermove', function (ev) { if (ev.pointerId === padId) padMove(ev); });
   function padEnd(ev) { if (ev.pointerId !== padId) return; padId = null; pad.x = pad.y = pad.mag = 0; knob.style.transform = ''; }
   padEl.addEventListener('pointerup', padEnd); padEl.addEventListener('pointercancel', padEnd);
+  /* 連打・ピンチで画面が拡大されるのを防ぐ */
+  (function () {
+    var lastEnd = 0, opt = { passive: false };
+    ['gesturestart', 'gesturechange', 'gestureend'].forEach(function (n) { document.addEventListener(n, function (e) { e.preventDefault(); }, opt); });
+    document.addEventListener('touchmove', function (e) { e.preventDefault(); }, opt);
+    document.addEventListener('touchstart', function (e) { if (e.touches && e.touches.length > 1) e.preventDefault(); }, opt);
+    document.addEventListener('touchend', function (e) { var n = Date.now(); if (n - lastEnd < 350) e.preventDefault(); lastEnd = n; }, opt);
+    document.addEventListener('dblclick', function (e) { e.preventDefault(); }, opt);
+    document.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+    window.addEventListener('resize', function () { resTick = 0; });
+    window.addEventListener('orientationchange', function () { resTick = 0; });
+  })();
   function tapBtn(id, fn) {
     document.getElementById(id).addEventListener('pointerdown', function (ev) {
       ev.preventDefault();
@@ -857,7 +879,7 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
       ctx.fillStyle = 'rgba(6,4,10,0.7)'; ctx.fillRect(0, 0, W, H);
       txt('WAVE ' + G.wave + ' クリア！ 強化を1つ選ぶ', W / 2, 150, 40, '#ffd27a', 'center');
       for (i = 0; i < 3; i++) {
-        var u = UPG[G.pickOpts[i]], cx = 190 + i * 290;
+        var u = UPG[G.pickOpts[i]], cx = (W - BW) / 2 + 190 + i * 290;
         ctx.fillStyle = 'rgba(30,22,42,0.96)'; ctx.fillRect(cx, 210, 270, 310);
         ctx.strokeStyle = '#ffb347'; ctx.lineWidth = 3; ctx.strokeRect(cx, 210, 270, 310);
         txt(String(i + 1), cx + 22, 262, 40, '#ffb347');
@@ -904,7 +926,19 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
     ctx.clearRect(0, 0, W, H);
     var sx = G.shake ? (Math.random() - 0.5) * G.shake : 0, sy = G.shake ? (Math.random() - 0.5) * G.shake : 0;
     ctx.translate(sx, sy);
-    if (IMG.bg && IMG.bg.naturalWidth) ctx.drawImage(IMG.bg, -8, -8, W + 16, H + 16);
+    if (IMG.bg && IMG.bg.naturalWidth) {
+      var bo = (W - BW) / 2;
+      ctx.drawImage(IMG.bg, bo - 8, -8, BW + 16, H + 16);
+      if (bo > 0) for (var side = -1; side <= 1; side += 2) { // 左右の余りは、端を鏡写しにして延ばす
+        for (var q = 1; q < 6; q++) {
+          var tx = side < 0 ? bo - q * BW : bo + BW + (q - 1) * BW;
+          if (tx > W || tx + BW < 0) break;
+          ctx.save(); ctx.translate(tx, 0);
+          if (q % 2) { ctx.translate(BW, 0); ctx.scale(-1, 1); }
+          ctx.drawImage(IMG.bg, 0, -8, BW, H + 16); ctx.restore();
+        }
+      }
+    }
     var h0 = G.hero; // 必殺技の溜め中は、背景を暗くして、主人公と敵を目立たせる
     if (G.state === 'play' && h0.state === 'atk' && h0.kind === 'ult' && h0.t < ULT.hit + 0.02) {
       ctx.fillStyle = 'rgba(6,4,14,' + (0.5 * Math.min(1, h0.t / 0.5)) + ')'; ctx.fillRect(-10, -10, W + 20, H + 20);
@@ -960,5 +994,6 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
   window.__game = { get: function () { return G; }, stats: function () { return S; }, press: onPress };
 })();
 </script>
+
 
 </body></html>
