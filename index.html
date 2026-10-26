@@ -1020,7 +1020,11 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
     }
     var sc = (H - hz) / FLC.height, fw = FLC.width * sc;
     var j0 = Math.floor((camX - m) / fw), j1 = Math.floor((camX + W + m - 0.01) / fw);
-    for (var j = j0; j <= j1; j++) ctx.drawImage(FLC, 0, 0, FLC.width, FLC.height, Math.round(j * fw), hz, Math.ceil(fw) + 1, H - hz + m);
+    for (var j = j0; j <= j1; j++) {
+      var fx = Math.round(j * fw), fwd = Math.ceil(fw) + 1;
+      ctx.drawImage(FLC, 0, 0, FLC.width, FLC.height, fx, hz, fwd, H - hz); // 縮尺は一定のまま（揺れの余白で伸ばさない）
+      if (m) ctx.drawImage(FLC, 0, FLC.height - 1, FLC.width, 1, fx, H, fwd, m); // 揺れで見える下端の余白は、最下段を伸ばして埋める
+    }
     var mg = ctx.createLinearGradient(0, hz - 16, 0, hz + 70); mg.addColorStop(0, 'rgba(70,74,96,0)'); mg.addColorStop(0.3, 'rgba(70,74,96,0.42)'); mg.addColorStop(1, 'rgba(70,74,96,0)'); // 地平線に薄い霧
     ctx.fillStyle = mg; ctx.fillRect(camX - m, hz - 16, W + 2 * m, 86);
   }
