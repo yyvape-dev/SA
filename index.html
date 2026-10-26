@@ -98,8 +98,9 @@ body {
 
   /* ---------- 素材 ---------- */
   var RUN_K = 0.86; // 走りの動画はキャラが約1.15倍の大きさで出たため、足元を基準に縮める
-  var M = { ax: 362, ay: 379, k: 0.6, clips: { walk: 24, run: 10, atk: 19, rec: 17, idle: 1, ult: 59, atb: 49, thr: 24 } }; // 待機・歩き・走りは1.0倍で保存。0.6倍で描くと従来と同じ大きさ
+  var M = { ax: 362, ay: 379, k: 0.6, clips: { walk: 24, run: 10, atk: 19, rec: 17, idle: 1, ult: 59, atb: 49, thr: 24, atc: 33 } }; // 待機・歩き・走りは1.0倍で保存。0.6倍で描くと従来と同じ大きさ
   var ATK_A = { ax: 235.2, ay: 328.2, k: 1 }; // 攻撃・構え直しは旧素材（0.6倍で保存）。攻撃の動画を撮り直したら置き換える
+  var ATC_A = { ax: 419, ay: 543, k: 0.6 };   // 攻撃A（縦斬り・新）。動画のコマ9〜60から、静止を詰めて使う
   var ATB_A = { ax: 458, ay: 536, k: 0.6 };   // 攻撃B（横薙ぎ）。動画のコマ12〜37と50〜72（頭上の静止は省く）
   var THR_A = { ax: 553.1, ay: 697, k: 0.508 }; // 貫通の突き。元の絵が大きいので、0.508倍で主人公と同じ背丈
   var ULT_A = { ax: 446, ay: 568, k: 0.6 }, ULT_F0 = 8; // 必殺技の連番は、動画のコマ8〜66。足元の基準は主人公と同じ高さ
@@ -255,6 +256,7 @@ body {
     h.cancelT = kind === 'pull' ? (10 / 48 + 0.14) / a : (10 / 48 + 9 / 32 + 5 / 48) / a;
     h.total = (10 / 48 + 9 / 32 + 17 / 48) / a;
     if (kind === 'atk' && h.v === 1) { h.cancelT = ATB.cancel / a; h.total = ATB.total / a; }
+    if (kind === 'atk' && h.v === 0) { h.cancelT = ATC.cancel / a; h.total = ATC.total / a; }
     if (kind === 'thr') { h.cancelT = THR.cancel; h.total = THR.total; h.x0 = h.x; h.fxT = 0; G.thrCD = G.thrMax; }
     if (kind === 'sk') G.skCD = G.skMax * S.cd;
     if (kind === 'pull') G.pullCD = G.pullMax * S.pcd;
@@ -319,6 +321,31 @@ body {
     for (var i = 0; i < ATB_SRC.length; i++) { ATB_T.push(t); t += atbMs(ATB_SRC[i]) / 1000; }
     ATB.total = t; ATB.h1 = ATB_T[ATB_SRC.indexOf(28)]; ATB.h2 = ATB_T[ATB_SRC.indexOf(30)]; ATB.h3 = ATB_T[ATB_SRC.indexOf(55)]; ATB.cancel = ATB.h3 + 0.14;
   })();
+  // 攻撃A：縦斬り。頭上へ振りかぶる→前へ斬り下ろす(コマ18、前方)→低く構えたまま→左へ払う(コマ42、背面)→戻る
+  var ATC_SRC = [9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 22, 26, 30, 34, 36, 37, 38, 39, 40, 41, 42, 44, 48, 52, 53, 54, 55, 56, 57, 58, 59, 60];
+  var ATC_T = [], ATC = {};
+  function atcMs(s) { return s <= 11 ? 30 : s <= 16 ? 25 : s === 17 ? 20 : s === 18 ? 40 : (s === 22 || s === 26 || s === 34) ? 0 : s <= 36 ? 30 : s <= 41 ? 25 : s <= 52 ? 40 : 35; } // 低い構えの静止は、3コマだけ残して詰める（時間0のコマは飛ばす）
+  (function () {
+    var t = 0;
+    for (var i = 0; i < ATC_SRC.length; i++) { ATC_T.push(t); t += atcMs(ATC_SRC[i]) / 1000; }
+    ATC.total = t; ATC.h1 = ATC_T[ATC_SRC.indexOf(18)]; ATC.h2 = ATC_T[ATC_SRC.indexOf(42)]; ATC.cancel = ATC.h2 + 0.12;
+  })();
+  function atcTick(h) {
+    var tt = h.t * S.aspd;
+    if (!h.h1 && tt >= ATC.h1) { h.h1 = true; doHitC(1); }
+    if (!h.h2 && tt >= ATC.h2) { h.h2 = true; doHitC(2); }
+  }
+  function doHitC(n) { // 1：前方への斬り下ろし 2：背面への払い（ダメージは従来の20・13）
+    var h = G.hero, side = n === 1 ? 1 : -1, R = (n === 1 ? 340 : 300) * S.range, lane = 72, hits = 0, dmg = (n === 1 ? 20 : 13) * S.dmg;
+    for (var i = 0; i < G.enemies.length; i++) {
+      var e = G.enemies[i]; if (e.state !== 'walk') continue;
+      var dx = (e.x - h.x) * h.face * side, dy = Math.abs(e.y - h.y);
+      if (dx > -50 && dx < R && dy < lane) { hurt(e, dmg * (0.9 + Math.random() * 0.2), e.x >= h.x ? 1 : -1, false); hits++; }
+    }
+    G.fx.push({ type: 'arc', x: h.x, y: h.y, face: h.face * side, R: R, t: 0, life: 0.2, second: n === 2 });
+    if (hits) { G.freeze = Math.max(G.freeze, 0.05 + Math.min(hits, 10) * 0.008); G.shake = Math.max(G.shake, 5 + Math.min(hits, 12) * 1.1); }
+    else G.shake = Math.max(G.shake, 1.5);
+  }
   // 貫通の突き：動画の24コマ。溜め(コマ1〜11)は0.35倍に詰め、突き(12〜20)は等倍、戻り(21〜24)は0.7倍
   var THR_MS = [220, 280, 120, 100, 110, 150, 190, 200, 230, 270, 180, 70, 30, 30, 40, 30, 50, 80, 100, 90, 60, 90, 130, 180];
   var THR_T = [], THR = {};
@@ -514,6 +541,7 @@ body {
       if (h.kind === 'atk') h.lastAtkEnd = G.t;
       if (h.kind === 'thr') thrTick(h, dt);
       else if (h.kind === 'atk' && h.v === 1) atbTick(h);
+      else if (h.kind === 'atk') atcTick(h);
       else {
         if (!h.h1 && h.t >= t1) { h.h1 = true; if (h.kind === 'pull') doPull(h); else doHit(1); }
         if (h.kind === 'atk' && !h.h2 && h.t >= t2) { h.h2 = true; doHit(2); }
@@ -650,6 +678,7 @@ body {
     }
     else if (h.state === 'atk' && h.kind === 'thr') { name = 'thr_' + pad2(tIdx(THR_T, h.t)); anch = THR_A; }
     else if (h.state === 'atk' && h.kind === 'atk' && h.v === 1) { name = 'atb_' + pad2(tIdx(ATB_T, h.t * S.aspd)); anch = ATB_A; }
+    else if (h.state === 'atk' && h.kind === 'atk') { name = 'atc_' + pad2(tIdx(ATC_T, h.t * S.aspd)); anch = ATC_A; }
     else if (h.state === 'atk') { var f = atkFrame(h.t, S.aspd); name = f.c + '_' + pad2(f.i); anch = ATK_A; }
     var blink = h.inv > 0 && Math.floor(G.t * 24) % 2 === 0;
     ctx.globalAlpha = blink ? 0.55 : 1;
