@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>通常パート試作4（Fallout型）</title>
+<style>
+:root{--bg:#07090f;--pn:rgba(12,16,27,.94);--line:#2b3347;--tx:#e8edf8;--dim:#9aa6c2;--gold:#ffd27a;--red:#ff7f7f;--green:#7fe29a}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--tx);font:14px/1.4 -apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;overflow:hidden;touch-action:manipulation;-webkit-user-select:none;user-select:none}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+.app{height:100dvh;max-width:620px;margin:0 auto;position:relative;overflow:hidden}
+.top{position:absolute;top:0;left:0;right:0;background:rgba(12,16,27,.86);border-bottom:1px solid var(--line);padding:calc(5px + env(safe-area-inset-top)) 8px 6px;z-index:5}
+.r1{display:flex;gap:8px;align-items:center}
+.weeks{flex:1;display:flex;gap:2px}
+.wk{flex:1;height:18px;border-radius:3px;background:#1a2133;font-size:10px;text-align:center;line-height:18px;color:var(--dim)}
+.wk.now{background:var(--gold);color:#222;font-weight:700}.wk.past{opacity:.35}.wk.raid{box-shadow:inset 0 -3px 0 var(--red)}.wk.boss{box-shadow:inset 0 -3px 0 #ff3b3b;color:var(--red)}
+.ap{font-size:15px;font-weight:700;color:var(--gold);white-space:nowrap;letter-spacing:1px}.ap small{font-size:11px;color:var(--red);letter-spacing:0}
+.res{display:grid;grid-template-columns:1fr 1.25fr .8fr .8fr;gap:5px;margin-top:5px}
+.blk{background:#141b2c;border:1px solid var(--line);border-radius:7px;padding:2px 6px;position:relative;min-height:42px}
+.blk .l{font-size:10.5px;color:var(--dim)}.blk .v{font-size:18px;font-weight:700;line-height:1.1}.blk .s{font-size:10.5px;color:var(--dim)}
+.chip{position:absolute;right:4px;top:2px;font-size:12px;font-weight:700;padding:0 5px;border-radius:9px}
+.chip.up{background:rgba(127,226,154,.22);color:var(--green)}.chip.dn{background:rgba(255,127,127,.24);color:var(--red)}
+.mbar{height:6px;background:#000;border-radius:3px;position:relative;margin-top:2px;overflow:hidden}.mbar i{position:absolute;left:0;top:0;bottom:0}.mbar u{position:absolute;top:0;bottom:0;width:1px;background:#fff7}
+.pulse{animation:pl .5s}@keyframes pl{0%{background:#4a5b8a}100%{background:#141b2c}}
+.gh{display:flex;justify-content:space-between;gap:6px;font-size:12px;margin-top:5px}.gh b{color:var(--gold)}
+.gb{height:13px;background:#0a0d16;border-radius:5px;position:relative;overflow:hidden;border:1px solid var(--line);margin-top:2px}
+.gb .d{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#2b6fc2,#5aa8ff)}
+.gb .g{position:absolute;top:0;bottom:0;background:repeating-linear-gradient(45deg,#9fe0ffaa 0 4px,#5aa8ff66 4px 8px)}
+.gb .gm{position:absolute;top:0;bottom:0;background:repeating-linear-gradient(45deg,#ff7f7f77 0 4px,#ff7f7f33 4px 8px)}
+.gb .e{position:absolute;top:0;bottom:0;background:rgba(255,100,100,.4);border-left:2px solid var(--red);border-right:2px solid var(--red)}
+.stage{position:absolute;inset:0;display:flex;flex-direction:column;background:#05070c;overflow-y:auto;overflow-x:hidden;scrollbar-width:none}.stage::-webkit-scrollbar{display:none}
+.sw{position:relative;flex:none;margin:auto}
+.sw svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+.z{fill:transparent;cursor:pointer}
+.tag{position:absolute;transform:translate(0,-100%);background:rgba(8,11,20,.82);border:1px solid #3a4566;border-radius:8px;padding:0 6px;font-size:11.5px;white-space:nowrap;pointer-events:none;line-height:1.5}
+.tag .pp{color:var(--gold);letter-spacing:1px}.tag.sel{border-color:var(--gold)}
+.pop{position:absolute;z-index:6;background:rgba(10,13,24,.95);border:2px solid var(--gold);border-radius:11px;padding:5px;display:flex;flex-direction:column;gap:4px;width:172px}
+.pop button{background:#161d31;border:1px solid var(--line);border-radius:8px;padding:5px 8px;text-align:left}
+.pop button small.go2{color:var(--gold);font-weight:700}.pop button.sel{border-color:var(--gold);background:#27345a}.pop button b{display:block;font-size:14px}.pop button small{display:block;font-size:11px;color:var(--dim);line-height:1.25}
+.pop .hd{font-size:11px;color:var(--gold);padding:0 3px}
+.toast{position:absolute;left:50%;top:10px;transform:translateX(-50%);background:rgba(0,0,0,.8);border:1px solid var(--line);border-radius:14px;padding:3px 12px;font-size:12.5px;z-index:8;opacity:0;transition:opacity .25s;white-space:nowrap;pointer-events:none;max-width:96%;overflow:hidden;text-overflow:ellipsis}.toast.on{opacity:1}
+.bot{position:absolute;bottom:0;left:0;right:0;background:rgba(12,16,27,.88);border-top:1px solid var(--line);z-index:5;padding:4px 8px calc(8px + env(safe-area-inset-bottom))}
+.det{min-height:58px;font-size:12.5px}.det .t{font-weight:700;color:var(--gold)}.det .g2{display:grid;grid-template-columns:1fr 1fr;column-gap:14px}
+.det .ln{display:flex;justify-content:space-between;gap:6px}.det .up{color:var(--green)}.det .dn{color:var(--red)}.det .nt{color:var(--dim);font-size:12px}
+.btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px}
+.go{background:#2d6b3f;border:1px solid #58b073;border-radius:10px;padding:9px 0;text-align:center;font-weight:700;font-size:15px}.go:disabled{background:#26302b;border-color:#38453d;color:#889;opacity:.7}
+.endb{background:#6a3a2a;border:1px solid #b5704f;border-radius:10px;padding:4px;text-align:center;font-weight:700;font-size:14px;line-height:1.25}.endb small{display:block;font-weight:400;font-size:11px;color:#ffd9c4}
+.ov{position:absolute;inset:0;background:rgba(5,7,12,.86);display:flex;align-items:center;justify-content:center;padding:12px;z-index:20}
+.box{background:#11172a;border:2px solid var(--gold);border-radius:12px;padding:12px 14px;width:100%;max-width:420px}.box h3{margin:0 0 6px;color:var(--gold);font-size:17px}
+.box .row{display:flex;justify-content:space-between;font-size:14px;padding:1px 0}.box .nt{font-size:12px;color:var(--dim);margin-top:6px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.two button{background:#222b42;border:1px solid #3a4666;border-radius:9px;padding:9px 6px;font-weight:700}.two small{display:block;font-weight:400;font-size:11px;color:var(--dim)}
+.r2{display:flex;justify-content:space-between;align-items:center;margin-top:4px}.sup{position:relative;font-size:14px}.sup b{font-size:21px}.dm{font-size:12px;color:var(--dim)}.sup .chip{position:static;margin-left:4px}
+.tag{transform-origin:0 100%;transform:translate(0,-6%) scale(var(--iz,1))}.tag.foe{background:rgba(60,10,14,.88);border-color:#a03a3a;color:#ffd6d6}
+.stage.zoom{overflow:hidden}
+.bot.open{padding-top:6px}.hdr{display:flex;align-items:center;gap:10px;margin-bottom:4px}.hdr b{font-size:17px;color:var(--gold)}.back{background:#222b42;border:1px solid #3a4666;border-radius:8px;padding:5px 10px;font-weight:700}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:6px}.card{background:#161d31;border:1px solid var(--line);border-radius:10px;padding:8px 10px;text-align:left}.card.sel{border-color:var(--gold);background:#27345a}.card b{display:block;font-size:16px}.card small{display:block;font-size:12px;color:var(--dim);line-height:1.3}.card small.go2{color:var(--gold);font-weight:700}
+.res{display:grid;grid-template-columns:1.1fr 1fr .9fr 1.15fr .85fr;gap:3px;margin-top:5px}
+.cl{display:flex;gap:3px;overflow:hidden;align-items:flex-start;background:#141b2c;border:1px solid var(--line);border-radius:8px;padding:3px 5px;min-width:0}.cl.chg{border-color:var(--gold);box-shadow:0 0 8px #ffd27a88}
+.cv{flex:1;min-width:0}.cv .n{font-size:15.5px;font-weight:700;line-height:1.15;white-space:nowrap}.cv .sb{font-size:9.5px;color:var(--dim);white-space:nowrap}
+.cl .chip{position:static;margin-left:2px;font-size:10px;padding:0 3px}
+.thr{display:flex;gap:6px;align-items:center;margin-top:5px}.tl{display:flex;justify-content:space-between;gap:6px;font-size:11.5px;white-space:nowrap}.tl span:first-child{overflow:hidden;text-overflow:ellipsis}.tl b{color:var(--gold)}
+.hdr .sp{flex:1}
+@media (orientation:landscape) and (min-width:760px){.app{max-width:none;display:grid;grid-template-columns:minmax(0,1fr) 400px;grid-template-rows:auto minmax(0,1fr) auto;grid-template-areas:"stage top" "stage ." "stage bot"}.stage{position:relative;grid-area:stage;align-items:center;justify-content:center;flex-direction:row}.top{position:relative;grid-area:top;background:var(--pn);border-left:1px solid var(--line)}.bot{position:relative;grid-area:bot;background:var(--pn);border-left:1px solid var(--line)}}
+</style></head><body>
+<div class="app" id="app"></div>
+<script>
+(function () {
+  'use strict';
+  var CAP = { farm: 3, wall: 3, net: 2, tavern: 1, troops: 12 };
+  var SCHED = [
+    { w: 3, E: 13, name: '野盗の襲撃' }, { w: 5, E: 17, name: '謀反軍の偵察隊' }, { w: 7, E: 21, name: '謀反軍の先遣隊' },
+    { w: 9, E: 25, name: '将軍の副官の軍' }, { w: 11, E: 29, name: '謀反軍の本隊' }, { w: 12, E: 34, name: '将軍の侵攻', boss: true }
+  ];
+  var ALLY = { mina: { n: 'ミナ', r: '捕縛役', x: '4%' }, garou: { n: 'ガロウ', r: '火力役', x: '31%' }, sera: { n: 'セラ', r: '内政役', x: '66%' } };
+  var ROOM = null, ZOOM = false, G, SEL = null, TAB = 'build', PREV = null, root = document.getElementById('app'), toastT = 0, toastS = '';
+  function rnd(a, b) { return a + Math.random() * (b - a); }
+  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+  function apOf(m) { return m < 30 ? 2 : (m >= 80 ? 4 : 3); }
+  function clone(s) { return JSON.parse(JSON.stringify(s)); }
+  function nextRaid(s) { return SCHED.filter(function (r) { return r.w >= s.week; })[0]; }
+
+  /* ---------- 指標（全部ここから計算）。プレビューも同じ式 ---------- */
+  function garouB(s) { return s.bond.garou >= 3 ? 7 : s.bond.garou >= 2 ? 4 : 0; }
+  function D(s) { return s.troops * 1.5 + s.wall * 3 + garouB(s) + 2; }
+  function netEff(s) { return s.net * (s.bond.mina >= 2 ? 1.5 : 1); }
+  function handP(s, E) { var m0 = D(s) - E; return clamp(0.4 + 0.12 * netEff(s) + clamp(m0 / 40, -0.2, 0.2) + (s.bond.mina >= 3 ? 0.08 : 0), 0.12, 0.92); }
+  function inc(s) { return 4 + (2 + (s.bond.sera >= 2 ? 1 : 0)) * s.farm - Math.floor(s.troops / 2); }
+  function mdl(s) { return -2 + 3 * s.tavern; }
+  function Eof(s) { var r = nextRaid(s); return r ? (s.scouted[r.w] ? r.E : r.E) : 0; }
+  function M(s) { var r = nextRaid(s), E = r ? r.E : 0; return { sup: s.sup, morale: Math.round(s.morale), troops: s.troops, hp: s.hp, D: D(s), inc: inc(s), md: mdl(s), p: handP(s, E), apn: apOf(clamp(s.morale + mdl(s), 0, 100)), ap: s.ap }; }
+
+  /* ---------- 行動の定義：apply(s) が状態を書き換える。実行もプレビューも同じ関数 ---------- */
+  var ACTS = {
+    farm:  { tab: 'build', t: '畑', cost: 4, can: function (s) { return s.farm < CAP.farm; }, ap: function (s) { s.farm++; }, d: '毎週の物資+2' },
+    wall:  { tab: 'build', t: '城壁', cost: 5, can: function (s) { return s.wall < CAP.wall; }, ap: function (s) { s.wall++; }, d: '防衛力+3' },
+    net:   { tab: 'build', t: '捕縛網', cost: 4, can: function (s) { return s.net < CAP.net; }, ap: function (s) { s.net++; }, d: '自分で戦う成功率+12%' },
+    tavern:{ tab: 'build', t: '酒場', cost: 4, can: function (s) { return s.tavern < CAP.tavern; }, ap: function (s) { s.tavern++; }, d: '毎週の民心+3' },
+    troops:{ tab: 'folk', t: '兵を募る', cost: 3, can: function (s) { return s.troops < CAP.troops; }, ap: function (s) { s.troops = Math.min(CAP.troops, s.troops + 2); }, d: '兵力+2。維持費が増える' },
+    levy:  { tab: 'folk', t: '徴発', cost: 0, can: function () { return true; }, ap: function (s) { s.sup += 5; s.morale = Math.max(0, s.morale - 8); }, d: '物資+5 民心-8' },
+    feast: { tab: 'folk', t: '炊き出し', cost: 3, can: function () { return true; }, ap: function (s) { s.morale = Math.min(100, s.morale + (s.bond.sera >= 3 ? 15 : 10)); }, d: '民心+10' },
+    mina:  { tab: 'ally', t: 'ミナと過ごす', cost: 0, can: function (s) { return s.bond.mina < 3; }, ap: function (s) { s.bond.mina++; }, d: '絆+1', note: function (s) { return s.bond.mina < 2 ? '絆2：捕縛網の効果1.5倍' : '絆3：自分で戦う成功率+8%'; } },
+    garou: { tab: 'ally', t: 'ガロウと過ごす', cost: 0, can: function (s) { return s.bond.garou < 3; }, ap: function (s) { s.bond.garou++; }, d: '絆+1', note: function (s) { return s.bond.garou < 2 ? '絆2：防衛力+4' : '絆3：防衛力+7'; } },
+    sera:  { tab: 'ally', t: 'セラと過ごす', cost: 0, can: function (s) { return s.bond.sera < 3; }, ap: function (s) { s.bond.sera++; }, d: '絆+1', note: function (s) { return s.bond.sera < 2 ? '絆2：畑の産出+1ずつ' : '絆3：炊き出しの民心+15'; } },
+    scout: { tab: 'war', t: '偵察', cost: 0, can: function (s) { var r = nextRaid(s); return !!r && !s.scouted[r.w]; }, ap: function (s) { var r = nextRaid(s); s.scouted[r.w] = true; }, d: '次の襲撃の規模が確定', note: function (s) { var r = nextRaid(s); return r ? '第' + r.w + '週の敵：約' + Math.round(r.E * 0.75) + '〜' + Math.round(r.E * 1.25) + ' → ' + r.E : ''; } },
+    sortie:{ tab: 'war', t: '出撃', cost: 0, can: function (s) { return s.troops >= 2; }, ap: function () {}, d: '敵の前哨（規模14）を攻める', note: function () { return '勝てば物資+8。任せるか自分で戦うか選ぶ'; } }
+  };
+  var TABS = [['build', '建てる'], ['folk', '民と兵'], ['ally', '仲間'], ['war', '戦い']];
+  function canDo(s, id) { var a = ACTS[id]; return s.ap >= 1 && s.sup >= a.cost && a.can(s); }
+  function applyAct(s, id) { var a = ACTS[id]; s.ap--; s.sup -= a.cost; a.ap(s); }
+
+  /* ---------- 状態 ---------- */
+  function newGame() { G = { week: 1, ap: 3, sup: 10, morale: 60, troops: 4, hp: 3, farm: 0, wall: 0, net: 0, tavern: 0, scouted: {}, bond: { mina: 0, garou: 0, sera: 0 }, over: null, why: '', modal: null, tired: false, st: { auto: 0, hand: 0, sortie: 0 } }; SEL = null; ROOM = null; ZOOM = false; TAB = 'build'; PREV = null; render(); }
+  function toast(s) { toastS = s; toastT = Date.now(); render(true); setTimeout(function () { if (Date.now() - toastT >= 1700) { var t = document.querySelector('.toast'); if (t) t.classList.remove('on'); } }, 1800); }
+
+  /* ---------- 戦闘（「自分で戦う」は仮） ---------- */
+  function resolve(mode) {
+    var Md = G.modal, E = Md.E, m = D(G) - E * rnd(0.9, 1.1), at = m >= 4 ? 0 : m >= 0 ? 1 : m >= -4 ? 2 : 3, ok, tier, s = Md.name + (mode === 'auto' ? '（任せた）' : '（自分で戦った）') + '：';
+    if (mode === 'auto') { tier = at; ok = tier === 0; G.st.auto++; } else { ok = Math.random() < handP(G, E); tier = ok ? 0 : clamp(at + 1, 1, 3); G.st.hand++; if (Md.kind === 'sortie') G.ap = Math.max(0, G.ap - 1); else G.tired = true; }
+    G.modal = null;
+    if (Md.boss) { G.over = ok ? 'win' : 'lose'; G.why = ok ? '将軍の侵攻を退けた' : '将軍に拠点を落とされた'; render(); return; }
+    if (Md.kind === 'sortie') {
+      G.st.sortie++;
+      if (ok) { var g = mode === 'hand' ? 10 : 8; G.sup += g; G.morale += 3; s += '勝利 物資+' + g; } else if (tier === 1) { G.morale -= 5; G.sup -= 2; s += '苦戦 民心-5 物資-2'; } else if (tier === 2) { G.troops -= 1; G.morale -= 8; s += '敗退 兵力-1 民心-8'; } else { G.troops -= 2; G.morale -= 12; s += '大敗 兵力-2 民心-12'; }
+    } else if (tier === 0) { if (mode === 'hand') { G.sup += 4; G.morale += 5; s += '完勝 物資+4 民心+5'; } else s += '被害なし'; }
+    else if (tier === 1) { G.sup -= 3; G.morale -= 5; s += '小被害 物資-3 民心-5'; }
+    else if (tier === 2) { G.sup -= 5; G.morale -= 12; G.troops -= 1; s += '中被害 物資-5 民心-12 兵力-1'; }
+    else { G.hp -= 1; G.morale -= 15; G.troops -= 2; G.sup -= 5; s += '大被害 耐久-1 民心-15 兵力-2 物資-5'; }
+    G.sup = Math.max(0, G.sup); G.troops = Math.max(0, G.troops); G.morale = clamp(G.morale, 0, 100);
+    if (Md.kind === 'raid') afterWeek(); else { lose(); render(); } toast(s);
+  }
+  function lose() { if (G.over) return; if (G.hp <= 0) { G.over = 'lose'; G.why = '拠点が陥落した'; } else if (G.morale <= 0) { G.over = 'lose'; G.why = '民心が尽き、反乱が起きた'; } }
+  function endWeek() {
+    if (G.over || G.modal) return; var i = inc(G), d = mdl(G);
+    G.sup = Math.max(0, G.sup + i); G.morale = clamp(G.morale + d, 0, 100); toast('週末：物資' + (i >= 0 ? '+' : '') + i + ' 民心' + (d >= 0 ? '+' : '') + d);
+    var r = SCHED.filter(function (x) { return x.w === G.week; })[0]; SEL = null;
+    if (r) { G.modal = { kind: 'raid', E: r.E, name: r.name, boss: !!r.boss, w: r.w }; render(); } else afterWeek();
+  }
+  function afterWeek() { lose(); if (!G.over) { G.week++; if (G.week > 12) { G.over = 'win'; G.why = '12週を生き延びた'; } else { G.ap = Math.max(1, apOf(G.morale) - (G.tired ? 1 : 0)); G.tired = false; } } render(); }
+  function exec() {
+    if (!SEL || G.over || G.modal || !canDo(G, SEL)) return; var id = SEL, a = ACTS[id];
+    applyAct(G, id); toast(a.t + 'を実行');
+    if (id === 'sortie') G.modal = { kind: 'sortie', E: 14, name: '敵の前哨', boss: false };
+    if (!canDo(G, id)) SEL = null; render();
+  }
+
+  /* ---------- 部屋（画像座標 941x1672）と行動の対応 ---------- */
+  var VX = 40, VW = 800, VH = 1672;
+  var ROOMS = {
+    farm:     { n: '畑',     r: [140, 350, 440, 488], fl: 485,  acts: ['farm'] },
+    tower:    { n: '物見台', r: [545, 205, 775, 488], fl: 485,  acts: ['scout'] },
+    quarters: { n: '寝室',   r: [100, 525, 445, 735], fl: 722,  acts: ['sera', 'feast'] },
+    war:      { n: '作戦室', r: [475, 525, 785, 735], fl: 722,  acts: ['sortie'] },
+    tavern:   { n: '酒場',   r: [105, 785, 445, 1000], fl: 990, acts: ['tavern'] },
+    work:     { n: '工房',   r: [480, 785, 805, 1000], fl: 990, acts: ['net', 'mina'] },
+    court:    { n: '中庭',   r: [190, 1050, 480, 1325], fl: 1315, acts: ['troops', 'garou'] },
+    wall:     { n: '城壁',   r: [480, 1050, 815, 1325], fl: 1315, acts: ['wall', 'levy'] }
+  };
+  var ROOM_OF = {}; Object.keys(ROOMS).forEach(function (k) { ROOMS[k].acts.forEach(function (a) { ROOM_OF[a] = k; }); });
+  var SPR = { sera: { room: 'quarters', x: 335, h: 150, w: 68 }, mina: { room: 'work', x: 610, h: 150, w: 66 }, garou: { room: 'court', x: 425, h: 205, w: 135 } };
+    function px(x) { return ((x - VX) / VW * 100).toFixed(3) + '%'; }
+  function py(y) { return (y / VH * 100).toFixed(3) + '%'; }
+  function pw(w) { return (w / VW * 100).toFixed(3) + '%'; }
+  function ph(h) { return (h / VH * 100).toFixed(3) + '%'; }
+  function pips(n, m) { return '●'.repeat(n) + '○'.repeat(m - n); }
+
+  function figSoldier(x, y, k) { var s = k; return '<g transform="translate(' + x + ',' + y + ') scale(' + s + ')"><line x1="14" y1="-4" x2="14" y2="-78" stroke="#c9d3e8" stroke-width="3"/><path d="M14 -86 l-5 10 h10z" fill="#e9eef8"/><ellipse cx="0" cy="-58" rx="9" ry="10" fill="#9fb4d6" stroke="#1b2438" stroke-width="2"/><rect x="-11" y="-48" width="22" height="40" rx="6" fill="#4b6fb0" stroke="#1b2438" stroke-width="2"/><rect x="-10" y="-9" width="8" height="12" fill="#2b3550"/><rect x="2" y="-9" width="8" height="12" fill="#2b3550"/></g>'; }
+  function figEnemy(x, y, k, ghost) { return '<g transform="translate(' + x + ',' + y + ') scale(' + k + ')" opacity="' + (ghost ? 0.35 : 0.95) + '"><ellipse cx="0" cy="-55" rx="10" ry="11" fill="#14090c" stroke="' + (ghost ? '#ff9f9f' : '#401015') + '" stroke-width="2"' + (ghost ? ' stroke-dasharray="4 3"' : '') + '/><circle cx="-4" cy="-56" r="2.2" fill="#ff3b3b"/><circle cx="4" cy="-56" r="2.2" fill="#ff3b3b"/><path d="M-13 -44 h26 l4 38 h-34z" fill="#14090c" stroke="' + (ghost ? '#ff9f9f' : '#401015') + '" stroke-width="2"' + (ghost ? ' stroke-dasharray="4 3"' : '') + '/><line x1="-18" y1="-6" x2="-18" y2="-70" stroke="#2a1a1a" stroke-width="3"/><circle cx="-18" cy="-76" r="6" fill="#ff9a3b" opacity=".9"/></g>'; }
+
+  function build(s, pv) { /* 建設状態に応じた暗さ */ return s; }
+  function dimOf(k, s) {
+    var m = { farm: ['farm', CAP.farm], tavern: ['tavern', CAP.tavern], work: ['net', CAP.net], wall: ['wall', CAP.wall] }[k]; if (!m) return 0;
+    return 0.66 - 0.5 * (s[m[0]] / m[1]);
+  }
+  function roomTag(k, s) {
+    var R = ROOMS[k], t = R.n;
+    if (k === 'farm') t += ' <span class="pp">' + pips(s.farm, CAP.farm) + '</span>';
+    if (k === 'tavern') t += ' <span class="pp">' + pips(s.tavern, CAP.tavern) + '</span>';
+    if (k === 'wall') t += ' <span class="pp">' + pips(s.wall, CAP.wall) + '</span>';
+    if (k === 'work') t += ' 網<span class="pp">' + pips(s.net, CAP.net) + '</span> ミナ<span class="pp">' + pips(s.bond.mina, 3) + '</span>';
+    if (k === 'quarters') t += ' セラ<span class="pp">' + pips(s.bond.sera, 3) + '</span>';
+    if (k === 'court') t = '兵' + s.troops + ' ガロウ<span class="pp">' + pips(s.bond.garou, 3) + '</span>';
+    if (k === 'tower') { var r = nextRaid(s); t += r ? (s.scouted[r.w] ? ' 偵察済' : ' 未偵察') : ''; }
+    return t;
+  }
+
+  /* ---------- 描画 ---------- */
+  function sg(n) { return (n > 0 ? '+' : '') + n; }
+  function f1(n) { return (Math.round(n * 10) / 10).toFixed(1); }
+  /* ---------- アイコン（HUDと部屋バッジで同じ絵を使う） ---------- */
+  var ICO = {
+    sup: '<rect x="3" y="6" width="18" height="14" rx="2" fill="#c9984f" stroke="#5a3d16" stroke-width="1.5"/><path d="M3 11h18M12 6v14" stroke="#5a3d16" stroke-width="1.5"/>',
+    mor: '<circle cx="12" cy="12" r="9" fill="#ffd27a" stroke="#7a5a1a" stroke-width="1.5"/><circle cx="8.6" cy="10" r="1.3" fill="#5a3d16"/><circle cx="15.4" cy="10" r="1.3" fill="#5a3d16"/><path d="M7.5 14.5q4.5 4 9 0" stroke="#5a3d16" stroke-width="1.6" fill="none"/>',
+    trp: '<path d="M4 14a8 8 0 0 1 16 0v6H4z" fill="#9fb4d6" stroke="#2b3550" stroke-width="1.5"/><rect x="8" y="13" width="8" height="3" fill="#2b3550"/>',
+    def: '<path d="M12 3l8 3v6c0 5-4 8-8 9-4-1-8-4-8-9V6z" fill="#6fa0e8" stroke="#1b2438" stroke-width="1.5"/>',
+    hp: '<path d="M12 20s-8-5-8-11a4.5 4.5 0 0 1 8-2.5A4.5 4.5 0 0 1 20 9c0 6-8 11-8 11z" fill="#e85a6a" stroke="#4a1018" stroke-width="1.5"/>',
+    foe: '<circle cx="12" cy="11" r="8" fill="#eee4e4" stroke="#401015" stroke-width="1.5"/><circle cx="9" cy="11" r="2.1" fill="#401015"/><circle cx="15" cy="11" r="2.1" fill="#401015"/><rect x="9" y="17" width="6" height="4" fill="#eee4e4" stroke="#401015" stroke-width="1.5"/>',
+    eye: '<ellipse cx="12" cy="12" rx="10" ry="6" fill="#fff" stroke="#223" stroke-width="1.5"/><circle cx="12" cy="12" r="3.6" fill="#3a6bd0"/>',
+    net: '<path d="M3 3h18v18H3zM3 9h18M3 15h18M9 3v18M15 3v18" fill="none" stroke="#e0d2b0" stroke-width="1.7"/>',
+    swd: '<path d="M5 19L17 7M15 4h5v5M5 19l-2 2" stroke="#e8edf8" stroke-width="2.4" fill="none"/>'
+  };
+  function ico(n, px) { return '<svg viewBox="0 0 24 24" width="' + px + '" height="' + px + '" style="flex:none">' + ICO[n] + '</svg>'; }
+  function icoG(n, x, y, sz) { return '<g transform="translate(' + x + ',' + y + ') scale(' + (sz / 24) + ')">' + ICO[n] + '</g>'; }
+  function badge(k, s) {
+    var sb = s.bond.sera >= 2 ? 1 : 0, lv = { farm: s.farm, tavern: s.tavern, wall: s.wall, work: s.net }[k], B = { farm: ['sup', '+' + (2 + sb) * s.farm + '/週'], tavern: ['mor', '+' + 3 * s.tavern + '/週'], wall: ['def', '+' + 3 * s.wall], work: ['net', '自戦+' + 12 * s.net + '%'], court: ['trp', '兵' + s.troops], tower: ['eye', '偵察'], war: ['swd', '出撃'], quarters: ['mor', '炊き出し'] }[k];
+    if (lv === 0) B = [B[0], '建てる'];
+    return B;
+  }
+  function avail(k) { return !G.over && !G.modal && G.ap >= 1 && ROOMS[k].acts.some(function (id) { return canDo(G, id); }); }
+
+  function stageHTML(s, pv, r, wl) {
+    var Z = !!ROOM && ZOOM, P = pv || s;
+    var h = '<div class="sw" id="sw"><svg viewBox="' + VX + ' 0 ' + VW + ' ' + VH + '" preserveAspectRatio="none"><image href="stage/hideout.jpg" x="0" y="0" width="941" height="1672" preserveAspectRatio="none"/>';
+    Object.keys(ROOMS).forEach(function (k) { var d = dimOf(k, P), R = ROOMS[k].r; if (d > 0.01) h += '<rect x="' + R[0] + '" y="' + R[1] + '" width="' + (R[2] - R[0]) + '" height="' + (R[3] - R[1]) + '" fill="#04060c" opacity="' + d.toFixed(2) + '"/>'; });
+    for (var i = 0; i < P.wall; i++) { var gh = i >= s.wall; h += '<g opacity="' + (gh ? 0.5 : 1) + '"><rect x="480" y="' + (1050 - (i + 1) * 15) + '" width="335" height="15" fill="' + (gh ? '#9fe0ff' : '#4a4a54') + '" stroke="#1d1d24" stroke-width="2" opacity=".92"/>'; for (var m = 0; m < 9; m++) h += '<line x1="' + (498 + m * 37) + '" y1="' + (1050 - (i + 1) * 15) + '" x2="' + (498 + m * 37) + '" y2="' + (1050 - i * 15) + '" stroke="#1d1d24" stroke-width="2"/>'; h += '</g>'; }
+    Object.keys(SPR).forEach(function (k) { var p = SPR[k], R = ROOMS[p.room], bd = P.bond[k], gain = bd > s.bond[k]; h += '<image href="ally/' + k + '.png" x="' + (p.x - p.w / 2) + '" y="' + (R.fl - p.h) + '" width="' + p.w + '" height="' + p.h + '" preserveAspectRatio="xMidYMax meet" style="filter:drop-shadow(0 3px 4px #000a)"/>';
+      var py0 = k === 'garou' ? R.fl - p.h - 6 : R.fl - 34; h += '<g pointer-events="none"><rect x="' + (p.x - 62) + '" y="' + py0 + '" width="124" height="34" rx="12" fill="#070a14" opacity=".78"/><text x="' + p.x + '" y="' + (py0 + 25) + '" text-anchor="middle" font-size="26" fill="' + (gain ? '#7fe29a' : '#ffd27a') + '">' + ALLY[k].n + ' ' + pips(bd, 3) + '</text></g>'; });
+    for (var q = 0; q < P.troops; q++) { var row = q < 6 ? 0 : 1, col = row ? q - 6 : q, gst = q >= s.troops; h += '<g opacity="' + (gst ? 0.45 : 1) + '">' + figSoldier(222 + col * 40 + (row ? 20 : 0), row ? 1270 : 1312, row ? 0.8 : 0.95) + '</g>'; }
+    var a = (1 - s.morale / 100) * 0.34; h += '<rect x="0" y="0" width="941" height="1672" fill="#05070f" opacity="' + a.toFixed(2) + '" pointer-events="none"/>'; if (s.morale < 30) h += '<rect x="0" y="0" width="941" height="1672" fill="#a01818" opacity=".13" pointer-events="none"/>';
+    if (r) {
+      var sc = s.scouted[r.w], nS = Math.round((sc ? r.E : r.E * 0.75) / 5), nH = Math.round((sc ? r.E : r.E * 1.25) / 5), pr = clamp(1 - wl / 3, 0.08, 1);
+      var x0 = 660, y0 = 1560, x1 = 330, y1 = 1400, cx = x0 + (x1 - x0) * pr, cy = y0 + (y1 - y0) * pr;
+      for (var e = 0; e < nH; e++) { var ox = (e % 4) * 34 - 50 + (Math.floor(e / 4) % 2) * 17, oy = Math.floor(e / 4) * 26, sz = 1.0 + 0.5 * pr; h += figEnemy(cx + ox, cy - oy * (0.4 + pr), sz, e >= nS); }
+    }
+    if (Z) { var Rz = ROOMS[ROOM].r; h += '<path d="M0 0H941V1672H0Z M' + Rz[0] + ' ' + Rz[1] + 'V' + Rz[3] + 'H' + Rz[2] + 'V' + Rz[1] + 'Z" fill-rule="evenodd" fill="#04060c" opacity=".66" pointer-events="none"/>'; }
+    Object.keys(ROOMS).forEach(function (k) {
+      var R = ROOMS[k].r, B = badge(k, P), W = 78 + B[1].length * 31, on = avail(k), chg = pv && k === ROOM;
+      h += '<rect class="z" data-room="' + k + '" x="' + R[0] + '" y="' + R[1] + '" width="' + (R[2] - R[0]) + '" height="' + (R[3] - R[1]) + '" stroke="' + (ROOM === k ? '#ffd27a' : '#ffd27a44') + '" stroke-width="' + (ROOM === k ? 5 : 2) + '"' + (ROOM === k ? '' : ' stroke-dasharray="10 8"') + '/>';
+      h += '<g pointer-events="none"><rect x="' + (R[0] + 8) + '" y="' + (R[1] + 8) + '" width="' + W + '" height="50" rx="14" fill="#070a14" opacity=".85" stroke="' + (ROOM === k ? '#ffd27a' : '#3a4566') + '" stroke-width="2"/>' + icoG(B[0], R[0] + 14, R[1] + 13, 40) + '<text x="' + (R[0] + 58) + '" y="' + (R[1] + 44) + '" font-size="30" font-weight="700" fill="' + (chg ? '#7fe29a' : '#f2f5ff') + '">' + B[1] + '</text>' + (on ? '<circle cx="' + (R[0] + 8 + W) + '" cy="' + (R[1] + 10) + '" r="13" fill="#ff4a4a" stroke="#fff" stroke-width="3"/>' : '') + '</g>';
+    });
+    return h + '</svg></div>';
+  }
+  function render(toastOnly) {
+    if (toastOnly) { var t = document.querySelector('.toast'); if (t) { t.textContent = toastS; t.classList.add('on'); return; } }
+    var cur = M(G), pv = null, pm = null;
+    if (SEL && !G.over && !G.modal && canDo(G, SEL)) { var s2 = clone(G); applyAct(s2, SEL); pv = s2; pm = M(s2); }
+    var h = '', r = nextRaid(G), wl = r ? r.w - G.week : 0, Z = !!ROOM && ZOOM && !G.over && !G.modal, open = !!ROOM && !G.over && !G.modal;
+    function chip(c, p, f) { var d = p - c; if (Math.abs(d) < 1e-9) return ''; return '<span class="chip ' + (d > 0 ? 'up' : 'dn') + '">' + (d > 0 ? '+' : '') + (f ? f1(d) : Math.round(d)) + '</span>'; }
+    function cell(ic, v, sub, ch, extra, chg) { return '<div class="cl' + (chg ? ' chg' : '') + '">' + ico(ic, 20) + '<div class="cv"><div class="n">' + v + (ch || '') + '</div><div class="sb">' + sub + '</div>' + (extra || '') + '</div></div>'; }
+    var apMax = apOf(G.morale);
+    h += '<div class="top"><div class="r1"><div class="weeks">';
+    for (var w = 1; w <= 12; w++) { var rr = SCHED.filter(function (x) { return x.w === w; })[0]; h += '<div class="wk' + (w === G.week ? ' now' : w < G.week ? ' past' : '') + (rr ? (rr.boss ? ' boss' : ' raid') : '') + '">' + (rr && rr.boss ? '★' : w) + '</div>'; }
+    h += '</div><div class="ap">' + '●'.repeat(Math.max(0, G.ap)) + '○'.repeat(Math.max(0, apMax - G.ap)) + (pv ? '→' + '●'.repeat(Math.max(0, pv.ap)) : '') + (G.tired ? ' <small>疲労-1</small>' : '') + '</div></div>';
+    var mc = G.morale < 30 ? 'var(--red)' : G.morale >= 80 ? 'var(--gold)' : 'var(--green)';
+    var mbar = '<div class="mbar"><i style="width:' + clamp(G.morale, 0, 100) + '%;background:' + mc + '"></i>' + (pm ? '<i style="left:' + Math.min(cur.morale, pm.morale) + '%;width:' + Math.abs(pm.morale - cur.morale) + '%;background:' + (pm.morale >= cur.morale ? '#9fffb5aa' : '#ff7f7faa') + '"></i>' : '') + '<u style="left:30%"></u><u style="left:80%"></u></div>';
+    var tbar = '<div class="mbar"><i style="width:' + G.troops / CAP.troops * 100 + '%;background:#9fb4d6"></i>' + (pm && pm.troops !== cur.troops ? '<i style="left:' + Math.min(cur.troops, pm.troops) / CAP.troops * 100 + '%;width:' + Math.abs(pm.troops - cur.troops) / CAP.troops * 100 + '%;background:' + (pm.troops > cur.troops ? '#9fffb5aa' : '#ff7f7faa') + '"></i>' : '') + '</div>';
+    h += '<div class="res">' + cell('sup', cur.sup, '週' + sg(cur.inc) + (pm && pm.inc !== cur.inc ? '→' + sg(pm.inc) : ''), pm ? chip(cur.sup, pm.sup) : '', '', pm && pm.sup !== cur.sup)
+      + cell('mor', cur.morale, '週' + sg(cur.md) + (pm && pm.md !== cur.md ? '→' + sg(pm.md) : ''), pm ? chip(cur.morale, pm.morale) : '', mbar, pm && (pm.morale !== cur.morale || pm.md !== cur.md))
+      + cell('trp', cur.troops, '維持' + Math.floor(G.troops / 2), pm ? chip(cur.troops, pm.troops) : '', tbar, pm && pm.troops !== cur.troops)
+      + cell('def', f1(cur.D), '自戦' + Math.round(cur.p * 100) + '%', pm ? chip(cur.D, pm.D, 1) : '', '', pm && (pm.D !== cur.D || pm.p !== cur.p))
+      + cell('hp', '<span style="font-size:11px;letter-spacing:-2px;color:#e85a6a">' + '♥'.repeat(Math.max(0, G.hp)) + '</span><span style="font-size:11px;letter-spacing:-2px;color:#344">' + '♥'.repeat(Math.max(0, 3 - G.hp)) + '</span>', '耐久', '', '', false) + '</div>';
+    if (r) {
+      var sc4 = G.scouted[r.w], lo = sc4 ? r.E : Math.round(r.E * 0.75), hi = sc4 ? r.E : Math.round(r.E * 1.25), SC = 50, dn = pv ? D(pv) : D(G), p0 = handP(G, r.E), p1 = pv ? handP(pv, r.E) : p0;
+      h += '<div class="thr">' + ico('foe', 24) + '<div style="flex:1;min-width:0"><div class="tl"><span>第' + r.w + '週 ' + r.name + (wl === 0 ? '（今週末）' : '（あと' + wl + '週）') + '</span><span>敵 <b style="color:var(--red)">' + (sc4 ? r.E : lo + '〜' + hi) + '</b> ／ 防衛 <b>' + f1(D(G)) + '</b>' + (pv && D(pv) !== D(G) ? '→<b style="color:var(--green)">' + f1(D(pv)) + '</b>' : '') + '</span></div>'
+        + '<div class="gb"><div class="d" style="width:' + Math.min(100, Math.min(D(G), dn) / SC * 100) + '%"></div>' + (dn > D(G) ? '<div class="g" style="left:' + D(G) / SC * 100 + '%;width:' + (dn - D(G)) / SC * 100 + '%"></div>' : '') + (dn < D(G) ? '<div class="gm" style="left:' + dn / SC * 100 + '%;width:' + (D(G) - dn) / SC * 100 + '%"></div>' : '') + '<div class="e" style="left:' + lo / SC * 100 + '%;width:' + Math.max(0.8, (hi - lo) / SC * 100) + '%"></div></div></div></div>';
+    }
+    h += '</div>';
+    h += '<div class="stage' + (Z ? ' zoom' : '') + '"><div class="toast' + (Date.now() - toastT < 1700 ? ' on' : '') + '">' + toastS + '</div>' + stageHTML(G, pv, r, wl) + '</div>';
+    h += '<div class="bot' + (open ? ' open' : '') + '">';
+    if (open) {
+      var Rm = ROOMS[ROOM]; h += '<div class="hdr"><b>' + Rm.n + '</b><span class="sp"></span><button class="back" data-zoom="1">' + (ZOOM ? '引く' : '寄る') + '</button><button class="back" data-back="1">閉じる</button></div><div class="cards">';
+      Rm.acts.forEach(function (id) { var A = ACTS[id], ok = canDo(G, id); h += '<button data-pick="' + id + '" class="card' + (SEL === id ? ' sel' : '') + '" style="' + (ok ? '' : 'opacity:.45') + '"><b>' + A.t + '</b><small>' + (A.cost ? '物資-' + A.cost + '　' : '') + A.d + '</small>' + (SEL === id ? '<small class="go2">▶もう一度押すと実行</small>' : '') + '</button>'; });
+      h += '</div>';
+    }
+    h += '<div class="det">';
+    if (SEL && ACTS[SEL]) {
+      var A = ACTS[SEL];
+      if (!pv) h += '<div class="dn">' + (G.ap < 1 ? '行動点がない' : G.sup < A.cost ? '物資が足りない' : '上限／条件により実行できない') + '</div>';
+      else {
+        var bk = ['mina', 'garou', 'sera'].filter(function (k) { return pv.bond[k] !== G.bond[k]; })[0], parts = [];
+        if (bk) parts.push(ALLY[bk].n + 'の絆 ' + pips(G.bond[bk], 3) + '→' + pips(pv.bond[bk], 3));
+        if (Math.round(pm.p * 100) !== Math.round(cur.p * 100)) parts.push('自戦' + Math.round(cur.p * 100) + '→' + Math.round(pm.p * 100) + '%');
+        if (pm.apn !== cur.apn) parts.push('来週の行動点 ' + cur.apn + '→' + pm.apn);
+        h += '<div class="nt">' + (parts.length ? parts.join('　') : '') + (A.note ? (parts.length ? '<br>' : '') + A.note(G) : '') + (!parts.length && !A.note ? '上の数字と絵の変化を見て、もう一度押すと実行' : '') + '</div>';
+      }
+    } else h += '<div class="nt">' + (open ? '押すと、上の数字と部屋の絵がどう変わるか見えます。' : '赤い点の部屋＝今できることがある。部屋をタップ。') + '</div>';
+    h += '</div><div class="btns"><button class="go" data-exec="1"' + (SEL && pv ? '' : ' disabled') + '>実行</button><button class="endb" data-end="1"' + (G.over || G.modal ? ' disabled' : '') + '>' + (r && wl === 0 ? '襲撃を迎える' : '週を終える') + '<small>物資' + sg(cur.inc) + ' 民心' + sg(cur.md) + (G.ap > 0 ? '／行動点' + G.ap + '残' : '') + '</small></button></div></div>';
+    // ダイアログ
+    if (G.modal) {
+      var Mo = G.modal, sc2 = Mo.kind === 'sortie' || G.scouted[Mo.w], lo2 = sc2 ? Mo.E : Math.round(Mo.E * 0.75), hi2 = sc2 ? Mo.E : Math.round(Mo.E * 1.25), p = handP(G, Mo.E), mg = D(G) - Mo.E, SC2 = 50;
+      var pred = !sc2 ? '見通しは不明（偵察していない）' : mg >= 6 ? '余裕で勝てそう' : mg >= 0 ? 'ぎりぎり' : mg >= -6 ? '負けそう' : '大敗しそう';
+      h += '<div class="ov"><div class="box"><h3>' + (Mo.boss ? '★' : '') + Mo.name + (Mo.kind === 'sortie' ? '（出撃）' : 'が来た') + '</h3><div class="row"><span>敵の規模</span><span>' + (sc2 ? Mo.E : lo2 + '〜' + hi2) + '</span></div><div class="row"><span>こちらの防衛力</span><span>' + f1(D(G)) + '</span></div><div class="gb" style="margin:6px 0"><div class="d" style="width:' + Math.min(100, D(G) / SC2 * 100) + '%"></div><div class="e" style="left:' + lo2 / SC2 * 100 + '%;width:' + Math.max(0.8, (hi2 - lo2) / SC2 * 100) + '%"></div></div><div class="row"><span>任せた場合の見通し</span><span>' + pred + '</span></div><div class="row"><span>自分で戦う成功率（仮）</span><span>' + Math.round(p * 100) + '%</span></div>';
+      h += '<div class="nt">任せる：差で被害が決まる（段階的）。自分で戦う：成功なら被害なし＋報酬、失敗なら一段重い被害。<b>自分で戦うと疲労：' + (Mo.kind === 'sortie' ? '今週の行動点-1' : '来週の行動点-1') + '</b>。' + (Mo.boss ? '<br><b>将軍戦は、任せて余裕で勝つか、自分で戦って成功しないと負けです。</b>' : '') + '<br>※「自分で戦う」は仮。本番では横スクロールのアクション戦闘へ。</div><div class="two"><button data-f="auto">任せる<small>自動で解決</small></button><button data-f="hand">自分で戦う（仮）<small>成功率' + Math.round(p * 100) + '%</small></button></div></div></div>';
+    }
+    if (G.over) h += '<div class="ov"><div class="box"><h3>' + (G.over === 'win' ? '勝利' : '敗北') + '：' + G.why + '</h3><div class="row"><span>経過</span><span>第' + Math.min(G.week, 12) + '週</span></div><div class="row"><span>任せた／自分で戦った／出撃</span><span>' + G.st.auto + '／' + G.st.hand + '／' + G.st.sortie + '</span></div><div class="row"><span>畑・壁・網・酒</span><span>' + G.farm + '・' + G.wall + '・' + G.net + '・' + G.tavern + '</span></div><div class="row"><span>絆（ミナ・ガロウ・セラ）</span><span>' + G.bond.mina + '・' + G.bond.garou + '・' + G.bond.sera + '</span></div><div class="two"><button data-restart="1">もう一度</button><span></span></div></div></div>';
+    var st0 = document.querySelector('.stage'); if (st0 && !st0.classList.contains('zoom')) KEEP = st0.scrollTop; PREV = cur; root.innerHTML = h; fit();
+  }
+  var KEEP = null, LASTT = 'none';
+  function fit() {
+    var st = document.querySelector('.stage'), sw = document.getElementById('sw'); if (!st || !sw) return;
+    var W = st.clientWidth, H = st.clientHeight, land = window.matchMedia('(orientation:landscape) and (min-width:760px)').matches, k = land ? Math.min(W / VW, H / VH) : W / VW;
+    sw.style.width = Math.floor(VW * k) + 'px'; sw.style.height = Math.floor(VH * k) + 'px';
+    st.scrollTop = KEEP === null ? st.scrollHeight : KEEP;
+    var tf = 'none', open = ROOM && !G.over && !G.modal;
+    if (open) {
+      var R = ROOMS[ROOM].r, sx = sw.clientWidth / VW, sy = sw.clientHeight / VH, topH = land ? 0 : document.querySelector('.top').offsetHeight, botH = land ? 0 : document.querySelector('.bot').offsetHeight;
+      var ox = sw.offsetLeft, oy = sw.offsetTop - st.scrollTop;
+      if (ZOOM) {
+        var rw = (R[2] - R[0]) * sx, rh = (R[3] - R[1]) * sy, vh = H - topH - botH, z = Math.max(1, Math.min(W * 0.94 / rw, vh * 0.92 / rh, 3.2));
+        var cx = ((R[0] + R[2]) / 2 - VX) * sx, cy = ((R[1] + R[3]) / 2) * sy;
+        tf = 'translate(' + (W / 2 - ox - z * cx).toFixed(1) + 'px,' + (topH + vh / 2 - oy - z * cy).toFixed(1) + 'px) scale(' + z.toFixed(3) + ')';
+      } else {
+        var bot = oy + R[3] * sy, lim = H - botH - 10, top = oy + R[1] * sy, dy = 0;
+        if (bot > lim) dy = lim - bot; if (top + dy < topH + 4) dy = topH + 4 - top; if (dy) tf = 'translate(0,' + dy.toFixed(1) + 'px)';
+      }
+    }
+    sw.style.transformOrigin = '0 0'; sw.style.transition = 'none'; sw.style.transform = LASTT; void sw.offsetWidth; sw.style.transition = 'transform .35s cubic-bezier(.2,.8,.2,1)'; sw.style.transform = tf; LASTT = tf;
+  }
+  window.addEventListener('resize', fit);
+  root.addEventListener('click', function (e) {
+    var z = e.target.closest && e.target.closest('[data-room]');
+    if (z) { if (G.over || G.modal) return; var k = z.getAttribute('data-room'); if (ROOM === k) { ROOM = null; SEL = null; ZOOM = false; } else { ROOM = k; SEL = null; } render(); return; }
+    var b = e.target.closest('button');
+    if (!b) { if (ROOM && !G.modal && e.target.closest('.stage')) { ROOM = null; SEL = null; ZOOM = false; render(); } return; }
+    if (b.disabled) return;
+    if (b.dataset.pick) { var id = b.dataset.pick; if (G.over || G.modal) return; if (SEL === id) { exec(); return; } SEL = id; ROOM = ROOM_OF[id]; render(); }
+    else if (b.dataset.zoom) { ZOOM = !ZOOM; render(); }
+    else if (b.dataset.back) { ROOM = null; SEL = null; ZOOM = false; render(); }
+    else if (b.dataset.exec) exec(); else if (b.dataset.end) { ROOM = null; SEL = null; ZOOM = false; endWeek(); } else if (b.dataset.f) resolve(b.dataset.f); else if (b.dataset.restart) newGame();
+  });
+  newGame();
+  window.__b4 = window.__b3 = { G: function () { return G; }, sel: function (id) { SEL = id; ROOM = ROOM_OF[id]; render(); }, room: function (k) { ROOM = k; SEL = null; render(); }, exec: exec, end: endWeek, fight: resolve, restart: newGame, M: function () { return M(G); }, D: function () { return D(G); }, handP: function (E) { return handP(G, E); }, ACTS: ACTS };
+})();
+</script></body></html>
