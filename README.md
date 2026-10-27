@@ -28,3 +28,4 @@
 - strategy_proto.html：戦場マップの試作（絵なし）。UO型＝拠点から出撃（ブレイブ）→部隊が進軍→接触で戦闘。仲間は自動戦闘、主人公だけアクション戦闘（今はスタブ）。https://yyvape-dev.github.io/SA/strategy_proto.html
 - base_proto.html：通常パートの箱の試作（行動点3・数週先の脅威の予告・物資と民心・仲間の絆・襲撃で「任せる／自分で戦う（仮）」）。12週で将軍の侵攻を退けたら勝ち。https://yyvape-dev.github.io/SA/base_proto.html
 - base_proto.html に拠点の背景（stage/camp_bg.jpg）と仲間3人の立ち絵（ally/*.png、マゼンタ抜き）を追加。
+- base2.html：通常パートの縦画面1画面版。行動を選ぶと、物資・民心・兵力・防衛力・成功率がどう動くかをゲージ上にプレビュー表示し、実行で確定。横画面でも崩れない。https://yyvape-dev.github.io/SA/base2.html
