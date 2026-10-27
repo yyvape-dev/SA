@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>通常パート試作（箱）</title>
+<style>
+:root{--bg:#0f1219;--panel:#171c28;--line:#2b3347;--tx:#e6ebf7;--dim:#93a0bd;--gold:#ffd27a;--red:#ff8a8a;--blue:#8ec5ff;--green:#8be29b}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.5 -apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;padding:12px 14px 40px;max-width:980px;margin:0 auto}
+h1{font-size:17px;margin:4px 0 2px}.note{color:var(--dim);font-size:12.5px;margin:0 0 10px}
+.bar{display:flex;flex-wrap:wrap;gap:6px 14px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-weight:700}
+.bar span b{color:var(--gold)}
+.meter{display:inline-block;width:90px;height:8px;background:#000;border-radius:4px;vertical-align:middle;margin-left:6px;overflow:hidden}.meter i{display:block;height:100%;background:var(--green)}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}@media(max-width:700px){.cols{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:10px}
+.card h2{font-size:14px;margin:0 0 6px;color:var(--gold)}
+.row{display:flex;justify-content:space-between;gap:8px;font-size:13.5px;padding:2px 0}.dim{color:var(--dim)}
+.warn{color:var(--red)}.ok{color:var(--green)}
+button{font:inherit;color:var(--tx);background:#222b42;border:1px solid #3a4666;border-radius:8px;padding:8px 10px;text-align:left;cursor:pointer;width:100%}
+button:disabled{opacity:.38;cursor:default}button:not(:disabled):active{background:#33406a}
+button small{display:block;color:var(--dim);font-size:11.5px}
+.acts{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.end{background:#6a3a2a;border-color:#b5704f;text-align:center;font-weight:700;margin-top:6px}
+.log{font-size:12.5px;color:var(--dim);max-height:150px;overflow:auto}.log div{padding:1px 0;border-bottom:1px dotted #232b3f}
+.ov{position:fixed;inset:0;background:rgba(5,7,12,.82);display:flex;align-items:center;justify-content:center;padding:14px;z-index:5}
+.box{background:#12182a;border:2px solid var(--gold);border-radius:12px;padding:14px 16px;max-width:520px;width:100%}
+.box h3{margin:0 0 8px;color:var(--gold);font-size:17px}.two{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.pip{color:var(--gold);letter-spacing:2px}
+</style></head><body>
+<h1>通常パート試作（箱）</h1>
+<p class="note">見た目はありません。見てほしいのは、<b>「迷う場面があるか」</b>だけです。12週で、将軍の侵攻（第12週）を退けたら勝ちです。</p>
+<div id="app"></div>
+<script>
+(function () {
+  'use strict';
+  var CAP = { farm: 3, wall: 3, net: 2, tavern: 1, troops: 12 };
+  var SCHED = [
+    { w: 3, E: 13, name: '野盗の襲撃' }, { w: 5, E: 17, name: '謀反軍の偵察隊' }, { w: 7, E: 21, name: '謀反軍の先遣隊' },
+    { w: 9, E: 25, name: '将軍の副官の軍' }, { w: 11, E: 29, name: '謀反軍の本隊' }, { w: 12, E: 34, name: '将軍の侵攻', boss: true }
+  ];
+  var ALLY = {
+    mina: { name: 'ミナ', role: '捕縛役', b2: '絆2：捕縛網の効果1.5倍', b3: '絆3：自分で戦う成功率+8%' },
+    garou: { name: 'ガロウ', role: '火力役', b2: '絆2：防衛力+4', b3: '絆3：防衛力+7' },
+    sera: { name: 'セラ', role: '内政役', b2: '絆2：畑の産出+1ずつ', b3: '絆3：炊き出しの民心+15' }
+  };
+  var G, app = document.getElementById('app');
+  function rnd(a, b) { return a + Math.random() * (b - a); }
+  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+  function calcAP() { return G.morale < 30 ? 2 : (G.morale >= 80 ? 4 : 3); }
+  function newGame() { G = { week: 1, ap: 0, sup: 10, morale: 60, troops: 4, hp: 3, farm: 0, wall: 0, net: 0, tavern: 0, scouted: {}, bond: { mina: 0, garou: 0, sera: 0 }, log: [], over: null, why: '', modal: null, st: { auto: 0, hand: 0, sortie: 0 } }; G.ap = calcAP(); log('第1週が始まった。'); render(); }
+  function log(s) { G.log.unshift('第' + G.week + '週：' + s); if (G.log.length > 60) G.log.pop(); }
+  function garouB() { return G.bond.garou >= 3 ? 7 : G.bond.garou >= 2 ? 4 : 0; }
+  function D() { return G.troops * 1.5 + G.wall * 3 + garouB() + 2; }
+  function netEff() { return G.net * (G.bond.mina >= 2 ? 1.5 : 1); }
+  function handP(E) { var m0 = D() - E; return clamp(0.4 + 0.12 * netEff() + clamp(m0 / 40, -0.2, 0.2) + (G.bond.mina >= 3 ? 0.08 : 0), 0.12, 0.92); }
+  function income() { return 4 + (2 + (G.bond.sera >= 2 ? 1 : 0)) * G.farm - Math.floor(G.troops / 2); }
+  function moraleDelta() { return -2 + 3 * G.tavern; }
+
+  /* ---------- 行動 ---------- */
+  var ACTS = [
+    { id: 'farm', t: '畑を作る', cost: 4, d: function () { return '物資-4　産出+' + (2 + (G.bond.sera >= 2 ? 1 : 0)) + '/週（' + G.farm + '/' + CAP.farm + '）'; }, can: function () { return G.farm < CAP.farm; }, go: function () { G.farm++; log('畑を作った。'); } },
+    { id: 'wall', t: '城壁を築く', cost: 5, d: function () { return '物資-5　防衛力+3（' + G.wall + '/' + CAP.wall + '）'; }, can: function () { return G.wall < CAP.wall; }, go: function () { G.wall++; log('城壁を築いた。'); } },
+    { id: 'net', t: '捕縛網を張る', cost: 4, d: function () { return '物資-4　自分で戦う成功率+12%（' + G.net + '/' + CAP.net + '）'; }, can: function () { return G.net < CAP.net; }, go: function () { G.net++; log('捕縛網を張った。'); } },
+    { id: 'tavern', t: '酒場を開く', cost: 4, d: function () { return '物資-4　民心+3/週（' + G.tavern + '/' + CAP.tavern + '）'; }, can: function () { return G.tavern < CAP.tavern; }, go: function () { G.tavern++; log('酒場を開いた。'); } },
+    { id: 'troops', t: '兵を募る', cost: 3, d: function () { return '物資-3　兵力+2。維持費が増える（' + G.troops + '/' + CAP.troops + '）'; }, can: function () { return G.troops < CAP.troops; }, go: function () { G.troops = Math.min(CAP.troops, G.troops + 2); log('兵を募った。'); } },
+    { id: 'levy', t: '徴発する', cost: 0, d: function () { return '物資+5　民心-8'; }, can: function () { return true; }, go: function () { G.sup += 5; G.morale -= 8; log('民から物資を徴発した。'); } },
+    { id: 'feast', t: '炊き出し', cost: 3, d: function () { return '物資-3　民心+' + (G.bond.sera >= 3 ? 15 : 10); }, can: function () { return true; }, go: function () { G.morale = Math.min(100, G.morale + (G.bond.sera >= 3 ? 15 : 10)); log('炊き出しを行った。'); } },
+    { id: 'scout', t: '偵察', cost: 0, d: function () { var r = nextRaid(); return r ? '次の襲撃（第' + r.w + '週）の規模と種類が正確に分かる' + (G.scouted[r.w] ? '（済）' : '') : '襲撃はもうない'; }, can: function () { var r = nextRaid(); return !!r && !G.scouted[r.w]; }, go: function () { var r = nextRaid(); G.scouted[r.w] = true; log('偵察した。第' + r.w + '週の敵は規模' + r.E + '。'); } },
+    { id: 'mina', t: 'ミナと過ごす', cost: 0, d: function () { return '絆+1（現在' + G.bond.mina + '/3）' + (G.bond.mina < 2 ? '　' + ALLY.mina.b2 : G.bond.mina < 3 ? '　' + ALLY.mina.b3 : ''); }, can: function () { return G.bond.mina < 3; }, go: function () { G.bond.mina++; log('ミナと過ごした。'); } },
+    { id: 'garou', t: 'ガロウと過ごす', cost: 0, d: function () { return '絆+1（現在' + G.bond.garou + '/3）' + (G.bond.garou < 2 ? '　' + ALLY.garou.b2 : G.bond.garou < 3 ? '　' + ALLY.garou.b3 : ''); }, can: function () { return G.bond.garou < 3; }, go: function () { G.bond.garou++; log('ガロウと過ごした。'); } },
+    { id: 'sera', t: 'セラと過ごす', cost: 0, d: function () { return '絆+1（現在' + G.bond.sera + '/3）' + (G.bond.sera < 2 ? '　' + ALLY.sera.b2 : G.bond.sera < 3 ? '　' + ALLY.sera.b3 : ''); }, can: function () { return G.bond.sera < 3; }, go: function () { G.bond.sera++; log('セラと過ごした。'); } },
+    { id: 'sortie', t: '出撃：前哨を叩く', cost: 0, d: function () { return '敵の前哨（規模14）を攻める。勝てば物資+8。任せるか、自分で戦うか選ぶ'; }, can: function () { return G.troops >= 2; }, go: function () { G.modal = { kind: 'sortie', E: 14, name: '敵の前哨', boss: false }; } }
+  ];
+  function nextRaid() { return SCHED.filter(function (r) { return r.w >= G.week; })[0]; }
+  function doAct(id) {
+    if (G.over || G.modal) return; var a = ACTS.filter(function (x) { return x.id === id; })[0];
+    if (G.ap < 1 || !a.can() || G.sup < a.cost) return;
+    G.ap--; G.sup -= a.cost; a.go(); render();
+  }
+
+  /* ---------- 戦闘（襲撃・出撃）。「自分で戦う」は今は仮：成功率だけで決まる。本番では横スクロールのアクション戦闘につなぐ ---------- */
+  function resolve(mode) {
+    var M = G.modal, E = M.E, m = D() - E * rnd(0.9, 1.1), autoTier = m >= 4 ? 0 : m >= 0 ? 1 : m >= -4 ? 2 : 3, ok, tier;
+    if (mode === 'auto') { tier = autoTier; ok = tier === 0; G.st.auto++; }
+    else { ok = Math.random() < handP(E); tier = ok ? 0 : clamp(autoTier + 1, 1, 3); G.st.hand++; if (M.kind === 'sortie') G.ap = Math.max(0, G.ap - 1); else G.tired = true; } // 自分で戦うと消耗する（出撃は今週の行動点-1、襲撃は翌週の行動点-1）
+    G.modal = null;
+    if (M.boss) { G.over = ok ? 'win' : 'lose'; G.why = ok ? '将軍の侵攻を退けた' : '将軍に拠点を落とされた'; log(M.name + (ok ? 'を退けた！' : 'に敗れた…')); render(); return; }
+    var s = M.name + (mode === 'auto' ? '（任せた）：' : '（自分で戦った）：');
+    if (M.kind === 'sortie') {
+      G.st.sortie++;
+      if (ok) { var g = mode === 'hand' ? 10 : 8; G.sup += g; G.morale += 3; s += '勝利。物資+' + g; }
+      else if (tier === 1) { G.morale -= 5; G.sup -= 2; s += '苦戦。民心-5 物資-2'; }
+      else if (tier === 2) { G.troops -= 1; G.morale -= 8; s += '敗退。兵力-1 民心-8'; }
+      else { G.troops -= 2; G.morale -= 12; s += '大敗。兵力-2 民心-12'; }
+    } else {
+      if (tier === 0) { if (mode === 'hand') { G.sup += 4; G.morale += 5; s += '完勝。物資+4 民心+5'; } else s += '被害なし'; }
+      else if (tier === 1) { G.sup -= 3; G.morale -= 5; s += '小被害。物資-3 民心-5'; }
+      else if (tier === 2) { G.sup -= 5; G.morale -= 12; G.troops -= 1; s += '中被害。物資-5 民心-12 兵力-1'; }
+      else { G.hp -= 1; G.morale -= 15; G.troops -= 2; G.sup -= 5; s += '大被害。拠点耐久-1 民心-15 兵力-2 物資-5'; }
+    }
+    G.sup = Math.max(0, G.sup); G.troops = Math.max(0, G.troops); G.morale = clamp(G.morale, 0, 100); log(s);
+    if (M.kind === 'raid') afterWeek(); else { checkLose(); render(); }
+  }
+  function checkLose() { if (G.over) return; if (G.hp <= 0) { G.over = 'lose'; G.why = '拠点が陥落した'; } else if (G.morale <= 0) { G.over = 'lose'; G.why = '民心が尽き、反乱が起きた'; } }
+  function endWeek() {
+    if (G.over || G.modal) return;
+    G.sup = Math.max(0, G.sup + income()); G.morale = clamp(G.morale + moraleDelta(), 0, 100); log('週の終わり。物資' + (income() >= 0 ? '+' : '') + income() + ' 民心' + (moraleDelta() >= 0 ? '+' : '') + moraleDelta());
+    var r = SCHED.filter(function (x) { return x.w === G.week; })[0];
+    if (r) { G.modal = { kind: 'raid', E: r.E, name: r.name, boss: !!r.boss, w: r.w }; render(); } else afterWeek();
+  }
+  function afterWeek() { checkLose(); if (!G.over) { G.week++; if (G.week > 12) { G.over = 'win'; G.why = '12週を生き延びた'; } else { G.ap = Math.max(1, calcAP() - (G.tired ? 1 : 0)); if (G.tired) log('戦いの疲れ：行動点-1'); G.tired = false; log('第' + G.week + '週が始まった。'); } } render(); }
+
+  /* ---------- 描画 ---------- */
+  function esc(s) { return String(s); }
+  function estimate(r) { return G.scouted[r.w] ? '規模 <b>' + r.E + '</b>（確定）' : '規模 約' + Math.round(r.E * 0.75) + '〜' + Math.round(r.E * 1.25); }
+  function render() {
+    var h = '', r;
+    h += '<div class="bar"><span>第<b>' + Math.min(G.week, 12) + '</b>/12週</span><span>行動点 <b>' + G.ap + '</b></span><span>物資 <b>' + G.sup + '</b></span><span>民心 <b>' + Math.round(G.morale) + '</b><i class="meter"><i style="width:' + clamp(G.morale, 0, 100) + '%;background:' + (G.morale < 30 ? 'var(--red)' : 'var(--green)') + '"></i></i></span><span>兵力 <b>' + G.troops + '</b></span><span>拠点耐久 <b>' + G.hp + '</b>/3</span></div>';
+    h += '<div class="cols"><div>';
+    h += '<div class="card"><h2>脅威の予告</h2>';
+    SCHED.filter(function (x) { return x.w >= G.week; }).forEach(function (x) { h += '<div class="row"><span>第' + x.w + '週 ' + (x.boss ? '★' : '') + x.name + '</span><span>' + estimate(x) + '</span></div>'; });
+    h += '<div class="row dim"><span>今の防衛力</span><span>' + D().toFixed(1) + '（兵' + G.troops + '×1.5＋城壁' + G.wall + '×3＋ガロウ' + garouB() + '＋基本2）</span></div>';
+    h += '<div class="row dim"><span>週末の収支</span><span>物資 ' + (income() >= 0 ? '+' : '') + income() + '／民心 ' + (moraleDelta() >= 0 ? '+' : '') + moraleDelta() + '</span></div>';
+    if (G.morale < 30) h += '<div class="warn">民心が低い：行動点-1</div>'; else if (G.morale >= 80) h += '<div class="ok">民心が高い：行動点+1</div>';
+    h += '</div><div class="card"><h2>仲間</h2>';
+    Object.keys(ALLY).forEach(function (k) { var a = ALLY[k]; h += '<div class="row"><span>' + a.name + '（' + a.role + '）</span><span class="pip">' + '●'.repeat(G.bond[k]) + '○'.repeat(3 - G.bond[k]) + '</span></div>'; });
+    h += '</div><div class="card"><h2>記録</h2><div class="log">' + G.log.map(function (l) { return '<div>' + esc(l) + '</div>'; }).join('') + '</div></div></div>';
+    h += '<div><div class="card"><h2>行動（残り' + G.ap + '）</h2><div class="acts">';
+    ACTS.forEach(function (a) { var dis = G.over || G.modal || G.ap < 1 || !a.can() || G.sup < a.cost; h += '<button data-a="' + a.id + '"' + (dis ? ' disabled' : '') + '>' + a.t + '<small>' + a.d() + '</small></button>'; });
+    h += '</div><button class="end" data-end="1"' + (G.over || G.modal ? ' disabled' : '') + '>週を終える' + (G.ap > 0 ? '（行動点が' + G.ap + '残っている）' : '') + '</button></div></div></div>';
+    if (G.modal) {
+      var M = G.modal, rr = SCHED.filter(function (x) { return x.w === M.w; })[0], p = handP(M.E), est = M.kind === 'raid' && !G.scouted[M.w] ? '約' + Math.round(M.E * 0.75) + '〜' + Math.round(M.E * 1.25) : String(M.E);
+      var margin = D() - M.E; var pred = G.scouted[M.w] || M.kind === 'sortie' ? (margin >= 6 ? '余裕で勝てそう' : margin >= 0 ? 'ぎりぎり' : margin >= -6 ? '負けそう' : '大敗しそう') : '見通しは不明（偵察していない）';
+      h += '<div class="ov"><div class="box"><h3>' + (M.boss ? '★' : '') + M.name + (M.kind === 'sortie' ? '（出撃）' : 'が来た') + '</h3><div class="row"><span>敵の規模</span><span>' + est + '</span></div><div class="row"><span>こちらの防衛力</span><span>' + D().toFixed(1) + '</span></div><div class="row"><span>任せた場合の見通し</span><span>' + pred + '</span></div><div class="row"><span>自分で戦う成功率（仮）</span><span>' + Math.round(p * 100) + '%</span></div>';
+      h += '<div class="note" style="margin-top:8px">任せる：差で被害が決まる（失敗でも被害は段階的）。自分で戦う：成功なら被害なし＋報酬、失敗なら一段重い被害。どちらも、<b>自分で戦うと消耗し、行動点が1減る</b>。' + (M.boss ? '<br><b>将軍戦は、任せて余裕で勝つか、自分で戦って成功しないと負けです。</b>' : '') + '<br>※「自分で戦う」は仮です。本番では、ここで横スクロールのアクション戦闘に入ります。</div>';
+      h += '<div class="two"><button data-f="auto">任せる<small>自動で解決</small></button><button data-f="hand">自分で戦う（仮）<small>成功率' + Math.round(p * 100) + '%</small></button></div></div></div>';
+    }
+    if (G.over) h += '<div class="ov"><div class="box"><h3>' + (G.over === 'win' ? '勝利' : '敗北') + '：' + G.why + '</h3><div class="row"><span>経過</span><span>第' + Math.min(G.week, 12) + '週</span></div><div class="row"><span>任せた／自分で戦った／出撃</span><span>' + G.st.auto + '／' + G.st.hand + '／' + G.st.sortie + '</span></div><div class="row"><span>畑・城壁・捕縛網・酒場</span><span>' + G.farm + '・' + G.wall + '・' + G.net + '・' + G.tavern + '</span></div><div class="row"><span>絆（ミナ・ガロウ・セラ）</span><span>' + G.bond.mina + '・' + G.bond.garou + '・' + G.bond.sera + '</span></div><div class="two"><button data-restart="1" style="text-align:center">もう一度</button><span></span></div></div></div>';
+    app.innerHTML = h;
+  }
+  app.addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b || b.disabled) return;
+    if (b.dataset.a) doAct(b.dataset.a); else if (b.dataset.end) endWeek(); else if (b.dataset.f) resolve(b.dataset.f); else if (b.dataset.restart) newGame();
+  });
+  newGame();
+  window.__bp = { G: function () { return G; }, act: doAct, end: endWeek, fight: resolve, restart: newGame, D: D, handP: handP, income: income };
+})();
+</script></body></html>
