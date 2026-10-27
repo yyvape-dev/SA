@@ -5,13 +5,13 @@
 <style>
 :root{--bg:#0f1219;--panel:#171c28;--line:#2b3347;--tx:#e6ebf7;--dim:#93a0bd;--gold:#ffd27a;--red:#ff8a8a;--blue:#8ec5ff;--green:#8be29b}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.5 -apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;padding:12px 14px 40px;max-width:980px;margin:0 auto}
+body{margin:0;background:linear-gradient(rgba(8,10,18,.30),rgba(8,10,18,.70)),url(stage/camp_bg.jpg) center top/cover fixed,var(--bg);color:var(--tx);font:15px/1.5 -apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;padding:12px 14px 40px;max-width:980px;margin:0 auto}
 h1{font-size:17px;margin:4px 0 2px}.note{color:var(--dim);font-size:12.5px;margin:0 0 10px}
-.bar{display:flex;flex-wrap:wrap;gap:6px 14px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-weight:700}
+.bar{display:flex;flex-wrap:wrap;gap:6px 14px;background:rgba(14,18,30,.78);backdrop-filter:blur(3px);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-weight:700}
 .bar span b{color:var(--gold)}
 .meter{display:inline-block;width:90px;height:8px;background:#000;border-radius:4px;vertical-align:middle;margin-left:6px;overflow:hidden}.meter i{display:block;height:100%;background:var(--green)}
 .cols{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}@media(max-width:700px){.cols{grid-template-columns:1fr}}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:10px}
+.card{background:rgba(14,18,30,.78);backdrop-filter:blur(3px);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:10px}
 .card h2{font-size:14px;margin:0 0 6px;color:var(--gold)}
 .row{display:flex;justify-content:space-between;gap:8px;font-size:13.5px;padding:2px 0}.dim{color:var(--dim)}
 .warn{color:var(--red)}.ok{color:var(--green)}
@@ -25,9 +25,13 @@ button small{display:block;color:var(--dim);font-size:11.5px}
 .box{background:#12182a;border:2px solid var(--gold);border-radius:12px;padding:14px 16px;max-width:520px;width:100%}
 .box h3{margin:0 0 8px;color:var(--gold);font-size:17px}.two{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
 .pip{color:var(--gold);letter-spacing:2px}
+.crew{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px}
+.mem{background:rgba(14,18,30,.78);border:1px solid var(--line);border-radius:10px;padding:6px 6px 8px;text-align:center;font-size:12.5px}
+.mem .im{height:170px;display:flex;align-items:flex-end;justify-content:center}.mem img{max-height:100%;max-width:100%;object-fit:contain;filter:drop-shadow(0 4px 6px rgba(0,0,0,.6))}
+.mem b{display:block;font-size:14px}.mem .ef{color:var(--dim);font-size:11.5px;min-height:2.6em}
 </style></head><body>
 <h1>通常パート試作（箱）</h1>
-<p class="note">見た目はありません。見てほしいのは、<b>「迷う場面があるか」</b>だけです。12週で、将軍の侵攻（第12週）を退けたら勝ちです。</p>
+<p class="note">絵は仮です（背景と仲間3人のみ）。見てほしいのは、<b>「迷う場面があるか」</b>と<b>「見た目の印象」</b>です。12週で、将軍の侵攻（第12週）を退けたら勝ちです。</p>
 <div id="app"></div>
 <script>
 (function () {
@@ -116,13 +120,14 @@ button small{display:block;color:var(--dim);font-size:11.5px}
     var h = '', r;
     h += '<div class="bar"><span>第<b>' + Math.min(G.week, 12) + '</b>/12週</span><span>行動点 <b>' + G.ap + '</b></span><span>物資 <b>' + G.sup + '</b></span><span>民心 <b>' + Math.round(G.morale) + '</b><i class="meter"><i style="width:' + clamp(G.morale, 0, 100) + '%;background:' + (G.morale < 30 ? 'var(--red)' : 'var(--green)') + '"></i></i></span><span>兵力 <b>' + G.troops + '</b></span><span>拠点耐久 <b>' + G.hp + '</b>/3</span></div>';
     h += '<div class="cols"><div>';
+    h += '<div class="crew">';
+    Object.keys(ALLY).forEach(function (k) { var a = ALLY[k], bd = G.bond[k]; h += '<div class="mem"><div class="im"><img src="ally/' + k + '.png" alt="' + a.name + '"></div><b>' + a.name + '</b><span class="dim">' + a.role + '</span><div class="pip">' + '●'.repeat(bd) + '○'.repeat(3 - bd) + '</div><div class="ef">' + (bd >= 3 ? a.b3 : bd >= 2 ? a.b2 + '（済）' : a.b2) + '</div></div>'; });
+    h += '</div>';
     h += '<div class="card"><h2>脅威の予告</h2>';
     SCHED.filter(function (x) { return x.w >= G.week; }).forEach(function (x) { h += '<div class="row"><span>第' + x.w + '週 ' + (x.boss ? '★' : '') + x.name + '</span><span>' + estimate(x) + '</span></div>'; });
     h += '<div class="row dim"><span>今の防衛力</span><span>' + D().toFixed(1) + '（兵' + G.troops + '×1.5＋城壁' + G.wall + '×3＋ガロウ' + garouB() + '＋基本2）</span></div>';
     h += '<div class="row dim"><span>週末の収支</span><span>物資 ' + (income() >= 0 ? '+' : '') + income() + '／民心 ' + (moraleDelta() >= 0 ? '+' : '') + moraleDelta() + '</span></div>';
     if (G.morale < 30) h += '<div class="warn">民心が低い：行動点-1</div>'; else if (G.morale >= 80) h += '<div class="ok">民心が高い：行動点+1</div>';
-    h += '</div><div class="card"><h2>仲間</h2>';
-    Object.keys(ALLY).forEach(function (k) { var a = ALLY[k]; h += '<div class="row"><span>' + a.name + '（' + a.role + '）</span><span class="pip">' + '●'.repeat(G.bond[k]) + '○'.repeat(3 - G.bond[k]) + '</span></div>'; });
     h += '</div><div class="card"><h2>記録</h2><div class="log">' + G.log.map(function (l) { return '<div>' + esc(l) + '</div>'; }).join('') + '</div></div></div>';
     h += '<div><div class="card"><h2>行動（残り' + G.ap + '）</h2><div class="acts">';
     ACTS.forEach(function (a) { var dis = G.over || G.modal || G.ap < 1 || !a.can() || G.sup < a.cost; h += '<button data-a="' + a.id + '"' + (dis ? ' disabled' : '') + '>' + a.t + '<small>' + a.d() + '</small></button>'; });

@@ -27,3 +27,4 @@
 - v10.3.3: 地平線を437へ戻し、帯を y540〜690 へ（床の手前いっぱいまで歩ける。余剰を削る）。奥行き拡大率 0.92〜1.2。
 - strategy_proto.html：戦場マップの試作（絵なし）。UO型＝拠点から出撃（ブレイブ）→部隊が進軍→接触で戦闘。仲間は自動戦闘、主人公だけアクション戦闘（今はスタブ）。https://yyvape-dev.github.io/SA/strategy_proto.html
 - base_proto.html：通常パートの箱の試作（行動点3・数週先の脅威の予告・物資と民心・仲間の絆・襲撃で「任せる／自分で戦う（仮）」）。12週で将軍の侵攻を退けたら勝ち。https://yyvape-dev.github.io/SA/base_proto.html
+- base_proto.html に拠点の背景（stage/camp_bg.jpg）と仲間3人の立ち絵（ally/*.png、マゼンタ抜き）を追加。
