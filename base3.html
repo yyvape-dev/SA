@@ -48,6 +48,11 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
 .box{background:#11172a;border:2px solid var(--gold);border-radius:12px;padding:12px 14px;width:100%;max-width:420px}.box h3{margin:0 0 6px;color:var(--gold);font-size:17px}
 .box .row{display:flex;justify-content:space-between;font-size:14px;padding:1px 0}.box .nt{font-size:12px;color:var(--dim);margin-top:6px}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.two button{background:#222b42;border:1px solid #3a4666;border-radius:9px;padding:9px 6px;font-weight:700}.two small{display:block;font-weight:400;font-size:11px;color:var(--dim)}
+.r2{display:flex;justify-content:space-between;align-items:center;margin-top:4px}.sup{position:relative;font-size:14px}.sup b{font-size:21px}.dm{font-size:12px;color:var(--dim)}.sup .chip{position:static;margin-left:4px}
+.tag{transform-origin:0 100%;transform:translate(0,-6%) scale(var(--iz,1))}.tag.foe{background:rgba(60,10,14,.88);border-color:#a03a3a;color:#ffd6d6}
+.stage.zoom{overflow:hidden}
+.bot.open{padding-top:6px}.hdr{display:flex;align-items:center;gap:10px;margin-bottom:4px}.hdr b{font-size:17px;color:var(--gold)}.back{background:#222b42;border:1px solid #3a4666;border-radius:8px;padding:5px 10px;font-weight:700}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:6px}.card{background:#161d31;border:1px solid var(--line);border-radius:10px;padding:8px 10px;text-align:left}.card.sel{border-color:var(--gold);background:#27345a}.card b{display:block;font-size:16px}.card small{display:block;font-size:12px;color:var(--dim);line-height:1.3}.card small.go2{color:var(--gold);font-weight:700}
 @media (orientation:landscape) and (min-width:760px){.app{max-width:none;display:grid;grid-template-columns:minmax(0,1fr) 400px;grid-template-rows:auto minmax(0,1fr) auto;grid-template-areas:"stage top" "stage ." "stage bot"}.stage{position:relative;grid-area:stage;align-items:center;justify-content:center;flex-direction:row}.top{position:relative;grid-area:top;background:var(--pn);border-left:1px solid var(--line)}.bot{position:relative;grid-area:bot;background:var(--pn);border-left:1px solid var(--line)}}
 </style></head><body>
 <div class="app" id="app"></div>
@@ -174,66 +179,52 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
   /* ---------- 描画 ---------- */
   function sg(n) { return (n > 0 ? '+' : '') + n; }
   function f1(n) { return (Math.round(n * 10) / 10).toFixed(1); }
+  function lamps(s, pv) {
+    var n = Math.round(s.morale / 20), n2 = pv ? Math.round(pv.morale / 20) : n, h = '<rect x="62" y="212" width="262" height="112" rx="14" fill="#070a14" opacity=".62" pointer-events="none"/><text x="76" y="244" fill="#cdd6ee" font-size="26" pointer-events="none">民心</text><text x="76" y="300" fill="#cdd6ee" font-size="26" pointer-events="none">耐久</text>';
+    for (var i = 0; i < 5; i++) { var cx = 156 + i * 34, lit = i < n, gain = i >= n && i < n2, lose = i < n && i >= n2; h += '<g pointer-events="none">' + (lit ? '<circle cx="' + cx + '" cy="236" r="17" fill="#ffd27a" opacity=".22"/>' : '') + '<rect x="' + (cx - 8) + '" y="224" width="16" height="22" rx="5" fill="' + (lit ? '#ffcf6b' : '#2a2f40') + '" stroke="' + (gain ? '#7fe29a' : lose ? '#ff7f7f' : '#5a6382') + '" stroke-width="' + (gain || lose ? 3.5 : 2) + '"/></g>'; }
+    for (var j = 0; j < 3; j++) { h += '<path pointer-events="none" d="M' + (156 + j * 34 - 9) + ' 282 h18 v14 q0 10 -9 14 q-9 -4 -9 -14z" fill="' + (j < s.hp ? '#6fa0e8' : '#2a2f40') + '" stroke="#1b2438" stroke-width="2"/>'; }
+    return h;
+  }
   function stageHTML(s, pv, r, wl) {
+    var Z = !!ROOM;
     var h = '<div class="sw" id="sw"><svg viewBox="' + VX + ' 0 ' + VW + ' ' + VH + '" preserveAspectRatio="none"><image href="stage/hideout.jpg" x="0" y="0" width="941" height="1672" preserveAspectRatio="none"/>';
-    // 暗さ（建設度）
     Object.keys(ROOMS).forEach(function (k) { var d = dimOf(k, s), R = ROOMS[k].r; if (d > 0.01) h += '<rect x="' + R[0] + '" y="' + R[1] + '" width="' + (R[2] - R[0]) + '" height="' + (R[3] - R[1]) + '" fill="#04060c" opacity="' + d.toFixed(2) + '"/>'; });
-    // 城壁の高さ（胸壁）
     for (var i = 0; i < s.wall; i++) { h += '<rect x="480" y="' + (1050 - (i + 1) * 15) + '" width="335" height="15" fill="#4a4a54" stroke="#1d1d24" stroke-width="2" opacity=".92"/>'; for (var m = 0; m < 9; m++) h += '<line x1="' + (498 + m * 37) + '" y1="' + (1050 - (i + 1) * 15) + '" x2="' + (498 + m * 37) + '" y2="' + (1050 - i * 15) + '" stroke="#1d1d24" stroke-width="2"/>'; }
-    // 仲間
     Object.keys(SPR).forEach(function (k) { var p = SPR[k], R = ROOMS[p.room]; h += '<image href="ally/' + k + '.png" x="' + (p.x - p.w / 2) + '" y="' + (R.fl - p.h) + '" width="' + p.w + '" height="' + p.h + '" preserveAspectRatio="xMidYMax meet" style="filter:drop-shadow(0 3px 4px #000a)"/>'; });
-    // 兵：中庭に並ぶ
     for (var q = 0; q < s.troops; q++) { var row = q < 6 ? 0 : 1, col = row ? q - 6 : q; h += figSoldier(222 + col * 40 + (row ? 20 : 0), row ? 1270 : 1312, row ? 0.8 : 0.95); }
-    // 士気で全体を暗く／低いと赤み
     var a = (1 - s.morale / 100) * 0.34; h += '<rect x="0" y="0" width="941" height="1672" fill="#05070f" opacity="' + a.toFixed(2) + '" pointer-events="none"/>'; if (s.morale < 30) h += '<rect x="0" y="0" width="941" height="1672" fill="#a01818" opacity=".13" pointer-events="none"/>';
-    // 敵影：階段を上ってくる
     if (r) {
       var sc = s.scouted[r.w], nS = Math.round((sc ? r.E : r.E * 0.75) / 5), nH = Math.round((sc ? r.E : r.E * 1.25) / 5), pr = clamp(1 - wl / 3, 0.08, 1);
       var x0 = 660, y0 = 1560, x1 = 330, y1 = 1400, cx = x0 + (x1 - x0) * pr, cy = y0 + (y1 - y0) * pr;
-      for (var e = 0; e < nH; e++) { var ox = (e % 4) * 34 - 50 + (Math.floor(e / 4) % 2) * 17, oy = Math.floor(e / 4) * 26, sz = 1.0 + 0.5 * pr; h += figEnemy(cx + ox, cy - oy * (0.4 + pr) + 0, sz, e >= nS); }
-      if (wl === 0) h += '<text x="' + (cx - 30) + '" y="' + (cy - 130) + '" fill="#ff7f7f" font-size="34" font-weight="700" stroke="#000" stroke-width="5" paint-order="stroke">襲撃！</text>';
+      for (var e = 0; e < nH; e++) { var ox = (e % 4) * 34 - 50 + (Math.floor(e / 4) % 2) * 17, oy = Math.floor(e / 4) * 26, sz = 1.0 + 0.5 * pr; h += figEnemy(cx + ox, cy - oy * (0.4 + pr), sz, e >= nS); }
     }
-    // タップ領域と選択枠
-    Object.keys(ROOMS).forEach(function (k) { var R = ROOMS[k].r; h += '<rect class="z" data-room="' + k + '" x="' + R[0] + '" y="' + R[1] + '" width="' + (R[2] - R[0]) + '" height="' + (R[3] - R[1]) + '" stroke="' + (ROOM === k ? '#ffd27a' : '#ffd27a55') + '" stroke-width="' + (ROOM === k ? 5 : 2) + '"' + (ROOM === k ? '' : ' stroke-dasharray="10 8"') + '/>'; });
+    h += lamps(s, pv);
+    if (Z) { var Rz = ROOMS[ROOM].r; h += '<path d="M0 0H941V1672H0Z M' + Rz[0] + ' ' + Rz[1] + 'V' + Rz[3] + 'H' + Rz[2] + 'V' + Rz[1] + 'Z" fill-rule="evenodd" fill="#04060c" opacity=".66" pointer-events="none"/>'; }
+    Object.keys(ROOMS).forEach(function (k) { var R = ROOMS[k].r; h += '<rect class="z" data-room="' + k + '" x="' + R[0] + '" y="' + R[1] + '" width="' + (R[2] - R[0]) + '" height="' + (R[3] - R[1]) + '" stroke="' + (ROOM === k ? '#ffd27a' : '#ffd27a55') + '" stroke-width="' + (ROOM === k ? 4 : 2) + '"' + (ROOM === k ? '' : ' stroke-dasharray="10 8"') + '/>'; });
     h += '</svg>';
-    // タグ
-    Object.keys(ROOMS).forEach(function (k) { var R = ROOMS[k].r; h += '<div class="tag' + (ROOM === k ? ' sel' : '') + '" style="left:' + px(R[0] + 6) + ';top:' + py(R[3] - 2) + ';transform:translate(0,-6%)">' + roomTag(k, s) + '</div>'; });
-    // ポップオーバー
-    if (ROOM && !G.over && !G.modal) {
-      var Rm = ROOMS[ROOM], R2 = Rm.r;
-      h += '<div class="pop" id="pop" style="left:' + px((R2[0] + R2[2]) / 2) + ';top:' + py((R2[1] + R2[3]) / 2) + ';transform:translate(-50%,-50%)"><div class="hd">' + Rm.n + '</div>';
-      Rm.acts.forEach(function (id) { var A = ACTS[id], ok = canDo(G, id); h += '<button data-pick="' + id + '" class="' + (SEL === id ? 'sel' : '') + '" style="' + (ok ? '' : 'opacity:.45') + '"><b>' + A.t + '</b><small>' + (A.cost ? '物資-' + A.cost + '　' : '') + A.d + '</small>' + (SEL === id ? '<small class="go2">▶もう一度押すと実行</small>' : '') + '</button>'; });
-      h += '</div>';
-    }
+    Object.keys(ROOMS).forEach(function (k) { if (Z && ROOM !== k) return; var R = ROOMS[k].r; h += '<div class="tag' + (ROOM === k ? ' sel' : '') + '" style="left:' + px(R[0] + 6) + ';top:' + py(R[3] - 2) + '">' + roomTag(k, s) + '</div>'; });
+    if (r && !Z) { var sc3 = s.scouted[r.w], lo3 = sc3 ? r.E : Math.round(r.E * 0.75), hi3 = sc3 ? r.E : Math.round(r.E * 1.25); h += '<div class="tag foe" style="left:' + px(330) + ';top:' + py(1388) + '">' + r.name + ' ' + (sc3 ? r.E : lo3 + '〜' + hi3) + ' あと' + wl + '週／防衛 ' + f1(D(s)) + (pv && D(pv) !== D(s) ? '→' + f1(D(pv)) : '') + '</div>'; }
     return h + '</div>';
   }
   function render(toastOnly) {
     if (toastOnly) { var t = document.querySelector('.toast'); if (t) { t.textContent = toastS; t.classList.add('on'); return; } }
     var cur = M(G), pv = null, pm = null;
     if (SEL && !G.over && !G.modal && canDo(G, SEL)) { var s2 = clone(G); applyAct(s2, SEL); pv = s2; pm = M(s2); }
-    var h = '', r = nextRaid(G), wl = r ? r.w - G.week : 0;
+    var h = '', r = nextRaid(G), wl = r ? r.w - G.week : 0, Z = !!ROOM && !G.over && !G.modal;
     function chip(c, p) { var d = p - c; return d ? '<span class="chip ' + (d > 0 ? 'up' : 'dn') + '">' + sg(Math.round(d * 10) / 10) + '</span>' : ''; }
-    var pul = function (k) { return PREV && PREV[k] !== cur[k] ? ' pulse' : ''; };
-    var apMax = apOf(G.morale), apNext = pm ? pm.ap : G.ap;
-    // 上
+    var apMax = apOf(G.morale);
     h += '<div class="top"><div class="r1"><div class="weeks">';
     for (var w = 1; w <= 12; w++) { var rr = SCHED.filter(function (x) { return x.w === w; })[0]; h += '<div class="wk' + (w === G.week ? ' now' : w < G.week ? ' past' : '') + (rr ? (rr.boss ? ' boss' : ' raid') : '') + '">' + (rr && rr.boss ? '★' : w) + '</div>'; }
     h += '</div><div class="ap">' + '●'.repeat(Math.max(0, G.ap)) + '○'.repeat(Math.max(0, apMax - G.ap)) + (pv ? '→' + '●'.repeat(Math.max(0, pv.ap)) : '') + (G.tired ? ' <small>疲労-1</small>' : '') + '</div></div>';
-    h += '<div class="res"><div class="blk' + pul('sup') + '"><div class="l">物資</div><div class="v">' + cur.sup + '</div><div class="s">毎週' + sg(cur.inc) + (pm && pm.inc !== cur.inc ? '→' + sg(pm.inc) : '') + '</div>' + (pm ? chip(cur.sup, pm.sup) : '') + '</div>';
-    var mc = G.morale < 30 ? 'var(--red)' : G.morale >= 80 ? 'var(--gold)' : 'var(--green)';
-    h += '<div class="blk' + pul('morale') + '"><div class="l">民心(30↓-1/80↑+1)</div><div class="v">' + cur.morale + '</div><div class="mbar"><i style="width:' + clamp(G.morale, 0, 100) + '%;background:' + mc + '"></i>' + (pm ? '<i style="left:' + Math.min(cur.morale, pm.morale) + '%;width:' + Math.abs(pm.morale - cur.morale) + '%;background:' + (pm.morale >= cur.morale ? '#9fffb5aa' : '#ff7f7faa') + '"></i>' : '') + '<u style="left:30%"></u><u style="left:80%"></u></div>' + (pm ? chip(cur.morale, pm.morale) : '') + '</div>';
-    h += '<div class="blk' + pul('troops') + '"><div class="l">兵力</div><div class="v">' + cur.troops + '</div><div class="s">維持' + Math.floor(G.troops / 2) + '</div>' + (pm ? chip(cur.troops, pm.troops) : '') + '</div>';
-    h += '<div class="blk"><div class="l">耐久</div><div class="v" style="font-size:15px">' + '■'.repeat(Math.max(0, G.hp)) + '<span style="color:#344">' + '■'.repeat(Math.max(0, 3 - G.hp)) + '</span></div></div></div>';
-    if (r) {
-      var sc = G.scouted[r.w], lo = sc ? r.E : Math.round(r.E * 0.75), hi = sc ? r.E : Math.round(r.E * 1.25), SC = 50, dn = pv ? D(pv) : D(G), p0 = handP(G, r.E), p1 = pv ? handP(pv, r.E) : p0;
-      h += '<div class="gh"><span>防衛 <b>' + f1(D(G)) + '</b>' + (pv && D(pv) !== D(G) ? '→<b>' + f1(D(pv)) + '</b>' : '') + '　自戦<b>' + Math.round(p0 * 100) + '%</b>' + (Math.round(p1 * 100) !== Math.round(p0 * 100) ? '→<b>' + Math.round(p1 * 100) + '%</b>' : '') + '</span><span>' + r.name + ' <b style="color:var(--red)">' + (sc ? r.E : lo + '〜' + hi) + '</b>' + (wl === 0 ? '(今週末)' : '(あと' + wl + '週)') + '</span></div>';
-      h += '<div class="gb"><div class="d" style="width:' + Math.min(100, Math.min(D(G), dn) / SC * 100) + '%"></div>' + (dn > D(G) ? '<div class="g" style="left:' + D(G) / SC * 100 + '%;width:' + (dn - D(G)) / SC * 100 + '%"></div>' : '') + (dn < D(G) ? '<div class="gm" style="left:' + dn / SC * 100 + '%;width:' + (D(G) - dn) / SC * 100 + '%"></div>' : '') + '<div class="e" style="left:' + lo / SC * 100 + '%;width:' + Math.max(0.8, (hi - lo) / SC * 100) + '%"></div></div>';
-    } else h += '<div class="gh"><span>襲撃はもうない</span></div>';
-    h += '</div>';
-    // 場面
-    h += '<div class="stage"><div class="toast' + (Date.now() - toastT < 1700 ? ' on' : '') + '">' + toastS + '</div>' + stageHTML(G, pv, r, wl) + '</div>';
-    // 下
-    h += '<div class="bot"><div class="det">';
+    h += '<div class="r2"><div class="sup' + (PREV && PREV.sup !== cur.sup ? ' pulse' : '') + '">物資 <b>' + cur.sup + '</b>' + (pm ? chip(cur.sup, pm.sup) : '') + ' <span class="dm">毎週' + sg(cur.inc) + (pm && pm.inc !== cur.inc ? '→' + sg(pm.inc) : '') + '</span></div><div class="dm">' + (r ? (wl === 0 ? '<b style="color:var(--red)">今週末に襲撃</b>' : '襲撃まで<b style="color:var(--red)">' + wl + '週</b>') : '') + '</div></div></div>';
+    h += '<div class="stage' + (Z ? ' zoom' : '') + '"><div class="toast' + (Date.now() - toastT < 1700 ? ' on' : '') + '">' + toastS + '</div>' + stageHTML(G, pv, r, wl) + '</div>';
+    h += '<div class="bot' + (Z ? ' open' : '') + '">';
+    if (Z) {
+      var Rm = ROOMS[ROOM]; h += '<div class="hdr"><button class="back" data-back="1">← 全体</button><b>' + Rm.n + '</b><span class="dm">' + roomTag(ROOM, G).replace(/<[^>]+>/g, '') + '</span></div><div class="cards">';
+      Rm.acts.forEach(function (id) { var A = ACTS[id], ok = canDo(G, id); h += '<button data-pick="' + id + '" class="card' + (SEL === id ? ' sel' : '') + '" style="' + (ok ? '' : 'opacity:.45') + '"><b>' + A.t + '</b><small>' + (A.cost ? '物資-' + A.cost + '　' : '') + A.d + '</small>' + (SEL === id ? '<small class="go2">▶もう一度押すと実行</small>' : '') + '</button>'; });
+      h += '</div>';
+    }
+    h += '<div class="det">';
     if (SEL && ACTS[SEL]) {
       var A = ACTS[SEL]; h += '<div class="t">' + A.t + '（行動点-1）</div>';
       if (!pv) h += '<div class="dn">' + (G.ap < 1 ? '行動点がない' : G.sup < A.cost ? '物資が足りない' : '上限／条件により実行できない') + '</div>';
@@ -245,8 +236,14 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
         if (pm.apn !== cur.apn) h += '<div class="ln"><span>来週の行動点</span><span class="' + (pm.apn > cur.apn ? 'up' : 'dn') + '">' + cur.apn + '→' + pm.apn + '</span></div>';
         h += '</div>'; if (A.note) h += '<div class="nt">' + A.note(G) + '</div>'; if (!any && !A.note) h += '<div class="nt">' + A.d + '</div>';
       }
-    } else h += '<div class="nt">' + (ROOM ? '出てきたカードを押すと、数値がどう動くか見えます。もう一度押すと実行。' : '光る点線の部屋をタップ。畑・壁・酒場・工房は暗いほど未建設。兵は中庭、敵の影は階段から迫ってきます。') + '</div>';
-    h += '</div><div class="btns"><button class="go" data-exec="1"' + (SEL && pv ? '' : ' disabled') + '>実行</button><button class="endb" data-end="1"' + (G.over || G.modal ? ' disabled' : '') + '>' + (r && wl === 0 ? '襲撃を迎える' : '週を終える') + '<small>物資' + sg(cur.inc) + ' 民心' + sg(cur.md) + (G.ap > 0 ? '／行動点' + G.ap + '残' : '') + '</small></button></div></div>';
+    } else h += '<div class="nt">' + (Z ? '上のカードを押すと、数値がどう動くか見えます。' : '光る点線の部屋をタップ。畑・壁・酒場・工房は暗いほど未建設。左上の灯りは民心、盾は耐久。') + '</div>';
+    h += '</div>';
+    if (Z && r) {
+      var sc4 = G.scouted[r.w], lo = sc4 ? r.E : Math.round(r.E * 0.75), hi = sc4 ? r.E : Math.round(r.E * 1.25), SC = 50, dn = pv ? D(pv) : D(G), p0 = handP(G, r.E), p1 = pv ? handP(pv, r.E) : p0;
+      h += '<div class="gh"><span>防衛 <b>' + f1(D(G)) + '</b>' + (pv && D(pv) !== D(G) ? '→<b>' + f1(D(pv)) + '</b>' : '') + '　自戦<b>' + Math.round(p0 * 100) + '%</b>' + (Math.round(p1 * 100) !== Math.round(p0 * 100) ? '→<b>' + Math.round(p1 * 100) + '%</b>' : '') + '</span><span>敵 <b style="color:var(--red)">' + (sc4 ? r.E : lo + '〜' + hi) + '</b></span></div>';
+      h += '<div class="gb"><div class="d" style="width:' + Math.min(100, Math.min(D(G), dn) / SC * 100) + '%"></div>' + (dn > D(G) ? '<div class="g" style="left:' + D(G) / SC * 100 + '%;width:' + (dn - D(G)) / SC * 100 + '%"></div>' : '') + (dn < D(G) ? '<div class="gm" style="left:' + dn / SC * 100 + '%;width:' + (D(G) - dn) / SC * 100 + '%"></div>' : '') + '<div class="e" style="left:' + lo / SC * 100 + '%;width:' + Math.max(0.8, (hi - lo) / SC * 100) + '%"></div></div>';
+    }
+    h += '<div class="btns"><button class="go" data-exec="1"' + (SEL && pv ? '' : ' disabled') + '>実行</button><button class="endb" data-end="1"' + (G.over || G.modal ? ' disabled' : '') + '>' + (r && wl === 0 ? '襲撃を迎える' : '週を終える') + '<small>物資' + sg(cur.inc) + ' 民心' + sg(cur.md) + (G.ap > 0 ? '／行動点' + G.ap + '残' : '') + '</small></button></div></div>';
     // ダイアログ
     if (G.modal) {
       var Mo = G.modal, sc2 = Mo.kind === 'sortie' || G.scouted[Mo.w], lo2 = sc2 ? Mo.E : Math.round(Mo.E * 0.75), hi2 = sc2 ? Mo.E : Math.round(Mo.E * 1.25), p = handP(G, Mo.E), mg = D(G) - Mo.E, SC2 = 50;
@@ -255,23 +252,34 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
       h += '<div class="nt">任せる：差で被害が決まる（段階的）。自分で戦う：成功なら被害なし＋報酬、失敗なら一段重い被害。<b>自分で戦うと疲労：' + (Mo.kind === 'sortie' ? '今週の行動点-1' : '来週の行動点-1') + '</b>。' + (Mo.boss ? '<br><b>将軍戦は、任せて余裕で勝つか、自分で戦って成功しないと負けです。</b>' : '') + '<br>※「自分で戦う」は仮。本番では横スクロールのアクション戦闘へ。</div><div class="two"><button data-f="auto">任せる<small>自動で解決</small></button><button data-f="hand">自分で戦う（仮）<small>成功率' + Math.round(p * 100) + '%</small></button></div></div></div>';
     }
     if (G.over) h += '<div class="ov"><div class="box"><h3>' + (G.over === 'win' ? '勝利' : '敗北') + '：' + G.why + '</h3><div class="row"><span>経過</span><span>第' + Math.min(G.week, 12) + '週</span></div><div class="row"><span>任せた／自分で戦った／出撃</span><span>' + G.st.auto + '／' + G.st.hand + '／' + G.st.sortie + '</span></div><div class="row"><span>畑・壁・網・酒</span><span>' + G.farm + '・' + G.wall + '・' + G.net + '・' + G.tavern + '</span></div><div class="row"><span>絆（ミナ・ガロウ・セラ）</span><span>' + G.bond.mina + '・' + G.bond.garou + '・' + G.bond.sera + '</span></div><div class="two"><button data-restart="1">もう一度</button><span></span></div></div></div>';
-    var st0 = document.querySelector('.stage'); if (st0) KEEP = st0.scrollTop; PREV = cur; root.innerHTML = h; fit();
+    var st0 = document.querySelector('.stage'); if (st0 && !st0.classList.contains('zoom')) KEEP = st0.scrollTop; PREV = cur; root.innerHTML = h; fit();
   }
-  var KEEP = null;
+  var KEEP = null, LASTT = 'none';
   function fit() {
     var st = document.querySelector('.stage'), sw = document.getElementById('sw'); if (!st || !sw) return;
     var W = st.clientWidth, H = st.clientHeight, land = window.matchMedia('(orientation:landscape) and (min-width:760px)').matches, k = land ? Math.min(W / VW, H / VH) : W / VW;
     sw.style.width = Math.floor(VW * k) + 'px'; sw.style.height = Math.floor(VH * k) + 'px';
-    if (KEEP === null) st.scrollTop = st.scrollHeight; else st.scrollTop = KEEP;
-    var pop = document.getElementById('pop'); if (pop) { var a = sw.getBoundingClientRect(), b = pop.getBoundingClientRect(), dx = 0, dy = 0; if (b.left < a.left + 2) dx = a.left + 2 - b.left; if (b.right > a.right - 2) dx = a.right - 2 - b.right; if (b.top < a.top + 2) dy = a.top + 2 - b.top; if (b.bottom > a.bottom - 2) dy = a.bottom - 2 - b.bottom; if (dx || dy) pop.style.transform = 'translate(calc(-50% + ' + dx + 'px),calc(-50% + ' + dy + 'px))'; }
+    var zoomed = st.classList.contains('zoom');
+    st.scrollTop = KEEP === null ? st.scrollHeight : KEEP;
+    var tf = 'none';
+    if (zoomed && ROOM) {
+      var R = ROOMS[ROOM].r, sx = sw.clientWidth / VW, sy = sw.clientHeight / VH, topH = land ? 0 : document.querySelector('.top').offsetHeight, botH = land ? 0 : document.querySelector('.bot').offsetHeight;
+      var rw = (R[2] - R[0]) * sx, rh = (R[3] - R[1]) * sy, vw = W, vh = H - topH - botH, z = Math.max(1, Math.min(vw * 0.94 / rw, vh * 0.92 / rh, 3.2));
+      var cx = ((R[0] + R[2]) / 2 - VX) * sx, cy = ((R[1] + R[3]) / 2) * sy, ox = sw.offsetLeft, oy = sw.offsetTop - st.scrollTop, vcx = W / 2, vcy = topH + vh / 2;
+      tf = 'translate(' + (vcx - ox - z * cx).toFixed(1) + 'px,' + (vcy - oy - z * cy).toFixed(1) + 'px) scale(' + z.toFixed(3) + ')'; sw.style.setProperty('--iz', (1 / z).toFixed(3));
+    }
+    sw.style.transformOrigin = '0 0'; sw.style.transition = 'none'; sw.style.transform = LASTT; void sw.offsetWidth; sw.style.transition = 'transform .38s cubic-bezier(.2,.8,.2,1)'; sw.style.transform = tf; LASTT = tf;
   }
   window.addEventListener('resize', fit);
   root.addEventListener('click', function (e) {
     var z = e.target.closest && e.target.closest('[data-room]');
     if (z) { if (G.over || G.modal) return; var k = z.getAttribute('data-room'); if (ROOM === k) { ROOM = null; SEL = null; } else { ROOM = k; SEL = null; } render(); return; }
-    var b = e.target.closest('button'); if (!b || b.disabled) { if (!b && ROOM && !e.target.closest('.pop') && !G.modal) { ROOM = null; SEL = null; render(); } return; }
+    var b = e.target.closest('button');
+    if (!b) { if (ROOM && !G.modal && e.target.closest('.stage')) { ROOM = null; SEL = null; render(); } return; }
+    if (b.disabled) return;
     if (b.dataset.pick) { var id = b.dataset.pick; if (G.over || G.modal) return; if (SEL === id) { exec(); return; } SEL = id; ROOM = ROOM_OF[id]; render(); }
-    else if (b.dataset.exec) exec(); else if (b.dataset.end) { ROOM = null; endWeek(); } else if (b.dataset.f) resolve(b.dataset.f); else if (b.dataset.restart) newGame();
+    else if (b.dataset.back) { ROOM = null; SEL = null; render(); }
+    else if (b.dataset.exec) exec(); else if (b.dataset.end) { ROOM = null; SEL = null; endWeek(); } else if (b.dataset.f) resolve(b.dataset.f); else if (b.dataset.restart) newGame();
   });
   newGame();
   window.__b3 = { G: function () { return G; }, sel: function (id) { SEL = id; ROOM = ROOM_OF[id]; render(); }, room: function (k) { ROOM = k; SEL = null; render(); }, exec: exec, end: endWeek, fight: resolve, restart: newGame, M: function () { return M(G); }, D: function () { return D(G); }, handP: function (E) { return handP(G, E); }, ACTS: ACTS };
