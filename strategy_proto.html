@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>戦場マップ試作（絵なし）</title>
+<style>
+html,body{margin:0;height:100%;background:#0b0d14;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none}
+canvas{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);touch-action:none}
+</style></head><body>
+<canvas id="c" width="1280" height="720"></canvas>
+<script>
+/* 戦場マップ試作（絵なし）。ユニコーンオーバーロード型の戦場：拠点から出撃（ブレイブ1）→部隊が進軍→接触で戦闘。
+   味方の仲間は「自動戦闘」。主人公の部隊だけ「アクション戦闘」に入る（今は仮：結果を数字で返すスタブ。本番は横スクロール戦闘へつなぐ）。
+   勝ち：敵将を倒す。負け：主人公が倒れる／隠れ家を奪われる／時間切れ。 */
+(function () {
+  'use strict';
+  var cv = document.getElementById('c'), ctx = cv.getContext('2d'), W = 1280, H = 720;
+  function fit() { var k = Math.min(innerWidth / W, innerHeight / H); cv.style.width = W * k + 'px'; cv.style.height = H * k + 'px'; }
+  addEventListener('resize', fit); fit();
+
+  /* ---------- 地図 ---------- */
+  var NODES = [
+    { id: 0, name: '隠れ家', x: 120, y: 330, type: 'base', own: 'p' },
+    { id: 1, name: '北の町', x: 400, y: 150, type: 'town', own: 'e' },
+    { id: 2, name: '南の砦', x: 400, y: 510, type: 'fort', own: 'e' },
+    { id: 3, name: '中央の橋', x: 650, y: 330, type: 'fort', own: 'e' },
+    { id: 4, name: '東の町', x: 900, y: 150, type: 'town', own: 'e' },
+    { id: 5, name: '将軍の城', x: 1150, y: 330, type: 'castle', own: 'e' }
+  ];
+  var EDGES = [[0, 1], [0, 2], [1, 3], [2, 3], [3, 4], [3, 5], [4, 5]];
+  var ADJ = NODES.map(function () { return []; });
+  EDGES.forEach(function (e) { ADJ[e[0]].push(e[1]); ADJ[e[1]].push(e[0]); });
+  function route(from, to) { // 最短の道（幅優先）。from を含まない
+    var q = [[from]], seen = {}; seen[from] = 1;
+    while (q.length) { var p = q.shift(), n = p[p.length - 1]; if (n === to) return p.slice(1); ADJ[n].forEach(function (m) { if (!seen[m]) { seen[m] = 1; q.push(p.concat(m)); } }); }
+    return [];
+  }
+  function dist(a, b) { return Math.hypot(NODES[a].x - NODES[b].x, NODES[a].y - NODES[b].y); }
+  function rnd(a, b) { return a + Math.random() * (b - a); }
+
+  /* ---------- 兵種の相性：槍＞騎＞弓＞槍（1.5倍／0.67倍） ---------- */
+  var BEATS = { '槍': '騎', '騎': '弓', '弓': '槍' };
+  function mult(a, b) { return BEATS[a.cls] === b.cls ? 1.5 : (BEATS[b.cls] === a.cls ? 0.67 : 1); }
+  var CLR = { '主': '#ffd27a', '槍': '#7ec8ff', '騎': '#9ff0b0', '弓': '#d9a8ff' };
+
+  /* ---------- 状態 ---------- */
+  var S, SPEED = 95, LIMIT = 240;
+  function mk(side, name, cls, hp, pow, o) {
+    var u = { id: S.nid++, side: side, name: name, cls: cls, hp: hp, max: hp, pow: pow, node: 0, from: 0, to: 0, t: 0, rt: [], state: 'idle', waitT: 0, cap: 0, dep: false, hero: false, boss: false };
+    for (var k in o) u[k] = o[k]; S.units.push(u); return u;
+  }
+  function init() {
+    S = { t: 0, left: LIMIT, brave: 2, speed: 1, paused: false, modal: null, result: null, sel: null, dep: null, texts: [], spawnT: 6, nid: 1, own: {}, units: [], kills: 0 };
+    NODES.forEach(function (n) { S.own[n.id] = n.own; });
+    mk('p', '主人公部隊', '主', 150, 18, { dep: true, hero: true, node: 0 });
+    mk('p', '槍兵隊', '槍', 90, 14, {}); mk('p', '騎兵隊', '騎', 80, 18, {}); mk('p', '弓兵隊', '弓', 60, 16, {});
+    mk('e', '敵将', '槍', 520, 28, { dep: true, boss: true, node: 5, from: 5 });
+  }
+  function say(x, y, s, c) { S.texts.push({ x: x, y: y, s: s, c: c || '#fff', t: 1.4 }); }
+  function alive(side) { return S.units.filter(function (u) { return u.side === side && u.dep && u.hp > 0; }); }
+  function pos(u) {
+    if (u.state === 'move') { var a = NODES[u.from], b = NODES[u.to]; return { x: a.x + (b.x - a.x) * u.t, y: a.y + (b.y - a.y) * u.t + (u.side === 'p' ? -18 : 18) }; }
+    var n = NODES[u.node], same = S.units.filter(function (v) { return v.dep && v.hp > 0 && v.state !== 'move' && v.node === u.node && v.side === u.side; });
+    var i = same.indexOf(u); return { x: n.x + (u.side === 'p' ? -34 : 34) + i * 12, y: n.y + (u.side === 'p' ? -22 : 22) + i * 10 };
+  }
+  function order(u, target) { // 今いる場所（移動中なら次の節点）から目的地まで
+    var s = u.state === 'move' ? u.to : u.node, r = route(s, target);
+    if (u.state === 'move') { u.rt = r; return; }
+    if (!r.length) return;
+    u.from = u.node; u.to = r.shift(); u.rt = r; u.t = 0; u.state = 'move'; u.cap = 0;
+  }
+
+  /* ---------- 戦闘 ---------- */
+  function kill(u, by) {
+    u.hp = 0; u.dep = false;
+    if (u.boss) { S.result = 'win'; }
+    else if (u.hero) { S.result = 'lose'; S.why = '主人公が倒れた'; }
+    if (u.side === 'e' && !u.boss && by === 'p') { S.brave++; S.kills++; var p = pos(u); say(p.x, p.y - 26, 'ブレイブ+1', '#ffd27a'); }
+  }
+  function retreat(u) { u.node = u.state === 'move' ? u.from : u.node; u.state = 'wait'; u.waitT = 8; u.rt = []; u.t = 0; u.cap = 0; }
+  function settle(a, b) { // 戦闘の後始末：倒れたら退場、両方生き残れば残HP割合が低いほうが退却（ウェイト）
+    var pa = pos(a), pb = pos(b), mx = (pa.x + pb.x) / 2, my = (pa.y + pb.y) / 2;
+    if (a.hp <= 0) kill(a, b.side); if (b.hp <= 0) kill(b, a.side);
+    if (a.hp > 0 && b.hp > 0) { var l = a.hp / a.max < b.hp / b.max ? a : b; retreat(l); say(mx, my - 20, (l.side === 'p' ? '味方' : '敵') + '退却', l.side === 'p' ? '#ff9a9a' : '#9ad1ff'); }
+    else say(mx, my - 20, '撃破', '#ffe28a');
+  }
+  function autoBattle(a, b) {
+    for (var r = 0; r < 3 && a.hp > 0 && b.hp > 0; r++) {
+      var da = a.pow * mult(a, b) * rnd(0.85, 1.15), db = b.pow * mult(b, a) * rnd(0.85, 1.15); b.hp -= da; a.hp -= db;
+    }
+    settle(a, b);
+  }
+  function actionBattleStub(h, e) { // 仮：本番では横スクロールのアクション戦闘へ。結果（敵に与えた量・主人公の被害）だけ返す
+    e.hp -= 150 * rnd(0.9, 1.1); h.hp -= e.pow * 1.5 * rnd(0.8, 1.2); settle(h, e);
+  }
+  function encounters() {
+    var P = alive('p'), E = alive('e');
+    for (var i = 0; i < P.length; i++) for (var j = 0; j < E.length; j++) {
+      var a = P[i], b = E[j]; if (a.state === 'wait' || b.state === 'wait') continue;
+      var pa = pos(a), pb = pos(b), same = a.node === b.node && a.state !== 'move' && b.state !== 'move'; // 同じ拠点にとどまる者どうしも接触
+      if (!same && Math.hypot(pa.x - pb.x, pa.y - pb.y) > 60) continue;
+      if (a.hero) { S.modal = { a: a, b: b }; return; }
+      autoBattle(a, b); return;
+    }
+  }
+
+  /* ---------- 進行 ---------- */
+  function nearestOwn(u, side) {
+    var best = -1, bl = 1e9; NODES.forEach(function (n) { if (S.own[n.id] === side) { var l = route(u.node, n.id).length; if (u.node === n.id) l = 0; if (l < bl) { bl = l; best = n.id; } } }); return best;
+  }
+  function update(dt) {
+    if (S.result || S.modal) return;
+    S.t += dt; S.left -= dt;
+    if (S.left <= 0) { S.result = 'lose'; S.why = '時間切れ'; return; }
+    S.units.forEach(function (u) {
+      if (!u.dep || u.hp <= 0) return;
+      if (u.state === 'wait') { u.waitT -= dt; if (u.waitT <= 0) u.state = 'idle'; return; }
+      if (u.state === 'move') {
+        var len = dist(u.from, u.to); u.t += SPEED * dt / len;
+        if (u.t >= 1) { u.node = u.to; u.from = u.to; u.t = 0; if (u.rt.length) u.to = u.rt.shift(); else u.state = 'idle'; }
+        return;
+      }
+      // 待機中：敵の部隊は、一番近い味方の拠点へ向かう。将は動かない
+      if (u.side === 'e' && !u.boss) { var t = nearestOwn(u, 'p'); if (t >= 0 && t !== u.node) order(u, t); }
+      // 占領：その場に敵がいなければ、3秒で自陣に
+      var n = NODES[u.node];
+      if (S.own[n.id] !== u.side && n.type !== 'castle' && !u.boss) {
+        var blocked = S.units.some(function (v) { return v.dep && v.hp > 0 && v.side !== u.side && v.state !== 'move' && v.node === u.node; });
+        if (!blocked) { u.cap += dt; if (u.cap >= 3) { S.own[n.id] = u.side; u.cap = 0; if (u.side === 'p') { var g = n.type === 'town' ? 2 : 1; S.brave += g; say(n.x, n.y - 40, n.name + '解放 ブレイブ+' + g, '#ffd27a'); } else if (n.type === 'base') { S.result = 'lose'; S.why = '隠れ家を奪われた'; } else say(n.x, n.y - 40, n.name + 'を奪われた', '#ff9a9a'); } }
+      } else u.cap = 0;
+      if (u.side === 'p' && S.own[n.id] === 'p' && u.hp < u.max) u.hp = Math.min(u.max, u.hp + 4 * dt); // 自陣の拠点で回復
+    });
+    // 敵の出現：敵の町・砦・城から、一定間隔で
+    S.spawnT -= dt;
+    if (S.spawnT <= 0) {
+      S.spawnT = 14; var es = alive('e').filter(function (u) { return !u.boss; });
+      var src = NODES.filter(function (n) { return S.own[n.id] === 'e'; });
+      if (es.length < 5 && src.length) { var n = src[Math.floor(Math.random() * src.length)], cl = ['槍', '騎', '弓'][Math.floor(Math.random() * 3)];
+        mk('e', '敵兵', cl, Math.round(rnd(60, 85)), Math.round(rnd(11, 15)), { dep: true, node: n.id, from: n.id }); }
+    }
+    encounters();
+    S.texts.forEach(function (x) { x.t -= dt; x.y -= 14 * dt; }); S.texts = S.texts.filter(function (x) { return x.t > 0; });
+  }
+
+  /* ---------- 入力 ---------- */
+  function pt(ev) { var r = cv.getBoundingClientRect(); return { x: (ev.clientX - r.left) * W / r.width, y: (ev.clientY - r.top) * H / r.height }; }
+  function cardRect(i) { return { x: 20 + i * 190, y: 628, w: 180, h: 72 }; }
+  function inR(p, r) { return p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h; }
+  var BTN = { pause: { x: 1030, y: 10, w: 110, h: 40 }, spd: { x: 1150, y: 10, w: 110, h: 40 }, aid: { x: 1040, y: 628, w: 220, h: 72 } };
+  function down(ev) {
+    ev.preventDefault && ev.preventDefault(); var p = pt(ev);
+    if (S.result) { init(); return; }
+    if (S.modal) { // 主人公戦闘（仮）：ボタンを押すと結果が返る
+      var r = { x: 480, y: 440, w: 320, h: 60 }; if (inR(p, r)) { var m = S.modal; S.modal = null; actionBattleStub(m.a, m.b); } return;
+    }
+    if (inR(p, BTN.pause)) { S.paused = !S.paused; return; }
+    if (inR(p, BTN.spd)) { S.speed = S.speed === 1 ? 2 : 1; return; }
+    if (inR(p, BTN.aid)) { // 援軍：ブレイブ2で、隠れ家に新しい部隊（兵種ランダム）
+      if (S.own[0] !== 'p') return; if (S.brave < 2) { say(1150, 600, 'ブレイブ不足', '#ff9a9a'); return; }
+      if (alive('p').length >= 7) { say(1150, 600, '出撃数の上限', '#ff9a9a'); return; }
+      var cl = ['槍', '騎', '弓'][Math.floor(Math.random() * 3)]; S.brave -= 2; mk('p', '援軍', cl, 70, 15, { dep: true, extra: true, node: 0, from: 0 }); say(NODES[0].x, NODES[0].y - 50, '援軍 [' + cl + ']', '#ffd27a'); return;
+    }
+    var us = S.units.filter(function (u) { return u.side === 'p'; });
+    var ally = us.filter(function (u) { return !u.hero && !u.extra; });
+    for (var i = 0; i < ally.length; i++) if (inR(p, cardRect(i))) { var u = ally[i]; if (!u.dep && u.hp > 0) { S.dep = u; S.sel = null; } return; }
+    // 出撃先を選ぶ
+    var nn = NODES.filter(function (n) { return Math.hypot(n.x - p.x, n.y - p.y) < 34; })[0];
+    if (S.dep && nn) {
+      if (S.own[nn.id] === 'p' && S.brave >= 1) { S.brave--; S.dep.dep = true; S.dep.node = nn.id; S.dep.from = nn.id; S.dep.state = 'idle'; S.dep = null; }
+      else say(nn.x, nn.y - 40, S.own[nn.id] !== 'p' ? '自陣の拠点を選ぶ' : 'ブレイブ不足', '#ff9a9a');
+      return;
+    }
+    // 部隊を選ぶ／動かす
+    var near = alive('p').filter(function (u) { var q = pos(u); return Math.hypot(q.x - p.x, q.y - p.y) < 28; })[0];
+    if (near) { S.sel = near; S.dep = null; return; }
+    if (S.sel && nn && S.sel.state !== 'wait') { order(S.sel, nn.id); return; }
+    S.sel = null; S.dep = null;
+  }
+  cv.addEventListener('pointerdown', down);
+  addEventListener('keydown', function (e) {
+    if (e.code === 'Space') { S.paused = !S.paused; e.preventDefault(); } else if (e.code === 'KeyF') S.speed = S.speed === 1 ? 2 : 1; else if (e.code === 'KeyR') init();
+  });
+
+  /* ---------- 描画 ---------- */
+  function txt(s, x, y, size, c, al) { ctx.font = 'bold ' + size + 'px sans-serif'; ctx.fillStyle = c || '#fff'; ctx.textAlign = al || 'left'; ctx.fillText(s, x, y); }
+  function box(r, fill, stroke) { ctx.fillStyle = fill; ctx.fillRect(r.x, r.y, r.w, r.h); if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 2; ctx.strokeRect(r.x, r.y, r.w, r.h); } }
+  function draw() {
+    ctx.fillStyle = '#10131c'; ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = '#3a4258'; ctx.lineWidth = 6; EDGES.forEach(function (e) { ctx.beginPath(); ctx.moveTo(NODES[e[0]].x, NODES[e[0]].y); ctx.lineTo(NODES[e[1]].x, NODES[e[1]].y); ctx.stroke(); });
+    NODES.forEach(function (n) {
+      var mine = S.own[n.id] === 'p'; ctx.fillStyle = mine ? '#2a5fa8' : '#9a2f3a'; ctx.strokeStyle = (S.dep && mine) ? '#ffd27a' : '#0b0d14'; ctx.lineWidth = (S.dep && mine) ? 5 : 3;
+      var r = n.type === 'castle' ? 34 : n.type === 'base' ? 30 : 24; ctx.beginPath(); ctx.arc(n.x, n.y, r, 0, 7); ctx.fill(); ctx.stroke();
+      txt({ base: '拠', town: '町', fort: '砦', castle: '城' }[n.type], n.x, n.y + 7, 20, '#fff', 'center'); txt(n.name, n.x, n.y + r + 20, 16, '#cfd6e6', 'center');
+    });
+    S.units.forEach(function (u) {
+      if (!u.dep || u.hp <= 0) return; var p = pos(u), s = u.hero ? 22 : 18;
+      ctx.globalAlpha = u.state === 'wait' ? 0.45 : 1; ctx.fillStyle = u.side === 'p' ? CLR[u.cls] : '#e0505e'; ctx.strokeStyle = (S.sel === u) ? '#fff' : '#0b0d14'; ctx.lineWidth = (S.sel === u) ? 4 : 2;
+      ctx.fillRect(p.x - s, p.y - s, s * 2, s * 2); ctx.strokeRect(p.x - s, p.y - s, s * 2, s * 2);
+      txt(u.boss ? '将' : u.cls, p.x, p.y + 6, 18, '#10131c', 'center');
+      ctx.fillStyle = '#000'; ctx.fillRect(p.x - s, p.y + s + 3, s * 2, 5); ctx.fillStyle = u.side === 'p' ? '#6ee07a' : '#ff7a7a'; ctx.fillRect(p.x - s, p.y + s + 3, s * 2 * u.hp / u.max, 5);
+      if (u.cap > 0) { ctx.fillStyle = '#ffd27a'; ctx.fillRect(p.x - s, p.y - s - 8, s * 2 * u.cap / 3, 4); }
+      ctx.globalAlpha = 1;
+    });
+    S.texts.forEach(function (x) { ctx.globalAlpha = Math.min(1, x.t); txt(x.s, x.x, x.y, 20, x.c, 'center'); ctx.globalAlpha = 1; });
+    // 上の帯
+    box({ x: 0, y: 0, w: W, h: 60 }, 'rgba(0,0,0,0.55)');
+    txt('ブレイブ ' + S.brave, 20, 40, 28, '#ffd27a'); txt('残り ' + Math.ceil(S.left) + '秒', 230, 40, 24, '#fff'); txt('撃破 ' + S.kills, 400, 40, 24, '#fff');
+    txt('目的：敵将を倒す　／　町・砦は部隊が3秒とどまると解放', 520, 38, 15, '#9fb0cf');
+    box(BTN.pause, '#2a3350', '#6a7aa8'); txt(S.paused ? '再開' : '一時停止', 1085, 38, 20, '#fff', 'center');
+    box(BTN.spd, '#2a3350', '#6a7aa8'); txt('速度 x' + S.speed, 1205, 38, 20, '#fff', 'center');
+    // 下の仲間カード
+    box({ x: 0, y: 614, w: W, h: 106 }, 'rgba(0,0,0,0.6)');
+    box(BTN.aid, '#1b2236', '#3a4258'); txt('援軍を呼ぶ', BTN.aid.x + 110, BTN.aid.y + 30, 22, '#ffd27a', 'center'); txt('ブレイブ2：隠れ家に新部隊', BTN.aid.x + 110, BTN.aid.y + 56, 14, '#9fb0cf', 'center');
+    var ally = S.units.filter(function (u) { return u.side === 'p' && !u.hero && !u.extra; });
+    ally.forEach(function (u, i) {
+      var r = cardRect(i), st = u.hp <= 0 ? '戦死' : u.dep ? '出撃中' : (S.dep === u ? '出撃先の拠点を選ぶ' : '未出撃（ブレイブ1）');
+      box(r, '#1b2236', S.dep === u ? '#ffd27a' : '#3a4258'); txt(u.name + ' [' + u.cls + ']', r.x + 10, r.y + 26, 20, CLR[u.cls]); txt('HP ' + Math.ceil(Math.max(0, u.hp)) + '/' + u.max + '  威力 ' + u.pow, r.x + 10, r.y + 48, 15, '#cfd6e6'); txt(st, r.x + 10, r.y + 66, 14, '#9fb0cf');
+    });
+    var hs = S.units.filter(function (u) { return u.hero; })[0];
+    txt('主人公 HP ' + Math.ceil(Math.max(0, hs.hp)) + '/' + hs.max, 600, 654, 22, '#ffd27a'); txt('相性：槍＞騎＞弓＞槍', 600, 684, 16, '#9fb0cf'); txt('部隊→行き先の拠点で移動　カード→自陣の拠点で出撃', 600, 706, 14, '#7f8aa6');
+    if (S.paused && !S.modal && !S.result) txt('一時停止中', W / 2, 110, 36, '#fff', 'center');
+    if (S.modal) {
+      box({ x: 340, y: 180, w: 600, h: 340 }, 'rgba(8,10,18,0.95)', '#ffd27a'); txt('主人公の戦闘（アクション・仮）', W / 2, 232, 28, '#ffd27a', 'center');
+      var e = S.modal.b; txt('相手：' + e.name + ' [' + e.cls + ']  HP ' + Math.ceil(e.hp) + '  威力 ' + e.pow, W / 2, 290, 22, '#fff', 'center');
+      txt('本番では、ここで横スクロールのアクション戦闘に入り、', W / 2, 340, 18, '#9fb0cf', 'center'); txt('結果（残HP・撃破数）をこの地図へ返します。今は数字だけで決着します。', W / 2, 368, 18, '#9fb0cf', 'center');
+      box({ x: 480, y: 440, w: 320, h: 60 }, '#8a2f3a', '#ffd27a'); txt('戦う', W / 2, 480, 28, '#fff', 'center');
+    }
+    if (S.result) {
+      box({ x: 0, y: 0, w: W, h: H }, 'rgba(0,0,0,0.7)'); txt(S.result === 'win' ? '勝利：敵将を倒した' : '敗北：' + (S.why || ''), W / 2, 320, 48, S.result === 'win' ? '#ffd27a' : '#ff9a9a', 'center');
+      txt('経過 ' + Math.round(S.t) + '秒　撃破 ' + S.kills + '　ブレイブ ' + S.brave, W / 2, 380, 24, '#fff', 'center'); txt('タップでやり直し', W / 2, 440, 22, '#9fb0cf', 'center');
+    }
+  }
+  var last = 0;
+  function frame(ts) {
+    var dt = Math.min(0.05, (ts - last) / 1000 || 0); last = ts;
+    if (!S.paused) for (var i = 0; i < S.speed; i++) update(dt);
+    draw(); requestAnimationFrame(frame);
+  }
+  init(); requestAnimationFrame(frame);
+  window.__sp = { S: function () { return S; }, update: update, init: init, order: order, autoBattle: autoBattle, stub: actionBattleStub, mk: mk, pos: pos, down: down };
+})();
+</script></body></html>
