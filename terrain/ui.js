@@ -14,50 +14,55 @@ const ICO = {
   ally: '<circle cx="12" cy="8" r="4" fill="#e8c8a0" stroke="#5a3d16" stroke-width="1.4"/><path d="M4 21c1-5 4-7 8-7s7 2 8 7z" fill="#8a2a1a" stroke="#5a3d16" stroke-width="1.4"/>',
   skull: '<circle cx="12" cy="11" r="8" fill="#eee4e4" stroke="#401015" stroke-width="1.5"/><circle cx="9" cy="11" r="2.1" fill="#401015"/><circle cx="15" cy="11" r="2.1" fill="#401015"/><rect x="9" y="17" width="6" height="4" fill="#eee4e4" stroke="#401015"/>',
 };
-export const ico = (n, px = 22) => `<svg viewBox="0 0 24 24" width="${px}" height="${px}" style="flex:none;vertical-align:middle">${ICO[n] || ''}</svg>`;
+// 絵のアイコン（assets/ui/、外部AIのシートから切り出し）。絵がない名前は、SVGの仮アイコンにする
+const PNG = { sup: 'ic_sup', mor: 'ic_mor', trp: 'ic_trp', def: 'ic_def', hp: 'ic_hp', ap: 'ic_ap', build: 'ic_build', demolish: 'ic_demolish', castle: 'ic_hp', flag: 'ic_flag', ally: 'ic_ally', skull: 'wk_boss', star: 'ic_star' };
+export const ico = (n, px = 22) => PNG[n] ? `<img src="assets/ui/${PNG[n]}.png" alt="" style="height:${px}px;width:auto;flex:none;vertical-align:middle;filter:drop-shadow(0 1px 1px #000a)">` : `<svg viewBox="0 0 24 24" width="${px}" height="${px}" style="flex:none;vertical-align:middle">${ICO[n] || ''}</svg>`;
 const SERIF = '"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif';
 const css = `
-.fr{background:linear-gradient(#2a1c12f2,#140d08f2);border:2px solid #b48a3c;box-shadow:inset 0 0 0 1px #3a2814,inset 0 0 18px #000a,0 3px 10px #000c;border-radius:6px}
+.fr{border:22px solid transparent;border-image:url(assets/ui/frame_l.png) 90 / 22px / 4px stretch;background:linear-gradient(#24180fef,#120b07f2) center/calc(100% - 22px) calc(100% - 22px) no-repeat;background-clip:border-box;margin:-14px}
+.frs{border:16px solid transparent;border-image:url(assets/ui/frame_s.png) 70 / 16px / 2px stretch;background:linear-gradient(#24180fef,#120b07f2) center/calc(100% - 14px) calc(100% - 14px) no-repeat;margin:-10px}
 #top{position:fixed;left:0;right:0;top:0;z-index:4;padding:calc(env(safe-area-inset-top) + 4px) 6px 0;pointer-events:none;color:#f3e6c0;font:600 12px/1.3 system-ui,"Noto Sans JP",sans-serif;text-shadow:0 1px 2px #000}
-#top .t1{display:flex;align-items:center;gap:6px;padding:5px 8px}
+#top .t1{display:flex;align-items:center;gap:6px;padding:0 2px}#top .t1w{margin:0 0 0 34px}#top .bnr{position:absolute;left:4px;top:calc(env(safe-area-inset-top) + 2px);height:62px;z-index:1;filter:drop-shadow(0 2px 3px #000)}
 #top .ttl{font:700 15px/1 ${SERIF};color:#ffe3a0;white-space:nowrap}
 #top .wk{flex:1;display:flex;align-items:center;justify-content:space-between;position:relative;min-width:0}
 #top .wk:before{content:"";position:absolute;left:4px;right:4px;top:50%;height:2px;background:#6a5030}
-#top .wk i{position:relative;width:15px;height:15px;border-radius:50%;background:#2a1c12;border:1.5px solid #8a6a40;font:700 8px/12px system-ui;color:#c9b48a;text-align:center;font-style:normal}
-#top .wk i.past{background:#4a3a28;color:#8a7a60}#top .wk i.raid{background:#7a1a12;border-color:#ff6a50;color:#ffd0c0}
-#top .wk i.now{width:19px;height:19px;line-height:16px;font-size:10px;background:radial-gradient(#ffe39a,#c9922a);border-color:#fff2c0;color:#3a2410;box-shadow:0 0 8px #ffcc66}
-#top .scroll{margin:4px 6px 0;display:flex;align-items:center;gap:8px;padding:5px 12px;border-radius:4px;background:linear-gradient(90deg,#b8935a,#ead2a0 12%,#f2dfb2 50%,#ead2a0 88%,#b8935a);color:#3a2410;text-shadow:none;font:700 12px/1.2 ${SERIF};box-shadow:0 2px 6px #000a}
+#top .wk i{position:relative;width:17px;height:17px;background:url(assets/ui/wk_norm.png) center/contain no-repeat;font:700 8px/17px system-ui;color:#e0c890;text-align:center;font-style:normal}
+#top .wk i.past{background-image:url(assets/ui/wk_past.png);color:#d8d0c0}#top .wk i.raid{background-image:url(assets/ui/wk_raid.png);color:#ffe0d0}
+#top .wk i.now{width:23px;height:23px;line-height:23px;font-size:11px;background-image:url(assets/ui/wk_now.png);color:#3a2410;filter:drop-shadow(0 0 5px #ffcc66)}
+#top .scroll{margin:6px 2px 0;display:flex;align-items:center;gap:8px;padding:2px 8px;min-height:30px;border-style:solid;border-width:2px 30px;border-color:transparent;border-image:url(assets/ui/scroll.png) 40 110 40 110 fill / 2px 30px stretch;color:#3a2410;text-shadow:none;font:700 12px/1.2 ${SERIF};filter:drop-shadow(0 2px 3px #000a)}
 #top .scroll .wkn{font-size:16px;white-space:nowrap}#top .scroll .sep{width:1px;align-self:stretch;background:#8a6430}
 #top .scroll .foe{margin-left:auto;display:flex;align-items:center;gap:3px;color:#7a1a10;white-space:nowrap}
-#top .res{margin:4px 0 0;display:grid;grid-template-columns:repeat(6,1fr);gap:3px;padding:4px}
+#top .res{margin:-2px -10px 0;display:grid;grid-template-columns:repeat(6,1fr);gap:3px;padding:4px}
 #top .res div{display:flex;align-items:center;gap:3px;padding:2px 3px;border-right:1px solid #5a4024;min-width:0}#top .res div:last-child{border:0}
 #top .res b{display:block;font:700 14px/1 system-ui;color:#fff2d0}#top .res small{display:block;font-size:9px;color:#c9b48a;white-space:nowrap}
 #top .res .bar{height:3px;background:#3a2a1a;border-radius:2px;margin-top:2px;overflow:hidden}#top .res .bar span{display:block;height:100%}
 #top .res .d{font-size:9px;color:#9fd08a}#top .res .n{font-size:9px;color:#ff9a8a}
-#pnl{position:fixed;left:4px;right:4px;bottom:calc(env(safe-area-inset-bottom) + 4px);z-index:4;height:170px;display:flex;transition:height .15s;color:#f3e6c0;font:600 12px/1.35 system-ui,"Noto Sans JP",sans-serif}
-#pnl .por{width:30%;position:relative;overflow:hidden;border-radius:6px 0 0 6px;border-right:1px solid #6a5030;background:radial-gradient(ellipse at 50% 30%,#4a3020,#1a100a)}
-#pnl .por img{position:absolute;left:50%;top:4px;width:150%;transform:translateX(-50%)}
+#pnl{position:fixed;left:2px;right:2px;bottom:calc(env(safe-area-inset-bottom) + 2px);margin:0;z-index:4;height:auto;min-height:170px;display:flex;color:#f3e6c0;font:600 12px/1.35 system-ui,"Noto Sans JP",sans-serif}
+#pnl .por{width:30%;position:relative;overflow:hidden;border-right:1px solid #6a5030;background:radial-gradient(ellipse at 50% 30%,#4a3020,#1a100a)}
+#pnl .por img{position:absolute;left:50%;top:0;width:150%;transform:translateX(-50%)}#pnl.talk .big{font-size:15px;white-space:nowrap}
+#pnl.talk .bub{position:absolute;left:24%;right:10px;bottom:calc(100% + 2px);max-height:none;margin:0;box-shadow:0 3px 10px #000a;border:1.5px solid #8a6430}#pnl.talk .bub:before{left:14px;top:auto;bottom:-14px;border:7px solid transparent;border-top:9px solid #fbf4e2}
 #pnl .por .nm{position:absolute;left:0;right:0;bottom:0;padding:3px 6px;background:linear-gradient(#0000,#000c);font:700 12px/1.2 ${SERIF};color:#ffe3a0}
 #pnl .card{flex:1;display:flex;flex-direction:column;padding:7px 9px;min-width:0}
-#pnl .hd{display:flex;align-items:center;gap:6px;font:700 15px/1.2 ${SERIF};color:#ffe3a0;border-bottom:1px solid #6a5030;padding-bottom:4px}
+#pnl .hd{display:flex;align-items:center;gap:6px;font:700 15px/1.2 ${SERIF};color:#ffe3a0;padding-bottom:8px;background:url(assets/ui/divider.png) bottom/100% 7px no-repeat}
 #pnl .chips{display:flex;gap:4px;flex-wrap:nowrap;overflow-x:auto;margin-top:5px;scrollbar-width:none}
 #pnl .chips button{pointer-events:auto;flex:none;padding:3px 8px;border-radius:12px;border:1px solid #8a6a40;background:#2a1c12;color:#e8d8b0;font:700 11px/1.3 system-ui,"Noto Sans JP",sans-serif}
 #pnl .chips button.on{background:linear-gradient(#f0d58a,#c9a24a);color:#2a1a08;border-color:#ffe9a8}#pnl .chips button.x{opacity:.5}
 #pnl .act{margin-top:5px;font:700 14px/1.3 ${SERIF};color:#fff2d0}
 #pnl .cost{display:flex;gap:10px;align-items:center;margin-top:2px;font-weight:700}#pnl .cost .m{color:#ff9a8a}#pnl .cost .p{color:#9fd08a}
 #pnl .eff{margin-top:2px;color:#a8d4ff;font-size:11px}#pnl .why{color:#ff9a8a;font-size:11px}
-#pnl .bub{margin-top:5px;padding:6px 8px;border-radius:8px;background:#fbf4e2;color:#2a1a08;font:600 12px/1.45 ${SERIF};position:relative;max-height:92px;overflow:auto}
+#pnl .bub{margin-top:5px;padding:6px 8px;border-radius:8px;background:#fbf4e2;color:#2a1a08;font:600 12px/1.45 ${SERIF};position:relative;max-height:64px;overflow:auto}
 #pnl .bub:before{content:"";position:absolute;left:-9px;top:10px;border:6px solid transparent;border-right:9px solid #fbf4e2}
 #pnl .btns{margin-top:auto;display:flex;gap:6px}
-.big{pointer-events:auto;flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;gap:6px;font:700 17px/1 ${SERIF};color:#2a1a08;background:linear-gradient(#fbe7a8,#d9a845 55%,#a8782a);border:2px solid #5a3d12;border-radius:6px;box-shadow:inset 0 1px 0 #fff6,0 2px 6px #000a}
+.big{pointer-events:auto;flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;gap:6px;font:700 17px/1 ${SERIF};color:#2a1a08;text-shadow:0 1px 0 #fff6;background:none;border-style:solid;border-width:10px 20px;border-color:transparent;border-image:url(assets/ui/btn_gold.png) 40 60 fill / 10px 20px stretch;padding:0 4px;filter:drop-shadow(0 2px 3px #000a)}
+.big:active{border-image-source:url(assets/ui/btn_gold_p.png);filter:brightness(.9)}
 .big:disabled{filter:grayscale(.85) brightness(.65)}
-.wkb{pointer-events:auto;flex:none;padding:0 10px;min-height:44px;font:700 13px/1.15 ${SERIF};color:#f3e6c0;background:linear-gradient(#3a2a1a,#1a120a);border:2px solid #b48a3c;border-radius:6px}
-.wkb small{display:block;font:600 9px/1.2 system-ui;color:#c9b48a}.wkb.hot{box-shadow:0 0 0 2px #ffd770,0 0 12px #ffcc66}
-#reset{position:fixed;right:6px;bottom:calc(env(safe-area-inset-bottom) + var(--ph,64px) + 10px);z-index:5;pointer-events:auto;font-size:11px;padding:3px 7px;border-radius:8px;border:1px solid #fff4;background:#0008;color:#ddd}
-#pnl.act{height:auto;min-height:0}#pnl.act .por{display:none}#pnl.act .card{padding:5px 8px}#pnl.act .hd{font-size:14px;padding-bottom:3px}#pnl.act .big,#pnl.act .wkb{min-height:38px}#pnl.act .big{font-size:15px}#pnl.act .act{margin-top:3px;font-size:13px}
+.wkb{pointer-events:auto;flex:none;padding:0 4px;min-height:44px;font:700 13px/1.15 ${SERIF};color:#f3e6c0;background:none;border-style:solid;border-width:10px 18px;border-color:transparent;border-image:url(assets/ui/btn_dark.png) 40 60 fill / 10px 18px stretch;filter:drop-shadow(0 2px 3px #000a)}
+.wkb small{display:block;font:600 9px/1.2 system-ui;color:#c9b48a}.wkb.hot{filter:drop-shadow(0 0 6px #ffcc66)}
+#reset{position:fixed;right:6px;top:calc(env(safe-area-inset-top) + 184px);z-index:5;pointer-events:auto;font-size:11px;padding:3px 7px;border-radius:8px;border:1px solid #fff4;background:#0008;color:#ddd}
+#pnl.act{min-height:0}#pnl.act .por{display:none}#pnl.act .card{padding:5px 8px}#pnl.act .hd{font-size:14px;padding-bottom:3px}#pnl.act .big,#pnl.act .wkb{min-height:38px}#pnl.act .big{font-size:15px}#pnl.act .act{margin-top:3px;font-size:13px}
 #pnl .av{width:30px;height:30px;border-radius:50%;overflow:hidden;flex:none;border:1.5px solid #b48a3c;background:#3a2414;position:relative}
 #pnl .av img{position:absolute;left:50%;top:-2px;width:240%;transform:translateX(-50%)}
-#pnl.mini{height:auto;align-items:center;padding:5px 6px;gap:7px}#pnl.mini .av{width:42px;height:42px}
+#pnl.mini{min-height:0;align-items:center;padding:5px 6px;gap:7px}#pnl.mini .av{width:42px;height:42px}
 #pnl.mini .tx{flex:1;min-width:0;font:600 12px/1.35 ${SERIF};color:#f3e6c0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 #pnl.mini .tx b{color:#ffe3a0}#pnl.mini .wkb{min-height:40px}
 #modal{position:fixed;inset:0;z-index:8;display:none;align-items:center;justify-content:center;background:radial-gradient(#3a0a0a80,#200404d0)}
@@ -81,10 +86,10 @@ export function createUI({ onEndWeek, onReset }) {
   const ui = {
     // d = {title, week, weeks, raidWeeks:[], bossWeek, band:{wk, next, foe}, res:[{ic,lab,val,sub,cls,bar,col}]}
     top(d) {
-      const wk = Array.from({ length: d.weeks }, (_, i) => { const w = i + 1, c = w < d.week ? 'past' : w === d.week ? 'now' : d.raidWeeks.includes(w) ? 'raid' : ''; return w === d.bossWeek && w !== d.week ? `<i class="raid" style="width:18px;height:18px;padding:0;background:none;border:0">${ico('skull', 18)}</i>` : `<i class="${c}">${w}</i>`; }).join('');
-      top.innerHTML = `<div class="fr"><div class="t1">${ico('flag', 18)}<span class="ttl">${d.title}</span><div class="wk">${wk}</div></div></div>
-        <div class="scroll"><span class="wkn">第${d.band.wk}週</span><span class="sep"></span><span>${d.band.next}</span><span class="foe">${ico('skull', 16)}${d.band.foe}</span></div>
-        <div class="res fr">${d.res.map(r => `<div>${ico(r.ic, 22)}<span style="min-width:0"><small>${r.lab}</small><b>${r.val}</b>${r.bar !== undefined ? `<div class="bar"><span style="width:${Math.max(0, Math.min(100, r.bar))}%;background:${r.col || '#7ac06a'}"></span></div>` : ''}${r.sub ? `<span class="${r.cls || 'd'}">${r.sub}</span>` : ''}</span></div>`).join('')}</div>`;
+      const wk = Array.from({ length: d.weeks }, (_, i) => { const w = i + 1, c = w < d.week ? 'past' : w === d.week ? 'now' : d.raidWeeks.includes(w) ? 'raid' : ''; return w === d.bossWeek && w !== d.week ? `<i style="width:24px;height:24px;background-image:url(assets/ui/wk_boss.png)"></i>` : `<i class="${c}">${w}</i>`; }).join('');
+      top.innerHTML = `<img class="bnr" src="assets/ui/banner.png" alt=""><div class="frs t1w"><div class="t1"><span class="ttl">${d.title}</span><div class="wk">${wk}</div></div></div>
+        <div class="scroll"><span class="wkn">第${d.band.wk}週</span><span class="sep"></span><span>${d.band.next}</span><span class="foe"><img src="assets/ui/seal.png" alt="" style="height:22px">${d.band.foe}</span></div>
+        <div class="res frs">${d.res.map(r => `<div>${ico(r.ic, 22)}<span style="min-width:0"><small>${r.lab}</small><b>${r.val}</b>${r.bar !== undefined ? `<div class="bar"><span style="width:${Math.max(0, Math.min(100, r.bar))}%;background:${r.col || '#7ac06a'}"></span></div>` : ''}${r.sub ? `<span class="${r.cls || 'd'}">${r.sub}</span>` : ''}</span></div>`).join('')}</div>`;
     },
     // p = {key, icon, title, por:{src,name}|null, bubble, items:[{label, act, sup, ap, eff, can, why, verb, fn}], week:{label, sub, hot, disabled}}
     // p.mode: 'mini'（何も選んでいない：1行だけ）／'act'（行動：立ち絵なし、小さな顔）／'talk'（会話・報告：立ち絵と吹き出し）
