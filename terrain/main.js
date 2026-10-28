@@ -1,8 +1,8 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793187529';
-import { createUI } from './ui.js?v=1793187529';
+import * as GM from './game.js?v=1793187922';
+import { createUI } from './ui.js?v=1793187922';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -533,6 +533,36 @@ for (const k of Object.keys(GM.ALLY)) {
   allyMesh[k] = { m, x, y, w: im.width * sc, h: im.height * sc };
 }
 function placeAlly(k, x, y) { const a = allyMesh[k]; if (!a) return; const z = zOf(y); a.m.position.set(x, hgt(x, z), z); a.x = x; a.y = y; }
+// 仲間は家の街を歩き回る（広場の中と、その周りの道）。配置は施設の上の顔のアイコンで見せる
+const HOME = layout.plazas[0];
+function walkTarget() { const [cx, cy] = HOME.center;
+  for (let t = 0; t < 20; t++) { const r = Math.random(), x = cx + (Math.random() - .5) * 520, y = cy + (Math.random() - .5) * 260;
+    const inPlaza = pointInPoly(x, y, HOME.poly) && Math.hypot(x - cx, (y - cy) * 2) > 90, onRoad = splatAt(x, y)[0] > .5 && !layout.plots.some(p => pointInPoly(x, y, p.poly));
+    if (inPlaza || (onRoad && r < .5)) return [x, y]; }
+  return [cx - 100, cy + 40]; }
+for (const k of Object.keys(allyMesh)) { const a = allyMesh[k]; a.wait = Math.random() * 3; a.tx = a.x; a.ty = a.y; a.sx = a.m.scale.x; }
+function walkAllies(dt) {
+  for (const k of Object.keys(allyMesh)) { const a = allyMesh[k]; if (!a.m.visible) continue;
+    if (a.wait > 0) { a.wait -= dt; if (a.wait <= 0) [a.tx, a.ty] = walkTarget(); continue; }
+    const dx = a.tx - a.x, dy = a.ty - a.y, d = Math.hypot(dx, dy * 1.6); if (d < 2) { a.wait = 2 + Math.random() * 4; continue; }
+    const sp = 22 * dt; placeAlly(k, a.x + dx / d * Math.min(sp, d), a.y + dy / d * Math.min(sp, d)); a.m.scale.x = Math.abs(a.sx) * (dx < 0 ? -1 : 1);
+    a.m.position.y += Math.abs(Math.sin(performance.now() / 140)) * 1.6; }
+}
+const faceTex = {};
+async function makeFace(k) { // 立ち絵の顔を丸く切り抜いて、金の縁をつける
+  const im = await loadImage(`../ally/${k}.png`); if (!im) return null; const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
+  g.fillStyle = '#2a1a0c'; g.beginPath(); g.arc(64, 64, 60, 0, 7); g.fill(); g.save(); g.beginPath(); g.arc(64, 64, 54, 0, 7); g.clip();
+  const s = im.width / 2.3; g.drawImage(im, im.width / 2 - s / 2, 4, s, s, 10, 10, 108, 108); g.restore();
+  g.strokeStyle = '#e8c060'; g.lineWidth = 7; g.beginPath(); g.arc(64, 64, 56, 0, 7); g.stroke(); g.strokeStyle = '#5a3a10'; g.lineWidth = 2; g.beginPath(); g.arc(64, 64, 60, 0, 7); g.stroke();
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; }
+for (const k of Object.keys(GM.ALLY)) faceTex[k] = await makeFace(k);
+let badges = [];
+function refreshBadges() {
+  badges.forEach(b => scene.remove(b)); badges = [];
+  for (const [k, id] of Object.entries(G.assign || {})) { const pl = plots.find(q => q.id === id), p = G.plots[id]; if (!pl || !p || !faceTex[k] || (k === 'ranka' && G.rankaAway)) continue;
+    const top = pl.hit && p.fac !== 'farm' ? pl.hit.top + 10 : pl.base[1] - 70, lift = (pl.base[1] - top) / COS;
+    const bx = pl.hit ? pl.hit.left + pl.hit.w / 2 : pl.cx, b = sprite3D(faceTex[k], { w: 128, h: 128, ax: .5, ay: 1 }, .38, bx, pl.base[1]); b.position.y += lift; b.material.depthTest = false; b.renderOrder = 30; b.userData.y0 = b.position.y; scene.add(b); badges.push(b); }
+}
 function allySpot(k) { // 配置先の施設の手前（左寄り）。配置していなければ家の広場
   const id = G.assign && G.assign[k], pl = id && plots.find(q => q.id === id);
   if (!pl) return ALLY_POS[k];
@@ -549,7 +579,8 @@ function writeSave() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(G)); 
 function syncMap(instant) { // 状態 → 区画の絵と霧
   for (const pl of plots) { const p = G.plots[pl.id]; const f = p ? p.fac : null, stg = p ? p.stage : 0; if (pl.fac !== f || pl.stage !== stg) setPlot(pl, f, stg); }
   for (const a of areas) showArea(a, G.open.includes(a.id)); updateFog(instant);
-  for (const k of Object.keys(allyMesh)) { const v = GM.joined(G, k); if (v && !allyMesh[k].m.visible && !instant) ui.toast(`${GM.ALLY[k].n}（${GM.ALLY[k].r}）が仲間になった`); allyMesh[k].m.visible = v && !(k === 'ranka' && G.rankaAway); if (v) placeAlly(k, ...allySpot(k)); }
+  for (const k of Object.keys(allyMesh)) { const v = GM.joined(G, k); if (v && !allyMesh[k].m.visible && !instant) ui.toast(`${GM.ALLY[k].n}（${GM.ALLY[k].r}）が仲間になった`); allyMesh[k].m.visible = v && !(k === 'ranka' && G.rankaAway); }
+  refreshBadges();
 }
 const ui = createUI({ onEndWeek: () => endWeek(), onReset: () => { G = GM.newState(layout.areas); select(null); syncMap(true); commit('最初からやり直した'); } });
 function commit(msg) { writeSave(); syncMap(); refreshUI(); if (msg) ui.toast(msg); }
@@ -557,7 +588,8 @@ function act(fn, ok) { if (fn()) commit(ok); else ui.toast('できない（行�
 const sg = n => (n >= 0 ? '+' : '') + n;
 function endWeek() {
   if (G.over) return; if (G.raid) { raidModal(); return; }
-  G.repPrev = GM.snap(G); const msg = GM.endWeek(G); select(null); commit(G.raid ? null : msg); if (!G.raid) showReport();
+  G.repPrev = GM.snap(G); const msg = GM.endWeek(G); select(null);
+  if (G.raid) { ui.toast(msg); raidIntro(() => { writeSave(); refreshUI(); }); commit(null); } else { commit(msg); showReport(); }
 }
 function showReport() { // 週末の報告。参謀がいれば吹き出し、いなければ羊皮紙
   if (!G.repPrev || G.raid) return; if (G.over) { G.repPrev = null; return; } const R = GM.weekReport(G.repPrev, G); G.repPrev = null; writeSave();
@@ -569,6 +601,79 @@ function showReport() { // 週末の報告。参謀がいれば吹き出し、�
   ui.modal(R.title, `<div class="lab">変わったこと</div><ul>${R.changes.map(t => `<li>${t}</li>`).join('')}</ul><div class="lab">気をつけること</div><ul class="w">${R.warns.length ? R.warns.map(t => `<li>${t}</li>`).join('') : '<li style="color:#3a2410">差し迫った心配はない</li>'}</ul>`,
     [{ label: `第${Math.min(G.week, GM.WEEKS)}週へ`, fn: () => ui.modal(null) }], 'parch');
 }
+// ---------- 襲撃の演出（攻めてくる軍勢）と、任せた戦闘の演出 ----------
+const fxCss = document.createElement('style'); fxCss.textContent = `
+#raidfx{position:fixed;inset:0;z-index:7;pointer-events:none;opacity:0;transition:opacity .6s;background:radial-gradient(ellipse at 50% 45%,#0000 35%,#5a0a06aa 80%,#2a0402dd),linear-gradient(#3a0a0a66,#0000 40%,#1a020266)}
+#raidfx.on{opacity:1}
+#raidban{position:fixed;left:0;right:0;top:42%;z-index:8;pointer-events:none;text-align:center;transform:translateX(110%);transition:transform .45s cubic-bezier(.2,.9,.3,1)}
+#raidban.on{transform:none}#raidban.off{transform:translateX(-110%)}
+#raidban div{display:inline-block;padding:10px 40px;background:linear-gradient(90deg,#0000,#3a0806ee 15%,#3a0806ee 85%,#0000);color:#ffd8c0;font:900 26px/1.2 "Hiragino Mincho ProN","Yu Mincho",serif;text-shadow:0 0 12px #ff3a20,0 2px 3px #000;letter-spacing:.1em}
+#raidban small{display:block;font-size:13px;letter-spacing:0;color:#ffb8a0}
+#abt{position:fixed;inset:0;z-index:9;display:none;align-items:center;justify-content:center;background:#0a0402d8;color:#f3e6c0;font:600 13px/1.4 "Hiragino Mincho ProN","Yu Mincho",serif}
+#abt .st{width:min(94vw,420px);position:relative}
+#abt .ttl{text-align:center;font:900 20px/1.3 serif;color:#ffd770;text-shadow:0 0 8px #f80}
+#abt .sides{display:flex;justify-content:space-between;align-items:flex-end;margin:10px 0 6px;height:150px;position:relative}
+#abt .us{display:flex;align-items:flex-end;gap:0}#abt .us img{height:128px;margin-right:-26px;filter:drop-shadow(0 3px 6px #000)}
+#abt .us .tr,#abt .foe .tr{font-size:12px;color:#c9b48a;align-self:center;margin-left:30px}
+#abt .foe{display:flex;flex-direction:column;align-items:center;gap:4px}#abt .foe .army{font-size:30px;letter-spacing:-6px;filter:drop-shadow(0 0 4px #f30)}
+#abt .bar{height:16px;border:2px solid #b48a3c;border-radius:9px;background:#5a0a06;overflow:hidden;position:relative}
+#abt .bar span{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(#8fc0ff,#3a6ad0);transition:width .25s}
+#abt .nums{display:flex;justify-content:space-between;font-size:12px;margin-top:3px}
+#abt .clash{position:absolute;left:50%;top:60px;width:2px;height:2px}
+#abt .sp{position:absolute;width:44px;height:44px;margin:-22px;border-radius:50%;background:radial-gradient(#fff,#ffd060 30%,#f0400000 70%);animation:sp .35s ease-out forwards}
+@keyframes sp{from{transform:scale(.3);opacity:1}to{transform:scale(1.6);opacity:0}}
+#abt .dmg{position:absolute;font:900 18px sans-serif;color:#fff;text-shadow:0 0 4px #f40,0 1px 2px #000;animation:dm .8s ease-out forwards}
+@keyframes dm{from{transform:translateY(0);opacity:1}to{transform:translateY(-36px);opacity:0}}
+#abt .res{text-align:center;margin-top:12px;font:900 30px/1.2 serif;opacity:0;transform:scale(2.2);transition:all .3s cubic-bezier(.2,1.6,.4,1)}
+#abt .res.on{opacity:1;transform:none}#abt .res small{display:block;font-size:13px;color:#e8d8b0;margin-top:4px}
+#abt .tap{text-align:center;font-size:11px;color:#9a8a70;margin-top:10px}`;
+document.head.appendChild(fxCss);
+const raidFx = document.createElement('div'); raidFx.id = 'raidfx'; document.body.appendChild(raidFx);
+const raidBan = document.createElement('div'); raidBan.id = 'raidban'; document.body.appendChild(raidBan);
+const abt = document.createElement('div'); abt.id = 'abt'; document.body.appendChild(abt);
+let introPlaying = false, foes = [];
+const foeTex = canvasSprite(64, 96, g => { // 敵兵の影（コード描画）：黒い鎧、赤い目、槍、たいまつ
+  g.fillStyle = 'rgba(0,0,0,.35)'; g.beginPath(); g.ellipse(32, 90, 16, 5, 0, 0, 7); g.fill();
+  g.fillStyle = '#1a1012'; g.beginPath(); g.moveTo(20, 88); g.lineTo(24, 50); g.lineTo(18, 34); g.lineTo(46, 34); g.lineTo(40, 50); g.lineTo(44, 88); g.closePath(); g.fill();
+  g.beginPath(); g.arc(32, 26, 10, 0, 7); g.fill(); g.fillStyle = '#ff3a20'; g.fillRect(27, 24, 3, 2); g.fillRect(34, 24, 3, 2);
+  g.strokeStyle = '#3a2a20'; g.lineWidth = 3; g.beginPath(); g.moveTo(50, 90); g.lineTo(52, 6); g.stroke(); g.fillStyle = '#a8a8b0'; g.beginPath(); g.moveTo(52, 0); g.lineTo(56, 10); g.lineTo(48, 10); g.fill();
+  const r = g.createRadialGradient(14, 30, 1, 14, 30, 12); r.addColorStop(0, '#fff2a0'); r.addColorStop(.4, '#ff8a20'); r.addColorStop(1, '#ff300000'); g.fillStyle = r; g.beginPath(); g.arc(14, 30, 12, 0, 7); g.fill(); });
+function raidIntro(done) { // 空が赤くなり、街の外から軍勢が攻めてくる。帯で名前を出してから、窓を開く
+  const R = G.raid; introPlaying = true; ui.modal(null);
+  const [cx, cy] = HOME.center, src = layout.signs[R.w % 2 ? 0 : 1] || { x: 40, y: 800 }, n = Math.min(26, 6 + Math.round(R.E / 2));
+  view.zoom = Math.max(view.zoom, .6); view.cx = (cx + src.x) / 2; view.cz = zOf((cy + src.y) / 2); clampView();
+  foes.forEach(f => scene.remove(f.m)); foes = [];
+  for (let i = 0; i < n; i++) { const ox = (Math.random() - .5) * 90, oy = (Math.random() - .5) * 50, m = sprite3D(foeTex, { w: 64, h: 96, ax: .5, ay: .94 }, .42 * (R.boss && i === 0 ? 1.8 : 1), src.x + ox, src.y + oy); scene.add(m);
+    const k = .42 + Math.random() * .12; foes.push({ m, x0: src.x + ox, y0: src.y + oy, x1: src.x + (cx - src.x) * k + ox * .8, y1: src.y + (cy - src.y) * k + oy * .8, d: Math.random() * .5 }); }
+  raidFx.classList.add('on'); const t0 = performance.now();
+  const f = now => { const t = (now - t0) / 2600;
+    foes.forEach(o => { const k = Math.min(1, Math.max(0, (t - o.d * .3) / .8)), e = k * (2 - k), x = o.x0 + (o.x1 - o.x0) * e, y = o.y0 + (o.y1 - o.y0) * e, z = zOf(y); o.m.position.set(x, hgt(x, z) + Math.abs(Math.sin(now / 110 + o.d * 9)) * 2 * (k < 1), z); });
+    if (t > .35 && !f.b) { f.b = 1; raidBan.innerHTML = `<div>${R.boss ? '将軍の侵攻' : '敵襲'}<small>${R.name}・規模 ${R.E}</small></div>`; raidBan.className = 'on'; }
+    if (t > 1.05 && !f.c) { f.c = 1; raidBan.className = 'off'; }
+    if (t > 1.2) { f.done = true; introPlaying = false; done && done(); } };
+  fx.push(f);
+}
+function endRaidFx() { raidFx.classList.remove('on'); foes.forEach(f => scene.remove(f.m)); foes = []; raidBan.className = ''; }
+function autoBattle(resolveFn) { // 任せた戦闘：仲間と兵が軍勢とぶつかり、押し合いの末に結果が出る（約3秒、タップで飛ばせる）
+  const R = G.raid, usD = GM.raidD(G), E = R.E;
+  const team = Object.keys(GM.ALLY).filter(k => GM.joined(G, k) && !(k === 'ranka' && (G.rankaAway || !R.ranka))).slice(0, 4);
+  const t = resolveFn(); // 先に結果を決め、演出をその結果に合わせる
+  const good = /被害なし|完勝|勝利/.test(t) && !/敗北/.test(t), mid = /小被害|苦戦/.test(t);
+  const label = good ? '勝利' : mid ? '辛勝' : /大被害|敗北|敗走/.test(t) ? '敗北' : '苦戦', col = good ? '#ffd770' : mid ? '#ffe0a0' : '#ff7a6a';
+  abt.innerHTML = `<div class="st"><div class="ttl">${R.name}</div><div class="sides"><div class="us">${team.map(k => `<img src="../ally/map_${k}.png" onerror="this.src='../ally/${k}.png'">`).join('')}<span class="tr">兵 ${G.troops}</span></div>
+    <div class="foe"><div class="army">${'💀'.repeat(Math.min(7, Math.ceil(E / 7)))}</div><span class="tr">敵 ${E}</span></div><div class="clash"></div></div>
+    <div class="bar"><span style="width:50%"></span></div><div class="nums"><span>防衛力 ${Math.round(usD)}</span><span>敵の規模 ${E}</span></div>
+    <div class="res" style="color:${col}">${label}<small>${t.split('：')[1] || ''}</small></div><div class="tap">タップで閉じる</div></div>`;
+  abt.style.display = 'flex'; const bar = abt.querySelector('.bar span'), cl = abt.querySelector('.clash'), res = abt.querySelector('.res');
+  const fin = good ? 82 : mid ? 58 : 26; let i = 0, closed = false;
+  const iv = setInterval(() => { i++; const w = i < 9 ? 50 + Math.sin(i * 1.7) * 18 + (fin - 50) * i / 12 : fin; bar.style.width = w + '%';
+    const s = document.createElement('div'); s.className = 'sp'; s.style.left = (Math.random() - .5) * 120 + 'px'; s.style.top = (Math.random() - .5) * 60 + 'px'; cl.appendChild(s);
+    const d = document.createElement('div'); d.className = 'dmg'; d.textContent = Math.round(3 + Math.random() * E / 3); d.style.left = (Math.random() - .5) * 140 + 'px'; d.style.top = (Math.random() - .5) * 40 + 'px'; cl.appendChild(d);
+    setTimeout(() => { s.remove(); d.remove(); }, 800);
+    if (i === 10) { res.classList.add('on'); clearInterval(iv); } }, 230);
+  const close = () => { if (closed || !res.classList.contains('on')) { if (!closed) { i = 9; } return; } closed = true; abt.style.display = 'none'; abt.onclick = null; endRaidFx(); commit(t); showReport(); };
+  abt.onclick = e => { e.stopPropagation(); if (!res.classList.contains('on')) { clearInterval(iv); bar.style.width = fin + '%'; res.classList.add('on'); return; } close(); };
+}
 function goBattle() { // アクション戦闘へ移る。結果は battle_result に書かれ、戻ってきたときに反映する
   const R = G.raid, id = String(Date.now()), m = GM.battleMods(G); G.battle = { id }; writeSave();
   const q = new URLSearchParams({ battle: '1', id, waves: GM.wavesOf(R.E), name: R.name, dmg: m.dmg, bind: m.bind, hp: m.hp, ret: 'terrain/index.html' });
@@ -578,17 +683,18 @@ function takeBattleResult() {
   let r = null; try { r = JSON.parse(localStorage.getItem('battle_result') || 'null'); } catch (e) { }
   if (!r || !G.battle || !G.raid || r.id !== G.battle.id) return;
   try { localStorage.removeItem('battle_result'); } catch (e) { }
-  G.battle = null; const t = GM.resolve(G, 'hand', Math.random, !!r.win); commit(`${t}（撃破${r.kills}）`); showReport();
+  G.battle = null; const t = GM.resolve(G, 'hand', Math.random, !!r.win); endRaidFx(); commit(`${t}（撃破${r.kills}）`); showReport();
 }
 function raidModal() {
-  const R = G.raid; if (!R) { ui.modal(null); return; }
+  const R = G.raid; if (!R) { ui.modal(null); return; } if (introPlaying || abt.style.display === 'flex') return;
+  raidFx.classList.add('on');
   if (R.ranka === undefined) R.ranka = GM.rankaReady(G); // 出られるなら出す（窓で切り替えられる）
   const D = GM.raidD(G), p = Math.round(GM.handP(G, R.E) * 100), m = GM.battleMods(G), wv = GM.wavesOf(R.E);
   const mods = [m.dmg > 1 ? `ダメージ+${Math.round((m.dmg - 1) * 100)}%` : '', m.bind ? `拘束+${m.bind}秒` : '', m.hp ? `最大HP+${m.hp}` : ''].filter(Boolean).join('・');
   const rk = GM.joined(G, 'ranka') ? (G.rankaAway ? '<br><span style="color:#c9b48a">ランカは今週、街にいない</span>' : G.rankaRest ? '<br><span style="color:#c9b48a">ランカは前の戦闘に出たので休み（2回続けて出られない）</span>' : `<br>ランカ：<b>${R.ranka ? '出撃する' : '温存する'}</b>（防衛力+${GM.rankaD(G)}・ダメージ+${Math.round(GM.rankaDmg(G) * 100)}%。出ると次の戦闘は休み）`) : '';
-  const btns = [{ label: '任せる', fn: () => { const t = GM.resolve(G, 'auto'); ui.modal(null); commit(t); showReport(); } },
+  const btns = [{ label: '任せる', sub: '仲間と兵が戦う', fn: () => { ui.modal(null); autoBattle(() => GM.resolve(G, 'auto')); } },
      { label: '自分で戦う', sub: `WAVE ${wv}・アクション`, fn: goBattle },
-     { label: '確率で決める', sub: `成功率 約${p}%`, fn: () => { const t = GM.resolve(G, 'hand'); ui.modal(null); commit(t); showReport(); } }];
+     { label: '確率で決める', sub: `成功率 約${p}%`, fn: () => { ui.modal(null); autoBattle(() => GM.resolve(G, 'hand')); } }];
   if (GM.rankaReady(G)) btns.push({ label: R.ranka ? 'ランカを温存する' : 'ランカを出す', sub: R.ranka ? '次の戦闘に回す' : '最強の戦力', fn: () => { GM.setRanka(G, !R.ranka); writeSave(); raidModal(); } });
   ui.modal(R.kind === 'sortie' ? `出撃：${R.name}` : `襲撃：${R.name}`, `敵の規模 <b>${R.E}</b> ／ こちらの防衛力 <b>${Math.round(D)}</b><br>任せる：見込みは「${GM.autoTier(G, R.E)}」<br>自分で戦う：<b>WAVE ${wv}</b> まで生き残れば勝利。勝てば報酬、負ければ被害が1段重い${mods ? '<br>仲間の補正：' + mods : ''}${rk}`, btns);
 }
@@ -697,10 +803,11 @@ canvas.addEventListener('wheel', e => { e.preventDefault(); const [sx, sy] = pic
 window.addEventListener('resize', resize);
 
 // ---------- ループ ----------
-let last = performance.now(), frames = 0, acc = 0;
+let last = performance.now(), frames = 0, acc = 0, fx = [];
 function frame(now) {
   const dt = now - last; last = now; acc += dt; frames++;
   groundMat.uniforms.time.value = now / 1000; selGlow.opacity = .38 + .2 * Math.sin(now / 260);
+  walkAllies(Math.min(.05, dt / 1000)); badges.forEach((b, i) => { b.position.y = b.userData.y0 + Math.sin(now / 400 + i) * 2; }); fx.forEach(f => f(now)); fx = fx.filter(f => !f.done);
   apply(); renderer.render(scene, camera);
   if (acc > 500) { st.textContent = `3D: ${status.ok ? 'OK' : status.reason} / 地面:${status.ground} 小物:${status.sprites}(${status.props}) / ${(frames * 1000 / acc).toFixed(0)}fps / 拡大 ${view.zoom.toFixed(2)}`; frames = 0; acc = 0; }
   // HUD は refreshUI() が書く
@@ -711,5 +818,5 @@ G = loadSave() || GM.newState(layout.areas); syncMap(true); refreshUI(); takeBat
 resize(); apply(); renderer.render(scene, camera); status.ok = true;
 window.__t.setView = (zoom, sx, sy) => { view.zoom = zoom; view.cx = sx; view.cz = zOf(sy); clampView(); apply(); renderer.render(scene, camera); };
 window.__t.select = id => select(plots.find(p => p.id === id) || null);
-window.__t.plots = plots; window.__t.G = () => G; window.__t.showReport = showReport; window.__t.GM = GM; window.__t.commit = () => commit(); window.__t.reset = () => { try { localStorage.removeItem(SAVE_KEY); } catch (e) { } }; window.__t.pickAt = (cx, cy) => pickAt(cx, cy); window.__t.view = view; window.__t.sel = () => selected && selected.id; window.__t.build = (id, fac, stage) => { if (stage) G.plots[id] = { fac, stage }; else delete G.plots[id]; commit(); };
+window.__t.plots = plots; window.__t.G = () => G; window.__t.raidIntro = raidIntro; window.__t.showReport = showReport; window.__t.GM = GM; window.__t.commit = () => commit(); window.__t.reset = () => { try { localStorage.removeItem(SAVE_KEY); } catch (e) { } }; window.__t.pickAt = (cx, cy) => pickAt(cx, cy); window.__t.view = view; window.__t.sel = () => selected && selected.id; window.__t.build = (id, fac, stage) => { if (stage) G.plots[id] = { fac, stage }; else delete G.plots[id]; commit(); };
 requestAnimationFrame(frame);
