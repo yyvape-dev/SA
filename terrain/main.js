@@ -1,8 +1,8 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793190920';
-import { createUI } from './ui.js?v=1793190920';
+import * as GM from './game.js?v=1793191333';
+import { createUI } from './ui.js?v=1793191333';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -741,7 +741,7 @@ const foeURL = foeTex.image.toDataURL();
 function playDuel(k, done) {
   const R = G.raid, A = GM.ALLY[k], F = GM.foeGeneral(G), win = GM.duel(G, k), bg = `assets/field/${R.dir || 'pass'}.jpg`;
   duelEl.style.backgroundImage = `url(${bg})`; duelEl.style.display = 'block';
-  duelEl.innerHTML = `<div class="stage"><div class="f L"><img src="../ally/map_${k}.png"></div><div class="f R" style="height:88%"><img src="${foeURL}" style="filter:drop-shadow(0 0 10px #f30) drop-shadow(0 6px 8px #000)"></div></div>
+  duelEl.innerHTML = `<div class="stage"><div class="f L"><img src="../ally/${k}.png"></div><div class="f R" style="height:88%"><img src="${foeURL}" style="filter:drop-shadow(0 0 10px #f30) drop-shadow(0 6px 8px #000)"></div></div>
     <div class="hp l">${A.n}<i><b style="width:100%"></b></i></div><div class="hp r">${F.n}<i><b style="width:100%"></b></i></div>
     <div class="ban">一騎打ち</div><div class="cut"><img src="${faceURL[k]}"><div>${win ? '決める！' : 'まだだ…！'}<small>${A.n}（${A.r}）</small></div></div><div class="res"></div>`;
   const $ = q => duelEl.querySelector(q), L = $('.L'), Rf = $('.R'), hl = $('.hp.l b'), hr = $('.hp.r b');
