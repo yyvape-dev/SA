@@ -34,13 +34,18 @@ sctx.drawImage(splatImg, 0, 0);
   [[640, 520], [700, 480], [800, 455], [941, 440], [941, 610], [860, 600], [780, 585], [700, 560]].forEach(([x, y], i) => { const px = x / 2, py = y / 2; i ? sctx.lineTo(px, py) : sctx.moveTo(px, py); });
   sctx.closePath(); sctx.fill(); sctx.globalCompositeOperation = 'source-over';
 }
+let baseSplat;
 { // 区画は、コードのデータの多角形で描く（縁がはっきりする）。絵から取った不揃いな形は使わない。
-  const id = sctx.getImageData(0, 0, SW, SH); for (let i = 0; i < SW * SH; i++) id.data[i * 4 + 1] = 0; sctx.putImageData(id, 0, 0);
+  const id = sctx.getImageData(0, 0, SW, SH); for (let i = 0; i < SW * SH; i++) id.data[i * 4 + 1] = 0; sctx.putImageData(id, 0, 0); baseSplat = id;
+}
+function paintYards(polys) { // 各区画の地面の形（空き地=絵から取った4角、建物あり=建物の足元の平行四辺形）
+  sctx.putImageData(baseSplat, 0, 0);
   sctx.globalCompositeOperation = 'lighter'; sctx.fillStyle = 'rgb(0,255,0)';
-  layout.plots.forEach(pl => { sctx.beginPath(); pl.poly.forEach(([x, y], i) => { const px = x / 2, py = y / 2; i ? sctx.lineTo(px, py) : sctx.moveTo(px, py); }); sctx.closePath(); sctx.fill(); });
+  polys.forEach(poly => { sctx.beginPath(); poly.forEach(([x, y], i) => { const px = x / 2, py = y / 2; i ? sctx.lineTo(px, py) : sctx.moveTo(px, py); }); sctx.closePath(); sctx.fill(); });
   sctx.globalCompositeOperation = 'source-over';
 }
-const splatData = sctx.getImageData(0, 0, SW, SH).data;
+paintYards(layout.plots.map(p => p.poly));
+const splatData = sctx.getImageData(0, 0, SW, SH).data; // 道・区画・川の初期状態（小物配置とゾーン用）
 function boxBlur(a, w, h, r, passes) {
   let src = a, dst = new Float32Array(a.length);
   for (let p = 0; p < passes; p++) {
@@ -228,7 +233,6 @@ function place(type, x, sy, sc = 1, flip = false, tint = 1) { const z = zOf(sy);
   for (let i = 0; i < 260; i++) { const x = R() * 200, sy = 420 + R() * 1200; if (nearLayout(x, sy, 12)) continue; place(R() < .35 ? 7 : R() < .6 ? 5 : 6, x, sy, .9 + R() * .7, R() < .5); }
   for (let i = 0; i < 1300; i++) { const x = R() * REF_W, sy = 900 + R() * 800; const s = splatAt(x, sy); if (s[2] > .12 && s[2] < .6) place(R() < .5 ? 5 : 6, x + (R() - .5) * 20, sy + (R() - .5) * 12, .6 + R() * .6, R() < .5); }
   // 区画の四隅に杭（標識）
-  layout.plots.forEach(p => p.poly.forEach(([x, sy]) => place(9, x, sy + 4, .8)));
 }
 const dummy = new THREE.Object3D();
 const instMeshes = []; let total = 0;
@@ -261,7 +265,7 @@ function sprite3D(tex, meta, scale, baseX, baseSy) { // 足元の手前の角(ax
 }
 
 // ---------- 区画（コードのデータ）と選択表示 ----------
-const plots = layout.plots.map(p => ({ id: p.id, poly: p.poly, state: 'empty' }));
+const plots = layout.plots.map(p => ({ id: p.id, poly: p.poly, home: p.poly, state: 'empty' }));
 const selMat = new THREE.MeshBasicMaterial({ color: 0xffd25a, transparent: true, opacity: .32, depthTest: false });
 const selLine = new THREE.LineBasicMaterial({ color: 0xffe08a, depthTest: false });
 let selGroup = null, selected = null;
@@ -282,11 +286,48 @@ const FAC = { smithy: '鍛冶場', tavern: '酒場' }, STAGE = ['空き地', '�
 const BS = .42; // 素材シートの画素 → 基準画像の画素
 for (const f of Object.keys(FAC)) for (let k = 1; k <= 3; k++) bldTex[`${f}_${k}`] = await loadBld(`assets/bld/${f}_${k}.png`);
 plots.forEach(pl => { pl.fac = null; pl.stage = 0; pl.mesh = null; pl.base = pl.poly.reduce((a, q) => q[1] > a[1] ? q : a, pl.poly[0]); pl.cx = pl.poly.reduce((a, q) => a + q[0], 0) / 4; });
+const alphaCache = {};
+function alphaMask(key) { // 絵の透明度（タップ判定用）
+  if (alphaCache[key]) return alphaCache[key];
+  const im = bldTex[key].image, c = document.createElement('canvas'); c.width = im.width; c.height = im.height;
+  const x = c.getContext('2d', { willReadFrequently: true }); x.drawImage(im, 0, 0);
+  return alphaCache[key] = { w: im.width, h: im.height, d: x.getImageData(0, 0, im.width, im.height).data };
+}
+const stakeTex = stex[9], stakeDef = SPR[9];
+plots.forEach(pl => { // 空き地の4隅の杭（建物が建つと隠す）
+  const hh = stakeDef.h * .8, ww = hh * stakeTex.aspect; pl.stakes = new THREE.Group();
+  pl.home.forEach(([x, sy]) => pl.stakes.add(sprite3D(stakeTex.t, { w: ww, h: hh, ax: .5, ay: 1 }, 1, x, sy + 4)));
+  scene.add(pl.stakes);
+});
+function yardOf(pl, meta) { // 建物の足元の平行四辺形を、地面の座標へ（少し外へ広げる）
+  const fp = meta.fp, ox = meta.ax * meta.w, oy = meta.ay * meta.h, bx = pl.cx, by = pl.base[1] - 4;
+  const q = fp.map(([x, y]) => [bx + (x - ox) * BS, by + (y - oy) * BS]);
+  const cx = q.reduce((a, p) => a + p[0], 0) / 4, cy = q.reduce((a, p) => a + p[1], 0) / 4;
+  return q.map(([x, y]) => [cx + (x - cx) * 1.14, cy + (y - cy) * 1.14]);
+}
 function refreshPlot(pl) {
   if (pl.mesh) { scene.remove(pl.mesh); pl.mesh.material.dispose(); pl.mesh = null; }
-  if (!pl.fac || pl.stage < 1) return;
-  const key = `${pl.fac}_${pl.stage}`, t = bldTex[key]; if (!t) return;
-  pl.mesh = sprite3D(t, bld[`assets/bld/${key}.png`], BS, pl.cx, pl.base[1] - 4); scene.add(pl.mesh);
+  pl.hit = null; pl.poly = pl.home;
+  const key = `${pl.fac}_${pl.stage}`, t = pl.fac && pl.stage >= 1 ? bldTex[key] : null;
+  if (t) {
+    const meta = bld[`assets/bld/${key}.png`];
+    pl.mesh = sprite3D(t, meta, BS, pl.cx, pl.base[1] - 4); scene.add(pl.mesh);
+    pl.poly = yardOf(pl, meta);
+    const bottom = pl.base[1] - 4, w = meta.w * BS, h = meta.h * BS;
+    pl.hit = { key, left: pl.cx - meta.ax * w, top: bottom - meta.ay * h, w, h };
+  }
+  pl.stakes.visible = !t;
+  paintYards(plots.map(p => p.poly)); splatTex.needsUpdate = true;
+  if (selected === pl) select(pl);
+}
+function hitBuilding(sx, sy) { // 建物の絵（透明でない所）を押したか。手前の建物を優先
+  let best = null;
+  for (const pl of plots) {
+    const h = pl.hit; if (!h) continue; const u = (sx - h.left) / h.w, v = (sy - h.top) / h.h; if (u < 0 || u > 1 || v < 0 || v > 1) continue;
+    const m = alphaMask(h.key), px = Math.min(m.w - 1, u * m.w | 0), py = Math.min(m.h - 1, v * m.h | 0);
+    if (m.d[(py * m.w + px) * 4 + 3] > 40 && (!best || pl.base[1] > best.base[1])) best = pl;
+  }
+  return best;
 }
 function setPlot(pl, fac, stage) { pl.fac = stage ? fac : null; pl.stage = stage; refreshPlot(pl); renderActions(); }
 const actEl = document.createElement('div');
@@ -335,7 +376,7 @@ function pickAt(cx, cy) { // 画面の点 → 基準画像の座標（高さ0の
   const Z = view.zoom, sx = view.cx + (cx - W / 2) / Z, sy = syOf(view.cz) + (cy - H / 2) / Z; return [sx, sy];
 }
 canvas.addEventListener('pointerup', e => {
-  if (drag && !drag.moved) { const [sx, sy] = pickAt(e.clientX, e.clientY); select(plots.find(p => pointInPoly(sx, sy, p.poly)) || null); }
+  if (drag && !drag.moved) { const [sx, sy] = pickAt(e.clientX, e.clientY); select(hitBuilding(sx, sy) || plots.find(p => pointInPoly(sx, sy, p.poly)) || null); }
   pointers.delete(e.pointerId); if (pointers.size < 2) pinch = null; if (!pointers.size) drag = null;
 });
 canvas.addEventListener('pointercancel', e => { pointers.delete(e.pointerId); pinch = null; drag = null; });
@@ -356,5 +397,5 @@ canvas.addEventListener('webglcontextlost', e => { e.preventDefault(); status.ok
 resize(); apply(); renderer.render(scene, camera); status.ok = true;
 window.__t.setView = (zoom, sx, sy) => { view.zoom = zoom; view.cx = sx; view.cz = zOf(sy); clampView(); apply(); renderer.render(scene, camera); };
 window.__t.select = id => select(plots.find(p => p.id === id) || null);
-window.__t.plots = plots; window.__t.build = (id, fac, stage) => { const pl = plots.find(q => q.id === id); if (pl) setPlot(pl, fac, stage); };
+window.__t.plots = plots; window.__t.pickAt = (cx, cy) => pickAt(cx, cy); window.__t.view = view; window.__t.sel = () => selected && selected.id; window.__t.build = (id, fac, stage) => { const pl = plots.find(q => q.id === id); if (pl) setPlot(pl, fac, stage); };
 requestAnimationFrame(frame);
