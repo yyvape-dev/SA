@@ -24,13 +24,9 @@ P=clean(plot&ground,9,2500); R=clean(road&ground,5,1500); Wt=clean(water&ground&
 n,lab,st,cen=cv2.connectedComponentsWithStats(P)
 plots=[]
 for i in range(1,n):
-    cnt=cv2.findContours((lab==i).astype(np.uint8),cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)[0][0]
-    hull=cv2.convexHull(cnt)
-    eps=0.04*cv2.arcLength(hull,True)
-    ap=cv2.approxPolyDP(hull,eps,True).reshape(-1,2)
-    if len(ap)!=4:
-        ap=cv2.boxPoints(cv2.minAreaRect(hull)).astype(int)
-    plots.append({'poly':[[int(x),int(y)] for x,y in ap],'cx':int(cen[i][0]),'cy':int(cen[i][1])})
+    ys,xs=np.where(lab==i)
+    L=(xs[xs.argmin()],ys[xs.argmin()]); Rr=(xs[xs.argmax()],ys[xs.argmax()]); T=(xs[ys.argmin()],ys[ys.argmin()]); Bm=(xs[ys.argmax()],ys[ys.argmax()])
+    plots.append({'poly':[list(map(int,q)) for q in (T,Rr,Bm,L)],'cx':int(cen[i][0]),'cy':int(cen[i][1])})
 plots.sort(key=lambda p:p['cy'])
 for k,p in enumerate(plots): p['id']='P%d'%(k+1)
 # スプラット（半解像度、R=道 G=区画 B=川）。縁をぼかす
