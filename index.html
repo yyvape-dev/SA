@@ -167,6 +167,14 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
 
   var keys = {}, pad = { x: 0, y: 0, mag: 0 };
   var G, S;
+  /* ---------- 領地からの出撃（?battle=1）：WAVE waves まで生き残れば勝利。結果を localStorage の battle_result に書いて、領地へ戻る ---------- */
+  var BAT = (function () { var q = new URLSearchParams(location.search || ''); if (q.get('battle') !== '1') return { on: false };
+    return { on: true, id: q.get('id') || '', waves: Math.max(1, +q.get('waves') || 3), name: q.get('name') || '出撃', dmg: +q.get('dmg') || 1, bind: +q.get('bind') || 0, hp: +q.get('hp') || 0, ret: q.get('ret') || 'terrain/index.html' }; })();
+  function finishBattle(win) {
+    if (G.state === 'result') return; G.state = 'result'; G.result = !!win; G.resT = 0;
+    try { localStorage.setItem('battle_result', JSON.stringify({ id: BAT.id, win: !!win, kills: G.kills, wave: G.wave })); } catch (e) { }
+  }
+  function backToMap() { if (G.resT < 0.8) return; location.href = BAT.ret; }
 
   function newGame() {
     S = { dmg: 1, range: 1, aspd: 1.5, cd: 1, chain: 0, pcd: 1, bind: 0.8 };
@@ -191,6 +199,7 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
 
   function onPress(code) {
     if (!started) return;
+    if (G.state === 'result') { backToMap(); return; }
     if (G.state === 'title') { startRun(); return; }
     if (G.state === 'dead') { if (code === 'KeyR' || code === 'Space' || code === 'Enter') { newGame(); startRun(); } return; }
     if (G.state === 'pick') {
@@ -199,7 +208,7 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
       if (code === 'Digit3' || code === 'Numpad3') choose(2);
       return;
     }
-    if (code === 'KeyR') { newGame(); startRun(); return; }
+    if (code === 'KeyR' && !BAT.on) { newGame(); startRun(); return; }
     if (code === 'KeyJ' || code === 'Space' || code === 'KeyZ') tryAttack('atk');
     if (code === 'KeyK' || code === 'KeyX') tryAttack('sk');
     if (code === 'KeyL' || code === 'KeyC') tryAttack('pull');
@@ -216,6 +225,7 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
     cv.focus();
     if (!started) return;
     var p = canvasPoint(ev);
+    if (G.state === 'result') { backToMap(); return; }
     if (G.state === 'title') { startRun(); return; }
     if (G.state === 'dead') { newGame(); startRun(); return; }
     if (G.state === 'pick') {
@@ -256,6 +266,7 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
     el.addEventListener('pointerdown', function (ev) {
       ev.preventDefault(); el.classList.add('pressed');
       if (!started) return;
+      if (G.state === 'result') { backToMap(); return; }
       if (G.state === 'title') { startRun(); return; }
       if (G.state === 'dead') { newGame(); startRun(); return; }
       fn();
@@ -286,7 +297,9 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
     try { var st = document.getElementById('stage'); if (!document.fullscreenElement && st.requestFullscreen) st.requestFullscreen().then(function () { try { if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(function () {}); } catch (e) {} }).catch(function () {}); } catch (e) {}
   }
   function startRun() {
-    tryFs(); G.state = 'play'; G.t = 0; enterRoom(0);
+    tryFs(); G.state = 'play'; G.t = 0;
+    if (BAT.on && !G.batApplied) { G.batApplied = true; S.dmg *= BAT.dmg; S.bind += BAT.bind; G.hero.max += BAT.hp; G.hero.hp = G.hero.max; }
+    enterRoom(0);
     var kz = document.getElementById('keys'), nt = document.getElementById('loadnote'); // 操作の説明と読み込みの表示は、始めたらしまう
     if (nt && nt.style) nt.style.display = 'none';
     if (kz && kz.style) setTimeout(function () { kz.style.opacity = '0'; }, 7000);
@@ -604,7 +617,8 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
     if (G.state === 'title') return;
     if (G.freeze > 0) { G.freeze -= dt; return; }
     if (G.state === 'dead') G.deadT = (G.deadT || 0) + dt;
-    if (G.state === 'pick' || G.state === 'dead') { updateFx(dt); return; }
+    if (G.state === 'result') G.resT += dt;
+    if (G.state === 'pick' || G.state === 'dead' || G.state === 'result') { updateFx(dt); return; }
     if (G.trans) { // 部屋の移動中：暗転の真ん中で次の部屋へ切り替える
       var tr = G.trans; tr.t += dt;
       if (!tr.sw && tr.t >= 0.5) { tr.sw = true; enterRoom(G.roomNo + 1); }
@@ -712,7 +726,7 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
           e.atkCD = 1.1; h.hp -= e.dmg; h.inv = 0.45; h.flash = 0.25; G.shake = Math.max(G.shake, 4);
           addText(h.x, h.y - 230, '-' + e.dmg, 26, '#ff6b6b', 0.7);
           if (h.state !== 'atk' && h.hp > 0) { h.state = 'hurt'; h.t = 0; h.buf = 0; h.kb = (h.x >= e.x ? 1 : -1) * 240; }
-          if (h.hp <= 0) { h.hp = 0; G.state = 'dead'; G.deadT = 0; }
+          if (h.hp <= 0) { h.hp = 0; G.state = 'dead'; G.deadT = 0; if (BAT.on) finishBattle(false); }
         }
       }
       e.y = clamp(e.y, LANE_Y0 - 6, LANE_Y1 + 6);
@@ -746,7 +760,7 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
     updateFx(dt);
 
     // ウェーブ終了
-    if (G.state === 'play' && G.phase === 'fight' && !G.queue.length && !G.enemies.length) offerPick();
+    if (G.state === 'play' && G.phase === 'fight' && !G.queue.length && !G.enemies.length) { if (BAT.on && G.wave >= BAT.waves) finishBattle(true); else offerPick(); }
   }
 
   function collect(d) {
@@ -945,6 +959,23 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
 
   function drawOverlay() {
     var i;
+    if (G.state === 'result') {
+      ctx.fillStyle = G.result ? 'rgba(10,8,4,0.72)' : 'rgba(30,4,8,0.72)'; ctx.fillRect(0, 0, W, H);
+      txt(G.result ? '勝利' : '敗北', W / 2, 250, 72, G.result ? '#ffd27a' : '#ff6b6b', 'center');
+      txt(BAT.name + '　到達 WAVE ' + G.wave + '／' + BAT.waves + '　撃破 ' + G.kills + '　最大コンボ ' + G.bestCombo, W / 2, 330, 26, '#fff', 'center');
+      if (G.resT > 0.8) txt('タップ、またはキーで領地へ戻る', W / 2, 470, 30, '#ffd27a', 'center');
+      return;
+    }
+    if (G.state === 'title' && BAT.on) {
+      ctx.fillStyle = 'rgba(6,4,10,0.66)'; ctx.fillRect(0, 0, W, H);
+      txt('出撃：' + BAT.name, W / 2, 230, 56, '#ffd27a', 'center');
+      txt('WAVE ' + BAT.waves + ' まで生き残れば勝利', W / 2, 300, 32, '#ece6f2', 'center');
+      var mods = []; if (BAT.dmg > 1) mods.push('ダメージ+' + Math.round((BAT.dmg - 1) * 100) + '%'); if (BAT.bind) mods.push('拘束+' + BAT.bind + '秒'); if (BAT.hp) mods.push('最大HP+' + BAT.hp);
+      if (mods.length) txt('仲間の補正：' + mods.join('・'), W / 2, 352, 24, '#c9bcff', 'center');
+      txt('移動 ←↑↓→　攻撃 J　衝撃波 K　吸引 L　必殺 U　（スマホはパッドとボタン）', W / 2, 420, 20, '#cfc6dc', 'center');
+      txt('クリック、またはキーを押して開始', W / 2, 520, 30, '#fff', 'center');
+      return;
+    }
     if (G.state === 'title') {
       ctx.fillStyle = 'rgba(6,4,10,0.62)'; ctx.fillRect(0, 0, W, H);
       txt('月夜の回廊（試作）', W / 2, 250, 64, '#ffd27a', 'center');

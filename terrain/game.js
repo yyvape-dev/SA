@@ -13,22 +13,38 @@ export const SCHED = [ // 襲撃の予定（E=敵の規模）。後半ほど強�
   { w: 9, E: 31, name: '将軍の副官の軍' }, { w: 11, E: 38, name: '謀反軍の本隊' }, { w: 12, E: 46, name: '将軍の侵攻', boss: true },
 ];
 const CAP_TROOPS = 16;
+// 仲間。join=仲間になる条件（開拓した区域）。絆は0〜3。効果は絆2と絆3で増える（base5 の式をもとに、戦闘の補正を足した）
+export const ALLY = {
+  mina:  { n: 'ミナ',   r: '捕縛役', join: null,   lv: ['', '', '自分で戦う成功率+12%・戦闘の拘束+0.4秒', '自分で戦う成功率+さらに8%・拘束+さらに0.4秒'] },
+  garou: { n: 'ガロウ', r: '火力役', join: 'east', lv: ['', '', '防衛力+4・戦闘のダメージ+15%', '防衛力+7・ダメージ+30%'] },
+  sera:  { n: 'セラ',   r: '内政役', join: 'lake', lv: ['', '', '畑の産出+1ずつ・戦闘の最大HP+20', '炊き出しの民心+15・最大HP+40'] },
+};
+export const joined = (s, k) => !ALLY[k].join || s.open.includes(ALLY[k].join);
+const bond = (s, k) => (s.bond && s.bond[k]) || 0;
+export const canTalk = (s, k) => joined(s, k) && bond(s, k) < 3 && !s.over && !s.raid && s.ap >= 1;
+export function talk(s, k) { if (!canTalk(s, k)) return false; s.ap -= 1; s.bond[k] = bond(s, k) + 1; s.log.push(`${ALLY[k].n}と過ごした（絆${s.bond[k]}）`); return true; }
+export function battleMods(s) { // アクション戦闘へ渡す補正
+  const m = bond(s, 'mina'), g = bond(s, 'garou'), r = bond(s, 'sera');
+  return { dmg: 1 + (g >= 3 ? .3 : g >= 2 ? .15 : 0), bind: m >= 3 ? .8 : m >= 2 ? .4 : 0, hp: r >= 3 ? 40 : r >= 2 ? 20 : 0 };
+}
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const mult = st => (st === 2 ? 1 : st === 3 ? 2 : 0);
 
 export function newState(areaDefs) {
-  return { week: 1, ap: 3, sup: 10, morale: 60, troops: 4, hp: 3, plots: {}, open: [], scouted: {}, tired: false, over: null, why: '', raid: null, log: [], areaDefs: areaDefs.map(a => ({ id: a.id, name: a.name, cost: a.cost, income: a.income })) };
+  return { week: 1, ap: 3, sup: 10, morale: 60, troops: 4, hp: 3, plots: {}, open: [], bond: { mina: 0, garou: 0, sera: 0 }, battle: null, scouted: {}, tired: false, over: null, why: '', raid: null, log: [], areaDefs: areaDefs.map(a => ({ id: a.id, name: a.name, cost: a.cost, income: a.income })) };
 }
 
 // ---------- 指標（全部ここから計算） ----------
-function effSum(s, key) { let v = 0; for (const p of Object.values(s.plots)) { const f = FAC[p.fac]; if (f && f.eff[key]) v += f.eff[key] * mult(p.stage); } return v; }
-export const D = s => s.troops * 1.5 + effSum(s, 'def') + 2;                       // 防衛力
+function effSum(s, key) { let v = 0; for (const p of Object.values(s.plots)) { const f = FAC[p.fac]; if (f && f.eff[key]) v += (f.eff[key] + (key === 'sup' && bond(s, 'sera') >= 2 ? 1 : 0)) * mult(p.stage); } return v; }
+export const D = s => s.troops * 1.5 + effSum(s, 'def') + 2 + (bond(s, 'garou') >= 3 ? 7 : bond(s, 'garou') >= 2 ? 4 : 0);                       // 防衛力
 export const landInc = s => s.areaDefs.filter(a => s.open.includes(a.id)).reduce((t, a) => t + a.income, 0);
 export const income = s => 4 + effSum(s, 'sup') + landInc(s) - Math.floor(s.troops / 2); // 毎週の物資
 export const moraleD = s => -2 + effSum(s, 'mor');                                   // 毎週の民心
 export const apOf = m => (m < 30 ? 2 : m >= 80 ? 4 : 3);
 export const nextRaid = s => SCHED.find(r => r.w >= s.week);
-export const handP = (s, E) => clamp(.45 + clamp((D(s) - E) / 40, -.2, .2), .12, .9); // 自分で戦う成功率（仮。アクション部分とは未接続）
+export const handP = (s, E) => clamp(.45 + clamp((D(s) - E) / 40, -.2, .2) + (bond(s, 'mina') >= 2 ? .12 : 0) + (bond(s, 'mina') >= 3 ? .08 : 0), .12, .92); // 確率で解決するときの成功率
+// アクション戦闘で耐える波の数（敵の規模から）
+export const wavesOf = E => clamp(Math.round(E / 7), 2, 7);
 
 // ---------- 行動 ----------
 const spend = (s, c) => { s.ap -= 1; s.sup -= c; };
@@ -43,7 +59,7 @@ export function openArea(s, a) { if (!canOpen(s, a)) return false; spend(s, a.co
 export const CASTLE = { // 城でできること
   troops: { t: '兵を募る', cost: 3, d: '兵力+2（物資の維持費が増える）', can: s => s.troops < CAP_TROOPS, ap: s => { s.troops = Math.min(CAP_TROOPS, s.troops + 2); } },
   levy:   { t: '徴発',     cost: 0, d: '物資+5 民心-8', can: () => true, ap: s => { s.sup += 5; s.morale = clamp(s.morale - 8, 0, 100); } },
-  feast:  { t: '炊き出し', cost: 3, d: '民心+10', can: () => true, ap: s => { s.morale = clamp(s.morale + 10, 0, 100); } },
+  feast:  { t: '炊き出し', cost: 3, d: '民心+10', can: () => true, ap: s => { s.morale = clamp(s.morale + (bond(s, 'sera') >= 3 ? 15 : 10), 0, 100); } },
   scout:  { t: '偵察',     cost: 0, d: '次の襲撃の規模が確定', can: s => { const r = nextRaid(s); return !!r && !s.scouted[r.w]; }, ap: s => { s.scouted[nextRaid(s).w] = true; } },
   sortie: { t: '出撃',     cost: 0, d: '敵の前哨（規模14）を攻める。勝てば物資+8', can: s => s.troops >= 2, ap: s => { s.raid = { kind: 'sortie', E: 14, name: '敵の前哨' }; } },
 };
@@ -72,10 +88,10 @@ function afterWeek(s) {
   s.ap = Math.max(1, apOf(s.morale) - (s.tired ? 1 : 0)); s.tired = false;
 }
 function checkLose(s) { if (s.over) return; if (s.hp <= 0) { s.over = 'lose'; s.why = '城が落とされた'; } else if (s.morale <= 0) { s.over = 'lose'; s.why = '民心が尽き、反乱が起きた'; } }
-export function resolve(s, mode, rnd = Math.random) {
+export function resolve(s, mode, rnd = Math.random, forced) { // forced: アクション戦闘の結果（true/false）。なければ確率で解決
   const R = s.raid; if (!R) return ''; const E = R.E, m = D(s) - E * (0.9 + rnd() * 0.2);
-  const at = m >= 4 ? 0 : m >= 0 ? 1 : m >= -4 ? 2 : 3; let ok, tier, t = `${R.name}（${mode === 'auto' ? '任せた' : '自分で戦った'}）：`;
-  if (mode === 'auto') { tier = at; ok = tier === 0; } else { ok = rnd() < handP(s, E); tier = ok ? 0 : clamp(at + 1, 1, 3); if (R.kind === 'sortie') s.ap = Math.max(0, s.ap - 1); else s.tired = true; }
+  const at = m >= 4 ? 0 : m >= 0 ? 1 : m >= -4 ? 2 : 3; let ok, tier, t = `${R.name}（${mode === 'auto' ? '任せた' : forced === undefined ? '自分で戦った' : '自分で戦った・' + (forced ? '勝利' : '敗北')}）：`;
+  if (mode === 'auto') { tier = at; ok = tier === 0; } else { ok = forced === undefined ? rnd() < handP(s, E) : !!forced; tier = ok ? 0 : clamp(at + 1, 1, 3); if (R.kind === 'sortie') s.ap = Math.max(0, s.ap - 1); else s.tired = true; }
   s.raid = null;
   if (R.boss) { s.over = ok ? 'win' : 'lose'; s.why = ok ? '将軍の侵攻を退けた' : '将軍に城を落とされた'; s.log.push(t + (ok ? '勝利' : '敗北')); return t + (ok ? '勝利' : '敗北'); }
   if (R.kind === 'sortie') {
