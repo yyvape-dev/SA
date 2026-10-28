@@ -49,6 +49,7 @@ let baseSplat;
       }
     }
   });
+  sctx.beginPath(); layout.plaza.forEach(([x, y], i) => { i ? sctx.lineTo(x / 2, y / 2) : sctx.moveTo(x / 2, y / 2); }); sctx.closePath(); sctx.fill();
   sctx.globalCompositeOperation = 'source-over'; baseSplat = sctx.getImageData(0, 0, SW, SH);
 }
 const maskCv = document.createElement('canvas'); maskCv.width = SW; maskCv.height = SH; const mctx = maskCv.getContext('2d', { willReadFrequently: true });
@@ -87,7 +88,13 @@ function nearLayout(sx, sy, r) { // 道・区画・川の近く（半径r）か
 }
 
 // ---------- 高さ ----------
-function hgt(x, z) {
+function hgt(x, z) { // 街の中は、噴水の高さへ平らにならす
+  const h0 = hgt0(x, z), sy = syOf(z), d = Math.hypot(x - layout.fountain[0], (sy - layout.fountain[1]) * 1.6);
+  const w = Math.min(1, zoneAt(x, sy) * 1.6) * smooth(500, 380, d); if (w <= 0) return h0;
+  if (hgt.f === undefined) hgt.f = 0, hgt.f = hgt0(layout.fountain[0], zOf(layout.fountain[1]));
+  return h0 + (hgt.f - h0) * w;
+}
+function hgt0(x, z) {
   const sy = syOf(z);
   let h = 0;
   const ex = (x - 300) / 340, ey = (sy - 540) / 200; // 城の台地
@@ -320,32 +327,32 @@ function yardOf(pl, meta) { // 建物の足元の平行四辺形を、地面の�
   const cx = q.reduce((a, p) => a + p[0], 0) / 4, cy = q.reduce((a, p) => a + p[1], 0) / 4;
   return q.map(([x, y]) => [cx + (x - cx) * 1.14, cy + (y - cy) * 1.14]);
 }
-let pavTex = null;
-function pavingTex() { // 石畳（コード生成）。u,vは建物の足元の辺に沿う
-  if (pavTex) return pavTex;
+let pavTex = null, plazaTex = null;
+function pavingTex(opaque) { // 石畳（コード生成）。u,vは建物の足元の辺に沿う
+  if (opaque ? plazaTex : pavTex) return opaque ? plazaTex : pavTex;
   const N = 512, c = document.createElement('canvas'); c.width = c.height = N; const x = c.getContext('2d');
   let seed = 7; const r = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
   x.fillStyle = '#3a342b'; x.fillRect(0, 0, N, N);
-  const rows = 11, rh = (N - 40) / rows;
+  const m = opaque ? 0 : 20, rows = 11, rh = (N - 2 * m) / rows;
   for (let j = 0; j < rows; j++) {
-    let px = 20 + (j % 2 ? -rh * .5 : 0);
-    while (px < N - 20) {
-      const w = rh * (1.1 + r() * .9), x0 = Math.max(20, px), x1 = Math.min(N - 20, px + w), y0 = 20 + j * rh;
+    let px = m + (j % 2 ? -rh * .5 : 0);
+    while (px < N - m) {
+      const w = rh * (1.1 + r() * .9), x0 = Math.max(m, px), x1 = Math.min(N - m, px + w), y0 = m + j * rh;
       if (x1 - x0 > 6) { const g = 128 + r() * 50 | 0; x.fillStyle = `rgb(${g + 22},${g + 12},${g - 14})`; x.beginPath(); x.roundRect(x0 + 2, y0 + 2, x1 - x0 - 4, rh - 4, 6); x.fill();
         x.fillStyle = 'rgba(255,255,255,.18)'; x.fillRect(x0 + 4, y0 + 3, x1 - x0 - 8, 3); x.fillStyle = 'rgba(0,0,0,.18)'; x.fillRect(x0 + 4, y0 + rh - 7, x1 - x0 - 8, 3); }
       px += w;
     }
   }
   // 縁を不揃いに透明へ
-  x.globalCompositeOperation = 'destination-in'; x.fillStyle = '#000'; x.beginPath(); x.roundRect(10, 10, N - 20, N - 20, 40); x.fill(); x.globalCompositeOperation = 'source-over';
-  pavTex = new THREE.CanvasTexture(c); pavTex.colorSpace = THREE.SRGBColorSpace; pavTex.anisotropy = 8; return pavTex;
+  if (!opaque) { x.globalCompositeOperation = 'destination-in'; x.fillStyle = '#000'; x.beginPath(); x.roundRect(10, 10, N - 20, N - 20, 40); x.fill(); x.globalCompositeOperation = 'source-over'; }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; if (opaque) { t.wrapS = t.wrapT = THREE.RepeatWrapping; plazaTex = t; } else pavTex = t; return t;
 }
-function pavingMesh(q) { // q = [T,R,B,L] の地面座標。B→R が u、B→L が v
+function pavingMesh(q, opaque) { // q = [T,R,B,L] の地面座標。B→R が u、B→L が v
   const [T, R, B, L] = q, P = [B, R, T, L], pos = [], z = p => zOf(p[1]);
   P.forEach(p => pos.push(p[0], hgt(p[0], z(p)) + .8, z(p)));
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  g.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 1, 0, 1, 1, 0, 1], 2)); g.setIndex([0, 2, 1, 0, 3, 2]);
-  const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: pavingTex(), transparent: true, alphaTest: .5, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, side: THREE.DoubleSide }));
+  const k = opaque ? 2 : 1; g.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, k, 0, k, k, 0, k], 2)); g.setIndex([0, 2, 1, 0, 3, 2]);
+  const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: pavingTex(opaque), transparent: !opaque, alphaTest: opaque ? 0 : .5, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, side: THREE.DoubleSide }));
   m.frustumCulled = false; return m;
 }
 function grow(q, k) { const cx = q.reduce((a, p) => a + p[0], 0) / 4, cy = q.reduce((a, p) => a + p[1], 0) / 4; return q.map(([x, y]) => [cx + (x - cx) * k, cy + (y - cy) * k]); }
@@ -364,6 +371,18 @@ function refreshPlot(pl) {
   pl.stakes.visible = !t;
   paintYards(plots.map(p => p.poly)); splatTex.needsUpdate = true;
   if (selected === pl) select(pl);
+}
+{ // 広場（石畳）と噴水（仮の絵：コードで描いた印。あとで外部AIの絵に差し替える）
+  const [T, R, B, L] = layout.plaza; scene.add(pavingMesh([T, R, B, L], true));
+  const c = document.createElement('canvas'); c.width = 256; c.height = 224; const g = c.getContext('2d');
+  const ell = (cx, cy, rx, ry, col) => { g.fillStyle = col; g.beginPath(); g.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); g.fill(); };
+  ell(128, 180, 120, 38, '#6d675c'); ell(128, 172, 120, 38, '#a39b8a'); ell(128, 170, 104, 31, '#5aa7d8'); ell(128, 168, 96, 27, '#7cc4ee');
+  g.fillStyle = '#8f8878'; g.fillRect(112, 84, 32, 84); g.fillStyle = '#b3ab99'; g.fillRect(112, 84, 14, 84);
+  ell(128, 90, 52, 15, '#8f8878'); ell(128, 86, 52, 15, '#b3ab99'); ell(128, 85, 44, 11, '#7cc4ee');
+  g.fillStyle = '#9a9283'; g.fillRect(122, 40, 12, 48); ell(128, 40, 12, 5, '#b3ab99');
+  g.strokeStyle = 'rgba(235,248,255,.85)'; g.lineWidth = 3; [[-1, 0], [1, 0]].forEach(([d]) => { g.beginPath(); g.moveTo(128, 38); g.quadraticCurveTo(128 + d * 36, 14, 128 + d * 56, 82); g.stroke(); });
+  const ft = new THREE.CanvasTexture(c); ft.colorSpace = THREE.SRGBColorSpace;
+  const [fx, fy] = layout.fountain; scene.add(sprite3D(ft, { w: 256, h: 224, ax: .5, ay: .82 }, .7, fx, fy + 6));
 }
 function hitBuilding(sx, sy) { // 建物の絵（透明でない所）を押したか。手前の建物を優先
   let best = null;
