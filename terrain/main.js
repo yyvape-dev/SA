@@ -1,9 +1,9 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793203882';
-import { createUI } from './ui.js?v=1793203882';
-import { createMorning } from './morning.js?v=1793203882';
+import * as GM from './game.js?v=1793204237';
+import { createUI } from './ui.js?v=1793204237';
+import { createMorning } from './morning.js?v=1793204237';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -795,7 +795,7 @@ const dCss = document.createElement('style'); dCss.textContent = `
 #duel .stage{position:absolute;left:0;right:0;top:50%;height:56vw;max-height:420px;transform:translateY(-50%);background:inherit;background-size:cover;background-position:center 70%;box-shadow:0 0 0 100vh #000c}
 #duel .f{position:absolute;bottom:6%;height:78%;transition:transform .18s ease-out,filter .08s}
 #duel .f .sp{background-repeat:no-repeat;pointer-events:none}#duel .f img{height:100%;filter:drop-shadow(0 6px 8px #000)}
-#duel .L{left:6%}#duel .R{right:6%}#duel .R img{transform:scaleX(-1)}
+#duel .L{left:6%}#duel .R{right:6%}
 #duel .hp{position:absolute;top:calc(50% - min(28vw,210px) - 46px);width:44%;font:700 13px/1.2 serif;text-shadow:0 1px 3px #000}
 #duel .hp.l{left:3%}#duel .hp.r{right:3%;text-align:right}
 #duel .hp i{display:block;height:9px;margin-top:3px;border:1.5px solid #e8c060;background:#3a0806;position:relative;overflow:hidden}
@@ -817,31 +817,38 @@ const foeURL = FOE_IMG[3] ? 'assets/npc/foe_4.webp' : foeTex.image.toDataURL();
 // 大将戦の攻撃モーション（動画由来の24コマ）。ある仲間だけ。ない仲間は立ち絵のまま
 const DUEL_CLIP = await fetch('../ally/duel_meta.json').then(r => r.json()).catch(() => ({})); // 仲間ごとの攻撃モーション一覧
 const duelWarm = k => (DUEL_CLIP[k] || []).forEach(c => { new Image().src = `../ally/${c.f}`; }); // 一騎打ちの前に絵を先読み
+const FOEDUEL = await fetch('assets/npc/foeduel_meta.json').then(r => r.json()).catch(() => ({})); // 敵将の攻撃モーション（見た目の番号ごと）
+const foeLook = () => G.raid && G.raid.boss ? 4 : G.raid && G.raid.E >= 30 ? 2 : 1; // 隊長＝槍兵、副官＝羽飾りの兵、将軍＝斧の山賊
+function clipActor(el, sp, clips, base, T) { // 動画由来の連番を、枠(el)の中の div(sp) に出す。立ち姿の中心を揃え、足元は枠の下端
+  const c0 = clips[0]; if (!c0) return null; let order = [], cur = c0, sc = el.clientHeight / c0.idle.h, setFrame = () => {};
+  el.style.width = c0.idle.w * sc + 'px'; Object.assign(sp.style, { position: 'absolute', filter: sp.dataset.filter || 'drop-shadow(0 6px 8px #000)' });
+  const use = c => { cur = c; const cw = c.cw * sc, ch = c.ch * sc, cx = (c.idle.x + c.idle.w / 2) * sc;
+    Object.assign(sp.style, { left: el.clientWidth / 2 - cx + 'px', bottom: -(c.pad ?? 2.8) * sc + 'px', width: cw + 'px', height: ch + 'px', backgroundImage: `url(${base}${c.f})`, backgroundSize: `${c.cols * cw}px ${4 * ch}px` });
+    setFrame = i => { sp.style.backgroundPosition = `${-(i % c.cols) * cw}px ${-Math.floor(i / c.cols) * ch}px`; }; setFrame(0); };
+  use(c0);
+  return { reset: () => use(c0), play(t0) { // 当たりの山場が t0+180 に来るように再生。使った動きを返す（全部を一巡してから繰り返す）
+    if (!order.length) order = clips.map((_, i) => i).sort(() => Math.random() - .5); const c = clips[order.pop()], SPD = 2.2;
+    const start = Math.max(0, t0 + 180 - c.durs.slice(0, c.hit).reduce((x, y) => x + y, 0) / SPD); let acc = 0; T(() => use(c), Math.max(0, start - 5));
+    c.durs.forEach((d, fi) => { T(() => setFrame(fi), start + acc / SPD); acc += d; }); T(() => use(c0), start + acc / SPD + 30); return c; } };
+}
 function playDuel(k, done) {
   const R = G.raid, A = GM.ALLY[k], F = GM.foeGeneral(G), win = GM.duel(G, k), bg = `assets/field/${R.dir || 'pass'}.jpg`;
   duelEl.style.backgroundImage = `url(${bg})`; duelEl.style.display = 'block';
-  duelEl.innerHTML = `<div class="stage"><div class="f L">${(DUEL_CLIP[k] || []).length ? `<div class="sp"></div>` : `<img src="../ally/${k}.png">`}</div><div class="f R" style="height:88%"><img src="${foeURL}" style="filter:drop-shadow(0 0 10px #f30) drop-shadow(0 6px 8px #000)"></div></div>
+  duelEl.innerHTML = `<div class="stage"><div class="f L">${(DUEL_CLIP[k] || []).length ? `<div class="sp"></div>` : `<img src="../ally/${k}.png">`}</div><div class="f R" style="height:${R.boss ? 88 : 80}%">${(FOEDUEL[foeLook()] || []).length ? `<div class="sp" data-filter="drop-shadow(0 0 10px #f30) drop-shadow(0 6px 8px #000)"></div>` : `<img src="assets/npc/foe_${foeLook()}.webp" style="filter:drop-shadow(0 0 10px #f30) drop-shadow(0 6px 8px #000)">`}</div></div>
     <div class="hp l">${A.n}<i><b style="width:100%"></b></i></div><div class="hp r">${F.n}<i><b style="width:100%"></b></i></div>
     <div class="ban">一騎打ち</div><div class="cut"><img src="${faceURL[k]}"><div>${win ? '決める！' : 'まだだ…！'}<small>${A.n}（${A.r}）</small></div></div><div class="res"></div>`;
   const $ = q => duelEl.querySelector(q), L = $('.L'), Rf = $('.R'), hl = $('.hp.l b'), hr = $('.hp.r b');
-  const clips = DUEL_CLIP[k] || [], c0 = clips[0]; let setFrame = () => {}, curClip = null, order = [], sc = 1, sp = null;
-  const pickClip = () => { if (!order.length) order = clips.map((_, i) => i).sort(() => Math.random() - .5); return clips[order.pop()]; }; // 全部を一巡してから繰り返す
-  const useClip = c => { // 立ち姿の中心を揃えて、足元は枠の下端
-    curClip = c; const cw = c.cw * sc, ch = c.ch * sc, cx = (c.idle.x + c.idle.w / 2) * sc;
-    Object.assign(sp.style, { left: L.clientWidth / 2 - cx + 'px', width: cw + 'px', height: ch + 'px', backgroundImage: `url(../ally/${c.f})`, backgroundSize: `${c.cols * cw}px ${4 * ch}px` });
-    setFrame = i => { sp.style.backgroundPosition = `${-(i % c.cols) * cw}px ${-Math.floor(i / c.cols) * ch}px`; }; setFrame(0); };
-  if (c0) { sp = $('.sp'); sc = L.clientHeight / c0.idle.h; L.style.width = c0.idle.w * sc + 'px'; Object.assign(sp.style, { position: 'absolute', bottom: -4 * .7 * sc + 'px', filter: 'drop-shadow(0 6px 8px #000)' }); useClip(c0); }
+  let timers = []; const T = (f, ms) => timers.push(setTimeout(f, ms));
+  const actL = clipActor(L, L.querySelector('.sp') || document.createElement('div'), DUEL_CLIP[k] || [], '../ally/', T);
+  const actR = clipActor(Rf, Rf.querySelector('.sp') || document.createElement('div'), FOEDUEL[foeLook()] || [], 'assets/npc/', T);
   // 3往復：結果に合わせてHPの減りを決める
   let hpL = 100, hpR = 100; const seq = [];
   const hits = win ? [['L', 28], ['R', 18], ['L', 30], ['R', 22], ['L', 42]] : [['R', 26], ['L', 20], ['R', 30], ['L', 24], ['R', 44]];
   hits.forEach(([who, dmg]) => seq.push({ who, dmg }));
-  let i = 0, timers = [], skipped = false;
-  const T = (f, ms) => timers.push(setTimeout(f, ms));
   T(() => $('.ban').classList.add('on'), 100); T(() => $('.ban').classList.remove('on'), 1100);
   const strike = (st, t0) => {
     const at = st.who === 'L' ? L : Rf, df = st.who === 'L' ? Rf : L, dir = st.who === 'L' ? 1 : -1;
-    const clip = st.who === 'L' && c0 ? pickClip() : null;
-    if (clip) { const SPD = 2.2, start = Math.max(0, t0 + 180 - clip.durs.slice(0, clip.hit).reduce((x, y) => x + y, 0) / SPD); let acc = 0; T(() => useClip(clip), Math.max(0, start - 5)); clip.durs.forEach((d, fi) => { T(() => setFrame(fi), start + acc / SPD); acc += d; }); T(() => { useClip(c0); }, start + acc / SPD + 30); }
+    const act = st.who === 'L' ? actL : actR, clip = act ? act.play(t0) : null;
     T(() => { at.style.transform = `translateX(${dir * (clip ? 10 : 34)}vw)`; }, t0);
     T(() => { const sl = document.createElement('div'); sl.className = 'slash'; $('.stage').appendChild(sl); df.style.filter = 'brightness(3)'; df.style.transform = `translateX(${dir * 4}vw)`; duelEl.classList.add('shake');
       const n = document.createElement('div'); n.className = 'num'; n.textContent = st.dmg * 7 + Math.round(Math.random() * 9); n.style.left = st.who === 'L' ? '68%' : '18%'; n.style.top = '35%'; $('.stage').appendChild(n);
@@ -853,7 +860,7 @@ function playDuel(k, done) {
   const endT = 2350 + (seq.length - 1) * 650 + 600;
   const fin = () => { const r = $('.res'); r.innerHTML = `<span style="color:${win ? '#ffd770' : '#ff7a6a'}">${win ? '一騎打ちに勝利' : '一騎打ちに敗北'}</span><small>${win ? '戦況が有利になった' : '戦況が不利になった'}・タップで続ける</small>`; r.classList.add('on'); };
   T(fin, endT);
-  duelEl.onclick = e => { e.stopPropagation(); if (!$('.res').classList.contains('on')) { timers.forEach(clearTimeout); if (c0) useClip(c0); hl.style.width = (win ? 60 : 0) + '%'; hr.style.width = (win ? 0 : 55) + '%'; fin(); return; }
+  duelEl.onclick = e => { e.stopPropagation(); if (!$('.res').classList.contains('on')) { timers.forEach(clearTimeout); if (actL) actL.reset(); if (actR) actR.reset(); hl.style.width = (win ? 60 : 0) + '%'; hr.style.width = (win ? 0 : 55) + '%'; fin(); return; }
     duelEl.style.display = 'none'; duelEl.onclick = null; done(); };
 }
 function maybeDuel(next) { // 接戦なら、一騎打ちに出す仲間を選ぶ
