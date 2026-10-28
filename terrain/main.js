@@ -1,8 +1,8 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793190824';
-import { createUI } from './ui.js?v=1793190824';
+import * as GM from './game.js?v=1793190920';
+import { createUI } from './ui.js?v=1793190920';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -713,6 +713,68 @@ function autoBattle(resolveFn) { // 任せた戦闘：仲間と兵が軍勢と�
   const close = () => { if (closed || !res.classList.contains('on')) { if (!closed) { i = 9; } return; } closed = true; abt.style.display = 'none'; abt.onclick = null; endRaidFx(); commit(t); showReport(); };
   abt.onclick = e => { e.stopPropagation(); if (!res.classList.contains('on')) { clearInterval(iv); bar.style.width = fin + '%'; res.classList.add('on'); return; } close(); };
 }
+// ---------- 一騎打ちの演出（仮：マップ用の絵を大きく並べ、動きはコード）----------
+const dCss = document.createElement('style'); dCss.textContent = `
+#duel{position:fixed;inset:0;z-index:10;display:none;overflow:hidden;background:#000 center/cover no-repeat;font-family:"Hiragino Mincho ProN","Yu Mincho",serif;color:#fff}
+#duel .stage{position:absolute;left:0;right:0;top:50%;height:56vw;max-height:420px;transform:translateY(-50%);background:inherit;background-size:cover;background-position:center 70%;box-shadow:0 0 0 100vh #000c}
+#duel .f{position:absolute;bottom:6%;height:78%;transition:transform .18s ease-out,filter .08s}
+#duel .f img{height:100%;filter:drop-shadow(0 6px 8px #000)}
+#duel .L{left:6%}#duel .R{right:6%}#duel .R img{transform:scaleX(-1)}
+#duel .hp{position:absolute;top:calc(50% - min(28vw,210px) - 46px);width:44%;font:700 13px/1.2 serif;text-shadow:0 1px 3px #000}
+#duel .hp.l{left:3%}#duel .hp.r{right:3%;text-align:right}
+#duel .hp i{display:block;height:9px;margin-top:3px;border:1.5px solid #e8c060;background:#3a0806;position:relative;overflow:hidden}
+#duel .hp i b{position:absolute;top:0;bottom:0;left:0;background:linear-gradient(#ffe080,#d08a20);transition:width .3s}
+#duel .hp.r i b{left:auto;right:0;background:linear-gradient(#ff9a80,#c02a1a)}
+#duel .num{position:absolute;font:900 30px sans-serif;color:#fff;text-shadow:0 0 6px #f40,0 2px 2px #000;animation:dnum .9s ease-out forwards;pointer-events:none}
+@keyframes dnum{from{transform:translateY(0) scale(1.4);opacity:1}to{transform:translateY(-50px);opacity:0}}
+#duel .slash{position:absolute;width:60%;height:6px;left:20%;top:45%;background:linear-gradient(90deg,#fff0,#fff,#fff0);box-shadow:0 0 18px #ffd060;transform:rotate(-18deg) scaleX(0);animation:dsl .25s ease-out forwards}
+@keyframes dsl{to{transform:rotate(-18deg) scaleX(1);opacity:0}}
+#duel .cut{position:absolute;left:0;right:0;top:calc(50% - 70px);height:140px;display:flex;align-items:center;gap:12px;padding:0 6%;background:linear-gradient(90deg,#000e,#3a0806e8 60%,#0000);transform:translateX(-100%);transition:transform .3s cubic-bezier(.2,.9,.3,1)}
+#duel .cut.on{transform:none}#duel .cut img{height:130px;border-radius:50%;border:3px solid #e8c060}#duel .cut div{font:900 26px/1.3 serif;text-shadow:0 0 10px #f60}#duel .cut small{display:block;font-size:13px;color:#ffd8b0}
+#duel .ban{position:absolute;left:0;right:0;top:12%;text-align:center;font:900 30px serif;letter-spacing:.2em;text-shadow:0 0 12px #f30,0 2px 3px #000;opacity:0;transition:opacity .3s}
+#duel .ban.on{opacity:1}#duel .res{position:absolute;left:0;right:0;bottom:10%;text-align:center;font:900 34px serif;opacity:0;transform:scale(2);transition:all .3s cubic-bezier(.2,1.6,.4,1)}
+#duel .res.on{opacity:1;transform:none}#duel .res small{display:block;font-size:13px;color:#e8d8b0}
+#duel.shake .stage{animation:dsh .25s}@keyframes dsh{25%{transform:translate(-6px,calc(-50% + 3px))}75%{transform:translate(6px,calc(-50% - 3px))}}`;
+document.head.appendChild(dCss);
+const duelEl = document.createElement('div'); duelEl.id = 'duel'; document.body.appendChild(duelEl);
+const foeURL = foeTex.image.toDataURL();
+function playDuel(k, done) {
+  const R = G.raid, A = GM.ALLY[k], F = GM.foeGeneral(G), win = GM.duel(G, k), bg = `assets/field/${R.dir || 'pass'}.jpg`;
+  duelEl.style.backgroundImage = `url(${bg})`; duelEl.style.display = 'block';
+  duelEl.innerHTML = `<div class="stage"><div class="f L"><img src="../ally/map_${k}.png"></div><div class="f R" style="height:88%"><img src="${foeURL}" style="filter:drop-shadow(0 0 10px #f30) drop-shadow(0 6px 8px #000)"></div></div>
+    <div class="hp l">${A.n}<i><b style="width:100%"></b></i></div><div class="hp r">${F.n}<i><b style="width:100%"></b></i></div>
+    <div class="ban">一騎打ち</div><div class="cut"><img src="${faceURL[k]}"><div>${win ? '決める！' : 'まだだ…！'}<small>${A.n}（${A.r}）</small></div></div><div class="res"></div>`;
+  const $ = q => duelEl.querySelector(q), L = $('.L'), Rf = $('.R'), hl = $('.hp.l b'), hr = $('.hp.r b');
+  // 3往復：結果に合わせてHPの減りを決める
+  let hpL = 100, hpR = 100; const seq = [];
+  const hits = win ? [['L', 28], ['R', 18], ['L', 30], ['R', 22], ['L', 42]] : [['R', 26], ['L', 20], ['R', 30], ['L', 24], ['R', 44]];
+  hits.forEach(([who, dmg]) => seq.push({ who, dmg }));
+  let i = 0, timers = [], skipped = false;
+  const T = (f, ms) => timers.push(setTimeout(f, ms));
+  T(() => $('.ban').classList.add('on'), 100); T(() => $('.ban').classList.remove('on'), 1100);
+  const strike = (st, t0) => {
+    const at = st.who === 'L' ? L : Rf, df = st.who === 'L' ? Rf : L, dir = st.who === 'L' ? 1 : -1;
+    T(() => { at.style.transform = `translateX(${dir * 34}vw)`; }, t0);
+    T(() => { const sl = document.createElement('div'); sl.className = 'slash'; $('.stage').appendChild(sl); df.style.filter = 'brightness(3)'; df.style.transform = `translateX(${dir * 4}vw)`; duelEl.classList.add('shake');
+      const n = document.createElement('div'); n.className = 'num'; n.textContent = st.dmg * 7 + Math.round(Math.random() * 9); n.style.left = st.who === 'L' ? '68%' : '18%'; n.style.top = '35%'; $('.stage').appendChild(n);
+      if (st.who === 'L') { hpR = Math.max(win && st === seq[seq.length - 1] ? 0 : 4, hpR - st.dmg); hr.style.width = hpR + '%'; } else { hpL = Math.max(!win && st === seq[seq.length - 1] ? 0 : 4, hpL - st.dmg); hl.style.width = hpL + '%'; }
+      setTimeout(() => { sl.remove(); n.remove(); }, 900); }, t0 + 180);
+    T(() => { df.style.filter = ''; duelEl.classList.remove('shake'); at.style.transform = ''; df.style.transform = ''; }, t0 + 420);
+  };
+  seq.forEach((st, j) => { if (j === seq.length - 1) { T(() => $('.cut').classList.add('on'), 1300 + j * 650); T(() => $('.cut').classList.remove('on'), 2300 + j * 650); strike(st, 2350 + j * 650); } else strike(st, 1300 + j * 650); });
+  const endT = 2350 + (seq.length - 1) * 650 + 600;
+  const fin = () => { const r = $('.res'); r.innerHTML = `<span style="color:${win ? '#ffd770' : '#ff7a6a'}">${win ? '一騎打ちに勝利' : '一騎打ちに敗北'}</span><small>${win ? '戦況が有利になった' : '戦況が不利になった'}・タップで続ける</small>`; r.classList.add('on'); };
+  T(fin, endT);
+  duelEl.onclick = e => { e.stopPropagation(); if (!$('.res').classList.contains('on')) { timers.forEach(clearTimeout); hl.style.width = (win ? 60 : 0) + '%'; hr.style.width = (win ? 0 : 55) + '%'; fin(); return; }
+    duelEl.style.display = 'none'; duelEl.onclick = null; done(); };
+}
+function maybeDuel(next) { // 接戦なら、一騎打ちに出す仲間を選ぶ
+  if (!GM.duelDue(G) || G.raid.duel !== undefined) { next(); return; }
+  const F = GM.foeGeneral(G), cs = GM.champions(G);
+  ui.modal('接戦――一騎打ち', `${F.n}が前に出てきた。こちらも将を一人出す。<br>勝てば戦況が有利に、負ければ不利になる。`,
+    [...cs.map(k => ({ label: GM.ALLY[k].n, sub: `勝率 約${Math.round(GM.duelP(G, k) * 100)}%`, fn: () => { ui.modal(null); playDuel(k, next); } })),
+     { label: '応じない', sub: 'そのまま戦う', fn: () => { G.raid.duel = null; ui.modal(null); next(); } }], 'fr low');
+}
 function goBattle() { // アクション戦闘へ移る。結果は battle_result に書かれ、戻ってきたときに反映する
   const R = G.raid, id = String(Date.now()), m = GM.battleMods(G); G.battle = { id }; writeSave();
   const q = new URLSearchParams({ battle: '1', id, waves: GM.wavesOf(R.E), name: R.name, dmg: m.dmg, bind: m.bind, hp: m.hp, ret: 'terrain/index.html' });
@@ -725,15 +787,15 @@ function takeBattleResult() {
   G.battle = null; const t = GM.resolve(G, 'hand', Math.random, !!r.win); endRaidFx(); commit(`${t}（撃破${r.kills}）`); showReport();
 }
 function raidModal() {
-  const R = G.raid; if (!R) { ui.modal(null); return; } if (introPlaying || abt.style.display === 'flex') return;
+  const R = G.raid; if (!R) { ui.modal(null); return; } if (introPlaying || abt.style.display === 'flex' || duelEl.style.display === 'block' || /一騎打ち/.test(document.querySelector('#modal h3') ? document.querySelector('#modal h3').textContent : '')) return;
   raidFx.classList.add('on');
   if (R.ranka === undefined) R.ranka = GM.rankaReady(G); // 出られるなら出す（窓で切り替えられる）
   const D = GM.raidD(G), p = Math.round(GM.handP(G, R.E) * 100), m = GM.battleMods(G), wv = GM.wavesOf(R.E);
   const mods = [m.dmg > 1 ? `ダメージ+${Math.round((m.dmg - 1) * 100)}%` : '', m.bind ? `拘束+${m.bind}秒` : '', m.hp ? `最大HP+${m.hp}` : ''].filter(Boolean).join('・');
   const rk = GM.joined(G, 'ranka') ? (G.rankaAway ? '<br><span style="color:#c9b48a">ランカは今週、街にいない</span>' : G.rankaRest ? '<br><span style="color:#c9b48a">ランカは前の戦闘に出たので休み（2回続けて出られない）</span>' : `<br>ランカ：<b>${R.ranka ? '出撃する' : '温存する'}</b>（防衛力+${GM.rankaD(G)}・ダメージ+${Math.round(GM.rankaDmg(G) * 100)}%。出ると次の戦闘は休み）`) : '';
-  const btns = [{ label: '任せる', sub: '仲間と兵が戦う', fn: () => { ui.modal(null); autoBattle(() => GM.resolve(G, 'auto')); } },
+  const btns = [{ label: '任せる', sub: '仲間と兵が戦う', fn: () => { ui.modal(null); maybeDuel(() => autoBattle(() => GM.resolve(G, 'auto'))); } },
      { label: '自分で戦う', sub: `WAVE ${wv}・アクション`, fn: goBattle },
-     { label: '確率で決める', sub: `成功率 約${p}%`, fn: () => { ui.modal(null); autoBattle(() => GM.resolve(G, 'hand')); } }];
+     { label: '確率で決める', sub: `成功率 約${p}%`, fn: () => { ui.modal(null); maybeDuel(() => autoBattle(() => GM.resolve(G, 'hand'))); } }];
   if (GM.rankaReady(G)) btns.push({ label: R.ranka ? 'ランカを温存する' : 'ランカを出す', sub: R.ranka ? '次の戦闘に回す' : '最強の戦力', fn: () => { GM.setRanka(G, !R.ranka); writeSave(); raidModal(); } });
   ui.modal(R.kind === 'sortie' ? `出撃：${R.name}` : `襲撃：${R.name}`, `敵の規模 <b>${R.E}</b> ／ こちらの防衛力 <b>${Math.round(D)}</b><br>任せる：見込みは「${GM.autoTier(G, R.E)}」<br>自分で戦う：<b>WAVE ${wv}</b> まで生き残れば勝利。勝てば報酬、負ければ被害が1段重い${mods ? '<br>仲間の補正：' + mods : ''}${rk}`, btns, 'fr low');
 }
@@ -859,5 +921,5 @@ G = loadSave() || GM.newState(layout.areas); syncMap(true); refreshUI(); takeBat
 resize(); apply(); renderer.render(scene, camera); status.ok = true;
 window.__t.setView = (zoom, sx, sy) => { view.zoom = zoom; view.cx = sx; view.cz = zOf(sy); clampView(); apply(); renderer.render(scene, camera); };
 window.__t.select = id => select(plots.find(p => p.id === id) || null);
-window.__t.plots = plots; window.__t.G = () => G; window.__t.camp = () => camp && camp.map(c => [c.position.x|0, c.position.y|0, c.position.z|0, c.visible]); window.__t.faces = () => faceURL; window.__t.raidIntro = raidIntro; window.__t.showReport = showReport; window.__t.GM = GM; window.__t.commit = () => commit(); window.__t.reset = () => { try { localStorage.removeItem(SAVE_KEY); } catch (e) { } }; window.__t.pickAt = (cx, cy) => pickAt(cx, cy); window.__t.view = view; window.__t.sel = () => selected && selected.id; window.__t.build = (id, fac, stage) => { if (stage) G.plots[id] = { fac, stage }; else delete G.plots[id]; commit(); };
+window.__t.plots = plots; window.__t.G = () => G; window.__t.playDuel = playDuel; window.__t.camp = () => camp && camp.map(c => [c.position.x|0, c.position.y|0, c.position.z|0, c.visible]); window.__t.faces = () => faceURL; window.__t.raidIntro = raidIntro; window.__t.showReport = showReport; window.__t.GM = GM; window.__t.commit = () => commit(); window.__t.reset = () => { try { localStorage.removeItem(SAVE_KEY); } catch (e) { } }; window.__t.pickAt = (cx, cy) => pickAt(cx, cy); window.__t.view = view; window.__t.sel = () => selected && selected.id; window.__t.build = (id, fac, stage) => { if (stage) G.plots[id] = { fac, stage }; else delete G.plots[id]; commit(); };
 requestAnimationFrame(frame);
