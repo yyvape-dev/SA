@@ -1,0 +1,44 @@
+{
+ "assets/bld/smithy_1.png": {
+  "w": 516,
+  "h": 430,
+  "ax": 0.448,
+  "ay": 0.991
+ },
+ "assets/bld/smithy_2.png": {
+  "w": 456,
+  "h": 537,
+  "ax": 0.479,
+  "ay": 0.993
+ },
+ "assets/bld/smithy_3.png": {
+  "w": 479,
+  "h": 647,
+  "ax": 0.491,
+  "ay": 0.994
+ },
+ "assets/bld/tavern_1.png": {
+  "w": 483,
+  "h": 485,
+  "ax": 0.516,
+  "ay": 0.992
+ },
+ "assets/bld/tavern_2.png": {
+  "w": 461,
+  "h": 604,
+  "ax": 0.514,
+  "ay": 0.993
+ },
+ "assets/bld/tavern_3.png": {
+  "w": 499,
+  "h": 778,
+  "ax": 0.5,
+  "ay": 0.995
+ },
+ "assets/bld/castle.png": {
+  "w": 1456,
+  "h": 970,
+  "ax": 0.566,
+  "ay": 0.996
+ }
+}

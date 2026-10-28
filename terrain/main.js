@@ -247,9 +247,17 @@ buckets.forEach((arr, ti) => {
   scene.add(m); instMeshes.push(m); total += arr.length;
 });
 status.props = total;
-{ // 城の仮置き
-  const ct = procCastle(); const m = new THREE.Mesh(planeGeo, new THREE.MeshBasicMaterial({ map: ct, transparent: true, alphaTest: .3, side: THREE.DoubleSide }));
-  const x = 300, sy = 610, z = zOf(sy); m.position.set(x, hgt(x, z), z); m.quaternion.copy(baseQ); m.scale.set(420, 250, 1); scene.add(m);
+const bld = await (await fetch('data/bld.json')).json();
+const bldTex = {};
+async function loadBld(fn) { const im = await loadImage(fn); if (!im) return null; const t = new THREE.Texture(im); t.needsUpdate = true; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; }
+function sprite3D(tex, meta, scale, baseX, baseSy) { // 足元の手前の角(ax,ay)を、地面の(baseX, baseSy)に合わせる
+  const w = meta.w * scale, h = meta.h * scale, z = zOf(baseSy);
+  const m = new THREE.Mesh(planeGeo, new THREE.MeshBasicMaterial({ map: tex, alphaTest: .35, side: THREE.DoubleSide }));
+  m.position.set(baseX - (meta.ax - .5) * w, hgt(baseX, z), z); m.quaternion.copy(baseQ); m.scale.set(w, h, 1); m.frustumCulled = false; return m;
+}
+{ // 領主の城（切り抜き絵）
+  const meta = bld['assets/bld/castle.png']; const t = await loadBld('assets/bld/castle.png');
+  if (t) scene.add(sprite3D(t, meta, .37, 300, 705));
 }
 
 // ---------- 区画（コードのデータ）と選択表示 ----------
@@ -260,13 +268,35 @@ let selGroup = null, selected = null;
 function pointInPoly(x, y, poly) { let c = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const [xi, yi] = poly[i], [xj, yj] = poly[j]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c; } return c; }
 function select(p) {
   if (selGroup) { scene.remove(selGroup); selGroup = null; }
-  selected = p; if (!p) return;
+  selected = p; renderActions(); if (!p) return;
   const pts = p.poly.map(([sx, sy]) => { const z = zOf(sy); return new THREE.Vector3(sx, hgt(sx, z) + 3, z); });
   const sh = new THREE.Shape(p.poly.map(([sx, sy]) => new THREE.Vector2(sx, zOf(sy))));
   const g = new THREE.ShapeGeometry(sh); g.rotateX(Math.PI / 2); // (x,z)->(x,0,z)
   const fix = new THREE.Mesh(g, selMat); fix.position.y = 4; fix.renderOrder = 10;
   const line = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts), selLine); line.renderOrder = 11;
   selGroup = new THREE.Group(); selGroup.add(fix, line); scene.add(selGroup);
+}
+
+// ---------- 施設（区画の状態：0=空き地 1=建築中 2=完成 3=発展後）----------
+const FAC = { smithy: '鍛冶場', tavern: '酒場' }, STAGE = ['空き地', '建築中', '完成', '発展後'];
+const BS = .42; // 素材シートの画素 → 基準画像の画素
+for (const f of Object.keys(FAC)) for (let k = 1; k <= 3; k++) bldTex[`${f}_${k}`] = await loadBld(`assets/bld/${f}_${k}.png`);
+plots.forEach(pl => { pl.fac = null; pl.stage = 0; pl.mesh = null; pl.base = pl.poly.reduce((a, q) => q[1] > a[1] ? q : a, pl.poly[0]); pl.cx = pl.poly.reduce((a, q) => a + q[0], 0) / 4; });
+function refreshPlot(pl) {
+  if (pl.mesh) { scene.remove(pl.mesh); pl.mesh.material.dispose(); pl.mesh = null; }
+  if (!pl.fac || pl.stage < 1) return;
+  const key = `${pl.fac}_${pl.stage}`, t = bldTex[key]; if (!t) return;
+  pl.mesh = sprite3D(t, bld[`assets/bld/${key}.png`], BS, pl.cx, pl.base[1] - 4); scene.add(pl.mesh);
+}
+function setPlot(pl, fac, stage) { pl.fac = stage ? fac : null; pl.stage = stage; refreshPlot(pl); renderActions(); }
+const actEl = document.createElement('div');
+actEl.style.cssText = 'position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom) + 28px);z-index:3;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;padding:0 8px;pointer-events:none';
+document.body.appendChild(actEl);
+function btn(label, fn) { const b = document.createElement('button'); b.textContent = label; b.style.cssText = 'pointer-events:auto;min-height:48px;padding:0 16px;font-size:15px;font-weight:700;color:#2a1a08;background:linear-gradient(#f0d58a,#c9a24a);border:2px solid #5a3d12;border-radius:10px;box-shadow:0 2px 6px #000a'; b.addEventListener('click', e => { e.stopPropagation(); fn(); }); return b; }
+function renderActions() {
+  actEl.replaceChildren(); const pl = selected; if (!pl) return;
+  if (pl.stage === 0) { for (const f of Object.keys(FAC)) actEl.appendChild(btn(`${FAC[f]}を建てる`, () => setPlot(pl, f, 1))); }
+  else { if (pl.stage < 3) actEl.appendChild(btn(`${STAGE[pl.stage + 1]}へ進める`, () => setPlot(pl, pl.fac, pl.stage + 1))); actEl.appendChild(btn('取り壊す', () => setPlot(pl, null, 0))); }
 }
 
 // ---------- 視点（パン・ズーム） ----------
@@ -319,12 +349,12 @@ function frame(now) {
   groundMat.uniforms.time.value = now / 1000;
   apply(); renderer.render(scene, camera);
   if (acc > 500) { st.textContent = `3D: ${status.ok ? 'OK' : status.reason} / 地面:${status.ground} 小物:${status.sprites}(${status.props}) / ${(frames * 1000 / acc).toFixed(0)}fps / 拡大 ${view.zoom.toFixed(2)}`; frames = 0; acc = 0; }
-  hud.innerHTML = `<b>領地 地形テスト</b>（コード生成の地形）<br>${selected ? `区画 <b>${selected.id}</b>：空き地` : '区画をタップ'}`;
+  hud.innerHTML = `<b>領地 地形テスト</b>（コード生成の地形）<br>${selected ? `区画 <b>${selected.id}</b>：${selected.fac ? FAC[selected.fac] + '（' + STAGE[selected.stage] + '）' : '空き地'}` : '区画をタップ'}`;
   requestAnimationFrame(frame);
 }
 canvas.addEventListener('webglcontextlost', e => { e.preventDefault(); status.ok = false; status.reason = 'WebGLが失われた'; });
 resize(); apply(); renderer.render(scene, camera); status.ok = true;
 window.__t.setView = (zoom, sx, sy) => { view.zoom = zoom; view.cx = sx; view.cz = zOf(sy); clampView(); apply(); renderer.render(scene, camera); };
 window.__t.select = id => select(plots.find(p => p.id === id) || null);
-window.__t.plots = plots;
+window.__t.plots = plots; window.__t.build = (id, fac, stage) => { const pl = plots.find(q => q.id === id); if (pl) setPlot(pl, fac, stage); };
 requestAnimationFrame(frame);
