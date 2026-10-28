@@ -2,7 +2,7 @@
 // 基準は背景画像 941×1672。位置と大きさは、その画素で持つ（画面の高さに合わせて --u で拡縮）。
 const REF_W = 941, REF_H = 1672;
 const LANA = { dir: '../sprites/', frames: 24, fps: 12, w: 536, h: 388, ax: 336, ay: 379, scale: 1.38, footX: 330, footY: 1190, fromX: -200 };
-const SPK = { sera: { ax: 174, w: 291, h: 640, scale: 1.0, footX: 630, footY: 1215, flip: false }, mina: { ax: 126, w: 280, h: 640, scale: .88, footX: 630, footY: 1215, flip: true } };
+const SPK = { sera: { ax: 174, w: 291, h: 640, scale: .76, footX: 630, footY: 1215, flip: true }, mina: { ax: 126, w: 280, h: 640, scale: .74, footX: 630, footY: 1215, flip: true } };
 const SERIF = '"Hiragino Mincho ProN","Yu Mincho",serif';
 const CSS = `
 #morn{position:fixed;inset:0;z-index:12;background:#000;display:none;overflow:hidden;font-family:${SERIF};-webkit-tap-highlight-color:transparent;user-select:none}
