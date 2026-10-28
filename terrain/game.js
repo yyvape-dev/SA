@@ -30,10 +30,10 @@ export function unassign(s, k) { if (!s.assign[k]) return false; delete s.assign
 function cleanAssign(s) { for (const k of Object.keys(s.assign || {})) { const p = s.plots[s.assign[k]]; if (!p || p.stage < 2) delete s.assign[k]; } }
 export const joined = (s, k) => !ALLY[k].join || s.open.includes(ALLY[k].join);
 const bond = (s, k) => (s.bond && s.bond[k]) || 0;
-export const canTalk = (s, k) => joined(s, k) && bond(s, k) < 3 && !s.over && !s.raid && s.ap >= 1;
+export const canTalk = (s, k) => joined(s, k) && !(k === 'ranka' && s.rankaAway) && bond(s, k) < 3 && !s.over && !s.raid && s.ap >= 1;
 export function talk(s, k) { if (!canTalk(s, k)) return false; s.ap -= 1; s.bond[k] = bond(s, k) + 1; s.log.push(`${ALLY[k].n}と過ごした（絆${s.bond[k]}）`); return true; }
 // ランカの出撃：最強の戦力。出た次の戦闘は休み（2回続けて出られない）
-export const rankaReady = s => joined(s, 'ranka') && !s.rankaRest;
+export const rankaReady = s => joined(s, 'ranka') && !s.rankaRest && !s.rankaAway;
 export const rankaD = s => 10 + (bond(s, 'ranka') >= 3 ? 8 : bond(s, 'ranka') >= 2 ? 4 : 0);
 export const rankaDmg = s => .4 + (bond(s, 'ranka') >= 3 ? .2 : bond(s, 'ranka') >= 2 ? .1 : 0);
 export const raidD = s => D(s) + (s.raid && s.raid.ranka ? rankaD(s) : 0);
@@ -54,7 +54,7 @@ function effSum(s, key) {
   let v = 0;
   for (const [id, p] of Object.entries(s.plots)) { const f = FAC[p.fac]; if (!f || !f.eff[key]) continue;
     v += (f.eff[key] + (key === 'sup' && bond(s, 'sera') >= 2 ? 1 : 0)) * mult(p.stage);
-    const k = allyAt(s, id); if (k && p.stage >= 2) v += assignBonus(p.fac, k); }
+    const k = allyAt(s, id); if (k && p.stage >= 2 && !(k === 'ranka' && s.rankaAway)) v += assignBonus(p.fac, k); }
   return v;
 }
 export const D = s => s.troops * 1.5 + effSum(s, 'def') + 2 + (bond(s, 'garou') >= 3 ? 7 : bond(s, 'garou') >= 2 ? 4 : 0); // ランカ（将軍）は兵を強くする                       // 防衛力
@@ -107,6 +107,9 @@ function afterWeek(s) {
   checkLose(s); if (s.over) return;
   s.week++; if (s.week > WEEKS) { s.over = 'win'; s.why = `${WEEKS}週を生き延びた`; return; }
   s.ap = Math.max(1, apOf(s.morale) - (s.tired ? 1 : 0)); s.tired = false;
+  // ランカは、たまにその週の街にいない（4分の1。2週続けてはいない）。配置の効果も出撃もなし
+  s.rankaAway = joined(s, 'ranka') && !s.rankaAway && Math.random() < .25;
+  if (s.rankaAway) s.log.push('ランカは今週、街にいない');
 }
 function checkLose(s) { if (s.over) return; if (s.hp <= 0) { s.over = 'lose'; s.why = '城が落とされた'; } else if (s.morale <= 0) { s.over = 'lose'; s.why = '民心が尽き、反乱が起きた'; } }
 export function resolve(s, mode, rnd = Math.random, forced) { // forced: アクション戦闘の結果（true/false）。なければ確率で解決
@@ -175,6 +178,7 @@ export function weekReport(prev, s) {
   if (income(s) < 0) wr.push(`毎週の物資が${income(s)}。兵の維持費が重い。`);
   if (s.morale < 35) wr.push(`民心${Math.round(s.morale)}。30を切ると行動点が2に減る。`);
   else if (moraleD(s) < 0 && s.morale < 55) wr.push(`民心が毎週${moraleD(s)}ずつ下がっている。酒場か炊き出しを。`);
+  if (s.rankaAway) wr.push('ランカは今週、街にいない。配置の効果も出撃もなし。');
   const idle = Object.keys(ALLY).filter(k => joined(s, k) && !(s.assign || {})[k]);
   if (idle.length && Object.values(s.plots).some(p => p.stage >= 2)) wr.push(`${idle.map(k => ALLY[k].n).join('・')}が施設に配置されていない。`);
   const a = s.areaDefs.find(a => !s.open.includes(a.id)); if (a && s.sup >= a.cost + 2) wr.push(`物資が貯まっている。${a.name}を開拓できる（物資${a.cost}）。`);

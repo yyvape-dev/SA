@@ -1,8 +1,8 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793186071';
-import { createUI } from './ui.js?v=1793186071';
+import * as GM from './game.js?v=1793186281';
+import { createUI } from './ui.js?v=1793186281';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -320,7 +320,7 @@ function select(p) {
 }
 
 // ---------- 施設（区画の状態：0=空き地 1=建築中 2=完成 3=発展後）----------
-const FAC = GM.FAC, STAGE = GM.STAGE, ART = ['smithy', 'tavern']; // 絵のある施設。畑はコードで描く
+const FAC = GM.FAC, STAGE = GM.STAGE, ART = ['smithy', 'tavern', 'farm']; // 絵のある施設。畑はコードで描く
 const BS = .38; // 素材シートの画素 → 基準画像の画素
 for (const f of ART) for (let k = 1; k <= 3; k++) bldTex[`${f}_${k}`] = await loadBld(`assets/bld/${f}_${k}.png`);
 plots.forEach(pl => { pl.fac = null; pl.stage = 0; pl.mesh = null; pl.base = pl.poly.reduce((a, q) => q[1] > a[1] ? q : a, pl.poly[0]); pl.cx = pl.poly.reduce((a, q) => a + q[0], 0) / 4; });
@@ -383,20 +383,30 @@ function cropTexture(stage) { // 畑（コード生成）：1=芽 2=青い畝 3=
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return cropTex[stage] = t;
 }
 function grow(q, k) { const cx = q.reduce((a, p) => a + p[0], 0) / 4, cy = q.reduce((a, p) => a + p[1], 0) / 4; return q.map(([x, y]) => [cx + (x - cx) * k, cy + (y - cy) * k]); }
+const FARM_S = .325; // 畑の絵の画素 → 基準画像の画素（柵の外周が区画より少し大きい）
+function groundRect(tex, left, top, w, h) { // 画面の矩形（基準画像の画素）を、高さ0の地面に貼る
+  const P = [[left, top + h], [left + w, top + h], [left + w, top], [left, top]], pos = [];
+  P.forEach(([x, sy]) => { const z = zOf(sy); pos.push(x, hgt(x, z) + .6, z); });
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 1, 0, 1, 1, 0, 1], 2)); g.setIndex([0, 1, 2, 0, 2, 3]);
+  const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: .4, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, side: THREE.DoubleSide })); m.frustumCulled = false; return m;
+}
 function refreshPlot(pl) {
   if (pl.pav) { scene.remove(pl.pav); pl.pav.geometry.dispose(); pl.pav = null; }
   if (pl.mesh) { scene.remove(pl.mesh); pl.mesh.material.dispose(); pl.mesh = null; }
   pl.hit = null; pl.poly = pl.home;
   const key = `${pl.fac}_${pl.stage}`, t = pl.fac && pl.stage >= 1 ? bldTex[key] : null;
-  if (pl.fac === 'farm' && pl.stage >= 1) { pl.pav = pavingMesh(grow(pl.home, .94), false, cropTexture(pl.stage)); scene.add(pl.pav); }
-  if (t) {
+  if (pl.fac === 'farm' && pl.stage >= 1) { // 畑の絵は地面に貼る（真上からの正射影なので、地面の板でも絵どおりに見え、上に立つ仲間を隠さない）
+    if (t) { const meta = bld[`assets/bld/${key}.png`], S = FARM_S, w = meta.w * S, h = meta.h * S, left = pl.cx - meta.ax * w, bot = pl.base[1] + 6, top = bot - meta.ay * h;
+      pl.pav = groundRect(t, left, top, w, h); scene.add(pl.pav); pl.hit = { key, left, top, w, h }; }
+    else { pl.pav = pavingMesh(grow(pl.home, .94), false, cropTexture(pl.stage)); scene.add(pl.pav); }
+  } else if (t) {
     const meta = bld[`assets/bld/${key}.png`];
     pl.mesh = sprite3D(t, meta, BS, pl.cx, pl.base[1] - 4); scene.add(pl.mesh);
     pl.pav = pavingMesh(grow(pl.home, 1.0)); scene.add(pl.pav);
     const bottom = pl.base[1] - 4, w = meta.w * BS, h = meta.h * BS;
     pl.hit = { key, left: pl.cx - meta.ax * w, top: bottom - meta.ay * h, w, h };
   }
-  pl.stakes.visible = !t;
+  pl.stakes.visible = !(pl.fac && pl.stage >= 1);
   paintYards(plots.map(p => p.poly)); splatTex.needsUpdate = true;
   if (selected === pl) select(pl);
 }
@@ -529,7 +539,7 @@ function writeSave() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(G)); 
 function syncMap(instant) { // 状態 → 区画の絵と霧
   for (const pl of plots) { const p = G.plots[pl.id]; const f = p ? p.fac : null, stg = p ? p.stage : 0; if (pl.fac !== f || pl.stage !== stg) setPlot(pl, f, stg); }
   for (const a of areas) showArea(a, G.open.includes(a.id)); updateFog(instant);
-  for (const k of Object.keys(allyMesh)) { const v = GM.joined(G, k); if (v && !allyMesh[k].m.visible && !instant) ui.toast(`${GM.ALLY[k].n}（${GM.ALLY[k].r}）が仲間になった`); allyMesh[k].m.visible = v; if (v) placeAlly(k, ...allySpot(k)); }
+  for (const k of Object.keys(allyMesh)) { const v = GM.joined(G, k); if (v && !allyMesh[k].m.visible && !instant) ui.toast(`${GM.ALLY[k].n}（${GM.ALLY[k].r}）が仲間になった`); allyMesh[k].m.visible = v && !(k === 'ranka' && G.rankaAway); if (v) placeAlly(k, ...allySpot(k)); }
 }
 const ui = createUI({ onEndWeek: () => endWeek(), onReset: () => { G = GM.newState(layout.areas); select(null); syncMap(true); commit('最初からやり直した'); } });
 function commit(msg) { writeSave(); syncMap(); refreshUI(); if (msg) ui.toast(msg); }
@@ -565,7 +575,7 @@ function raidModal() {
   if (R.ranka === undefined) R.ranka = GM.rankaReady(G); // 出られるなら出す（窓で切り替えられる）
   const D = GM.raidD(G), p = Math.round(GM.handP(G, R.E) * 100), m = GM.battleMods(G), wv = GM.wavesOf(R.E);
   const mods = [m.dmg > 1 ? `ダメージ+${Math.round((m.dmg - 1) * 100)}%` : '', m.bind ? `拘束+${m.bind}秒` : '', m.hp ? `最大HP+${m.hp}` : ''].filter(Boolean).join('・');
-  const rk = GM.joined(G, 'ranka') ? (G.rankaRest ? '<br><span style="color:#c9b48a">ランカは前の戦闘に出たので休み（2回続けて出られない）</span>' : `<br>ランカ：<b>${R.ranka ? '出撃する' : '温存する'}</b>（防衛力+${GM.rankaD(G)}・ダメージ+${Math.round(GM.rankaDmg(G) * 100)}%。出ると次の戦闘は休み）`) : '';
+  const rk = GM.joined(G, 'ranka') ? (G.rankaAway ? '<br><span style="color:#c9b48a">ランカは今週、街にいない</span>' : G.rankaRest ? '<br><span style="color:#c9b48a">ランカは前の戦闘に出たので休み（2回続けて出られない）</span>' : `<br>ランカ：<b>${R.ranka ? '出撃する' : '温存する'}</b>（防衛力+${GM.rankaD(G)}・ダメージ+${Math.round(GM.rankaDmg(G) * 100)}%。出ると次の戦闘は休み）`) : '';
   const btns = [{ label: '任せる', fn: () => { const t = GM.resolve(G, 'auto'); ui.modal(null); commit(t); showReport(); } },
      { label: '自分で戦う', sub: `WAVE ${wv}・アクション`, fn: goBattle },
      { label: '確率で決める', sub: `成功率 約${p}%`, fn: () => { const t = GM.resolve(G, 'hand'); ui.modal(null); commit(t); showReport(); } }];
