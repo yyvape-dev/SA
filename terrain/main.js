@@ -1,9 +1,9 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793204237';
-import { createUI } from './ui.js?v=1793204237';
-import { createMorning } from './morning.js?v=1793204237';
+import * as GM from './game.js?v=1793204632';
+import { createUI } from './ui.js?v=1793204632';
+import { createMorning } from './morning.js?v=1793204632';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -818,7 +818,7 @@ const foeURL = FOE_IMG[3] ? 'assets/npc/foe_4.webp' : foeTex.image.toDataURL();
 const DUEL_CLIP = await fetch('../ally/duel_meta.json').then(r => r.json()).catch(() => ({})); // 仲間ごとの攻撃モーション一覧
 const duelWarm = k => (DUEL_CLIP[k] || []).forEach(c => { new Image().src = `../ally/${c.f}`; }); // 一騎打ちの前に絵を先読み
 const FOEDUEL = await fetch('assets/npc/foeduel_meta.json').then(r => r.json()).catch(() => ({})); // 敵将の攻撃モーション（見た目の番号ごと）
-const foeLook = () => G.raid && G.raid.boss ? 4 : G.raid && G.raid.E >= 30 ? 2 : 1; // 隊長＝槍兵、副官＝羽飾りの兵、将軍＝斧の山賊
+const foeLook = () => G.raid && G.raid.boss ? 4 : G.raid && G.raid.E >= 30 ? 2 : (G.raid && G.raid.w % 2 ? 3 : 1); // 隊長＝槍兵かフードの山賊（週で入れ替え）、副官＝羽飾りの兵、将軍＝斧の山賊
 function clipActor(el, sp, clips, base, T) { // 動画由来の連番を、枠(el)の中の div(sp) に出す。立ち姿の中心を揃え、足元は枠の下端
   const c0 = clips[0]; if (!c0) return null; let order = [], cur = c0, sc = el.clientHeight / c0.idle.h, setFrame = () => {};
   el.style.width = c0.idle.w * sc + 'px'; Object.assign(sp.style, { position: 'absolute', filter: sp.dataset.filter || 'drop-shadow(0 6px 8px #000)' });
