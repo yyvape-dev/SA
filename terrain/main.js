@@ -305,14 +305,44 @@ function yardOf(pl, meta) { // 建物の足元の平行四辺形を、地面の�
   const cx = q.reduce((a, p) => a + p[0], 0) / 4, cy = q.reduce((a, p) => a + p[1], 0) / 4;
   return q.map(([x, y]) => [cx + (x - cx) * 1.14, cy + (y - cy) * 1.14]);
 }
+let pavTex = null;
+function pavingTex() { // 石畳（コード生成）。u,vは建物の足元の辺に沿う
+  if (pavTex) return pavTex;
+  const N = 512, c = document.createElement('canvas'); c.width = c.height = N; const x = c.getContext('2d');
+  let seed = 7; const r = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  x.fillStyle = '#3a342b'; x.fillRect(0, 0, N, N);
+  const rows = 11, rh = (N - 40) / rows;
+  for (let j = 0; j < rows; j++) {
+    let px = 20 + (j % 2 ? -rh * .5 : 0);
+    while (px < N - 20) {
+      const w = rh * (1.1 + r() * .9), x0 = Math.max(20, px), x1 = Math.min(N - 20, px + w), y0 = 20 + j * rh;
+      if (x1 - x0 > 6) { const g = 128 + r() * 50 | 0; x.fillStyle = `rgb(${g + 22},${g + 12},${g - 14})`; x.beginPath(); x.roundRect(x0 + 2, y0 + 2, x1 - x0 - 4, rh - 4, 6); x.fill();
+        x.fillStyle = 'rgba(255,255,255,.18)'; x.fillRect(x0 + 4, y0 + 3, x1 - x0 - 8, 3); x.fillStyle = 'rgba(0,0,0,.18)'; x.fillRect(x0 + 4, y0 + rh - 7, x1 - x0 - 8, 3); }
+      px += w;
+    }
+  }
+  // 縁を不揃いに透明へ
+  x.globalCompositeOperation = 'destination-in'; x.fillStyle = '#000'; x.beginPath(); x.roundRect(10, 10, N - 20, N - 20, 40); x.fill(); x.globalCompositeOperation = 'source-over';
+  pavTex = new THREE.CanvasTexture(c); pavTex.colorSpace = THREE.SRGBColorSpace; pavTex.anisotropy = 8; return pavTex;
+}
+function pavingMesh(q) { // q = [T,R,B,L] の地面座標。B→R が u、B→L が v
+  const [T, R, B, L] = q, P = [B, R, T, L], pos = [], z = p => zOf(p[1]);
+  P.forEach(p => pos.push(p[0], hgt(p[0], z(p)) + .8, z(p)));
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 1, 0, 1, 1, 0, 1], 2)); g.setIndex([0, 2, 1, 0, 3, 2]);
+  const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: pavingTex(), transparent: true, alphaTest: .5, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, side: THREE.DoubleSide }));
+  m.frustumCulled = false; return m;
+}
+function grow(q, k) { const cx = q.reduce((a, p) => a + p[0], 0) / 4, cy = q.reduce((a, p) => a + p[1], 0) / 4; return q.map(([x, y]) => [cx + (x - cx) * k, cy + (y - cy) * k]); }
 function refreshPlot(pl) {
+  if (pl.pav) { scene.remove(pl.pav); pl.pav.geometry.dispose(); pl.pav = null; }
   if (pl.mesh) { scene.remove(pl.mesh); pl.mesh.material.dispose(); pl.mesh = null; }
   pl.hit = null; pl.poly = pl.home;
   const key = `${pl.fac}_${pl.stage}`, t = pl.fac && pl.stage >= 1 ? bldTex[key] : null;
   if (t) {
     const meta = bld[`assets/bld/${key}.png`];
     pl.mesh = sprite3D(t, meta, BS, pl.cx, pl.base[1] - 4); scene.add(pl.mesh);
-    pl.poly = yardOf(pl, meta);
+    pl.poly = yardOf(pl, meta); pl.pav = pavingMesh(grow(pl.poly, 1.38)); scene.add(pl.pav);
     const bottom = pl.base[1] - 4, w = meta.w * BS, h = meta.h * BS;
     pl.hit = { key, left: pl.cx - meta.ax * w, top: bottom - meta.ay * h, w, h };
   }
