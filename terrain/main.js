@@ -1,8 +1,8 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793185765';
-import { createUI } from './ui.js?v=1793185765';
+import * as GM from './game.js?v=1793186071';
+import { createUI } from './ui.js?v=1793186071';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -562,12 +562,15 @@ function takeBattleResult() {
 }
 function raidModal() {
   const R = G.raid; if (!R) { ui.modal(null); return; }
-  const D = GM.D(G), p = Math.round(GM.handP(G, R.E) * 100), m = GM.battleMods(G), wv = GM.wavesOf(R.E);
+  if (R.ranka === undefined) R.ranka = GM.rankaReady(G); // 出られるなら出す（窓で切り替えられる）
+  const D = GM.raidD(G), p = Math.round(GM.handP(G, R.E) * 100), m = GM.battleMods(G), wv = GM.wavesOf(R.E);
   const mods = [m.dmg > 1 ? `ダメージ+${Math.round((m.dmg - 1) * 100)}%` : '', m.bind ? `拘束+${m.bind}秒` : '', m.hp ? `最大HP+${m.hp}` : ''].filter(Boolean).join('・');
-  ui.modal(R.kind === 'sortie' ? `出撃：${R.name}` : `襲撃：${R.name}`, `敵の規模 <b>${R.E}</b> ／ こちらの防衛力 <b>${Math.round(D)}</b><br>任せる：見込みは「${GM.autoTier(G, R.E)}」<br>自分で戦う：<b>WAVE ${wv}</b> まで生き残れば勝利。勝てば報酬、負ければ被害が1段重い（${R.kind === 'sortie' ? '行動点-1' : '次の週の行動点-1'}）${mods ? '<br>仲間の補正：' + mods : ''}`,
-    [{ label: '任せる', fn: () => { const t = GM.resolve(G, 'auto'); ui.modal(null); commit(t); showReport(); } },
+  const rk = GM.joined(G, 'ranka') ? (G.rankaRest ? '<br><span style="color:#c9b48a">ランカは前の戦闘に出たので休み（2回続けて出られない）</span>' : `<br>ランカ：<b>${R.ranka ? '出撃する' : '温存する'}</b>（防衛力+${GM.rankaD(G)}・ダメージ+${Math.round(GM.rankaDmg(G) * 100)}%。出ると次の戦闘は休み）`) : '';
+  const btns = [{ label: '任せる', fn: () => { const t = GM.resolve(G, 'auto'); ui.modal(null); commit(t); showReport(); } },
      { label: '自分で戦う', sub: `WAVE ${wv}・アクション`, fn: goBattle },
-     { label: '確率で決める', sub: `成功率 約${p}%`, fn: () => { const t = GM.resolve(G, 'hand'); ui.modal(null); commit(t); showReport(); } }]);
+     { label: '確率で決める', sub: `成功率 約${p}%`, fn: () => { const t = GM.resolve(G, 'hand'); ui.modal(null); commit(t); showReport(); } }];
+  if (GM.rankaReady(G)) btns.push({ label: R.ranka ? 'ランカを温存する' : 'ランカを出す', sub: R.ranka ? '次の戦闘に回す' : '最強の戦力', fn: () => { GM.setRanka(G, !R.ranka); writeSave(); raidModal(); } });
+  ui.modal(R.kind === 'sortie' ? `出撃：${R.name}` : `襲撃：${R.name}`, `敵の規模 <b>${R.E}</b> ／ こちらの防衛力 <b>${Math.round(D)}</b><br>任せる：見込みは「${GM.autoTier(G, R.E)}」<br>自分で戦う：<b>WAVE ${wv}</b> まで生き残れば勝利。勝てば報酬、負ければ被害が1段重い${mods ? '<br>仲間の補正：' + mods : ''}${rk}`, btns);
 }
 function overModal() {
   if (!G.over) return;

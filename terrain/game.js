@@ -18,11 +18,11 @@ export const ALLY = {
   mina:  { n: 'ミナ',   r: '捕縛役', join: null,   lv: ['', '', '自分で戦う成功率+12%・戦闘の拘束+0.4秒', '自分で戦う成功率+さらに8%・拘束+さらに0.4秒'] },
   garou: { n: 'ガロウ', r: '火力役', join: 'east', lv: ['', '', '防衛力+4・戦闘のダメージ+15%', '防衛力+7・ダメージ+30%'] },
   sera:  { n: 'セラ',   r: '内政役', join: 'lake', lv: ['', '', '畑の産出+1ずつ・戦闘の最大HP+20', '炊き出しの民心+15・最大HP+40'] },
-  ranka: { n: 'ランカ', r: '火力役・将軍', join: 'forest', lv: ['', '', '兵1人の防衛力+0.5・戦闘のダメージ+10%', '兵1人の防衛力+さらに0.5・ダメージ+さらに15%'] },
+  ranka: { n: 'ランカ', r: '火力役・将軍', join: 'forest', lv: ['', '', '出撃時の効果がさらに強くなる（防衛力+4・ダメージ+10%）', '出撃時の効果がさらに強くなる（防衛力+8・ダメージ+20%）'] },
 };
 // 施設への配置：仲間1人につき施設1つ。完成・発展後の施設だけ。得意な施設なら効果+基本値ぶん、そうでなければ半分（切り上げ）
 export const AFFINITY = { farm: ['sera'], tavern: ['sera', 'garou', 'ranka'], smithy: ['garou', 'mina', 'ranka'] };
-export function assignBonus(fac, k) { const e = Object.values(FAC[fac].eff)[0]; return AFFINITY[fac].includes(k) ? e : Math.ceil(e / 2); }
+export function assignBonus(fac, k) { const e = Object.values(FAC[fac].eff)[0]; if (k === 'ranka' && fac !== 'farm') return e * 2; return AFFINITY[fac].includes(k) ? e : Math.ceil(e / 2); } // ランカは酒場（民心）か鍛冶場（防衛）で2倍
 export const allyAt = (s, id) => Object.keys(s.assign || {}).find(k => s.assign[k] === id) || null;
 export function canAssign(s, k, id) { const p = s.plots[id]; return joined(s, k) && !!p && p.stage >= 2 && !s.over && !s.raid && s.assign[k] !== id; }
 export function assign(s, k, id) { if (!canAssign(s, k, id)) return false; const other = allyAt(s, id); if (other) delete s.assign[other]; s.assign[k] = id; s.log.push(`${ALLY[k].n}を${FAC[s.plots[id].fac].n}に配置した`); return true; }
@@ -32,9 +32,15 @@ export const joined = (s, k) => !ALLY[k].join || s.open.includes(ALLY[k].join);
 const bond = (s, k) => (s.bond && s.bond[k]) || 0;
 export const canTalk = (s, k) => joined(s, k) && bond(s, k) < 3 && !s.over && !s.raid && s.ap >= 1;
 export function talk(s, k) { if (!canTalk(s, k)) return false; s.ap -= 1; s.bond[k] = bond(s, k) + 1; s.log.push(`${ALLY[k].n}と過ごした（絆${s.bond[k]}）`); return true; }
+// ランカの出撃：最強の戦力。出た次の戦闘は休み（2回続けて出られない）
+export const rankaReady = s => joined(s, 'ranka') && !s.rankaRest;
+export const rankaD = s => 10 + (bond(s, 'ranka') >= 3 ? 8 : bond(s, 'ranka') >= 2 ? 4 : 0);
+export const rankaDmg = s => .4 + (bond(s, 'ranka') >= 3 ? .2 : bond(s, 'ranka') >= 2 ? .1 : 0);
+export const raidD = s => D(s) + (s.raid && s.raid.ranka ? rankaD(s) : 0);
+export function setRanka(s, on) { if (s.raid) s.raid.ranka = !!on && rankaReady(s); }
 export function battleMods(s) { // アクション戦闘へ渡す補正
   const m = bond(s, 'mina'), g = bond(s, 'garou'), r = bond(s, 'sera'), k = bond(s, 'ranka');
-  return { dmg: 1 + (g >= 3 ? .3 : g >= 2 ? .15 : 0) + (k >= 3 ? .25 : k >= 2 ? .1 : 0), bind: m >= 3 ? .8 : m >= 2 ? .4 : 0, hp: r >= 3 ? 40 : r >= 2 ? 20 : 0 };
+  const rk = s.raid && s.raid.ranka; return { dmg: 1 + (g >= 3 ? .3 : g >= 2 ? .15 : 0) + (rk ? rankaDmg(s) : 0), bind: m >= 3 ? .8 : m >= 2 ? .4 : 0, hp: (r >= 3 ? 40 : r >= 2 ? 20 : 0) + (rk ? 30 : 0) };
 }
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const mult = st => (st === 2 ? 1 : st === 3 ? 2 : 0);
@@ -51,13 +57,13 @@ function effSum(s, key) {
     const k = allyAt(s, id); if (k && p.stage >= 2) v += assignBonus(p.fac, k); }
   return v;
 }
-export const D = s => s.troops * (1.5 + (bond(s, 'ranka') >= 3 ? 1 : bond(s, 'ranka') >= 2 ? .5 : 0)) + effSum(s, 'def') + 2 + (bond(s, 'garou') >= 3 ? 7 : bond(s, 'garou') >= 2 ? 4 : 0); // ランカ（将軍）は兵を強くする                       // 防衛力
+export const D = s => s.troops * 1.5 + effSum(s, 'def') + 2 + (bond(s, 'garou') >= 3 ? 7 : bond(s, 'garou') >= 2 ? 4 : 0); // ランカ（将軍）は兵を強くする                       // 防衛力
 export const landInc = s => s.areaDefs.filter(a => s.open.includes(a.id)).reduce((t, a) => t + a.income, 0);
 export const income = s => 4 + effSum(s, 'sup') + landInc(s) - Math.floor(s.troops / 2); // 毎週の物資
 export const moraleD = s => -2 + effSum(s, 'mor');                                   // 毎週の民心
 export const apOf = m => (m < 30 ? 2 : m >= 80 ? 4 : 3);
 export const nextRaid = s => SCHED.find(r => r.w >= s.week);
-export const handP = (s, E) => clamp(.45 + clamp((D(s) - E) / 40, -.2, .2) + (bond(s, 'mina') >= 2 ? .12 : 0) + (bond(s, 'mina') >= 3 ? .08 : 0), .12, .92); // 確率で解決するときの成功率
+export const handP = (s, E) => clamp(.45 + clamp((raidD(s) - E) / 40, -.2, .2) + (bond(s, 'mina') >= 2 ? .12 : 0) + (bond(s, 'mina') >= 3 ? .08 : 0), .12, .92); // 確率で解決するときの成功率
 // アクション戦闘で耐える波の数（敵の規模から）
 export const wavesOf = E => clamp(Math.round(E / 7), 2, 7);
 
@@ -104,7 +110,8 @@ function afterWeek(s) {
 }
 function checkLose(s) { if (s.over) return; if (s.hp <= 0) { s.over = 'lose'; s.why = '城が落とされた'; } else if (s.morale <= 0) { s.over = 'lose'; s.why = '民心が尽き、反乱が起きた'; } }
 export function resolve(s, mode, rnd = Math.random, forced) { // forced: アクション戦闘の結果（true/false）。なければ確率で解決
-  const R = s.raid; if (!R) return ''; const E = R.E, m = D(s) - E * (0.9 + rnd() * 0.2);
+  const R = s.raid; if (!R) return ''; const E = R.E, m = raidD(s) - E * (0.9 + rnd() * 0.2);
+  if (joined(s, 'ranka')) s.rankaRest = !!R.ranka; // 出たら次は休み、休んだら次は出られる
   const at = m >= 4 ? 0 : m >= 0 ? 1 : m >= -4 ? 2 : 3; let ok, tier, t = `${R.name}（${mode === 'auto' ? '任せた' : forced === undefined ? '自分で戦った' : '自分で戦った・' + (forced ? '勝利' : '敗北')}）：`;
   if (mode === 'auto') { tier = at; ok = tier === 0; } else { ok = forced === undefined ? rnd() < handP(s, E) : !!forced; tier = ok ? 0 : clamp(at + 1, 1, 3); if (R.kind === 'sortie') s.ap = Math.max(0, s.ap - 1); else s.tired = true; }
   s.raid = null;
@@ -123,7 +130,7 @@ export function resolve(s, mode, rnd = Math.random, forced) { // forced: アク�
   return t;
 }
 // 結果の見込み（任せた場合の被害の段階）
-export function autoTier(s, E) { const m = D(s) - E; return m >= 4 ? '被害なし' : m >= 0 ? '小被害' : m >= -4 ? '中被害' : '大被害'; }
+export function autoTier(s, E) { const m = raidD(s) - E; return m >= 4 ? '被害なし' : m >= 0 ? '小被害' : m >= -4 ? '中被害' : '大被害'; }
 
 // ---------- 吹き出しのせりふ（立ち絵と一緒に出す）。相手は女王（陛下） ----------
 export const LINES = {
@@ -136,12 +143,14 @@ export const LINES = {
   sera: { idle: ['物資の帳簿、今週も合いました。陛下のおかげです。', '民の顔が明るい国は、強い国です。', '急がず、でも止まらず。国づくりはそういうものです。'],
     farm: ['今年の麦は良く実りそうです。冬の蓄えも心配いりません。'], tavern: ['酒場の笑い声は、民心の物差しです。'], smithy: ['鍛冶の帳簿は、鉄より重いんです……。'],
     b3: ['陛下の国を、もう一度。そのためなら、私は何年でも数字を数えます。'] },
-  ranka: { idle: ['陛下の将、ランカ。兵の一人ひとりまで、わたくしが鍛えて差し上げます。', '謀反の将軍どもに、本物の将軍というものを見せてやりましょう。', '戦は数ではなく、束ね方。陛下ならお分かりでしょう？'],
-    farm: ['兵糧なくして軍は動きません。……土いじりも、たまには悪くないわね。'], tavern: ['兵の士気は酒場で決まるもの。今夜はわたくしの奢りよ。'], smithy: ['刃は研ぎ澄まして。半端な鉄で、陛下の兵を死なせるわけにはいかない。'],
-    b3: ['この命、陛下の旗の下に。わたくしが倒れるまで、陛下の前に敵は通しません。'] },
+  ranka: { idle: ['お嬢、戦の話？ 任せといてよ。わたしが出れば、だいたい片付くじゃん？', '謀反の将軍たち？ 一回ちゃんと負けたほうがいいよね、あの人たち。', '数で来られても、束ねちゃえば一緒じゃん？ お嬢もそう思うよね。'],
+    farm: ['畑仕事かぁ……わたし向きじゃないよね？ ま、お嬢が言うならやるけどさ。'], tavern: ['酒場はいいよね〜。兵のみんなと飲んでると、士気って勝手に上がるんだよ。'], smithy: ['刃はちゃんと研いどいてよ？ お嬢の兵、一人も無駄にしたくないじゃん。'],
+    rest: ['さすがに連戦はキツいって。次は休ませてよね、お嬢。'],
+    b3: ['お嬢の旗の下なら、わたし何回でも立てるよ。……あ、今の照れるから忘れて。'] },
 };
 export function lineOf(s, k, rnd = Math.random) {
   const L = LINES[k], at = s.assign && s.assign[k], fac = at && s.plots[at] ? s.plots[at].fac : null;
+  if (k === 'ranka' && s.rankaRest && L.rest) return L.rest[0];
   const pool = [...L.idle, ...(fac ? L[fac] : []), ...(fac ? L[fac] : []), ...(bond(s, k) >= 3 ? L.b3 : [])];
   return pool[Math.floor(rnd() * pool.length)];
 }
