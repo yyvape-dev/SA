@@ -1,8 +1,8 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793194446';
-import { createUI } from './ui.js?v=1793194446';
+import * as GM from './game.js?v=1793196764';
+import { createUI } from './ui.js?v=1793196764';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -805,7 +805,7 @@ function overModal() {
 }
 // せりふ用の立ち絵（バストアップ、1人3枚まで）。せりふが変わるたびにランダムに選ぶ。なければ全身の立ち絵
 const POR = {};
-for (const k of Object.keys(GM.ALLY)) { const L = []; for (let i = 1; i <= 3; i++) { const im = await loadImage(`../ally/por_${k}_${i}.png`); if (im) L.push(`../ally/por_${k}_${i}.png`); } if (L.length) POR[k] = L; }
+for (const k of Object.keys(GM.ALLY)) { const L = []; for (let i = 1; i <= 4; i++) { const im = await loadImage(`../ally/por_${k}_${i}.png`); if (im) L.push(`../ally/por_${k}_${i}.png`); } if (L.length) POR[k] = L; }
 const porPick = {};
 function porOf(k) { return POR[k] ? POR[k][porPick[k] || 0] : `../ally/${k}.png`; }
 function newLine(k) { curLine = GM.lineOf(G, k); lineKey = k; if (POR[k]) porPick[k] = Math.floor(Math.random() * POR[k].length); }
