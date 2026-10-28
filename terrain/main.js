@@ -1,8 +1,8 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793190446';
-import { createUI } from './ui.js?v=1793190446';
+import * as GM from './game.js?v=1793190824';
+import { createUI } from './ui.js?v=1793190824';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -581,7 +581,7 @@ function refreshBadges() {
   badges.forEach(b => scene.remove(b)); badges = [];
   for (const [k, id] of Object.entries(G.assign || {})) { const pl = plots.find(q => q.id === id), p = G.plots[id]; if (!pl || !p || !faceTex[k] || (k === 'ranka' && G.rankaAway)) continue;
     const top = pl.hit && p.fac !== 'farm' ? pl.hit.top + 10 : pl.base[1] - 70, lift = (pl.base[1] - top) / COS;
-    const bx = pl.hit ? pl.hit.left + pl.hit.w / 2 : pl.cx, b = sprite3D(faceTex[k], { w: 128, h: 128, ax: .5, ay: 1 }, .56, bx, pl.base[1]); b.position.y += lift; b.material.depthTest = false; b.renderOrder = 30; b.userData.y0 = b.position.y; scene.add(b); badges.push(b); }
+    const bx = pl.hit ? pl.hit.left + pl.hit.w / 2 : pl.cx, b = sprite3D(faceTex[k], { w: 128, h: 128, ax: .5, ay: 1 }, .56, bx, pl.base[1]); b.position.y += lift; b.material.depthTest = false; b.material.depthWrite = false; b.material.transparent = true; b.renderOrder = 999; /* 最前面（木や建物より手前） */ b.userData.y0 = b.position.y; scene.add(b); badges.push(b); }
 }
 function allySpot(k) { // 配置先の施設の手前（左寄り）。配置していなければ家の広場
   const id = G.assign && G.assign[k], pl = id && plots.find(q => q.id === id);
