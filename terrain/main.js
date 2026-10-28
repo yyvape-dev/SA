@@ -1,8 +1,8 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793187922';
-import { createUI } from './ui.js?v=1793187922';
+import * as GM from './game.js?v=1793189260';
+import { createUI } from './ui.js?v=1793189260';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -464,11 +464,19 @@ function townPiece(kind, x, sy, scale, label, flip) {
   }
   const m = sprite3D(t, { w: im.width, h: im.height, ax: .5, ay: .96 }, scale, x, sy); if (flip) m.scale.x *= -1; scene.add(m); return m;
 }
+const waterMats = [];
+function animateWater(mesh) { // 噴水の水だけを動かす：青い画素に、下へ流れる筋と、きらめきを足す
+  const mat = mesh.material; mat.onBeforeCompile = sh => { sh.uniforms.time = { value: 0 }; mat.userData.sh = sh;
+    sh.fragmentShader = 'uniform float time;\n' + sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+      { vec3 c = diffuseColor.rgb; float w = smoothstep(.04, .16, c.b - max(c.r, c.g * .9)) * step(.25, c.b);
+        float fall = sin(vMapUv.y * 90. + time * 9. + sin(vMapUv.x * 40.) * 2.) * .5 + .5, sp = step(.93, fract(sin(dot(floor(vMapUv * vec2(70., 50.)) + floor(time * 6.), vec2(12.9898, 78.233))) * 43758.5453));
+        diffuseColor.rgb += w * (vec3(.18, .24, .28) * fall + vec3(.6) * sp); }`); };
+  mat.needsUpdate = true; waterMats.push(mat); return mesh; }
 const onLotOrRoad = (x, y) => layout.plots.some(p => pointInPoly(x, y, p.poly)) || splatAt(x, y)[0] > .25 || splatAt(x, y)[2] > .2;
 layout.plazas.forEach((pz, n) => { // 広場：石畳＋中央の噴水／井戸＋四隅の街灯＋屋台・花壇・ベンチ・樽
   const [T, R, B, L] = pz.poly; scene.add(pavingMesh([T, R, B, L], true));
   const [cx, cy] = pz.center;
-  if (pz.kind === 'fountain') townPiece('fountain', cx, cy + 34, .44); else townPiece('well', cx, cy + 34, .42);
+  if (pz.kind === 'fountain') animateWater(townPiece('fountain', cx, cy + 34, .44)); else townPiece('well', cx, cy + 34, .42);
   [T, R, B, L].forEach(([x, y]) => townPiece('lamp', x + (cx - x) * .12, y + (cy - y) * .12, .2));
   const mid = (p, q, k = .3) => [(p[0] + q[0]) / 2 + (cx - (p[0] + q[0]) / 2) * k, (p[1] + q[1]) / 2 + (cy - (p[1] + q[1]) / 2) * k];
   const d = [['stall', T, R, .3], ['flowerbed', L, T, .34], ['bench', B, L, .34], ['barrels', R, B, .3]];
@@ -548,20 +556,21 @@ function walkAllies(dt) {
     const sp = 22 * dt; placeAlly(k, a.x + dx / d * Math.min(sp, d), a.y + dy / d * Math.min(sp, d)); a.m.scale.x = Math.abs(a.sx) * (dx < 0 ? -1 : 1);
     a.m.position.y += Math.abs(Math.sin(performance.now() / 140)) * 1.6; }
 }
-const faceTex = {};
+const faceTex = {}, faceURL = {};
+const FACE = { mina: [178, 74, 56], garou: [247, 50, 58], sera: [150, 64, 54], ranka: [180, 62, 56] }; // 立ち絵の顔の中心と半径（画素）
 async function makeFace(k) { // 立ち絵の顔を丸く切り抜いて、金の縁をつける
   const im = await loadImage(`../ally/${k}.png`); if (!im) return null; const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
   g.fillStyle = '#2a1a0c'; g.beginPath(); g.arc(64, 64, 60, 0, 7); g.fill(); g.save(); g.beginPath(); g.arc(64, 64, 54, 0, 7); g.clip();
-  const s = im.width / 2.3; g.drawImage(im, im.width / 2 - s / 2, 4, s, s, 10, 10, 108, 108); g.restore();
+  const [fx, fy, fr] = FACE[k] || [im.width / 2, 70, 60], s = fr * 2.3; g.drawImage(im, fx - s / 2, fy - s / 2, s, s, 10, 10, 108, 108); g.restore();
   g.strokeStyle = '#e8c060'; g.lineWidth = 7; g.beginPath(); g.arc(64, 64, 56, 0, 7); g.stroke(); g.strokeStyle = '#5a3a10'; g.lineWidth = 2; g.beginPath(); g.arc(64, 64, 60, 0, 7); g.stroke();
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; }
+  faceURL[k] = c.toDataURL(); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; }
 for (const k of Object.keys(GM.ALLY)) faceTex[k] = await makeFace(k);
 let badges = [];
 function refreshBadges() {
   badges.forEach(b => scene.remove(b)); badges = [];
   for (const [k, id] of Object.entries(G.assign || {})) { const pl = plots.find(q => q.id === id), p = G.plots[id]; if (!pl || !p || !faceTex[k] || (k === 'ranka' && G.rankaAway)) continue;
     const top = pl.hit && p.fac !== 'farm' ? pl.hit.top + 10 : pl.base[1] - 70, lift = (pl.base[1] - top) / COS;
-    const bx = pl.hit ? pl.hit.left + pl.hit.w / 2 : pl.cx, b = sprite3D(faceTex[k], { w: 128, h: 128, ax: .5, ay: 1 }, .38, bx, pl.base[1]); b.position.y += lift; b.material.depthTest = false; b.renderOrder = 30; b.userData.y0 = b.position.y; scene.add(b); badges.push(b); }
+    const bx = pl.hit ? pl.hit.left + pl.hit.w / 2 : pl.cx, b = sprite3D(faceTex[k], { w: 128, h: 128, ax: .5, ay: 1 }, .56, bx, pl.base[1]); b.position.y += lift; b.material.depthTest = false; b.renderOrder = 30; b.userData.y0 = b.position.y; scene.add(b); badges.push(b); }
 }
 function allySpot(k) { // 配置先の施設の手前（左寄り）。配置していなければ家の広場
   const id = G.assign && G.assign[k], pl = id && plots.find(q => q.id === id);
@@ -716,7 +725,7 @@ function refreshUI() {
 }
 function renderActions() {
   if (!G) return; const L = []; let title = '', icon = 'build', por = null, bubble = null, key = 'none', mode = 'act';
-  const P = k => ({ src: `../ally/${k}.png`, name: `${GM.ALLY[k].n}（${GM.ALLY[k].r}）` });
+  const P = k => ({ src: `../ally/${k}.png`, face: faceURL[k], name: `${GM.ALLY[k].n}（${GM.ALLY[k].r}）` });
   if (advisorMsg) { const k = defaultAlly(); ui.panel({ key: 'adv' + G.week, icon: 'ally', title: `${GM.ALLY[k].n}の報告`, por: P(k), bubble: advisorMsg, items: [{ label: '了解', act: '', verb: '了解', fn: () => { advisorMsg = null; refreshUI(); } }], week: weekBtn(), mode: 'talk' }); return; }
   if (selSign) { key = 'sign' + selSign.id; icon = 'flag'; const a = selSign.area && areas.find(q => q.id === selSign.area); const ad = a && G.areaDefs.find(q => q.id === a.id);
     title = `目印・${selSign.label}`;
@@ -807,7 +816,7 @@ let last = performance.now(), frames = 0, acc = 0, fx = [];
 function frame(now) {
   const dt = now - last; last = now; acc += dt; frames++;
   groundMat.uniforms.time.value = now / 1000; selGlow.opacity = .38 + .2 * Math.sin(now / 260);
-  walkAllies(Math.min(.05, dt / 1000)); badges.forEach((b, i) => { b.position.y = b.userData.y0 + Math.sin(now / 400 + i) * 2; }); fx.forEach(f => f(now)); fx = fx.filter(f => !f.done);
+  walkAllies(Math.min(.05, dt / 1000)); badges.forEach((b, i) => { b.position.y = b.userData.y0 + Math.sin(now / 400 + i) * 2; }); waterMats.forEach(mt => { if (mt.userData.sh) mt.userData.sh.uniforms.time.value = now / 1000; }); fx.forEach(f => f(now)); fx = fx.filter(f => !f.done);
   apply(); renderer.render(scene, camera);
   if (acc > 500) { st.textContent = `3D: ${status.ok ? 'OK' : status.reason} / 地面:${status.ground} 小物:${status.sprites}(${status.props}) / ${(frames * 1000 / acc).toFixed(0)}fps / 拡大 ${view.zoom.toFixed(2)}`; frames = 0; acc = 0; }
   // HUD は refreshUI() が書く
@@ -818,5 +827,5 @@ G = loadSave() || GM.newState(layout.areas); syncMap(true); refreshUI(); takeBat
 resize(); apply(); renderer.render(scene, camera); status.ok = true;
 window.__t.setView = (zoom, sx, sy) => { view.zoom = zoom; view.cx = sx; view.cz = zOf(sy); clampView(); apply(); renderer.render(scene, camera); };
 window.__t.select = id => select(plots.find(p => p.id === id) || null);
-window.__t.plots = plots; window.__t.G = () => G; window.__t.raidIntro = raidIntro; window.__t.showReport = showReport; window.__t.GM = GM; window.__t.commit = () => commit(); window.__t.reset = () => { try { localStorage.removeItem(SAVE_KEY); } catch (e) { } }; window.__t.pickAt = (cx, cy) => pickAt(cx, cy); window.__t.view = view; window.__t.sel = () => selected && selected.id; window.__t.build = (id, fac, stage) => { if (stage) G.plots[id] = { fac, stage }; else delete G.plots[id]; commit(); };
+window.__t.plots = plots; window.__t.G = () => G; window.__t.faces = () => faceURL; window.__t.raidIntro = raidIntro; window.__t.showReport = showReport; window.__t.GM = GM; window.__t.commit = () => commit(); window.__t.reset = () => { try { localStorage.removeItem(SAVE_KEY); } catch (e) { } }; window.__t.pickAt = (cx, cy) => pickAt(cx, cy); window.__t.view = view; window.__t.sel = () => selected && selected.id; window.__t.build = (id, fac, stage) => { if (stage) G.plots[id] = { fac, stage }; else delete G.plots[id]; commit(); };
 requestAnimationFrame(frame);
