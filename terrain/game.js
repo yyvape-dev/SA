@@ -52,12 +52,14 @@ export function newState(areaDefs) {
 }
 
 // ---------- 指標（全部ここから計算） ----------
+const DIM = [1, .7, .5, .35, .25]; // 鍛冶場は2つ目から効きが落ちる（大きい順に並べて掛ける）。積むだけでは勝てないように
 function effSum(s, key) {
-  let v = 0;
+  const vals = [];
   for (const [id, p] of Object.entries(s.plots)) { const f = FAC[p.fac]; if (!f || !f.eff[key] || p.burnt) continue;
-    v += (f.eff[key] + (key === 'sup' && bond(s, 'sera') >= 2 ? 1 : 0)) * mult(p.stage);
-    const k = allyAt(s, id); if (k && p.stage >= 2 && !(k === 'ranka' && s.rankaAway)) v += assignBonus(p.fac, k); }
-  return v;
+    let v = (f.eff[key] + (key === 'sup' && bond(s, 'sera') >= 2 ? 1 : 0)) * mult(p.stage);
+    const k = allyAt(s, id); if (k && p.stage >= 2 && !(k === 'ranka' && s.rankaAway)) v += assignBonus(p.fac, k); vals.push(v); }
+  if (key !== 'def') return vals.reduce((t, v) => t + v, 0); // 物資・民心は足し算のまま
+  vals.sort((a, b) => b - a); return Math.round(vals.reduce((t, v, i) => t + v * (DIM[i] ?? .2), 0));
 }
 export const D = s => s.troops * 1.5 + effSum(s, 'def') + 2 + (bond(s, 'garou') >= 3 ? 7 : bond(s, 'garou') >= 2 ? 4 : 0); // ランカ（将軍）は兵を強くする                       // 防衛力
 export const landInc = s => s.areaDefs.filter(a => s.open.includes(a.id)).reduce((t, a) => t + a.income, 0);
@@ -198,9 +200,9 @@ export function weekReport(prev, s) {
 
 // ---------- 一騎打ち（接戦のとき、将軍同士が戦う） ----------
 export const DUEL_POW = { ranka: 14, garou: 11, mina: 9, sera: 6 };
-export const duelDue = s => !!s.raid && Math.abs(raidD(s) - s.raid.E) <= 4;
+export const duelDue = s => !!s.raid && (s.raid.boss || s.raid.E >= 30 || Math.abs(raidD(s) - s.raid.E) <= 4); // 副官と将軍は必ず一騎打ちに出てくる
 export const champions = s => Object.keys(ALLY).filter(k => joined(s, k) && !(k === 'ranka' && (s.rankaAway || !s.raid.ranka)));
-export const foeGeneral = s => ({ n: s.raid.boss ? '謀反の将軍' : s.raid.E >= 30 ? '将軍の副官' : '敵の隊長', pow: s.raid.E / 3 + (s.raid.boss ? 4 : 0) });
+export const foeGeneral = s => ({ n: s.raid.boss ? '謀反の将軍' : s.raid.E >= 30 ? '将軍の副官' : '敵の隊長', pow: s.raid.E / 3 + (s.raid.boss ? 6 : s.raid.E >= 30 ? 2 : 0) });
 export const duelPow = (s, k) => DUEL_POW[k] + bond(s, k) * 1.5;
 export const duelP = (s, k) => clamp(.5 + (duelPow(s, k) - foeGeneral(s).pow) / 16, .1, .9);
 export function duel(s, k, rnd = Math.random) { const win = rnd() < duelP(s, k); s.raid.duel = win; s.raid.champ = k; s.log.push(`一騎打ち：${ALLY[k].n}が${win ? '勝った' : '敗れた'}`); return win; }

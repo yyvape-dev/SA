@@ -1,8 +1,8 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793191333';
-import { createUI } from './ui.js?v=1793191333';
+import * as GM from './game.js?v=1793192090';
+import { createUI } from './ui.js?v=1793192090';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -918,6 +918,7 @@ function frame(now) {
 }
 canvas.addEventListener('webglcontextlost', e => { e.preventDefault(); status.ok = false; status.reason = 'WebGLが失われた'; });
 G = loadSave() || GM.newState(layout.areas); syncMap(true); refreshUI(); takeBattleResult();
+if (params.has('duel')) { const sv = JSON.stringify(G); G.raid = { kind: 'raid', E: 46, name: '将軍の侵攻（試し）', boss: true, w: 12, dir: 'pass', ranka: GM.joined(G, 'ranka') }; maybeDuel(() => { G = JSON.parse(sv); writeSave(); refreshUI(); ui.toast('試しの一騎打ちを終えた（記録は残らない）'); }); } // ?duel で一騎打ちだけ見る
 resize(); apply(); renderer.render(scene, camera); status.ok = true;
 window.__t.setView = (zoom, sx, sy) => { view.zoom = zoom; view.cx = sx; view.cz = zOf(sy); clampView(); apply(); renderer.render(scene, camera); };
 window.__t.select = id => select(plots.find(p => p.id === id) || null);
