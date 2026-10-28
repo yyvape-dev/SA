@@ -198,6 +198,27 @@ export function weekReport(prev, s) {
   return { title: `第${prev.week}週の報告`, changes: ch, warns: wr };
 }
 
+
+// ---------- 朝の報告のせりふ ----------
+// セラ（内政役）：朝の挨拶 → 敵の動き → 守りの提案、の3文。ミナ（セラが仲間になる前）：挨拶だけ（助言はしない）。
+const pickOf = (a, rnd) => a[Math.floor(rnd() * a.length)];
+export function morningLines(s, who, rnd = Math.random) {
+  if (who === 'mina') {
+    const g = ['姫、おはよう。', 'おはよう、姫。よく眠れた？', '姫、朝だよ。起きてる？'], c = ['今日も頑張ろう！', 'よし、今日もやるよ！', '今日も一日、がんばろうね。'],
+      k = ['朝ごはん、ちゃんと食べた？', '無理しちゃだめだよ、姫。', 'わたしがそばにいるから、大丈夫。', '……べ、別に心配してるわけじゃないけど。'];
+    return [pickOf(g, rnd), pickOf(c, rnd), pickOf(k, rnd)];
+  }
+  const hello = ['おはようございます、姫さま。', '姫さま、おはようございます。よく眠れましたか？', '姫さま、朝です。今日もよろしくお願いします。'];
+  const r = nextRaid(s), lack = r ? r.E - D(s) : -99, wk = r ? r.w - s.week : 99;
+  let enemy, plan;
+  if (r && wk <= 2) { enemy = `${FRONT[r.dir].from}に、敵の陣が見えます。${wk ? `あと${wk}週ほどで攻めてくるでしょう。` : '今週末にも攻めてくるでしょう。'}`;
+    plan = lack > 3 ? '防衛力が足りません。鍛冶場を作るか、兵を募って、守りを固めましょう。' : lack > -4 ? '今週は守りを固めましょう。' : '守りは十分です。民の暮らしも整えましょう。'; }
+  else { enemy = r ? '今のところ、敵に目立った動きはありません。' : '敵の動きは、今のところありません。';
+    const bt = Object.values(s.plots).filter(p => p.burnt).length;
+    plan = bt ? `焼かれた施設が${bt}つあります。修理を急ぎましょう。` : s.morale < 40 ? '民の心が沈んでいます。酒場か炊き出しで、元気づけましょう。' : '今のうちに、施設を育てておきましょう。'; }
+  return [pickOf(hello, rnd), enemy, plan];
+}
+
 // ---------- 一騎打ち（接戦のとき、将軍同士が戦う） ----------
 export const DUEL_POW = { ranka: 14, garou: 11, mina: 9, sera: 6 };
 export const duelDue = s => !!s.raid && (s.raid.boss || s.raid.E >= 30 || Math.abs(raidD(s) - s.raid.E) <= 4); // 副官と将軍は必ず一騎打ちに出てくる

@@ -1,8 +1,9 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793199809';
-import { createUI } from './ui.js?v=1793199809';
+import * as GM from './game.js?v=1793200718';
+import { createUI } from './ui.js?v=1793200718';
+import { createMorning } from './morning.js?v=1793200718';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -649,8 +650,21 @@ function endWeek() {
   G.repPrev = GM.snap(G); const msg = GM.endWeek(G); select(null);
   if (G.raid) { ui.toast(msg); raidIntro(() => { writeSave(); refreshUI(); }); commit(null); } else { commit(msg); showReport(); }
 }
-function showReport() { // 週末の報告。参謀がいれば吹き出し、いなければ羊皮紙
-  if (!G.repPrev || G.raid) return; if (G.over) { G.repPrev = null; return; } const R = GM.weekReport(G.repPrev, G); G.repPrev = null; writeSave();
+const morning = createMorning();
+function openMorning(prev, R) { // 朝の報告：空の部屋、ラナの歩き、報告役の3文 → タップで「今朝の変化」→ タップで領地へ
+  const adv = GM.advisorOf(G), who = adv && GM.joined(G, adv) ? adv : 'mina', m = Math.round, rows = [];
+  rows.push({ ic: 'sup', label: '物資', from: prev.sup, to: G.sup, d: G.sup - prev.sup });
+  rows.push({ ic: 'mor', label: '民心', from: m(prev.morale), to: m(G.morale), d: m(G.morale) - m(prev.morale) });
+  if (prev.troops !== G.troops) rows.push({ ic: 'trp', label: '兵力', from: prev.troops, to: G.troops, d: G.troops - prev.troops });
+  if (prev.hp !== G.hp) rows.push({ ic: 'hp', label: '城の耐久', from: prev.hp, to: G.hp, d: G.hp - prev.hp });
+  for (const t of [...new Set(R.changes)]) { if (t.startsWith('完成：')) rows.push({ ic: 'build', label: '完成', text: t.slice(3) }); else if (/：/.test(t)) rows.push({ ic: 'flag', label: '襲撃', text: t.split('：').slice(1).join('：') }); }
+  const warns = (who === 'mina' ? R.warns : R.warns.filter(w => !/週後|今週末|来週末|敵の陣/.test(w))).slice(0, 2);
+  morning.show({ week: Math.min(G.week, GM.WEEKS), res: { sup: G.sup, morale: m(G.morale), def: m(GM.D(G)) }, who, name: GM.ALLY[who].n, lines: GM.morningLines(G, who), rows, warns,
+    onClose: () => { advisorMsg = null; select(null); ui.modal(null); refreshUI(); } });
+}
+function showReport() { // 週末の報告。朝の場面（報告役が3文）。出せないときは、吹き出しか羊皮紙
+  if (!G.repPrev || G.raid) return; if (G.over) { G.repPrev = null; return; } const prev = G.repPrev, R = GM.weekReport(prev, G); G.repPrev = null; writeSave();
+  try { ui.modal(null); openMorning(prev, R); return; } catch (e) { console.error('朝の報告', e); }
   const adv = GM.advisorOf(G);
   if (adv && GM.ALLY[adv] && GM.joined(G, adv)) {
     advisorMsg = `${R.title}です。${R.changes.join('、')}。${R.warns.length ? '<br><span style="color:#8a1a10">' + R.warns.join('<br>') + '</span>' : '<br>差し迫った心配はありません。'}`;
@@ -967,5 +981,5 @@ if (params.has('duel')) { const sv = JSON.stringify(G); G.raid = { kind: 'raid',
 resize(); apply(); renderer.render(scene, camera); status.ok = true;
 window.__t.setView = (zoom, sx, sy) => { view.zoom = zoom; view.cx = sx; view.cz = zOf(sy); clampView(); apply(); renderer.render(scene, camera); };
 window.__t.select = id => select(plots.find(p => p.id === id) || null);
-window.__t.plots = plots; window.__t.G = () => G; window.__t.playDuel = playDuel; window.__t.camp = () => camp && camp.map(c => [c.position.x|0, c.position.y|0, c.position.z|0, c.visible]); window.__t.faces = () => faceURL; window.__t.raidIntro = raidIntro; window.__t.showReport = showReport; window.__t.GM = GM; window.__t.commit = () => commit(); window.__t.reset = () => { try { localStorage.removeItem(SAVE_KEY); } catch (e) { } }; window.__t.pickAt = (cx, cy) => pickAt(cx, cy); window.__t.view = view; window.__t.sel = () => selected && selected.id; window.__t.build = (id, fac, stage) => { if (stage) G.plots[id] = { fac, stage }; else delete G.plots[id]; commit(); };
+window.__t.plots = plots; window.__t.G = () => G; window.__t.playDuel = playDuel; window.__t.camp = () => camp && camp.map(c => [c.position.x|0, c.position.y|0, c.position.z|0, c.visible]); window.__t.faces = () => faceURL; window.__t.raidIntro = raidIntro; window.__t.showReport = showReport; window.__t.openMorning = openMorning; window.__t.GM = GM; window.__t.commit = () => commit(); window.__t.reset = () => { try { localStorage.removeItem(SAVE_KEY); } catch (e) { } }; window.__t.pickAt = (cx, cy) => pickAt(cx, cy); window.__t.view = view; window.__t.sel = () => selected && selected.id; window.__t.build = (id, fac, stage) => { if (stage) G.plots[id] = { fac, stage }; else delete G.plots[id]; commit(); };
 requestAnimationFrame(frame);
