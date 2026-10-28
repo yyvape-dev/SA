@@ -1,8 +1,8 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793186848';
-import { createUI } from './ui.js?v=1793186848';
+import * as GM from './game.js?v=1793187150';
+import { createUI } from './ui.js?v=1793187150';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -631,6 +631,7 @@ function weekBtn() { const inc = GM.income(G), md = GM.moraleD(G); return { labe
 // ---------- 視点（パン・ズーム） ----------
 const view = { cx: AREA0_W / 2, cz: zOf(REF_H * .5), zoom: 1 };
 let fitZoom = 1, W = 1, H = 1;
+if (params.has('debug')) document.getElementById('st').style.display = 'block';
 const bg = document.getElementById('bg'), hud = document.getElementById('hud'), st = document.getElementById('st');
 { // 遠景（空と山）は、世界の幅まで左右反転でつなぐ
   const im = await loadImage('assets/backdrop.jpg');

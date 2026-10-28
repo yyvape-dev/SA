@@ -19,8 +19,10 @@ const PNG = { sup: 'ic_sup', mor: 'ic_mor', trp: 'ic_trp', def: 'ic_def', hp: 'i
 export const ico = (n, px = 22) => PNG[n] ? `<img src="assets/ui/${PNG[n]}.png" alt="" style="height:${px}px;width:auto;flex:none;vertical-align:middle;filter:drop-shadow(0 1px 1px #000a)">` : `<svg viewBox="0 0 24 24" width="${px}" height="${px}" style="flex:none;vertical-align:middle">${ICO[n] || ''}</svg>`;
 const SERIF = '"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif';
 const css = `
-.fr{border:22px solid transparent;border-image:url(assets/ui/frame_l.png) 90 / 22px / 4px stretch;background:linear-gradient(#24180fef,#120b07f2) center/calc(100% - 22px) calc(100% - 22px) no-repeat;background-clip:border-box;margin:-14px}
-.frs{border:16px solid transparent;border-image:url(assets/ui/frame_s.png) 70 / 16px / 2px stretch;background:linear-gradient(#24180fef,#120b07f2) center/calc(100% - 14px) calc(100% - 14px) no-repeat;margin:-10px}
+.fr{position:relative;isolation:isolate;border:22px solid transparent;border-image:url(assets/ui/frame_l.png) 90 / 22px / 4px stretch;margin:-14px}
+.fr::before{content:"";position:absolute;inset:-15px;z-index:-1;background:linear-gradient(#26190ff2,#130b07f5);border-radius:3px}
+.frs{position:relative;isolation:isolate;border:16px solid transparent;border-image:url(assets/ui/frame_s.png) 70 / 16px / 2px stretch;margin:-10px}
+.frs::before{content:"";position:absolute;inset:-11px;z-index:-1;background:linear-gradient(#26190ff2,#130b07f5);border-radius:3px}
 #top{position:fixed;left:0;right:0;top:0;z-index:4;padding:calc(env(safe-area-inset-top) + 4px) 6px 0;pointer-events:none;color:#f3e6c0;font:600 12px/1.3 system-ui,"Noto Sans JP",sans-serif;text-shadow:0 1px 2px #000}
 #top .t1{display:flex;align-items:center;gap:6px;padding:0 2px}#top .t1w{margin:0 0 0 34px}#top .bnr{position:absolute;left:4px;top:calc(env(safe-area-inset-top) + 2px);height:62px;z-index:1;filter:drop-shadow(0 2px 3px #000)}
 #top .ttl{font:700 15px/1 ${SERIF};color:#ffe3a0;white-space:nowrap}
@@ -62,7 +64,7 @@ const css = `
 #pnl.act{min-height:0}#pnl.act .por{display:none}#pnl.act .card{padding:5px 8px}#pnl.act .hd{font-size:14px;padding-bottom:3px}#pnl.act .big,#pnl.act .wkb{min-height:38px}#pnl.act .big{font-size:15px}#pnl.act .act{margin-top:3px;font-size:13px}
 #pnl .av{width:30px;height:30px;border-radius:50%;overflow:hidden;flex:none;border:1.5px solid #b48a3c;background:#3a2414;position:relative}
 #pnl .av img{position:absolute;left:50%;top:-2px;width:240%;transform:translateX(-50%)}
-#pnl.mini{min-height:0;align-items:center;padding:5px 6px;gap:7px}#pnl.mini .av{width:42px;height:42px}
+#pnl.mini{border-width:14px;border-image-width:14px;min-height:0;align-items:center;padding:5px 6px;gap:7px}#pnl.mini .av{width:42px;height:42px}
 #pnl.mini .tx{flex:1;min-width:0;font:600 12px/1.35 ${SERIF};color:#f3e6c0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 #pnl.mini .tx b{color:#ffe3a0}#pnl.mini .wkb{min-height:40px}
 #modal{position:fixed;inset:0;z-index:8;display:none;align-items:center;justify-content:center;background:radial-gradient(#3a0a0a80,#200404d0)}
