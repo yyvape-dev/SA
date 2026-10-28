@@ -1,9 +1,9 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793204632';
-import { createUI } from './ui.js?v=1793204632';
-import { createMorning } from './morning.js?v=1793204632';
+import * as GM from './game.js?v=1793205500';
+import { createUI } from './ui.js?v=1793205500';
+import { createMorning } from './morning.js?v=1793205500';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -736,7 +736,7 @@ const FOEWALK_TEX = FOEWALK_IMG.map(im => { if (!im) return null; const t = new 
 function foeSprite(i, sc, x, y) { // i：0〜3。足元を(x,y)に置く。sc＝立ち絵（高さ360）に掛ける拡大率。歩きの絵があればそれで出す
   const k = i % 4, wt = FOEWALK_TEX[k];
   if (wt) { const M = FOEWALK_META[k], u = 360 * sc / M.h, t = wt.clone(); t.needsUpdate = true; t.repeat.set(.25, .5);
-    const m = sprite3D(t, { w: M.cw, h: M.ch, ax: .5, ay: 1 }, u, x, y); m.userData.walk = { t, k }; foeFrame(m, 0, 0); return m; }
+    const m = sprite3D(t, { w: M.cw, h: M.ch, ax: .5, ay: 1 }, u, x, y); m.userData.walk = { t, k }; foeFrame(m, 0, 1); return m; } // 敵は西から来る。絵は左向きなので、鏡にして街（右）を向かせる
   const t0 = FOE_TEX[k]; if (!t0) return sprite3D(foeTex, { w: 64, h: 96, ax: .5, ay: .94 }, sc * .42 / .178, x, y);
   const im = FOE_IMG[k]; return sprite3D(t0, { w: im.width, h: im.height, ax: .5, ay: .98 }, sc, x, y); }
 function foeFrame(m, f, dir) { const w = m.userData.walk; if (!w) return; w.t.offset.set((f % 4) * .25, f < 4 ? .5 : 0); if (dir) m.scale.x = Math.abs(m.scale.x) * (dir > 0 ? -1 : 1); } // 絵は左向き。右へ進むときは反転

@@ -2,7 +2,7 @@
 // 基準は背景画像 941×1672。位置と大きさは、その画素で持つ（画面の高さに合わせて --u で拡縮）。
 const REF_W = 941, REF_H = 1672;
 const LANA = { dir: '../sprites/', frames: 24, fps: 12, w: 536, h: 388, ax: 336, ay: 379, scale: 1.38, footX: 330, footY: 1190, fromX: -200 };
-const SPK = { sera: { ax: 174, w: 291, h: 640, scale: 1.0, footX: 630, footY: 1215, flip: false }, mina: { ax: 126, w: 280, h: 640, scale: 1.0, footX: 630, footY: 1215, flip: false } };
+const SPK = { sera: { ax: 174, w: 291, h: 640, scale: 1.0, footX: 630, footY: 1215, flip: false }, mina: { ax: 126, w: 280, h: 640, scale: .88, footX: 630, footY: 1215, flip: true } };
 const SERIF = '"Hiragino Mincho ProN","Yu Mincho",serif';
 const CSS = `
 #morn{position:fixed;inset:0;z-index:12;background:#000;display:none;overflow:hidden;font-family:${SERIF};-webkit-tap-highlight-color:transparent;user-select:none}
@@ -62,11 +62,12 @@ export function createMorning() {
     const u = () => stage.clientHeight / REF_H;
     const place = (img, a, footX, footY, s) => { const k = u() * s; img.style.width = a.w * k + 'px'; img.style.height = a.h * k + 'px'; img.style.left = (footX - a.ax * s) * u() + 'px'; img.style.top = (footY - a.ay * s) * u() + 'px'; };
     place(spk, { w: sp.w, h: sp.h, ax: sp.ax, ay: sp.h - 1 }, sp.footX, sp.footY, sp.scale);
+    if (sp.flip) { spk.style.scale = '-1 1'; spk.style.transformOrigin = sp.ax * sp.scale * u() + 'px 100%'; } // ラナの方を向かせる
     const lanaAt = x => place(lana, LANA, x, LANA.footY, LANA.scale);
     // ラナ：左から歩いて入り、立ち止まる
     const t0 = performance.now(), WALK_MS = 1700; let arrived = false;
     const tick = now => { const t = Math.min(1, (now - t0) / WALK_MS), e = 1 - (1 - t) * (1 - t), x = LANA.fromX + (LANA.footX - LANA.fromX) * e;
-      if (t < 1) { lana.src = fr[Math.floor((now - t0) / 1000 * LANA.fps) % LANA.frames].src; lanaAt(x); raf = requestAnimationFrame(tick); }
+      if (t < 1) { lana.src = fr[Math.max(0, Math.floor((now - t0) / 1000 * LANA.fps)) % LANA.frames].src; lanaAt(x); raf = requestAnimationFrame(tick); }
       else { lana.src = fr.idle.src; lanaAt(LANA.footX); arrived = true; } };
     lana.src = fr[0].src; lanaAt(LANA.fromX); raf = requestAnimationFrame(tick);
     T(() => spk.classList.add('on'), 700);
