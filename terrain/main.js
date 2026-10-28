@@ -1,9 +1,9 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793200718';
-import { createUI } from './ui.js?v=1793200718';
-import { createMorning } from './morning.js?v=1793200718';
+import * as GM from './game.js?v=1793200972';
+import { createUI } from './ui.js?v=1793200972';
+import { createMorning } from './morning.js?v=1793200972';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -582,12 +582,15 @@ function setPlot(pl, fac, stage) { pl.fac = stage ? fac : null; pl.stage = stage
 
 // ---------- 仲間（家の街の広場に立つ。仲間になると現れる）----------
 const ALLY_POS = { mina: [372, 1066], garou: [568, 1066], sera: [505, 1090], ranka: [435, 1090] };
-const allyMesh = {};
+const allyMesh = {}, WALK_BBH = { mina: 420, garou: 452, sera: 424, ranka: 426 }; // 歩行コマの中の人物の高さ（元の512px基準）
 for (const k of Object.keys(GM.ALLY)) {
   const mapIm = await loadImage(`../ally/map_${k}.png`), im = mapIm || await loadImage(`../ally/${k}.png`); if (!im) continue; // マップ用の小さな絵（等角）。なければ立ち絵
   const t = new THREE.Texture(im); t.needsUpdate = true; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
   const [x, y] = ALLY_POS[k], sc = mapIm ? 76 / 635 : 74 / im.height; /* マップ用の絵は4人共通の縮尺（背の違いを残す） */ const m = sprite3D(t, { w: im.width, h: im.height, ax: .5, ay: .98 }, sc, x, y); m.visible = false; scene.add(m);
-  allyMesh[k] = { m, x, y, w: im.width * sc, h: im.height * sc };
+  allyMesh[k] = { m, x, y, w: im.width * sc, h: im.height * sc, stand: t, sw: 1, sh: 1, walkT: null };
+  // 歩行シート（4×4、1コマ192×240。ループ16コマ）。立ち姿と同じ背の高さになるよう拡大率を合わせる
+  const wim = await loadImage(`../ally/walk_${k}.webp`);
+  if (wim) { const wt = new THREE.Texture(wim); wt.needsUpdate = true; wt.colorSpace = THREE.SRGBColorSpace; wt.anisotropy = 8; wt.repeat.set(.25, .25); const u = (im.height * sc) / WALK_BBH[k]; allyMesh[k].walkT = wt; allyMesh[k].ww = 384 * u; allyMesh[k].wh = 480 * u; }
 }
 function placeAlly(k, x, y) { const a = allyMesh[k]; if (!a) return; const z = zOf(y); a.m.position.set(x, hgt(x, z), z); a.x = x; a.y = y; }
 // 仲間は家の街を歩き回る（広場の中と、その周りの道）。配置は施設の上の顔のアイコンで見せる
@@ -598,12 +601,20 @@ function walkTarget() { const [cx, cy] = HOME.center;
     if (inPlaza || (onRoad && r < .5)) return [x, y]; }
   return [cx - 100, cy + 40]; }
 for (const k of Object.keys(allyMesh)) { const a = allyMesh[k]; a.wait = Math.random() * 3; a.tx = a.x; a.ty = a.y; a.sx = a.m.scale.x; }
-function walkAllies(dt) {
+function setWalkPose(a, walking, now) { // 歩く間は歩行シート、止まっている間は立ち姿に差し替える
+  const mat = a.m.material;
+  if (walking && a.walkT) {
+    if (mat.map !== a.walkT) { mat.map = a.walkT; mat.needsUpdate = true; }
+    const f = Math.floor(now / 94) % 16; a.walkT.offset.set((f % 4) * .25, 1 - (Math.floor(f / 4) + 1) * .25);
+    const sg = Math.sign(a.m.scale.x) || 1; a.m.scale.set(a.ww * sg, a.wh, 1);
+  } else if (mat.map !== a.stand) { mat.map = a.stand; mat.needsUpdate = true; const sg = Math.sign(a.m.scale.x) || 1; a.m.scale.set(a.w * sg, a.h, 1); }
+}
+function walkAllies(dt) { const now = performance.now();
   for (const k of Object.keys(allyMesh)) { const a = allyMesh[k]; if (!a.m.visible) continue;
-    if (a.wait > 0) { a.wait -= dt; if (a.wait <= 0) [a.tx, a.ty] = walkTarget(); continue; }
-    const dx = a.tx - a.x, dy = a.ty - a.y, d = Math.hypot(dx, dy * 1.6); if (d < 2) { a.wait = 2 + Math.random() * 4; continue; }
-    const sp = 22 * dt; placeAlly(k, a.x + dx / d * Math.min(sp, d), a.y + dy / d * Math.min(sp, d)); a.m.scale.x = Math.abs(a.sx) * (dx < 0 ? -1 : 1);
-    a.m.position.y += Math.abs(Math.sin(performance.now() / 140)) * 1.6; }
+    if (a.wait > 0) { a.wait -= dt; setWalkPose(a, false, now); if (a.wait <= 0) [a.tx, a.ty] = walkTarget(); continue; }
+    const dx = a.tx - a.x, dy = a.ty - a.y, d = Math.hypot(dx, dy * 1.6); if (d < 2) { a.wait = 2 + Math.random() * 4; setWalkPose(a, false, now); continue; }
+    const sp = 22 * dt; placeAlly(k, a.x + dx / d * Math.min(sp, d), a.y + dy / d * Math.min(sp, d)); if (Math.abs(dx) > 1) a.m.scale.x = Math.abs(a.m.scale.x) * (dx < 0 ? -1 : 1);
+    setWalkPose(a, true, now); }
 }
 const faceTex = {}, faceURL = {};
 const FACE = { mina: [178, 74, 56], garou: [247, 50, 58], sera: [150, 64, 54], ranka: [180, 62, 56] }; // 立ち絵の顔の中心と半径（画素）
@@ -980,6 +991,6 @@ G = loadSave() || GM.newState(layout.areas); syncMap(true); refreshUI(); takeBat
 if (params.has('duel')) { const sv = JSON.stringify(G); G.raid = { kind: 'raid', E: 46, name: '将軍の侵攻（試し）', boss: true, w: 12, dir: 'pass', ranka: GM.joined(G, 'ranka') }; maybeDuel(() => { G = JSON.parse(sv); writeSave(); refreshUI(); ui.toast('試しの一騎打ちを終えた（記録は残らない）'); }); } // ?duel で一騎打ちだけ見る
 resize(); apply(); renderer.render(scene, camera); status.ok = true;
 window.__t.setView = (zoom, sx, sy) => { view.zoom = zoom; view.cx = sx; view.cz = zOf(sy); clampView(); apply(); renderer.render(scene, camera); };
-window.__t.select = id => select(plots.find(p => p.id === id) || null);
+window.__t.allyMesh = allyMesh; window.__t.select = id => select(plots.find(p => p.id === id) || null);
 window.__t.plots = plots; window.__t.G = () => G; window.__t.playDuel = playDuel; window.__t.camp = () => camp && camp.map(c => [c.position.x|0, c.position.y|0, c.position.z|0, c.visible]); window.__t.faces = () => faceURL; window.__t.raidIntro = raidIntro; window.__t.showReport = showReport; window.__t.openMorning = openMorning; window.__t.GM = GM; window.__t.commit = () => commit(); window.__t.reset = () => { try { localStorage.removeItem(SAVE_KEY); } catch (e) { } }; window.__t.pickAt = (cx, cy) => pickAt(cx, cy); window.__t.view = view; window.__t.sel = () => selected && selected.id; window.__t.build = (id, fac, stage) => { if (stage) G.plots[id] = { fac, stage }; else delete G.plots[id]; commit(); };
 requestAnimationFrame(frame);
