@@ -1,9 +1,9 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793203592';
-import { createUI } from './ui.js?v=1793203592';
-import { createMorning } from './morning.js?v=1793203592';
+import * as GM from './game.js?v=1793203882';
+import { createUI } from './ui.js?v=1793203882';
+import { createMorning } from './morning.js?v=1793203882';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -755,8 +755,8 @@ function raidIntro(done) { // 空が赤くなり、陣から軍勢が街道を�
   view.zoom = Math.max(view.zoom, .75); view.cx = (src[0] + dst[0]) / 2 + 120; view.cz = zOf(dst[1] + 230); clampView(); /* 前線は画面の上寄り（窓に隠れない） */
   foes.forEach(f => scene.remove(f.m)); foes = [];
   const dx = dst[0] - src[0], dy = dst[1] - src[1], L = Math.hypot(dx, dy), nx = -dy / L, ny = dx / L;
-  for (let i = 0; i < n; i++) { const a = (Math.random() - .5) * 70, back = Math.random() * 90, m = foeSprite(R.boss && i === 0 ? 3 : Math.floor(Math.random() * 4), .165 * (R.boss && i === 0 ? 1.45 : 1), src[0], src[1]); scene.add(m);
-    foes.push({ m, x0: src[0] - dx / L * (60 + back) + nx * a, y0: src[1] - dy / L * (60 + back) + ny * a * .6, x1: dst[0] - dx / L * back * .5 + nx * a, y1: dst[1] - dy / L * back * .5 + ny * a * .6, d: Math.random() * .5 }); }
+  for (let i = 0; i < n; i++) { const a = ((i % 5) - 2) * 34 + (Math.random() - .5) * 14, back = Math.floor(i / 5) * 24 + Math.random() * 10, m = foeSprite(R.boss && i === 0 ? 3 : Math.floor(Math.random() * 4), .165 * (R.boss && i === 0 ? 1.45 : 1), src[0], src[1]); scene.add(m);
+    foes.push({ m, x0: src[0] - dx / L * (60 + back) + nx * a, y0: src[1] - dy / L * (60 + back) + ny * a * .6, x1: dst[0] - dx / L * back * .8 + nx * a, y1: dst[1] - dy / L * back * .8 + ny * a * .6, d: Math.random() * .5 }); }
   raidFx.classList.add('on'); const t0 = performance.now();
   const f = now => { const t = (now - t0) / 2800;
     foes.forEach(o => { const k = Math.min(1, Math.max(0, (t - o.d * .3) / .8)), e = k * (2 - k), x = o.x0 + (o.x1 - o.x0) * e, y = o.y0 + (o.y1 - o.y0) * e, z = zOf(y); o.m.position.set(x, hgt(x, z) + (o.m.userData.walk ? 0 : Math.abs(Math.sin(now / 110 + o.d * 9)) * 2 * (k < 1)), z); if (o.m.userData.walk) foeFrame(o.m, k < 1 ? Math.floor((now + o.d * 900) / 140) % 8 : 0, o.x1 - o.x0); });
