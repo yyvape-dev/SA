@@ -1,8 +1,8 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793185647';
-import { createUI } from './ui.js?v=1793185647';
+import * as GM from './game.js?v=1793185765';
+import { createUI } from './ui.js?v=1793185765';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -430,18 +430,43 @@ const PIECE = {
 };
 const pieceTex = {};
 function piece(kind, x, sy, scale, arg) { const k = kind + (arg || ''); const t = pieceTex[k] || (pieceTex[k] = PIECE[kind](arg)); const im = t.image; const m = sprite3D(t, { w: im.width, h: im.height, ax: .5, ay: .95 }, scale, x, sy); scene.add(m); return m; }
-layout.plazas.forEach(pz => { // 広場：石畳＋中央の噴水／井戸＋四隅の街灯
+// 街の小物の絵（assets/town/、外部AIのシートから切り出し）。立て札は板に文字をコードで書く
+const TOWN = {};
+for (const n of ['fountain', 'well', 'lamp', 'sign', 'stall', 'barrels', 'flowerbed', 'bench', 'cart', 'torch', 'hay', 'fence']) TOWN[n] = await loadImage(`assets/town/${n}.png`);
+const townTex = {};
+function townPiece(kind, x, sy, scale, label, flip) {
+  const im = TOWN[kind]; if (!im) return piece(kind === 'sign' ? 'sign' : kind, x, sy, scale, label);
+  const key = kind + (label || ''); let t = townTex[key];
+  if (!t) {
+    const c = document.createElement('canvas'); c.width = im.width; c.height = im.height; const g = c.getContext('2d'); g.drawImage(im, 0, 0);
+    if (label) { const bx = im.width * .68, by = im.height * .615, bw = im.width * .56; g.fillStyle = '#2a1708'; g.font = `bold ${Math.round(im.width * .15)}px "Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(label, bx, by, bw); }
+    t = townTex[key] = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+  }
+  const m = sprite3D(t, { w: im.width, h: im.height, ax: .5, ay: .96 }, scale, x, sy); if (flip) m.scale.x *= -1; scene.add(m); return m;
+}
+const onLotOrRoad = (x, y) => layout.plots.some(p => pointInPoly(x, y, p.poly)) || splatAt(x, y)[0] > .25 || splatAt(x, y)[2] > .2;
+layout.plazas.forEach((pz, n) => { // 広場：石畳＋中央の噴水／井戸＋四隅の街灯＋屋台・花壇・ベンチ・樽
   const [T, R, B, L] = pz.poly; scene.add(pavingMesh([T, R, B, L], true));
   const [cx, cy] = pz.center;
-  if (pz.kind === 'fountain') piece('fountain', cx, cy + 32, .7); else piece('well', cx, cy + 26, .55);
-  [T, R, B, L].forEach(([x, y]) => piece('lamp', x + (cx - x) * .12, y + (cy - y) * .12, .38));
+  if (pz.kind === 'fountain') townPiece('fountain', cx, cy + 34, .44); else townPiece('well', cx, cy + 34, .42);
+  [T, R, B, L].forEach(([x, y]) => townPiece('lamp', x + (cx - x) * .12, y + (cy - y) * .12, .2));
+  const mid = (p, q, k = .3) => [(p[0] + q[0]) / 2 + (cx - (p[0] + q[0]) / 2) * k, (p[1] + q[1]) / 2 + (cy - (p[1] + q[1]) / 2) * k];
+  const d = [['stall', T, R, .3], ['flowerbed', L, T, .34], ['bench', B, L, .34], ['barrels', R, B, .3]];
+  d.forEach(([kd, p, q, sc], i) => { const [x, y] = mid(p, q, .34); townPiece(kd, x, y + 4, sc * .62, null, (i + n) % 2 === 1); });
 });
-{ // 交差点と道の曲がり角に街灯
+{ // 交差点と道の曲がり角に街灯、広場の外の通り沿いにたいまつ
   const pts = [];
   layout.roads.forEach(rd => rd.pts.forEach(([x, y], i) => { if (i > 0 && i < rd.pts.length - 1 && x > 0 && x < REF_W) pts.push([x, y]); }));
-  pts.forEach(([x, y]) => { if (!layout.plazas.some(pz => pointInPoly(x, y, pz.poly))) piece('lamp', x + 26, y - 6, .38); });
+  pts.forEach(([x, y]) => { if (!layout.plazas.some(pz => pointInPoly(x, y, pz.poly))) townPiece('lamp', x + 26, y - 6, .2); });
 }
-const signs = layout.signs.map(sg => ({ ...sg, mesh: piece('sign', sg.x, sg.y, .6, sg.label) }));
+{ // 街の外れ：荷馬車・干し草・柵（区画・道・水の上は避ける）
+  const R2 = rng(77);
+  layout.plazas.forEach(pz => { const [cx, cy] = pz.center;
+    [[-360, -150, 'hay', .3], [-300, -175, 'cart', .26], [360, 150, 'hay', .28], [420, 120, 'fence', .26], [-420, 170, 'fence', .26], [300, -190, 'cart', .24], [0, 250, 'torch', .2], [0, -250, 'torch', .2]].forEach(([dx, dy, kd, sc]) => {
+      for (let t = 0; t < 6; t++) { const x = cx + dx + (R2() - .5) * 60 * t, y = cy + dy + (R2() - .5) * 30 * t; if (!onLotOrRoad(x, y) && !layout.plazas.some(q => pointInPoly(x, y, q.poly))) { townPiece(kd, x, y, sc, null, R2() < .5); break; } }
+    }); });
+}
+const signs = layout.signs.map(sg => ({ ...sg, mesh: townPiece('sign', sg.x, sg.y, .34, sg.label) }));
 
 // ---------- 開拓（未開拓の地は霧で覆う）----------
 const areas = layout.areas.map(a => ({ ...a }));
@@ -479,7 +504,7 @@ function hitCastle(sx, sy) { const h = castleHit; if (!h) return false; const u 
 function setPlot(pl, fac, stage) { pl.fac = stage ? fac : null; pl.stage = stage; refreshPlot(pl); }
 
 // ---------- 仲間（家の街の広場に立つ。仲間になると現れる）----------
-const ALLY_POS = { mina: [405, 1048], garou: [548, 1046], sera: [508, 1080], ranka: [432, 1090] };
+const ALLY_POS = { mina: [372, 1066], garou: [568, 1066], sera: [505, 1090], ranka: [435, 1090] };
 const allyMesh = {};
 for (const k of Object.keys(GM.ALLY)) {
   const im = await loadImage(`../ally/${k}.png`); if (!im) continue;
@@ -634,7 +659,7 @@ function pickAt(cx, cy) { // 画面の点 → 基準画像の座標（高さ0の
 canvas.addEventListener('pointerup', e => {
   if (drag && !drag.moved) {
     const [sx, sy] = pickAt(e.clientX, e.clientY);
-    const sgn = signs.find(q => !lockedAt(q.x) && Math.abs(sx - q.x) < 38 && sy > q.y - 86 && sy < q.y + 10);
+    const sgn = signs.find(q => !lockedAt(q.x) && Math.abs(sx - q.x) < 44 && sy > q.y - 110 && sy < q.y + 10);
     if (G.raid || G.over) { refreshUI(); }
     else if (sgn) { select(null); selSign = sgn; refreshUI(); }
     else if (lockedAt(sx)) select(null);
