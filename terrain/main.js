@@ -38,8 +38,15 @@ let baseSplat;
 { // 区画は、コードのデータの多角形で描く（縁がはっきりする）。絵から取った不揃いな形は使わない。
   const id = sctx.getImageData(0, 0, SW, SH); for (let i = 0; i < SW * SH; i++) id.data[i * 4 + 1] = 0; sctx.putImageData(id, 0, 0); baseSplat = id;
 }
-function paintYards(polys) { // 各区画の地面の形（空き地=絵から取った4角、建物あり=建物の足元の平行四辺形）
-  sctx.putImageData(baseSplat, 0, 0);
+const maskCv = document.createElement('canvas'); maskCv.width = SW; maskCv.height = SH; const mctx = maskCv.getContext('2d', { willReadFrequently: true });
+function paintYards(polys, clears = []) { // 各区画の地面の形（空き地=絵から取った4角、建物あり=建物の足元の平行四辺形）。clears=元の区画の砂を消す範囲
+  const base = new ImageData(new Uint8ClampedArray(baseSplat.data), SW, SH);
+  if (clears.length) {
+    mctx.clearRect(0, 0, SW, SH); mctx.fillStyle = '#fff';
+    clears.forEach(poly => { mctx.beginPath(); poly.forEach(([x, y], i) => { const px = x / 2, py = y / 2; i ? mctx.lineTo(px, py) : mctx.moveTo(px, py); }); mctx.closePath(); mctx.fill(); });
+    const m = mctx.getImageData(0, 0, SW, SH).data; for (let i = 0; i < SW * SH; i++) if (m[i * 4 + 3] > 20) base.data[i * 4] = 0;
+  }
+  sctx.putImageData(base, 0, 0);
   sctx.globalCompositeOperation = 'lighter'; sctx.fillStyle = 'rgb(0,255,0)';
   polys.forEach(poly => { sctx.beginPath(); poly.forEach(([x, y], i) => { const px = x / 2, py = y / 2; i ? sctx.lineTo(px, py) : sctx.moveTo(px, py); }); sctx.closePath(); sctx.fill(); });
   sctx.globalCompositeOperation = 'source-over';
@@ -347,7 +354,7 @@ function refreshPlot(pl) {
     pl.hit = { key, left: pl.cx - meta.ax * w, top: bottom - meta.ay * h, w, h };
   }
   pl.stakes.visible = !t;
-  paintYards(plots.map(p => p.poly)); splatTex.needsUpdate = true;
+  paintYards(plots.map(p => p.poly), plots.filter(p => p.hit).map(p => grow(p.home, 1.3))); splatTex.needsUpdate = true;
   if (selected === pl) select(pl);
 }
 function hitBuilding(sx, sy) { // 建物の絵（透明でない所）を押したか。手前の建物を優先
