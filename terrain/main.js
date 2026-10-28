@@ -354,7 +354,7 @@ function refreshPlot(pl) {
     pl.hit = { key, left: pl.cx - meta.ax * w, top: bottom - meta.ay * h, w, h };
   }
   pl.stakes.visible = !t;
-  paintYards(plots.map(p => p.poly), plots.filter(p => p.hit).map(p => grow(p.home, 1.3))); splatTex.needsUpdate = true;
+  paintYards(plots.map(p => p.poly), plots.filter(p => p.hit).map(p => grow(p.home, 1.14))); splatTex.needsUpdate = true;
   if (selected === pl) select(pl);
 }
 function hitBuilding(sx, sy) { // 建物の絵（透明でない所）を押したか。手前の建物を優先
