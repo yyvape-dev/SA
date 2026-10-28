@@ -1,8 +1,8 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793199589';
-import { createUI } from './ui.js?v=1793199589';
+import * as GM from './game.js?v=1793199809';
+import { createUI } from './ui.js?v=1793199809';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -395,14 +395,50 @@ function gridPaving(q, tex) { // 広場の石畳：細かい格子にして、�
 }
 function grow(q, k) { const cx = q.reduce((a, p) => a + p[0], 0) / 4, cy = q.reduce((a, p) => a + p[1], 0) / 4; return q.map(([x, y]) => [cx + (x - cx) * k, cy + (y - cy) * k]); }
 const FARM_S = .325; // 畑の絵の画素 → 基準画像の画素（柵の外周が区画より少し大きい）
-function groundRect(tex, left, top, w, h) { // 画面の矩形（基準画像の画素）を、高さ0の地面に貼る
-  const P = [[left, top + h], [left + w, top + h], [left + w, top], [left, top]], pos = [];
-  P.forEach(([x, sy]) => { const z = zOf(sy); pos.push(x, hgt(x, z) + .6, z); });
-  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 1, 0, 1, 1, 0, 1], 2)); g.setIndex([0, 1, 2, 0, 2, 3]);
-  const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: .4, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, side: THREE.DoubleSide })); m.frustumCulled = false; return m;
+function groundRect(tex, left, top, w, h) { // 画面の矩形（基準画像の画素）を、地面の起伏に沿わせて貼る。奥行きを手前へ引き寄せる設定(polygonOffsetのfactor)は使わない：仲間や炎の足元に土が被さっていた
+  const N = 6, pos = [], uv = [], idx = [];
+  for (let j = 0; j <= N; j++) for (let i = 0; i <= N; i++) { const u = i / N, v = j / N, x = left + w * u, sy = top + h * (1 - v), z = zOf(sy); pos.push(x, hgt(x, z) + 1, z); uv.push(u, v); }
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { const a = j * (N + 1) + i, b = a + 1, c = a + N + 1, d = c + 1; idx.push(a, b, d, a, d, c); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx);
+  const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: tex, alphaTest: .4, polygonOffset: true, polygonOffsetFactor: 0, polygonOffsetUnits: -2, side: THREE.DoubleSide })); m.frustumCulled = false; return m;
 }
 const fireMeshes = new Set();
 let fireTex = null;
+// ---------- 放火の演出：着火（炎が立ち上がり、火の粉が散る）→燃え続ける（煙・火の粉・熾火の光）→修理で消える（蒸気） ----------
+let smokeTex = null, steamTex = null, emberTex = null, haloTex = null; const bparts = [];
+function burnTexInit() { if (smokeTex) return;
+  const soft = (a, b, c) => g => { const r = g.createRadialGradient(32, 32, 2, 32, 32, 30); r.addColorStop(0, a); r.addColorStop(.6, b); r.addColorStop(1, c); g.fillStyle = r; g.fillRect(0, 0, 64, 64); };
+  smokeTex = canvasSprite(64, 64, soft('rgba(70,64,62,.8)', 'rgba(50,46,44,.38)', 'rgba(40,36,34,0)'));
+  steamTex = canvasSprite(64, 64, soft('rgba(245,245,240,.75)', 'rgba(225,225,220,.35)', 'rgba(220,220,215,0)'));
+  emberTex = canvasSprite(16, 16, g => { const r = g.createRadialGradient(8, 8, 0, 8, 8, 8); r.addColorStop(0, '#fffbe0'); r.addColorStop(.35, '#ffb030'); r.addColorStop(1, 'rgba(255,60,0,0)'); g.fillStyle = r; g.fillRect(0, 0, 16, 16); });
+  haloTex = canvasSprite(128, 96, g => { const r = g.createRadialGradient(64, 60, 4, 64, 60, 62); r.addColorStop(0, 'rgba(255,150,50,.7)'); r.addColorStop(.5, 'rgba(255,70,10,.28)'); r.addColorStop(1, 'rgba(255,40,0,0)'); g.fillStyle = r; g.fillRect(0, 0, 128, 96); }); }
+function fxSprite(tex, w, h, x, sy, lift, add) { // 画面上の大きさ w×h（基準画像の画素）。地面の(x,sy)から、画面で lift だけ上に置く。他の絵の上に重ねて描く
+  const z = zOf(sy), m = new THREE.Mesh(planeGeo, new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, depthTest: false, blending: add ? THREE.AdditiveBlending : THREE.NormalBlending }));
+  m.quaternion.copy(baseQ); m.scale.set(w, h, 1); m.position.set(x, hgt(x, z) + lift / COS, z); m.renderOrder = 30; m.frustumCulled = false; scene.add(m); return m; }
+function spawnPart(o) { // o: tex, w0, w1, a0, life(秒), x, sy, lift, vx, vy(画面の画素/秒), add
+  const m = fxSprite(o.tex, o.w0, o.w0, o.x, o.sy, o.lift, o.add); m.material.opacity = o.a0; bparts.push({ m, o, t0: performance.now(), z: zOf(o.sy) }); }
+function emitAt(pl, kind, n) { // kind: smoke / ember / burst / steam
+  burnTexInit(); const hw = pl.hit ? pl.hit.w * .28 : 40, top = pl.hit && pl.fac !== 'farm' ? (pl.base[1] - pl.hit.top) * .5 : 14, R = Math.random;
+  for (let i = 0; i < n; i++) { const x = pl.cx + (R() - .5) * 2 * hw, sy = pl.base[1] - 30;
+    if (kind === 'smoke') spawnPart({ tex: smokeTex, w0: 22, w1: 70, a0: .6, life: 2.6 + R() * 1.2, x, sy, lift: top + 20 + R() * 20, vx: 8 + R() * 10, vy: 26 + R() * 14 });
+    else if (kind === 'steam') spawnPart({ tex: steamTex, w0: 26, w1: 80, a0: .7, life: 1.4 + R() * .6, x, sy, lift: top * .6 + R() * 16, vx: (R() - .5) * 20, vy: 40 + R() * 24 });
+    else spawnPart({ tex: emberTex, w0: kind === 'burst' ? 9 : 6, w1: 2, a0: 1, life: (kind === 'burst' ? .9 : 1.1) + R() * .7, x, sy, lift: top * .8 + R() * 20, vx: (R() - .5) * (kind === 'burst' ? 110 : 40), vy: (kind === 'burst' ? 70 : 34) + R() * 40, add: true }); } }
+function burnUpdate(now) {
+  for (let i = bparts.length - 1; i >= 0; i--) { const { m, o, t0, z } = bparts[i], a = (now - t0) / 1000, k = a / o.life;
+    if (k >= 1) { scene.remove(m); m.material.dispose(); bparts.splice(i, 1); continue; }
+    const x = o.x + o.vx * a + Math.sin(a * 3 + o.x) * (o.tex === emberTex ? 4 : 2), w = o.w0 + (o.w1 - o.w0) * k;
+    m.position.set(x, hgt(x, z) + (o.lift + o.vy * a * (o.tex === emberTex ? 1 - a / o.life * .5 : 1)) / COS, z); m.scale.set(w, w, 1);
+    m.material.opacity = o.a0 * (o.tex === emberTex ? 1 - k * k : (1 - k) * Math.min(1, a * 3)); }
+  for (const pl of plots) { if (!pl.fire || !pl.fire.parent) continue; burnTexInit();
+    const ign = pl.fire.userData.ign; if (ign) { const t = Math.min(1, (now - ign) / 1500), c = 1 - t * (1 - BURN_COL[0]);
+      [pl.mesh, pl.pav].forEach(mm => mm && mm.material.color.setRGB(1 + (BURN_COL[0] - 1) * t, 1 + (BURN_COL[1] - 1) * t, 1 + (BURN_COL[2] - 1) * t));
+      if (!pl.fire.userData.burst) { pl.fire.userData.burst = 1; emitAt(pl, 'burst', 18); }
+      if (t >= 1) pl.fire.userData.ign = 0; }
+    if (!pl.halo) { pl.halo = fxSprite(haloTex, (pl.hit ? pl.hit.w : 150) * 1.5, (pl.hit ? pl.hit.w : 150) * 1.1, pl.cx, pl.base[1] - 30, pl.hit && pl.fac !== 'farm' ? (pl.base[1] - pl.hit.top) * .3 : 6, true); }
+    pl.halo.material.opacity = (ign ? Math.min(1, (now - ign) / 900) : 1) * (.55 + .2 * Math.sin(now / 170 + pl.cx) + .1 * Math.sin(now / 53));
+    if (!pl.nextSmoke || now > pl.nextSmoke) { emitAt(pl, 'smoke', 1); pl.nextSmoke = now + 380 + Math.random() * 260; }
+    if (!pl.nextEmber || now > pl.nextEmber) { emitAt(pl, 'ember', 1); pl.nextEmber = now + 120 + Math.random() * 200; } } }
+const BURN_COL = [.2, .16, .14];
 function refreshPlot(pl) {
   if (!fireTex) fireTex = canvasSprite(96, 160, g => { // 炎と煙（コード描画）
     for (let i = 0; i < 6; i++) { const r = g.createRadialGradient(48, 30 + i * 8, 2, 48, 30 + i * 8, 34 - i * 2); r.addColorStop(0, 'rgba(70,60,60,.5)'); r.addColorStop(1, 'rgba(40,35,35,0)'); g.fillStyle = r; g.fillRect(0, 0, 96, 160); }
@@ -426,8 +462,9 @@ function refreshPlot(pl) {
   }
   pl.stakes.visible = !(pl.fac && pl.stage >= 1);
   if (pl.fire) { scene.remove(pl.fire); pl.fire = null; }
-  if (pl.burnt) { [pl.mesh, pl.pav].forEach(mm => mm && mm.material.color.setRGB(.2, .16, .14)); // 焼かれた施設：黒ずませ、火と煙を出す
-    pl.fire = sprite3D(fireTex, { w: 96, h: 160, ax: .5, ay: .95 }, .55, pl.cx, pl.base[1] - 30); pl.fire.position.y += (pl.hit && pl.fac !== 'farm' ? (pl.base[1] - pl.hit.top) * .45 : 10) / COS; pl.fire.renderOrder = 20; scene.add(pl.fire); fireMeshes.add(pl.fire); }
+  if (pl.halo) { scene.remove(pl.halo); pl.halo.material.dispose(); pl.halo = null; }
+  if (pl.burnt) { const fresh = pl.ign && performance.now() - pl.ign < 1500; [pl.mesh, pl.pav].forEach(mm => mm && (fresh ? mm.material.color.setRGB(1, 1, 1) : mm.material.color.setRGB(...BURN_COL))); // 焼かれた施設：黒ずませ、火と煙を出す（燃えた直後は、炎が立ち上がりながら黒ずむ）
+    pl.fire = sprite3D(fireTex, { w: 96, h: 160, ax: .5, ay: .95 }, .55, pl.cx, pl.base[1] - 30); pl.fire.position.y += (pl.hit && pl.fac !== 'farm' ? (pl.base[1] - pl.hit.top) * .45 : 10) / COS; pl.fire.renderOrder = 20; if (pl.ign && performance.now() - pl.ign < 1500) pl.fire.userData.ign = pl.ign; scene.add(pl.fire); fireMeshes.add(pl.fire); }
   paintYards(plots.map(p => p.poly)); splatTex.needsUpdate = true;
   if (selected === pl) select(pl);
 }
@@ -597,7 +634,7 @@ let G = null, selCastle = false, selAlly = null;
 function loadSave() { try { const v = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); if (v && v.week) { v.bond = Object.assign({ mina: 0, garou: 0, sera: 0, ranka: 0 }, v.bond || {}); v.assign = v.assign || {}; return v; } return null; } catch (e) { return null; } }
 function writeSave() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(G)); } catch (e) { } }
 function syncMap(instant) { // 状態 → 区画の絵と霧
-  for (const pl of plots) { const p = G.plots[pl.id]; const f = p ? p.fac : null, stg = p ? p.stage : 0; const bt = !!(p && p.burnt); if (pl.fac !== f || pl.stage !== stg || pl.burnt !== bt) { pl.burnt = bt; setPlot(pl, f, stg); } }
+  for (const pl of plots) { const p = G.plots[pl.id]; const f = p ? p.fac : null, stg = p ? p.stage : 0; const bt = !!(p && p.burnt); if (pl.fac !== f || pl.stage !== stg || pl.burnt !== bt) { if (!instant && pl.burnt === false && bt) pl.ign = performance.now(); if (!instant && pl.burnt && !bt) emitAt(pl, 'steam', 9); pl.burnt = bt; setPlot(pl, f, stg); } }
   updateCamp();
   for (const a of areas) showArea(a, G.open.includes(a.id)); updateFog(instant);
   for (const k of Object.keys(allyMesh)) { const v = GM.joined(G, k); if (v && !allyMesh[k].m.visible && !instant) ui.toast(`${GM.ALLY[k].n}（${GM.ALLY[k].r}）が仲間になった`); allyMesh[k].m.visible = v && !(k === 'ranka' && G.rankaAway); }
@@ -917,7 +954,7 @@ let last = performance.now(), frames = 0, acc = 0, fx = [];
 function frame(now) {
   const dt = now - last; last = now; acc += dt; frames++;
   groundMat.uniforms.time.value = now / 1000; selGlow.opacity = .38 + .2 * Math.sin(now / 260);
-  walkAllies(Math.min(.05, dt / 1000)); badges.forEach((b, i) => { b.position.y = b.userData.y0 + Math.sin(now / 400 + i) * 2; }); fireMeshes.forEach(f => { if (!f.parent) { fireMeshes.delete(f); return; } if (!f.userData.s) f.userData.s = f.scale.clone(); const k = 1 + Math.sin(now / 90 + f.id) * .06; f.scale.set(f.userData.s.x * (2 - k), f.userData.s.y * k, 1); });
+  walkAllies(Math.min(.05, dt / 1000)); badges.forEach((b, i) => { b.position.y = b.userData.y0 + Math.sin(now / 400 + i) * 2; }); fireMeshes.forEach(f => { if (!f.parent) { fireMeshes.delete(f); return; } if (!f.userData.s) f.userData.s = f.scale.clone(); const k = 1 + Math.sin(now / 90 + f.id) * .06, g = f.userData.ign ? Math.min(1, (now - f.userData.ign) / 1200) : 1, ge = Math.max(.1, g * (2 - g)); f.scale.set(f.userData.s.x * (2 - k) * (.5 + .5 * ge), f.userData.s.y * k * ge, 1); }); burnUpdate(now);
   waterMats.forEach(mt => { if (mt.userData.sh) mt.userData.sh.uniforms.time.value = now / 1000; }); fx.forEach(f => f(now)); fx = fx.filter(f => !f.done);
   apply(); renderer.render(scene, camera);
   if (acc > 500) { st.textContent = `3D: ${status.ok ? 'OK' : status.reason} / 地面:${status.ground} 小物:${status.sprites}(${status.props}) / ${(frames * 1000 / acc).toFixed(0)}fps / 拡大 ${view.zoom.toFixed(2)}`; frames = 0; acc = 0; }
