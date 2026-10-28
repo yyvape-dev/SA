@@ -2,7 +2,8 @@
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
 
-const REF_W = 941, REF_H = 1672;
+const layout = await (await fetch('data/layout.json')).json();
+const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
 const E = 58 * Math.PI / 180, SIN = Math.sin(E), COS = Math.cos(E);
 const SY0 = 330;                       // 高さ0の地面で、z=0 に当たる基準画像のy
 const syOf = z => SY0 + z * SIN;
@@ -19,20 +20,17 @@ const fbm = (x, y) => vnoise(x, y) * .55 + vnoise(x * 2.1, y * 2.1) * .3 + vnois
 const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
 // ---------- 配置データの読み込み ----------
-const layout = await (await fetch('data/layout.json')).json();
 function loadImage(src) { return new Promise(res => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = src; }); }
 const splatImg = await loadImage('data/splat.png');
-const SW = splatImg.width, SH = splatImg.height;
+const SW = Math.ceil(REF_W / 2), SH = Math.ceil(REF_H / 2);
 const splatCv = document.createElement('canvas'); splatCv.width = SW; splatCv.height = SH;
 const sctx = splatCv.getContext('2d', { willReadFrequently: true });
 sctx.drawImage(splatImg, 0, 0);
-// 遠景の湖（基準画像の右上）を水として足す（コードの形）
+// 湖は、コードの多角形（layout.lakes）で水として足す
 {
-  sctx.globalCompositeOperation = 'lighter';
-  sctx.fillStyle = 'rgb(0,0,255)';
-  sctx.beginPath();
-  [[640, 520], [700, 480], [800, 455], [941, 440], [941, 610], [860, 600], [780, 585], [700, 560]].forEach(([x, y], i) => { const px = x / 2, py = y / 2; i ? sctx.lineTo(px, py) : sctx.moveTo(px, py); });
-  sctx.closePath(); sctx.fill(); sctx.globalCompositeOperation = 'source-over';
+  sctx.globalCompositeOperation = 'lighter'; sctx.fillStyle = 'rgb(0,0,255)';
+  layout.lakes.forEach(lk => { sctx.beginPath(); lk.forEach(([x, y], i) => { i ? sctx.lineTo(x / 2, y / 2) : sctx.moveTo(x / 2, y / 2); }); sctx.closePath(); sctx.fill(); });
+  sctx.globalCompositeOperation = 'source-over';
 }
 let baseSplat;
 { // 道は、コードのデータの線（layout.roads）で描く。絵から取った道・区画は使わない（川だけ絵のまま）。
@@ -49,7 +47,7 @@ let baseSplat;
       }
     }
   });
-  sctx.beginPath(); layout.plaza.forEach(([x, y], i) => { i ? sctx.lineTo(x / 2, y / 2) : sctx.moveTo(x / 2, y / 2); }); sctx.closePath(); sctx.fill();
+  layout.plazas.forEach(pz => { sctx.beginPath(); pz.poly.forEach(([x, y], i) => { i ? sctx.lineTo(x / 2, y / 2) : sctx.moveTo(x / 2, y / 2); }); sctx.closePath(); sctx.fill(); });
   sctx.globalCompositeOperation = 'source-over'; baseSplat = sctx.getImageData(0, 0, SW, SH);
 }
 const maskCv = document.createElement('canvas'); maskCv.width = SW; maskCv.height = SH; const mctx = maskCv.getContext('2d', { willReadFrequently: true });
@@ -88,11 +86,15 @@ function nearLayout(sx, sy, r) { // 道・区画・川の近く（半径r）か
 }
 
 // ---------- 高さ ----------
-function hgt(x, z) { // 街の中は、噴水の高さへ平らにならす
-  const h0 = hgt0(x, z), sy = syOf(z), d = Math.hypot(x - layout.fountain[0], (sy - layout.fountain[1]) * 1.6);
-  const w = Math.min(1, zoneAt(x, sy) * 1.6) * smooth(500, 380, d); if (w <= 0) return h0;
-  if (hgt.f === undefined) hgt.f = 0, hgt.f = hgt0(layout.fountain[0], zOf(layout.fountain[1]));
-  return h0 + (hgt.f - h0) * w;
+function hgt(x, z) { // 街の中は、広場の高さへ平らにならす
+  const h0 = hgt0(x, z), sy = syOf(z); let w = 0, f = 0;
+  for (const pz of layout.plazas) {
+    const d = Math.hypot(x - pz.center[0], (sy - pz.center[1]) * 1.6), ww = smooth(500, 380, d); if (ww <= w) continue;
+    if (pz.h === undefined) { pz.h = 0; pz.h = hgt0(pz.center[0], zOf(pz.center[1])); }
+    w = ww; f = pz.h;
+  }
+  if (w <= 0) return h0; w *= Math.min(1, zoneAt(x, sy) * 1.6);
+  return h0 + (f - h0) * w;
 }
 function hgt0(x, z) {
   const sy = syOf(z);
@@ -182,7 +184,7 @@ const groundMat = new THREE.ShaderMaterial({
     }`
 });
 const GX0 = -70, GX1 = REF_W + 70, GZ0 = zOf(300), GZ1 = zOf(REF_H + 120);
-const SEG_X = 190, SEG_Z = 300;
+const SEG_X = Math.round((GX1 - GX0) / 5.7), SEG_Z = 300;
 const geo = new THREE.PlaneGeometry(GX1 - GX0, GZ1 - GZ0, SEG_X, SEG_Z);
 geo.rotateX(-Math.PI / 2);
 {
@@ -238,14 +240,16 @@ const baseQ = new THREE.Quaternion().setFromEuler(tiltRot);
 const buckets = SPR.map(() => []);
 const R = rng(20261028);
 function place(type, x, sy, sc = 1, flip = false, tint = 1) { const z = zOf(sy); buckets[type].push({ x, z, y: hgt(x, z), sc, flip, tint }); }
+function townDist(x, sy) { let d = 1e9; for (const pz of layout.plazas) d = Math.min(d, Math.hypot(x - pz.center[0], (sy - pz.center[1]) * 1.6)); return d; }
 // 森・岩・茂み・川沿いの岩を散らす
 {
-  const N = 5200;
+  const N = Math.round(5200 * REF_W / AREA0_W);
   for (let i = 0; i < N; i++) {
     const x = -50 + R() * (REF_W + 100), sy = 380 + R() * (REF_H - 300);
     const zn = zoneAt(x, sy); if (zn > .62 || nearLayout(x, sy, 22)) continue;
     const z = zOf(sy), f = fbm(x / 230 + 5, z / 230), edge = Math.max(smooth(260, 0, x), smooth(REF_W - 260, REF_W, x)) * .5 + smooth(520, 400, sy) * .5;
-    const forestness = Math.min(1, Math.max(0, f * 1.5 - .42 + edge * .55)) * (1 - smooth(.08, .5, zn));
+    const meadow = (1 - .65 * smooth(960, 1100, x) * smooth(1900, 1760, x)) * smooth(400, 580, townDist(x, sy)); // 街の中は木を切り開く
+    const forestness = Math.min(1, Math.max(0, f * 1.5 - .42 + edge * .55)) * (1 - smooth(.08, .5, zn)) * meadow;
     const r = R();
     if (r < forestness * .55) { const t = R(); const type = t < .3 ? 0 : t < .62 ? 1 : t < .84 ? 2 : 3; place(type, x, sy, .75 + R() * .5, R() < .5, .86 + R() * .2); }
     else if (r < forestness * .55 + .035) place(4, x, sy, .8 + R() * .5, R() < .5, .9 + R() * .15);
@@ -253,8 +257,16 @@ function place(type, x, sy, sc = 1, flip = false, tint = 1) { const z = zOf(sy);
   }
   // 左の岩壁・川沿いの岩
   for (let i = 0; i < 260; i++) { const x = R() * 200, sy = 420 + R() * 1200; if (nearLayout(x, sy, 12)) continue; place(R() < .35 ? 7 : R() < .6 ? 5 : 6, x, sy, .9 + R() * .7, R() < .5); }
-  for (let i = 0; i < 1300; i++) { const x = R() * REF_W, sy = 900 + R() * 800; const s = splatAt(x, sy); if (s[2] > .12 && s[2] < .6) place(R() < .5 ? 5 : 6, x + (R() - .5) * 20, sy + (R() - .5) * 12, .6 + R() * .6, R() < .5); }
-  // 区画の四隅に杭（標識）
+  for (let i = 0; i < Math.round(1300 * REF_W / AREA0_W); i++) { const x = R() * REF_W, sy = 900 + R() * 800; const s = splatAt(x, sy); if (s[2] > .12 && s[2] < .6) place(R() < .5 ? 5 : 6, x + (R() - .5) * 20, sy + (R() - .5) * 12, .6 + R() * .6, R() < .5); }
+  // 並木と植え込み：街の中の道の両脇に、等間隔で（区画・広場・道の上には置かない）
+  const onLot = (x, sy) => layout.plots.some(p => pointInPoly(x, sy, p.poly)) || layout.plazas.some(p => pointInPoly(x, sy, p.poly));
+  layout.roads.forEach(rd => { let d = 0;
+    for (let k = 0; k < rd.pts.length - 1; k++) { const [x0, y0] = rd.pts[k], [x1, y1] = rd.pts[k + 1], L = Math.hypot(x1 - x0, y1 - y0), nx = -(y1 - y0) / L, ny = (x1 - x0) / L;
+      for (let t = 30; t < L - 20; t += 78, d++) for (const sd of [-1, 1]) {
+        const x = x0 + (x1 - x0) * t / L + nx * sd * (rd.w / 2 + 14), sy = y0 + (y1 - y0) * t / L + ny * sd * (rd.w / 2 + 14) * .8;
+        if (townDist(x, sy) > 560 || onLot(x, sy) || splatAt(x, sy)[0] > .3) continue;
+        if (d % 2) place(2, x, sy + 6, .7, sd < 0, .95); else place(4, x, sy + 4, .75, sd > 0, 1);
+      } } });
 }
 const dummy = new THREE.Object3D();
 const instMeshes = []; let total = 0;
@@ -290,9 +302,10 @@ function sprite3D(tex, meta, scale, baseX, baseSy) { // 足元の手前の角(ax
 const plots = layout.plots.map(p => ({ id: p.id, poly: p.poly, home: p.poly, state: 'empty' }));
 const selMat = new THREE.MeshBasicMaterial({ color: 0xffd25a, transparent: true, opacity: .32, depthTest: false });
 const selLine = new THREE.LineBasicMaterial({ color: 0xffe08a, depthTest: false });
-let selGroup = null, selected = null;
+let selGroup = null, selected = null, selSign = null;
 function pointInPoly(x, y, poly) { let c = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const [xi, yi] = poly[i], [xj, yj] = poly[j]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c; } return c; }
 function select(p) {
+  selSign = null;
   if (selGroup) { scene.remove(selGroup); selGroup = null; }
   selected = p; renderActions(); if (!p) return;
   const pts = p.poly.map(([sx, sy]) => { const z = zOf(sy); return new THREE.Vector3(sx, hgt(sx, z) + 3, z); });
@@ -372,17 +385,70 @@ function refreshPlot(pl) {
   paintYards(plots.map(p => p.poly)); splatTex.needsUpdate = true;
   if (selected === pl) select(pl);
 }
-{ // 広場（石畳）と噴水（仮の絵：コードで描いた印。あとで外部AIの絵に差し替える）
-  const [T, R, B, L] = layout.plaza; scene.add(pavingMesh([T, R, B, L], true));
-  const c = document.createElement('canvas'); c.width = 256; c.height = 224; const g = c.getContext('2d');
-  const ell = (cx, cy, rx, ry, col) => { g.fillStyle = col; g.beginPath(); g.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); g.fill(); };
-  ell(128, 180, 120, 38, '#6d675c'); ell(128, 172, 120, 38, '#a39b8a'); ell(128, 170, 104, 31, '#5aa7d8'); ell(128, 168, 96, 27, '#7cc4ee');
-  g.fillStyle = '#8f8878'; g.fillRect(112, 84, 32, 84); g.fillStyle = '#b3ab99'; g.fillRect(112, 84, 14, 84);
-  ell(128, 90, 52, 15, '#8f8878'); ell(128, 86, 52, 15, '#b3ab99'); ell(128, 85, 44, 11, '#7cc4ee');
-  g.fillStyle = '#9a9283'; g.fillRect(122, 40, 12, 48); ell(128, 40, 12, 5, '#b3ab99');
-  g.strokeStyle = 'rgba(235,248,255,.85)'; g.lineWidth = 3; [[-1, 0], [1, 0]].forEach(([d]) => { g.beginPath(); g.moveTo(128, 38); g.quadraticCurveTo(128 + d * 36, 14, 128 + d * 56, 82); g.stroke(); });
-  const ft = new THREE.CanvasTexture(c); ft.colorSpace = THREE.SRGBColorSpace;
-  const [fx, fy] = layout.fountain; scene.add(sprite3D(ft, { w: 256, h: 224, ax: .5, ay: .82 }, .7, fx, fy + 6));
+// ---------- 広場・目印（仮の絵：コードで描いた印。あとで外部AIの絵に差し替える）----------
+function canvasSprite(w, h, draw) { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d')); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; }
+const ell = (g, cx, cy, rx, ry, col) => { g.fillStyle = col; g.beginPath(); g.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); g.fill(); };
+const PIECE = {
+  fountain: () => canvasSprite(256, 224, g => {
+    ell(g, 128, 180, 120, 38, '#6d675c'); ell(g, 128, 172, 120, 38, '#a39b8a'); ell(g, 128, 170, 104, 31, '#5aa7d8'); ell(g, 128, 168, 96, 27, '#7cc4ee');
+    g.fillStyle = '#8f8878'; g.fillRect(112, 84, 32, 84); g.fillStyle = '#b3ab99'; g.fillRect(112, 84, 14, 84);
+    ell(g, 128, 90, 52, 15, '#8f8878'); ell(g, 128, 86, 52, 15, '#b3ab99'); ell(g, 128, 85, 44, 11, '#7cc4ee');
+    g.fillStyle = '#9a9283'; g.fillRect(122, 40, 12, 48); ell(g, 128, 40, 12, 5, '#b3ab99');
+    g.strokeStyle = 'rgba(235,248,255,.85)'; g.lineWidth = 3; [-1, 1].forEach(d => { g.beginPath(); g.moveTo(128, 38); g.quadraticCurveTo(128 + d * 36, 14, 128 + d * 56, 82); g.stroke(); });
+  }),
+  well: () => canvasSprite(200, 240, g => {
+    ell(g, 100, 200, 70, 24, '#6d675c'); g.fillStyle = '#8f8878'; g.fillRect(30, 150, 140, 50); ell(g, 100, 150, 70, 24, '#a39b8a'); ell(g, 100, 150, 54, 17, '#243a4a');
+    g.fillStyle = '#6b4a2a'; g.fillRect(38, 60, 12, 95); g.fillRect(150, 60, 12, 95); g.fillRect(44, 92, 112, 7);
+    g.fillStyle = '#7a3b26'; g.beginPath(); g.moveTo(14, 70); g.lineTo(100, 18); g.lineTo(186, 70); g.lineTo(170, 80); g.lineTo(100, 38); g.lineTo(30, 80); g.closePath(); g.fill();
+    g.fillStyle = '#5a3a20'; g.fillRect(92, 99, 16, 22);
+  }),
+  lamp: () => canvasSprite(48, 160, g => {
+    ell(g, 24, 152, 14, 5, 'rgba(0,0,0,.35)'); g.fillStyle = '#2b2620'; g.fillRect(21, 40, 6, 112); g.fillRect(14, 140, 20, 10);
+    g.fillStyle = '#2b2620'; g.fillRect(12, 16, 24, 6); g.fillRect(14, 22, 20, 22); g.fillStyle = '#ffd77a'; g.fillRect(17, 25, 14, 16);
+    g.fillStyle = 'rgba(255,215,120,.25)'; g.beginPath(); g.arc(24, 33, 20, 0, Math.PI * 2); g.fill();
+  }),
+  sign: label => canvasSprite(128, 144, g => {
+    g.fillStyle = '#5a3a20'; g.fillRect(58, 56, 12, 86); ell(g, 64, 140, 18, 5, 'rgba(0,0,0,.35)');
+    g.fillStyle = '#3a2614'; g.beginPath(); g.roundRect(6, 8, 116, 54, 8); g.fill(); g.fillStyle = '#c9a46a'; g.beginPath(); g.roundRect(10, 12, 108, 46, 6); g.fill();
+    g.fillStyle = '#2a1a08'; g.font = 'bold 26px system-ui,"Noto Sans JP",sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(label, 64, 36, 100);
+  }),
+};
+const pieceTex = {};
+function piece(kind, x, sy, scale, arg) { const k = kind + (arg || ''); const t = pieceTex[k] || (pieceTex[k] = PIECE[kind](arg)); const im = t.image; const m = sprite3D(t, { w: im.width, h: im.height, ax: .5, ay: .95 }, scale, x, sy); scene.add(m); return m; }
+layout.plazas.forEach(pz => { // 広場：石畳＋中央の噴水／井戸＋四隅の街灯
+  const [T, R, B, L] = pz.poly; scene.add(pavingMesh([T, R, B, L], true));
+  const [cx, cy] = pz.center;
+  if (pz.kind === 'fountain') piece('fountain', cx, cy + 32, .7); else piece('well', cx, cy + 26, .55);
+  [T, R, B, L].forEach(([x, y]) => piece('lamp', x + (cx - x) * .12, y + (cy - y) * .12, .38));
+});
+{ // 交差点と道の曲がり角に街灯
+  const pts = [];
+  layout.roads.forEach(rd => rd.pts.forEach(([x, y], i) => { if (i > 0 && i < rd.pts.length - 1 && x > 0 && x < REF_W) pts.push([x, y]); }));
+  pts.forEach(([x, y]) => { if (!layout.plazas.some(pz => pointInPoly(x, y, pz.poly))) piece('lamp', x + 26, y - 6, .38); });
+}
+const signs = layout.signs.map(sg => ({ ...sg, mesh: piece('sign', sg.x, sg.y, .6, sg.label) }));
+
+// ---------- 開拓（未開拓の地は霧で覆う）と保存 ----------
+const SAVE_KEY = 'territory_v1';
+function loadSave() { try { return JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); } catch (e) { return null; } }
+function writeSave() { try { localStorage.setItem(SAVE_KEY, JSON.stringify({ plots: Object.fromEntries(plots.filter(p => p.fac).map(p => [p.id, [p.fac, p.stage]])), open: areas.filter(a => !a.locked).map(a => a.id) })); } catch (e) { } }
+const areas = layout.areas.map(a => ({ ...a }));
+{
+  const fogTex = canvasSprite(512, 128, g => { // 左の縁と奥の縁をぼかした暗い霧
+    const gr = g.createLinearGradient(0, 0, 512, 0); gr.addColorStop(0, 'rgba(8,12,18,0)'); gr.addColorStop(.07, 'rgba(8,12,18,.72)'); gr.addColorStop(1, 'rgba(8,12,18,.72)'); g.fillStyle = gr; g.fillRect(0, 0, 512, 128);
+    const gv = g.createLinearGradient(0, 0, 0, 128); gv.addColorStop(0, 'rgba(0,0,0,0)'); gv.addColorStop(.06, 'rgba(0,0,0,1)'); g.globalCompositeOperation = 'destination-in'; g.fillStyle = gv; g.fillRect(0, 0, 512, 128); });
+  areas.forEach(a => {
+    const x0 = a.x0 - 40, x1 = (a.x1 || REF_W + 120), z0 = zOf(372), z1 = zOf(REF_H + 300);
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, z1 - z0), new THREE.MeshBasicMaterial({ map: fogTex, transparent: true, depthTest: false, depthWrite: false }));
+    m.rotation.x = -Math.PI / 2; m.position.set((x0 + x1) / 2, 0, (z0 + z1) / 2); m.renderOrder = 50; scene.add(m); a.fog = m;
+  });
+}
+const areaOf = x => areas.find(a => x >= a.x0 && x < (a.x1 || Infinity)); // 区域は x の範囲で分ける（次の区域は x0 を足すだけ）
+const lockedAt = (x) => { const a = areaOf(x); return a && a.locked; };
+function unlockArea(a, instant) {
+  a.locked = false; if (instant) { a.fog.visible = false; return; }
+  const t0 = performance.now(); (function fade() { const k = Math.min(1, (performance.now() - t0) / 900); a.fog.material.opacity = 1 - k; if (k < 1) requestAnimationFrame(fade); else a.fog.visible = false; })();
+  writeSave(); renderActions();
 }
 function hitBuilding(sx, sy) { // 建物の絵（透明でない所）を押したか。手前の建物を優先
   let best = null;
@@ -393,30 +459,38 @@ function hitBuilding(sx, sy) { // 建物の絵（透明でない所）を押し�
   }
   return best;
 }
-function setPlot(pl, fac, stage) { pl.fac = stage ? fac : null; pl.stage = stage; refreshPlot(pl); renderActions(); }
+function setPlot(pl, fac, stage, quiet) { pl.fac = stage ? fac : null; pl.stage = stage; refreshPlot(pl); if (!quiet) { renderActions(); writeSave(); } }
 const actEl = document.createElement('div');
 actEl.style.cssText = 'position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom) + 28px);z-index:3;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;padding:0 8px;pointer-events:none';
 document.body.appendChild(actEl);
 function btn(label, fn) { const b = document.createElement('button'); b.textContent = label; b.style.cssText = 'pointer-events:auto;min-height:48px;padding:0 16px;font-size:15px;font-weight:700;color:#2a1a08;background:linear-gradient(#f0d58a,#c9a24a);border:2px solid #5a3d12;border-radius:10px;box-shadow:0 2px 6px #000a'; b.addEventListener('click', e => { e.stopPropagation(); fn(); }); return b; }
 function renderActions() {
-  actEl.replaceChildren(); const pl = selected; if (!pl) return;
+  actEl.replaceChildren();
+  if (selSign) { const a = selSign.area && areas.find(q => q.id === selSign.area); if (a && a.locked) actEl.appendChild(btn(`${a.name}を開拓する（仮：無料）`, () => unlockArea(a))); return; }
+  const pl = selected; if (!pl) return;
   if (pl.stage === 0) { for (const f of Object.keys(FAC)) actEl.appendChild(btn(`${FAC[f]}を建てる`, () => setPlot(pl, f, 1))); }
   else { if (pl.stage < 3) actEl.appendChild(btn(`${STAGE[pl.stage + 1]}へ進める`, () => setPlot(pl, pl.fac, pl.stage + 1))); actEl.appendChild(btn('取り壊す', () => setPlot(pl, null, 0))); }
 }
 
 // ---------- 視点（パン・ズーム） ----------
-const view = { cx: REF_W / 2, cz: zOf(REF_H * .5), zoom: 1 };
+const view = { cx: AREA0_W / 2, cz: zOf(REF_H * .5), zoom: 1 };
 let fitZoom = 1, W = 1, H = 1;
 const bg = document.getElementById('bg'), hud = document.getElementById('hud'), st = document.getElementById('st');
+{ // 遠景（空と山）は、世界の幅まで左右反転でつなぐ
+  const im = await loadImage('assets/backdrop.jpg');
+  if (im && REF_W > im.width) { const c = document.createElement('canvas'), n = Math.ceil(REF_W / im.width); c.width = im.width * n; c.height = im.height; const g = c.getContext('2d');
+    for (let i = 0; i < n; i++) { g.save(); if (i % 2) { g.translate(im.width * (i + 1), 0); g.scale(-1, 1); g.drawImage(im, 0, 0); } else g.drawImage(im, im.width * i, 0); g.restore(); }
+    document.getElementById('bg').src = c.toDataURL('image/jpeg', .9); }
+}
 function resize() {
   W = window.innerWidth; H = window.innerHeight; renderer.setSize(W, H, false);
   camera.left = -W / 2; camera.right = W / 2; camera.top = H / 2; camera.bottom = -H / 2; camera.updateProjectionMatrix();
-  fitZoom = Math.min(W / REF_W, H / REF_H * 1.0);
-  if (!view._init) { view.zoom = Math.max(W / REF_W, H / REF_H); view._init = true; view.cx = REF_W / 2; view.cz = zOf(REF_H * .62); }
+  fitZoom = Math.min(W / AREA0_W, H / REF_H * 1.0);
+  if (!view._init) { view.zoom = Math.max(W / AREA0_W, H / REF_H); view._init = true; view.cx = AREA0_W / 2; view.cz = zOf(REF_H * .62); }
   clampView();
 }
 function clampView() {
-  const cover = Math.max(W / REF_W, H / REF_H); view.zoom = Math.min(Math.max(view.zoom, cover), cover * 5);
+  const cover = Math.max(W / AREA0_W, H / REF_H); view.zoom = Math.min(Math.max(view.zoom, cover), cover * 5);
   const halfW = W / view.zoom / 2, halfH = H / view.zoom / 2;
   const minSy = halfH, maxSy = REF_H - halfH; view.cz = zOf(Math.min(Math.max(syOf(view.cz), minSy), Math.max(minSy, maxSy)));
   view.cx = halfW * 2 >= REF_W ? REF_W / 2 : Math.min(Math.max(view.cx, halfW), REF_W - halfW);
@@ -440,7 +514,13 @@ function pickAt(cx, cy) { // 画面の点 → 基準画像の座標（高さ0の
   const Z = view.zoom, sx = view.cx + (cx - W / 2) / Z, sy = syOf(view.cz) + (cy - H / 2) / Z; return [sx, sy];
 }
 canvas.addEventListener('pointerup', e => {
-  if (drag && !drag.moved) { const [sx, sy] = pickAt(e.clientX, e.clientY); select(hitBuilding(sx, sy) || plots.find(p => pointInPoly(sx, sy, p.poly)) || null); }
+  if (drag && !drag.moved) {
+    const [sx, sy] = pickAt(e.clientX, e.clientY);
+    const sg = signs.find(q => Math.abs(sx - q.x) < 38 && sy > q.y - 86 && sy < q.y + 10);
+    if (sg) { select(null); selSign = sg; renderActions(); }
+    else if (lockedAt(sx)) select(null);
+    else select(hitBuilding(sx, sy) || plots.find(p => pointInPoly(sx, sy, p.poly)) || null);
+  }
   pointers.delete(e.pointerId); if (pointers.size < 2) pinch = null; if (!pointers.size) drag = null;
 });
 canvas.addEventListener('pointercancel', e => { pointers.delete(e.pointerId); pinch = null; drag = null; });
@@ -454,12 +534,13 @@ function frame(now) {
   groundMat.uniforms.time.value = now / 1000;
   apply(); renderer.render(scene, camera);
   if (acc > 500) { st.textContent = `3D: ${status.ok ? 'OK' : status.reason} / 地面:${status.ground} 小物:${status.sprites}(${status.props}) / ${(frames * 1000 / acc).toFixed(0)}fps / 拡大 ${view.zoom.toFixed(2)}`; frames = 0; acc = 0; }
-  hud.innerHTML = `<b>領地 地形テスト</b>（コード生成の地形）<br>${selected ? `区画 <b>${selected.id}</b>：${selected.fac ? FAC[selected.fac] + '（' + STAGE[selected.stage] + '）' : '空き地'}` : '区画をタップ'}`;
+  hud.innerHTML = `<b>領地 地形テスト</b>（コード生成の地形）<br>${selected ? `区画 <b>${selected.id}</b>：${selected.fac ? FAC[selected.fac] + '（' + STAGE[selected.stage] + '）' : '空き地'}` : (selSign ? `目印 <b>${selSign.label}</b>${selSign.area ? (areas.find(a => a.id === selSign.area).locked ? '（未開拓）' : '（開拓済み）') : '（この先は準備中）'}` : '区画をタップ')}`;
   requestAnimationFrame(frame);
 }
 canvas.addEventListener('webglcontextlost', e => { e.preventDefault(); status.ok = false; status.reason = 'WebGLが失われた'; });
+{ const sv = loadSave(); if (sv) { (sv.open || []).forEach(id => { const a = areas.find(q => q.id === id); if (a) unlockArea(a, true); }); Object.entries(sv.plots || {}).forEach(([id, [f, st]]) => { const pl = plots.find(q => q.id === id); if (pl && FAC[f]) setPlot(pl, f, st, true); }); } }
 resize(); apply(); renderer.render(scene, camera); status.ok = true;
 window.__t.setView = (zoom, sx, sy) => { view.zoom = zoom; view.cx = sx; view.cz = zOf(sy); clampView(); apply(); renderer.render(scene, camera); };
 window.__t.select = id => select(plots.find(p => p.id === id) || null);
-window.__t.plots = plots; window.__t.pickAt = (cx, cy) => pickAt(cx, cy); window.__t.view = view; window.__t.sel = () => selected && selected.id; window.__t.build = (id, fac, stage) => { const pl = plots.find(q => q.id === id); if (pl) setPlot(pl, fac, stage); };
+window.__t.plots = plots; window.__t.unlock = id => unlockArea(areas.find(a => a.id === id), true); window.__t.reset = () => { try { localStorage.removeItem(SAVE_KEY); } catch (e) { } }; window.__t.pickAt = (cx, cy) => pickAt(cx, cy); window.__t.view = view; window.__t.sel = () => selected && selected.id; window.__t.build = (id, fac, stage) => { const pl = plots.find(q => q.id === id); if (pl) setPlot(pl, fac, stage); };
 requestAnimationFrame(frame);
