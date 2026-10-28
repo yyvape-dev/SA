@@ -122,7 +122,7 @@ export function createUI({ onEndWeek, onReset }) {
       modal.innerHTML = `<div class="box ${cls || 'fr'}"><h3>${title}</h3><div>${body}</div><div class="btns"></div></div>`;
       const bx = modal.querySelector('.btns');
       for (const b of buttons) { const e = document.createElement('button'); e.className = 'big'; e.innerHTML = b.label + (b.sub ? `<small>${b.sub}</small>` : ''); e.addEventListener('click', ev => { ev.stopPropagation(); b.fn(); }); bx.appendChild(e); }
-      modal.style.display = 'flex';
+      modal.style.display = 'flex'; modal.style.alignItems = /low/.test(cls || '') ? 'flex-end' : 'center'; modal.style.paddingBottom = /low/.test(cls || '') ? 'calc(env(safe-area-inset-bottom) + 70px)' : '';
     },
     toast(msg) { toastEl.textContent = msg; toastEl.classList.add('on'); clearTimeout(tt); tt = setTimeout(() => toastEl.classList.remove('on'), 2400); },
   };

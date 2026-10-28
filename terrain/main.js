@@ -1,8 +1,8 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793189260';
-import { createUI } from './ui.js?v=1793189260';
+import * as GM from './game.js?v=1793190446';
+import { createUI } from './ui.js?v=1793190446';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -241,7 +241,8 @@ const tiltRot = new THREE.Euler(-E * .95, 0, 0);
 const baseQ = new THREE.Quaternion().setFromEuler(tiltRot);
 const buckets = SPR.map(() => []);
 const R = rng(20261028);
-function place(type, x, sy, sc = 1, flip = false, tint = 1) { const z = zOf(sy); buckets[type].push({ x, z, y: hgt(x, z), sc, flip, tint }); }
+const CAMP_CLEAR = [[70, 800], [110, 820], [30, 780], [70, 1200], [110, 1180], [30, 1220]]; // 敵の陣を置く場所は、木や岩を置かない
+function place(type, x, sy, sc = 1, flip = false, tint = 1) { if (CAMP_CLEAR.some(([cx, cy]) => Math.abs(x - cx) < 70 && sy > cy - 45 && sy < cy + 120)) return; /* 手前の背の高い木も除く */ const z = zOf(sy); buckets[type].push({ x, z, y: hgt(x, z), sc, flip, tint }); }
 function townDist(x, sy) { let d = 1e9; for (const pz of layout.plazas) d = Math.min(d, Math.hypot(x - pz.center[0], (sy - pz.center[1]) * 1.6)); return d; }
 // 森・岩・茂み・川沿いの岩を散らす
 {
@@ -400,7 +401,14 @@ function groundRect(tex, left, top, w, h) { // 画面の矩形（基準画像の
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 1, 0, 1, 1, 0, 1], 2)); g.setIndex([0, 1, 2, 0, 2, 3]);
   const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: .4, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, side: THREE.DoubleSide })); m.frustumCulled = false; return m;
 }
+const fireMeshes = new Set();
+let fireTex = null;
 function refreshPlot(pl) {
+  if (!fireTex) fireTex = canvasSprite(96, 160, g => { // 炎と煙（コード描画）
+    for (let i = 0; i < 6; i++) { const r = g.createRadialGradient(48, 30 + i * 8, 2, 48, 30 + i * 8, 34 - i * 2); r.addColorStop(0, 'rgba(70,60,60,.5)'); r.addColorStop(1, 'rgba(40,35,35,0)'); g.fillStyle = r; g.fillRect(0, 0, 96, 160); }
+    const f = g.createRadialGradient(48, 128, 4, 48, 118, 40); f.addColorStop(0, '#fff6c0'); f.addColorStop(.3, '#ffb030'); f.addColorStop(.7, 'rgba(255,60,10,.8)'); f.addColorStop(1, 'rgba(255,40,0,0)');
+    for (const [x0, h, w] of [[30, 70, 16], [48, 92, 20], [66, 64, 15], [40, 52, 12], [58, 78, 14]]) { const fl = g.createLinearGradient(0, 160, 0, 160 - h); fl.addColorStop(0, '#fff2b0'); fl.addColorStop(.35, '#ffa020'); fl.addColorStop(.8, 'rgba(230,50,10,.85)'); fl.addColorStop(1, 'rgba(200,30,0,0)');
+      g.fillStyle = fl; g.beginPath(); g.moveTo(x0 - w, 158); g.quadraticCurveTo(x0 - w * .8, 160 - h * .5, x0, 160 - h); g.quadraticCurveTo(x0 + w * .8, 160 - h * .5, x0 + w, 158); g.closePath(); g.fill(); } });
   if (pl.pav) { scene.remove(pl.pav); pl.pav.geometry.dispose(); pl.pav = null; }
   if (pl.mesh) { scene.remove(pl.mesh); pl.mesh.material.dispose(); pl.mesh = null; }
   pl.hit = null; pl.poly = pl.home;
@@ -417,6 +425,9 @@ function refreshPlot(pl) {
     pl.hit = { key, left: pl.cx - meta.ax * w, top: bottom - meta.ay * h, w, h };
   }
   pl.stakes.visible = !(pl.fac && pl.stage >= 1);
+  if (pl.fire) { scene.remove(pl.fire); pl.fire = null; }
+  if (pl.burnt) { [pl.mesh, pl.pav].forEach(mm => mm && mm.material.color.setRGB(.2, .16, .14)); // 焼かれた施設：黒ずませ、火と煙を出す
+    pl.fire = sprite3D(fireTex, { w: 96, h: 160, ax: .5, ay: .95 }, .55, pl.cx, pl.base[1] - 30); pl.fire.position.y += (pl.hit && pl.fac !== 'farm' ? (pl.base[1] - pl.hit.top) * .45 : 10) / COS; pl.fire.renderOrder = 20; scene.add(pl.fire); fireMeshes.add(pl.fire); }
   paintYards(plots.map(p => p.poly)); splatTex.needsUpdate = true;
   if (selected === pl) select(pl);
 }
@@ -586,7 +597,8 @@ let G = null, selCastle = false, selAlly = null;
 function loadSave() { try { const v = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); if (v && v.week) { v.bond = Object.assign({ mina: 0, garou: 0, sera: 0, ranka: 0 }, v.bond || {}); v.assign = v.assign || {}; return v; } return null; } catch (e) { return null; } }
 function writeSave() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(G)); } catch (e) { } }
 function syncMap(instant) { // 状態 → 区画の絵と霧
-  for (const pl of plots) { const p = G.plots[pl.id]; const f = p ? p.fac : null, stg = p ? p.stage : 0; if (pl.fac !== f || pl.stage !== stg) setPlot(pl, f, stg); }
+  for (const pl of plots) { const p = G.plots[pl.id]; const f = p ? p.fac : null, stg = p ? p.stage : 0; const bt = !!(p && p.burnt); if (pl.fac !== f || pl.stage !== stg || pl.burnt !== bt) { pl.burnt = bt; setPlot(pl, f, stg); } }
+  updateCamp();
   for (const a of areas) showArea(a, G.open.includes(a.id)); updateFog(instant);
   for (const k of Object.keys(allyMesh)) { const v = GM.joined(G, k); if (v && !allyMesh[k].m.visible && !instant) ui.toast(`${GM.ALLY[k].n}（${GM.ALLY[k].r}）が仲間になった`); allyMesh[k].m.visible = v && !(k === 'ranka' && G.rankaAway); }
   refreshBadges();
@@ -647,17 +659,33 @@ const foeTex = canvasSprite(64, 96, g => { // 敵兵の影（コード描画）�
   g.beginPath(); g.arc(32, 26, 10, 0, 7); g.fill(); g.fillStyle = '#ff3a20'; g.fillRect(27, 24, 3, 2); g.fillRect(34, 24, 3, 2);
   g.strokeStyle = '#3a2a20'; g.lineWidth = 3; g.beginPath(); g.moveTo(50, 90); g.lineTo(52, 6); g.stroke(); g.fillStyle = '#a8a8b0'; g.beginPath(); g.moveTo(52, 0); g.lineTo(56, 10); g.lineTo(48, 10); g.fill();
   const r = g.createRadialGradient(14, 30, 1, 14, 30, 12); r.addColorStop(0, '#fff2a0'); r.addColorStop(.4, '#ff8a20'); r.addColorStop(1, '#ff300000'); g.fillStyle = r; g.beginPath(); g.arc(14, 30, 12, 0, 7); g.fill(); });
-function raidIntro(done) { // 空が赤くなり、街の外から軍勢が攻めてくる。帯で名前を出してから、窓を開く
-  const R = G.raid; introPlaying = true; ui.modal(null);
-  const [cx, cy] = HOME.center, src = layout.signs[R.w % 2 ? 0 : 1] || { x: 40, y: 800 }, n = Math.min(26, 6 + Math.round(R.E / 2));
-  view.zoom = Math.max(view.zoom, .6); view.cx = (cx + src.x) / 2; view.cz = zOf((cy + src.y) / 2); clampView();
+// 前線：敵が来る方角ごとに、陣の場所（遠い→近い）と、迎え撃つ場所（前線）を持つ
+const FRONTS = { pass: { camp: [[30, 780], [70, 800], [110, 820]], front: [200, 865] }, river: { camp: [[30, 1220], [70, 1200], [110, 1180]], front: [200, 1135] } }; // どちらも街道の上（小物が置かれない）
+const tentTex = canvasSprite(120, 90, g => { g.fillStyle = 'rgba(0,0,0,.35)'; g.beginPath(); g.ellipse(60, 84, 54, 7, 0, 0, 7); g.fill();
+  g.fillStyle = '#5a1410'; g.beginPath(); g.moveTo(8, 84); g.lineTo(60, 14); g.lineTo(112, 84); g.closePath(); g.fill(); g.fillStyle = '#3a0a08'; g.beginPath(); g.moveTo(60, 14); g.lineTo(112, 84); g.lineTo(72, 84); g.closePath(); g.fill();
+  g.fillStyle = '#140606'; g.beginPath(); g.moveTo(50, 84); g.lineTo(60, 52); g.lineTo(70, 84); g.fill(); g.strokeStyle = '#2a1a10'; g.lineWidth = 3; g.beginPath(); g.moveTo(60, 14); g.lineTo(60, 0); g.stroke(); g.fillStyle = '#c02a1a'; g.fillRect(60, 0, 18, 10); });
+let camp = null;
+function updateCamp() { // 襲撃の2週前から、敵の陣が街の外に見え、週ごとに近づく
+  if (camp) { camp.forEach(c => scene.remove(c)); camp = null; }
+  const r = GM.raidView(G); if (!r || r.inWeeks > 2 || G.raid) return; const F = FRONTS[r.dir]; if (!F) return;
+  const [x, y] = F.camp[2 - r.inWeeks]; camp = [];
+  const add = (t, meta, sc, dx, dy) => { const s = sprite3D(t, meta, sc, x + dx, y + dy); scene.add(s); camp.push(s); };
+  add(tentTex, { w: 120, h: 90, ax: .5, ay: .93 }, .42, 0, 0); add(tentTex, { w: 120, h: 90, ax: .5, ay: .93 }, .34, -34, 16);
+  if (TOWN.torch) add(townTex.torch || (townTex.torch = Object.assign(new THREE.Texture(TOWN.torch), { needsUpdate: true, colorSpace: THREE.SRGBColorSpace })), { w: TOWN.torch.width, h: TOWN.torch.height, ax: .5, ay: .96 }, .14, 26, 10);
+  for (let i = 0; i < Math.min(6, 2 + Math.round(r.E / 10)); i++) add(foeTex, { w: 64, h: 96, ax: .5, ay: .94 }, .36, -20 + i * 14 + (i % 2) * 6, 26 + (i % 2) * 8);
+}
+function raidIntro(done) { // 空が赤くなり、陣から軍勢が街道を進み、前線で止まる。帯で名前を出してから、窓を開く
+  const R = G.raid; introPlaying = true; ui.modal(null); if (camp) { camp.forEach(c => scene.remove(c)); camp = null; }
+  const F = FRONTS[R.dir] || FRONTS.pass, src = F.camp[2], dst = F.front, n = Math.min(26, 6 + Math.round(R.E / 2));
+  view.zoom = Math.max(view.zoom, .75); view.cx = (src[0] + dst[0]) / 2 + 120; view.cz = zOf(dst[1] + 230); clampView(); /* 前線は画面の上寄り（窓に隠れない） */
   foes.forEach(f => scene.remove(f.m)); foes = [];
-  for (let i = 0; i < n; i++) { const ox = (Math.random() - .5) * 90, oy = (Math.random() - .5) * 50, m = sprite3D(foeTex, { w: 64, h: 96, ax: .5, ay: .94 }, .42 * (R.boss && i === 0 ? 1.8 : 1), src.x + ox, src.y + oy); scene.add(m);
-    const k = .42 + Math.random() * .12; foes.push({ m, x0: src.x + ox, y0: src.y + oy, x1: src.x + (cx - src.x) * k + ox * .8, y1: src.y + (cy - src.y) * k + oy * .8, d: Math.random() * .5 }); }
+  const dx = dst[0] - src[0], dy = dst[1] - src[1], L = Math.hypot(dx, dy), nx = -dy / L, ny = dx / L;
+  for (let i = 0; i < n; i++) { const a = (Math.random() - .5) * 70, back = Math.random() * 90, m = sprite3D(foeTex, { w: 64, h: 96, ax: .5, ay: .94 }, .42 * (R.boss && i === 0 ? 1.8 : 1), src[0], src[1]); scene.add(m);
+    foes.push({ m, x0: src[0] - dx / L * (60 + back) + nx * a, y0: src[1] - dy / L * (60 + back) + ny * a * .6, x1: dst[0] - dx / L * back * .5 + nx * a, y1: dst[1] - dy / L * back * .5 + ny * a * .6, d: Math.random() * .5 }); }
   raidFx.classList.add('on'); const t0 = performance.now();
-  const f = now => { const t = (now - t0) / 2600;
+  const f = now => { const t = (now - t0) / 2800;
     foes.forEach(o => { const k = Math.min(1, Math.max(0, (t - o.d * .3) / .8)), e = k * (2 - k), x = o.x0 + (o.x1 - o.x0) * e, y = o.y0 + (o.y1 - o.y0) * e, z = zOf(y); o.m.position.set(x, hgt(x, z) + Math.abs(Math.sin(now / 110 + o.d * 9)) * 2 * (k < 1), z); });
-    if (t > .35 && !f.b) { f.b = 1; raidBan.innerHTML = `<div>${R.boss ? '将軍の侵攻' : '敵襲'}<small>${R.name}・規模 ${R.E}</small></div>`; raidBan.className = 'on'; }
+    if (t > .35 && !f.b) { f.b = 1; const fr = GM.FRONT[R.dir]; raidBan.innerHTML = `<div>${R.boss ? '将軍の侵攻' : '敵襲'}<small>${R.name}・規模 ${R.E}／${fr ? fr.n + 'で迎え撃つ' : ''}</small></div>`; raidBan.className = 'on'; }
     if (t > 1.05 && !f.c) { f.c = 1; raidBan.className = 'off'; }
     if (t > 1.2) { f.done = true; introPlaying = false; done && done(); } };
   fx.push(f);
@@ -673,6 +701,8 @@ function autoBattle(resolveFn) { // 任せた戦闘：仲間と兵が軍勢と�
     <div class="foe"><div class="army">${'💀'.repeat(Math.min(7, Math.ceil(E / 7)))}</div><span class="tr">敵 ${E}</span></div><div class="clash"></div></div>
     <div class="bar"><span style="width:50%"></span></div><div class="nums"><span>防衛力 ${Math.round(usD)}</span><span>敵の規模 ${E}</span></div>
     <div class="res" style="color:${col}">${label}<small>${t.split('：')[1] || ''}</small></div><div class="tap">タップで閉じる</div></div>`;
+  const fr = GM.FRONT[R.dir]; abt.style.backgroundImage = `linear-gradient(#0a0402c8,#0a0402e8), url(assets/field/${R.dir || 'pass'}.jpg), linear-gradient(#3a2a1a,#140c06)`; abt.style.backgroundSize = 'cover'; abt.style.backgroundPosition = 'center';
+  abt.querySelector('.ttl').innerHTML = `${R.name}<small style="display:block;font-size:12px;color:#e8d8b0">${fr ? fr.n : ''}</small>`;
   abt.style.display = 'flex'; const bar = abt.querySelector('.bar span'), cl = abt.querySelector('.clash'), res = abt.querySelector('.res');
   const fin = good ? 82 : mid ? 58 : 26; let i = 0, closed = false;
   const iv = setInterval(() => { i++; const w = i < 9 ? 50 + Math.sin(i * 1.7) * 18 + (fin - 50) * i / 12 : fin; bar.style.width = w + '%';
@@ -705,7 +735,7 @@ function raidModal() {
      { label: '自分で戦う', sub: `WAVE ${wv}・アクション`, fn: goBattle },
      { label: '確率で決める', sub: `成功率 約${p}%`, fn: () => { ui.modal(null); autoBattle(() => GM.resolve(G, 'hand')); } }];
   if (GM.rankaReady(G)) btns.push({ label: R.ranka ? 'ランカを温存する' : 'ランカを出す', sub: R.ranka ? '次の戦闘に回す' : '最強の戦力', fn: () => { GM.setRanka(G, !R.ranka); writeSave(); raidModal(); } });
-  ui.modal(R.kind === 'sortie' ? `出撃：${R.name}` : `襲撃：${R.name}`, `敵の規模 <b>${R.E}</b> ／ こちらの防衛力 <b>${Math.round(D)}</b><br>任せる：見込みは「${GM.autoTier(G, R.E)}」<br>自分で戦う：<b>WAVE ${wv}</b> まで生き残れば勝利。勝てば報酬、負ければ被害が1段重い${mods ? '<br>仲間の補正：' + mods : ''}${rk}`, btns);
+  ui.modal(R.kind === 'sortie' ? `出撃：${R.name}` : `襲撃：${R.name}`, `敵の規模 <b>${R.E}</b> ／ こちらの防衛力 <b>${Math.round(D)}</b><br>任せる：見込みは「${GM.autoTier(G, R.E)}」<br>自分で戦う：<b>WAVE ${wv}</b> まで生き残れば勝利。勝てば報酬、負ければ被害が1段重い${mods ? '<br>仲間の補正：' + mods : ''}${rk}`, btns, 'fr low');
 }
 function overModal() {
   if (!G.over) return;
@@ -740,7 +770,8 @@ function renderActions() {
   else if (selected) { const id = selected.id, p = G.plots[id], here = p && GM.allyAt(G, id); key = 'plot' + id + (p ? p.fac + p.stage : '');
     por = P(here || defaultAlly()); if (here) { bubble = curLine; mode = 'talk'; }
     if (!p) { title = '建設予定地'; for (const [f, d] of Object.entries(FAC)) L.push({ label: d.n, act: f === 'farm' ? '畑を整備' : `${d.n}を建てる`, sup: -d.cost, ap: 1, eff: `毎週 ${d.d.replace('毎週の', '')}`, verb: '建設する', can: GM.canBuild(G, f), why: why(d.cost), fn: () => act(() => GM.build(G, id, f), `${d.n}の建築を始めた（週末に完成）`) }); }
-    else { const d = FAC[p.fac]; title = `${d.n}（${STAGE[p.stage]}）${here ? '・' + GM.ALLY[here].n : ''}`;
+    else { const d = FAC[p.fac]; title = `${d.n}（${p.burnt ? '焼かれた' : STAGE[p.stage]}）${here ? '・' + GM.ALLY[here].n : ''}`;
+      if (p.burnt) L.push({ label: '修理', act: `${d.n}を修理する`, sup: -GM.REPAIR, ap: 1, eff: '効果が戻る', verb: '修理する', can: GM.canRepair(G, id), why: why(GM.REPAIR), fn: () => act(() => GM.repair(G, id), `${d.n}を修理した`) });
       if (p.stage === 1 && !here) title += '・週末に完成';
       if (p.stage === 2) L.push({ label: '発展', act: `${d.n}を発展させる`, sup: -d.up, ap: 1, eff: '効果が2倍になる', verb: '発展させる', can: GM.canUpgrade(G, id), why: why(d.up), fn: () => act(() => GM.upgrade(G, id), `${d.n}を発展させた`) });
       if (p.stage >= 2) {
@@ -816,7 +847,8 @@ let last = performance.now(), frames = 0, acc = 0, fx = [];
 function frame(now) {
   const dt = now - last; last = now; acc += dt; frames++;
   groundMat.uniforms.time.value = now / 1000; selGlow.opacity = .38 + .2 * Math.sin(now / 260);
-  walkAllies(Math.min(.05, dt / 1000)); badges.forEach((b, i) => { b.position.y = b.userData.y0 + Math.sin(now / 400 + i) * 2; }); waterMats.forEach(mt => { if (mt.userData.sh) mt.userData.sh.uniforms.time.value = now / 1000; }); fx.forEach(f => f(now)); fx = fx.filter(f => !f.done);
+  walkAllies(Math.min(.05, dt / 1000)); badges.forEach((b, i) => { b.position.y = b.userData.y0 + Math.sin(now / 400 + i) * 2; }); fireMeshes.forEach(f => { if (!f.parent) { fireMeshes.delete(f); return; } if (!f.userData.s) f.userData.s = f.scale.clone(); const k = 1 + Math.sin(now / 90 + f.id) * .06; f.scale.set(f.userData.s.x * (2 - k), f.userData.s.y * k, 1); });
+  waterMats.forEach(mt => { if (mt.userData.sh) mt.userData.sh.uniforms.time.value = now / 1000; }); fx.forEach(f => f(now)); fx = fx.filter(f => !f.done);
   apply(); renderer.render(scene, camera);
   if (acc > 500) { st.textContent = `3D: ${status.ok ? 'OK' : status.reason} / 地面:${status.ground} 小物:${status.sprites}(${status.props}) / ${(frames * 1000 / acc).toFixed(0)}fps / 拡大 ${view.zoom.toFixed(2)}`; frames = 0; acc = 0; }
   // HUD は refreshUI() が書く
@@ -827,5 +859,5 @@ G = loadSave() || GM.newState(layout.areas); syncMap(true); refreshUI(); takeBat
 resize(); apply(); renderer.render(scene, camera); status.ok = true;
 window.__t.setView = (zoom, sx, sy) => { view.zoom = zoom; view.cx = sx; view.cz = zOf(sy); clampView(); apply(); renderer.render(scene, camera); };
 window.__t.select = id => select(plots.find(p => p.id === id) || null);
-window.__t.plots = plots; window.__t.G = () => G; window.__t.faces = () => faceURL; window.__t.raidIntro = raidIntro; window.__t.showReport = showReport; window.__t.GM = GM; window.__t.commit = () => commit(); window.__t.reset = () => { try { localStorage.removeItem(SAVE_KEY); } catch (e) { } }; window.__t.pickAt = (cx, cy) => pickAt(cx, cy); window.__t.view = view; window.__t.sel = () => selected && selected.id; window.__t.build = (id, fac, stage) => { if (stage) G.plots[id] = { fac, stage }; else delete G.plots[id]; commit(); };
+window.__t.plots = plots; window.__t.G = () => G; window.__t.camp = () => camp && camp.map(c => [c.position.x|0, c.position.y|0, c.position.z|0, c.visible]); window.__t.faces = () => faceURL; window.__t.raidIntro = raidIntro; window.__t.showReport = showReport; window.__t.GM = GM; window.__t.commit = () => commit(); window.__t.reset = () => { try { localStorage.removeItem(SAVE_KEY); } catch (e) { } }; window.__t.pickAt = (cx, cy) => pickAt(cx, cy); window.__t.view = view; window.__t.sel = () => selected && selected.id; window.__t.build = (id, fac, stage) => { if (stage) G.plots[id] = { fac, stage }; else delete G.plots[id]; commit(); };
 requestAnimationFrame(frame);

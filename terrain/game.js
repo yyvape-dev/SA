@@ -9,10 +9,12 @@ export const FAC = { // 施設。stage 1=建築中（効果なし、週末に完
 export const STAGE = ['空き地', '建築中', '完成', '発展後'];
 export const WEEKS = 12;
 export const SCHED = [ // 襲撃の予定（E=敵の規模）。後半ほど強く、家の街だけでは守り切れない強さにする
-  { w: 3, E: 13, name: '野盗の襲撃' }, { w: 5, E: 18, name: '謀反軍の偵察隊' }, { w: 7, E: 24, name: '謀反軍の先遣隊' },
-  { w: 9, E: 31, name: '将軍の副官の軍' }, { w: 11, E: 38, name: '謀反軍の本隊' }, { w: 12, E: 46, name: '将軍の侵攻', boss: true },
+  { w: 3, E: 13, name: '野盗の襲撃', dir: 'river' }, { w: 5, E: 18, name: '謀反軍の偵察隊', dir: 'pass' }, { w: 7, E: 24, name: '謀反軍の先遣隊', dir: 'river' },
+  { w: 9, E: 31, name: '将軍の副官の軍', dir: 'pass' }, { w: 11, E: 38, name: '謀反軍の本隊', dir: 'river' }, { w: 12, E: 46, name: '将軍の侵攻', boss: true, dir: 'pass' },
 ];
 const CAP_TROOPS = 16;
+// 戦場（敵が来る方角）。前線＝街の外で迎え撃つ場所
+export const FRONT = { pass: { n: '山道の峠', from: '北西の山道' }, river: { n: '川の渡し場', from: '西の川' } };
 // 仲間。join=仲間になる条件（開拓した区域）。絆は0〜3。効果は絆2と絆3で増える（base5 の式をもとに、戦闘の補正を足した）
 export const ALLY = {
   mina:  { n: 'ミナ',   r: '捕縛役', join: null,   lv: ['', '', '自分で戦う成功率+12%・戦闘の拘束+0.4秒', '自分で戦う成功率+さらに8%・拘束+さらに0.4秒'] },
@@ -52,7 +54,7 @@ export function newState(areaDefs) {
 // ---------- 指標（全部ここから計算） ----------
 function effSum(s, key) {
   let v = 0;
-  for (const [id, p] of Object.entries(s.plots)) { const f = FAC[p.fac]; if (!f || !f.eff[key]) continue;
+  for (const [id, p] of Object.entries(s.plots)) { const f = FAC[p.fac]; if (!f || !f.eff[key] || p.burnt) continue;
     v += (f.eff[key] + (key === 'sup' && bond(s, 'sera') >= 2 ? 1 : 0)) * mult(p.stage);
     const k = allyAt(s, id); if (k && p.stage >= 2 && !(k === 'ranka' && s.rankaAway)) v += assignBonus(p.fac, k); }
   return v;
@@ -71,7 +73,7 @@ export const wavesOf = E => clamp(Math.round(E / 7), 2, 7);
 const spend = (s, c) => { s.ap -= 1; s.sup -= c; };
 export function canBuild(s, fac) { return !s.over && !s.raid && s.ap >= 1 && s.sup >= FAC[fac].cost; }
 export function build(s, id, fac) { if (!canBuild(s, fac) || s.plots[id]) return false; spend(s, FAC[fac].cost); s.plots[id] = { fac, stage: 1 }; s.log.push(`${FAC[fac].n}の建築を始めた`); return true; }
-export function canUpgrade(s, id) { const p = s.plots[id]; return !!p && p.stage === 2 && !s.over && !s.raid && s.ap >= 1 && s.sup >= FAC[p.fac].up; }
+export function canUpgrade(s, id) { const p = s.plots[id]; return !!p && p.stage === 2 && !p.burnt && !s.over && !s.raid && s.ap >= 1 && s.sup >= FAC[p.fac].up; }
 export function upgrade(s, id) { if (!canUpgrade(s, id)) return false; const p = s.plots[id]; spend(s, FAC[p.fac].up); p.stage = 3; s.log.push(`${FAC[p.fac].n}を発展させた`); return true; }
 export function demolish(s, id) { if (!s.plots[id] || s.raid || s.over) return false; s.log.push(`${FAC[s.plots[id].fac].n}を取り壊した`); delete s.plots[id]; cleanAssign(s); return true; }
 export function canOpen(s, a) { return !s.open.includes(a.id) && !s.over && !s.raid && s.ap >= 1 && s.sup >= a.cost; }
@@ -88,7 +90,7 @@ export function canCastle(s, id) { const a = CASTLE[id]; return !s.over && !s.ra
 export function doCastle(s, id) { if (!canCastle(s, id)) return false; const a = CASTLE[id]; spend(s, a.cost); a.ap(s); s.log.push(`${a.t}を行った`); return true; }
 
 // 偵察前の襲撃の規模は、幅で見せる（±3）
-export function raidView(s) { const r = nextRaid(s); if (!r) return null; return { ...r, known: !!s.scouted[r.w], lo: r.E - 3, hi: r.E + 3, inWeeks: r.w - s.week }; }
+export function raidView(s) { const r = nextRaid(s); if (!r) return null; return { ...r, front: FRONT[r.dir], known: !!s.scouted[r.w], lo: r.E - 3, hi: r.E + 3, inWeeks: r.w - s.week }; }
 
 // ---------- 週末と戦闘 ----------
 export function endWeek(s) {
@@ -100,7 +102,7 @@ export function endWeek(s) {
   const msg = `週末：物資${i >= 0 ? '+' : ''}${i} 民心${d >= 0 ? '+' : ''}${d}${done.length ? '／完成：' + done.join('・') : ''}`;
   s.log.push(msg);
   const r = SCHED.find(x => x.w === s.week);
-  if (r) s.raid = { kind: 'raid', E: r.E, name: r.name, boss: !!r.boss, w: r.w }; else afterWeek(s);
+  if (r) s.raid = { kind: 'raid', E: r.E, name: r.name, boss: !!r.boss, w: r.w, dir: r.dir }; else afterWeek(s);
   return msg;
 }
 function afterWeek(s) {
@@ -112,6 +114,13 @@ function afterWeek(s) {
   if (s.rankaAway) s.log.push('ランカは今週、街にいない');
 }
 function checkLose(s) { if (s.over) return; if (s.hp <= 0) { s.over = 'lose'; s.why = '城が落とされた'; } else if (s.morale <= 0) { s.over = 'lose'; s.why = '民心が尽き、反乱が起きた'; } }
+// 前線を破られると、敵が街に入り込み、施設が焼かれる（効果なし。修理すると戻る）
+function burn(s, n, rnd) { const ids = Object.keys(s.plots).filter(id => s.plots[id].stage >= 2 && !s.plots[id].burnt); const out = [];
+  for (let i = 0; i < n && ids.length; i++) { const id = ids.splice(Math.floor(rnd() * ids.length), 1)[0]; s.plots[id].burnt = true; out.push(FAC[s.plots[id].fac].n); }
+  return out.length ? `／${out.join('・')}が焼かれた` : ''; }
+export const REPAIR = 2;
+export const canRepair = (s, id) => !!s.plots[id] && s.plots[id].burnt && !s.over && !s.raid && s.ap >= 1 && s.sup >= REPAIR;
+export function repair(s, id) { if (!canRepair(s, id)) return false; s.ap -= 1; s.sup -= REPAIR; delete s.plots[id].burnt; s.log.push(`${FAC[s.plots[id].fac].n}を修理した`); return true; }
 export function resolve(s, mode, rnd = Math.random, forced) { // forced: アクション戦闘の結果（true/false）。なければ確率で解決
   const R = s.raid; if (!R) return ''; const E = R.E, m = raidD(s) - E * (0.9 + rnd() * 0.2);
   if (joined(s, 'ranka')) s.rankaRest = !!R.ranka; // 出たら次は休み、休んだら次は出られる
@@ -125,8 +134,8 @@ export function resolve(s, mode, rnd = Math.random, forced) { // forced: アク�
     else { s.troops -= 1; s.morale -= 8; t += '敗走 兵力-1 民心-8'; }
   } else if (tier === 0) { if (mode === 'hand') { s.sup += 4; s.morale += 5; t += '完勝 物資+4 民心+5'; } else t += '被害なし'; }
   else if (tier === 1) { s.sup -= 3; s.morale -= 5; t += '小被害 物資-3 民心-5'; }
-  else if (tier === 2) { s.sup -= 5; s.morale -= 12; s.troops -= 1; t += '中被害 物資-5 民心-12 兵力-1'; }
-  else { s.hp -= 1; s.morale -= 15; s.troops -= 2; s.sup -= 5; t += '大被害 城の耐久-1 民心-15 兵力-2 物資-5'; }
+  else if (tier === 2) { s.sup -= 5; s.morale -= 12; s.troops -= 1; t += '中被害 物資-5 民心-12 兵力-1' + burn(s, 1, rnd); }
+  else { s.hp -= 1; s.morale -= 15; s.troops -= 2; s.sup -= 5; t += '大被害 城の耐久-1 民心-15 兵力-2 物資-5' + burn(s, 2, rnd); }
   s.sup = Math.max(0, s.sup); s.troops = Math.max(0, s.troops); s.morale = clamp(s.morale, 0, 100);
   s.log.push(t);
   if (R.kind === 'raid') afterWeek(s); else checkLose(s);
@@ -178,6 +187,8 @@ export function weekReport(prev, s) {
   if (income(s) < 0) wr.push(`毎週の物資が${income(s)}。兵の維持費が重い。`);
   if (s.morale < 35) wr.push(`民心${Math.round(s.morale)}。30を切ると行動点が2に減る。`);
   else if (moraleD(s) < 0 && s.morale < 55) wr.push(`民心が毎週${moraleD(s)}ずつ下がっている。酒場か炊き出しを。`);
+  const bt = Object.values(s.plots).filter(p => p.burnt).length; if (bt) wr.push(`焼かれた施設が${bt}つ。修理するまで効果がない。`);
+  { const r2 = nextRaid(s); if (r2 && r2.w - s.week <= 2) wr.push(`敵の陣が${FRONT[r2.dir].from}に見える（${r2.w - s.week ? r2.w - s.week + '週後' : '今週末'}）。`); }
   if (s.rankaAway) wr.push('ランカは今週、街にいない。配置の効果も出撃もなし。');
   const idle = Object.keys(ALLY).filter(k => joined(s, k) && !(s.assign || {})[k]);
   if (idle.length && Object.values(s.plots).some(p => p.stage >= 2)) wr.push(`${idle.map(k => ALLY[k].n).join('・')}が施設に配置されていない。`);
