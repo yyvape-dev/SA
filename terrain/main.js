@@ -1,6 +1,8 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
+import * as GM from './game.js';
+import { createUI } from './ui.js';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -248,8 +250,8 @@ function townDist(x, sy) { let d = 1e9; for (const pz of layout.plazas) d = Math
     const x = -50 + R() * (REF_W + 100), sy = 380 + R() * (REF_H - 300);
     const zn = zoneAt(x, sy); if (zn > .62 || nearLayout(x, sy, 22)) continue;
     const z = zOf(sy), f = fbm(x / 230 + 5, z / 230), edge = Math.max(smooth(260, 0, x), smooth(REF_W - 260, REF_W, x)) * .5 + smooth(520, 400, sy) * .5;
-    const meadow = (1 - .65 * smooth(960, 1100, x) * smooth(1900, 1760, x)) * smooth(400, 580, townDist(x, sy)); // 街の中は木を切り開く
-    const forestness = Math.min(1, Math.max(0, f * 1.5 - .42 + edge * .55)) * (1 - smooth(.08, .5, zn)) * meadow;
+    const ar = layout.areas.find(a => x >= a.x0 && x < (a.x1 || 1e9)), meadow = (ar ? ar.forest : 1) * smooth(400, 580, townDist(x, sy)); // 区域ごとの木の密度。街の中は切り開く
+    const forestness = Math.min(1, Math.max(0, (f * 1.5 - .42 + edge * .55) * meadow)) * (1 - smooth(.08, .5, zn));
     const r = R();
     if (r < forestness * .55) { const t = R(); const type = t < .3 ? 0 : t < .62 ? 1 : t < .84 ? 2 : 3; place(type, x, sy, .75 + R() * .5, R() < .5, .86 + R() * .2); }
     else if (r < forestness * .55 + .035) place(4, x, sy, .8 + R() * .5, R() < .5, .9 + R() * .15);
@@ -293,9 +295,10 @@ function sprite3D(tex, meta, scale, baseX, baseSy) { // 足元の手前の角(ax
   const m = new THREE.Mesh(planeGeo, new THREE.MeshBasicMaterial({ map: tex, alphaTest: .35, side: THREE.DoubleSide }));
   m.position.set(baseX - (meta.ax - .5) * w, hgt(baseX, z), z); m.quaternion.copy(baseQ); m.scale.set(w, h, 1); m.frustumCulled = false; return m;
 }
+let castleHit = null;
 { // 領主の城（切り抜き絵）
   const meta = bld['assets/bld/castle.png']; const t = await loadBld('assets/bld/castle.png');
-  if (t) scene.add(sprite3D(t, meta, .37, 300, 705));
+  if (t) { scene.add(sprite3D(t, meta, .37, 300, 705)); const w = meta.w * .37, h = meta.h * .37; castleHit = { left: 300 - meta.ax * w, top: 705 - meta.ay * h, w, h, im: t.image }; }
 }
 
 // ---------- 区画（コードのデータ）と選択表示 ----------
@@ -305,9 +308,9 @@ const selLine = new THREE.LineBasicMaterial({ color: 0xffe08a, depthTest: false 
 let selGroup = null, selected = null, selSign = null;
 function pointInPoly(x, y, poly) { let c = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const [xi, yi] = poly[i], [xj, yj] = poly[j]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c; } return c; }
 function select(p) {
-  selSign = null;
+  selSign = null; selCastle = false;
   if (selGroup) { scene.remove(selGroup); selGroup = null; }
-  selected = p; renderActions(); if (!p) return;
+  selected = p; if (G) refreshUI(); if (!p) return;
   const pts = p.poly.map(([sx, sy]) => { const z = zOf(sy); return new THREE.Vector3(sx, hgt(sx, z) + 3, z); });
   const sh = new THREE.Shape(p.poly.map(([sx, sy]) => new THREE.Vector2(sx, zOf(sy))));
   const g = new THREE.ShapeGeometry(sh); g.rotateX(Math.PI / 2); // (x,z)->(x,0,z)
@@ -317,14 +320,14 @@ function select(p) {
 }
 
 // ---------- 施設（区画の状態：0=空き地 1=建築中 2=完成 3=発展後）----------
-const FAC = { smithy: '鍛冶場', tavern: '酒場' }, STAGE = ['空き地', '建築中', '完成', '発展後'];
+const FAC = GM.FAC, STAGE = GM.STAGE, ART = ['smithy', 'tavern']; // 絵のある施設。畑はコードで描く
 const BS = .38; // 素材シートの画素 → 基準画像の画素
-for (const f of Object.keys(FAC)) for (let k = 1; k <= 3; k++) bldTex[`${f}_${k}`] = await loadBld(`assets/bld/${f}_${k}.png`);
+for (const f of ART) for (let k = 1; k <= 3; k++) bldTex[`${f}_${k}`] = await loadBld(`assets/bld/${f}_${k}.png`);
 plots.forEach(pl => { pl.fac = null; pl.stage = 0; pl.mesh = null; pl.base = pl.poly.reduce((a, q) => q[1] > a[1] ? q : a, pl.poly[0]); pl.cx = pl.poly.reduce((a, q) => a + q[0], 0) / 4; });
 const alphaCache = {};
 function alphaMask(key) { // 絵の透明度（タップ判定用）
   if (alphaCache[key]) return alphaCache[key];
-  const im = bldTex[key].image, c = document.createElement('canvas'); c.width = im.width; c.height = im.height;
+  const im = key === 'castle' ? castleHit.im : bldTex[key].image, c = document.createElement('canvas'); c.width = im.width; c.height = im.height;
   const x = c.getContext('2d', { willReadFrequently: true }); x.drawImage(im, 0, 0);
   return alphaCache[key] = { w: im.width, h: im.height, d: x.getImageData(0, 0, im.width, im.height).data };
 }
@@ -360,13 +363,24 @@ function pavingTex(opaque) { // 石畳（コード生成）。u,vは建物の足
   if (!opaque) { x.globalCompositeOperation = 'destination-in'; x.fillStyle = '#000'; x.beginPath(); x.roundRect(10, 10, N - 20, N - 20, 40); x.fill(); x.globalCompositeOperation = 'source-over'; }
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; if (opaque) { t.wrapS = t.wrapT = THREE.RepeatWrapping; plazaTex = t; } else pavTex = t; return t;
 }
-function pavingMesh(q, opaque) { // q = [T,R,B,L] の地面座標。B→R が u、B→L が v
+function pavingMesh(q, opaque, tex) { // q = [T,R,B,L] の地面座標。B→R が u、B→L が v
   const [T, R, B, L] = q, P = [B, R, T, L], pos = [], z = p => zOf(p[1]);
   P.forEach(p => pos.push(p[0], hgt(p[0], z(p)) + .8, z(p)));
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   const k = opaque ? 2 : 1; g.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, k, 0, k, k, 0, k], 2)); g.setIndex([0, 2, 1, 0, 3, 2]);
-  const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: pavingTex(opaque), transparent: !opaque, alphaTest: opaque ? 0 : .5, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, side: THREE.DoubleSide }));
+  const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: tex || pavingTex(opaque), transparent: !opaque, alphaTest: opaque ? 0 : .5, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, side: THREE.DoubleSide }));
   m.frustumCulled = false; return m;
+}
+const cropTex = {};
+function cropTexture(stage) { // 畑（コード生成）：1=芽 2=青い畝 3=実った麦
+  if (cropTex[stage]) return cropTex[stage];
+  const N = 256, c = document.createElement('canvas'); c.width = c.height = N; const x = c.getContext('2d'); let seed = 11 + stage; const r = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  x.fillStyle = '#5b3b22'; x.fillRect(0, 0, N, N);
+  for (let j = 0; j < 9; j++) { const y = 18 + j * 25; x.fillStyle = '#6e4a2c'; x.fillRect(10, y - 7, N - 20, 10);
+    for (let i = 14; i < N - 14; i += stage === 1 ? 14 : 5) { const h = stage === 1 ? 4 : stage === 2 ? 10 + r() * 4 : 13 + r() * 4;
+      x.fillStyle = stage === 3 ? `hsl(${42 + r() * 8},${70 + r() * 15}%,${52 + r() * 12}%)` : `hsl(${95 + r() * 20},${45 + r() * 15}%,${30 + r() * 14}%)`; x.fillRect(i + r() * 3, y - h, stage === 1 ? 4 : 3, h); } }
+  x.globalCompositeOperation = 'destination-in'; x.beginPath(); x.roundRect(4, 4, N - 8, N - 8, 18); x.fill();
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return cropTex[stage] = t;
 }
 function grow(q, k) { const cx = q.reduce((a, p) => a + p[0], 0) / 4, cy = q.reduce((a, p) => a + p[1], 0) / 4; return q.map(([x, y]) => [cx + (x - cx) * k, cy + (y - cy) * k]); }
 function refreshPlot(pl) {
@@ -374,6 +388,7 @@ function refreshPlot(pl) {
   if (pl.mesh) { scene.remove(pl.mesh); pl.mesh.material.dispose(); pl.mesh = null; }
   pl.hit = null; pl.poly = pl.home;
   const key = `${pl.fac}_${pl.stage}`, t = pl.fac && pl.stage >= 1 ? bldTex[key] : null;
+  if (pl.fac === 'farm' && pl.stage >= 1) { pl.pav = pavingMesh(grow(pl.home, .94), false, cropTexture(pl.stage)); scene.add(pl.pav); }
   if (t) {
     const meta = bld[`assets/bld/${key}.png`];
     pl.mesh = sprite3D(t, meta, BS, pl.cx, pl.base[1] - 4); scene.add(pl.mesh);
@@ -428,28 +443,29 @@ layout.plazas.forEach(pz => { // 広場：石畳＋中央の噴水／井戸＋�
 }
 const signs = layout.signs.map(sg => ({ ...sg, mesh: piece('sign', sg.x, sg.y, .6, sg.label) }));
 
-// ---------- 開拓（未開拓の地は霧で覆う）と保存 ----------
-const SAVE_KEY = 'territory_v1';
-function loadSave() { try { return JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); } catch (e) { return null; } }
-function writeSave() { try { localStorage.setItem(SAVE_KEY, JSON.stringify({ plots: Object.fromEntries(plots.filter(p => p.fac).map(p => [p.id, [p.fac, p.stage]])), open: areas.filter(a => !a.locked).map(a => a.id) })); } catch (e) { } }
+// ---------- 開拓（未開拓の地は霧で覆う）----------
 const areas = layout.areas.map(a => ({ ...a }));
-{
-  const fogTex = canvasSprite(512, 128, g => { // 左の縁と奥の縁をぼかした暗い霧
-    const gr = g.createLinearGradient(0, 0, 512, 0); gr.addColorStop(0, 'rgba(8,12,18,0)'); gr.addColorStop(.07, 'rgba(8,12,18,.72)'); gr.addColorStop(1, 'rgba(8,12,18,.72)'); g.fillStyle = gr; g.fillRect(0, 0, 512, 128);
-    const gv = g.createLinearGradient(0, 0, 0, 128); gv.addColorStop(0, 'rgba(0,0,0,0)'); gv.addColorStop(.06, 'rgba(0,0,0,1)'); g.globalCompositeOperation = 'destination-in'; g.fillStyle = gv; g.fillRect(0, 0, 512, 128); });
-  areas.forEach(a => {
-    const x0 = a.x0 - 40, x1 = (a.x1 || REF_W + 120), z0 = zOf(372), z1 = zOf(REF_H + 300);
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, z1 - z0), new THREE.MeshBasicMaterial({ map: fogTex, transparent: true, depthTest: false, depthWrite: false }));
-    m.rotation.x = -Math.PI / 2; m.position.set((x0 + x1) / 2, 0, (z0 + z1) / 2); m.renderOrder = 50; scene.add(m); a.fog = m;
-  });
+// 霧は1枚：未開拓のうち一番手前の区域の左端から、世界の右端まで。開拓すると古い霧が消え、新しい霧が次の区域から始まる
+let fog = null;
+function fogMesh(x0) {
+  const x1 = REF_W + 160, z0 = zOf(372), z1 = zOf(REF_H + 300);
+  const k = Math.min(.5, 70 / (x1 - x0)), tex = canvasSprite(1024, 128, g => { // 左の縁（約70px）と奥の縁をぼかした暗い霧
+    const gr = g.createLinearGradient(0, 0, 1024, 0); gr.addColorStop(0, 'rgba(8,12,18,0)'); gr.addColorStop(k, 'rgba(8,12,18,.72)'); gr.addColorStop(1, 'rgba(8,12,18,.72)'); g.fillStyle = gr; g.fillRect(0, 0, 1024, 128);
+    const gv = g.createLinearGradient(0, 0, 0, 128); gv.addColorStop(0, 'rgba(0,0,0,0)'); gv.addColorStop(.06, 'rgba(0,0,0,1)'); g.globalCompositeOperation = 'destination-in'; g.fillStyle = gv; g.fillRect(0, 0, 1024, 128); });
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, z1 - z0), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false }));
+  m.rotation.x = -Math.PI / 2; m.position.set((x0 + x1) / 2, 0, (z0 + z1) / 2); m.renderOrder = 50; scene.add(m);
+  m.userData.x0 = x0; return m;
 }
-const areaOf = x => areas.find(a => x >= a.x0 && x < (a.x1 || Infinity)); // 区域は x の範囲で分ける（次の区域は x0 を足すだけ）
-const lockedAt = (x) => { const a = areaOf(x); return a && a.locked; };
-function unlockArea(a, instant) {
-  a.locked = false; if (instant) { a.fog.visible = false; return; }
-  const t0 = performance.now(); (function fade() { const k = Math.min(1, (performance.now() - t0) / 900); a.fog.material.opacity = 1 - k; if (k < 1) requestAnimationFrame(fade); else a.fog.visible = false; })();
-  writeSave(); renderActions();
+function updateFog(instant) {
+  const first = areas.filter(a => a.locked).sort((p, q) => p.x0 - q.x0)[0], x0 = first ? first.x0 - 40 : null;
+  if (fog && fog.userData.x0 === x0) return;
+  const old = fog; fog = x0 === null ? null : fogMesh(x0);
+  if (!old) return; if (instant) { scene.remove(old); old.material.map.dispose(); return; }
+  const t0 = performance.now(); (function fade() { const k = Math.min(1, (performance.now() - t0) / 900); old.material.opacity = 1 - k; if (k < 1) requestAnimationFrame(fade); else { scene.remove(old); old.material.map.dispose(); } })();
 }
+const areaOf = x => areas.find(a => x >= a.x0 && x < (a.x1 || Infinity)); // 区域は x の範囲で分ける（次の区域は layout に足すだけ）
+const lockedAt = x => { const a = areaOf(x); return !!a && a.locked; };
+function showArea(a, open) { a.locked = !open; }
 function hitBuilding(sx, sy) { // 建物の絵（透明でない所）を押したか。手前の建物を優先
   let best = null;
   for (const pl of plots) {
@@ -459,19 +475,62 @@ function hitBuilding(sx, sy) { // 建物の絵（透明でない所）を押し�
   }
   return best;
 }
-function setPlot(pl, fac, stage, quiet) { pl.fac = stage ? fac : null; pl.stage = stage; refreshPlot(pl); if (!quiet) { renderActions(); writeSave(); } }
-const actEl = document.createElement('div');
-actEl.style.cssText = 'position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom) + 28px);z-index:3;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;padding:0 8px;pointer-events:none';
-document.body.appendChild(actEl);
-function btn(label, fn) { const b = document.createElement('button'); b.textContent = label; b.style.cssText = 'pointer-events:auto;min-height:48px;padding:0 16px;font-size:15px;font-weight:700;color:#2a1a08;background:linear-gradient(#f0d58a,#c9a24a);border:2px solid #5a3d12;border-radius:10px;box-shadow:0 2px 6px #000a'; b.addEventListener('click', e => { e.stopPropagation(); fn(); }); return b; }
-function renderActions() {
-  actEl.replaceChildren();
-  if (selSign) { const a = selSign.area && areas.find(q => q.id === selSign.area); if (a && a.locked) actEl.appendChild(btn(`${a.name}を開拓する（仮：無料）`, () => unlockArea(a))); return; }
-  const pl = selected; if (!pl) return;
-  if (pl.stage === 0) { for (const f of Object.keys(FAC)) actEl.appendChild(btn(`${FAC[f]}を建てる`, () => setPlot(pl, f, 1))); }
-  else { if (pl.stage < 3) actEl.appendChild(btn(`${STAGE[pl.stage + 1]}へ進める`, () => setPlot(pl, pl.fac, pl.stage + 1))); actEl.appendChild(btn('取り壊す', () => setPlot(pl, null, 0))); }
-}
+function hitCastle(sx, sy) { const h = castleHit; if (!h) return false; const u = (sx - h.left) / h.w, v = (sy - h.top) / h.h; if (u < 0 || u > 1 || v < 0 || v > .9) return false; const m = alphaMask('castle'); return m.d[((Math.min(m.h - 1, v * m.h | 0)) * m.w + Math.min(m.w - 1, u * m.w | 0)) * 4 + 3] > 40; }
+function setPlot(pl, fac, stage) { pl.fac = stage ? fac : null; pl.stage = stage; refreshPlot(pl); }
 
+// ---------- ゲームの状態（game.js のルール）と画面の同期 ----------
+const SAVE_KEY = 'territory_v2';
+let G = null, selCastle = false;
+function loadSave() { try { const v = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); return v && v.week ? v : null; } catch (e) { return null; } }
+function writeSave() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(G)); } catch (e) { } }
+function syncMap(instant) { // 状態 → 区画の絵と霧
+  for (const pl of plots) { const p = G.plots[pl.id]; const f = p ? p.fac : null, stg = p ? p.stage : 0; if (pl.fac !== f || pl.stage !== stg) setPlot(pl, f, stg); }
+  for (const a of areas) showArea(a, G.open.includes(a.id)); updateFog(instant);
+}
+const ui = createUI({ onEndWeek: () => endWeek(), onReset: () => { G = GM.newState(layout.areas); select(null); syncMap(true); commit('最初からやり直した'); } });
+function commit(msg) { writeSave(); syncMap(); refreshUI(); if (msg) ui.toast(msg); }
+function act(fn, ok) { if (fn()) commit(ok); else ui.toast('できない（行動点か物資が足りない）'); }
+const sg = n => (n >= 0 ? '+' : '') + n;
+function endWeek() {
+  if (G.over) return; if (G.raid) { raidModal(); return; }
+  const msg = GM.endWeek(G); select(null); commit(msg);
+}
+function raidModal() {
+  const R = G.raid; if (!R) { ui.modal(null); document.body.style.setProperty('--raid', '0'); return; }
+  const D = GM.D(G), p = Math.round(GM.handP(G, R.E) * 100);
+  ui.modal(R.kind === 'sortie' ? `出撃：${R.name}` : `襲撃：${R.name}`, `敵の規模 <b>${R.E}</b> ／ こちらの防衛力 <b>${Math.round(D)}</b><br>任せる：見込みは「${GM.autoTier(G, R.E)}」<br>自分で戦う：成功率 約${p}%（成功で報酬、失敗は被害が1段重い。${R.kind === 'sortie' ? '行動点-1' : '次の週の行動点-1'}）<br><small>※自分で戦うは、アクション戦闘とまだつないでいない（確率で解決）</small>`,
+    [{ label: '任せる', fn: () => { const t = GM.resolve(G, 'auto'); ui.modal(null); commit(t); } }, { label: '自分で戦う', sub: `成功率 約${p}%`, fn: () => { const t = GM.resolve(G, 'hand'); ui.modal(null); commit(t); } }]);
+}
+function overModal() {
+  if (!G.over) return;
+  ui.modal(G.over === 'win' ? '勝利' : '敗北', `${G.why}（第${Math.min(G.week, GM.WEEKS)}週）<br>開拓した区域：${G.open.length}／${areas.length} ／ 施設：${Object.keys(G.plots).length}`, [{ label: '最初から', fn: () => { G = GM.newState(layout.areas); ui.modal(null); select(null); syncMap(true); commit('最初からやり直した'); } }]);
+}
+function refreshUI() {
+  const r = GM.raidView(G), inc = GM.income(G), md = GM.moraleD(G);
+  const raidTxt = r ? `次の襲撃：<b>${r.name}</b> 第${r.w}週（${r.inWeeks ? 'あと' + r.inWeeks + '週' : '今週末'}）規模 ${r.known ? r.E : r.lo + '〜' + r.hi}${r.known ? '' : '（未偵察）'}` : '襲撃の予定はない';
+  let selTxt = '区画・城・目印をタップ';
+  if (selected) { const p = G.plots[selected.id]; selTxt = `区画 ${selected.id}：${p ? FAC[p.fac].n + '（' + STAGE[p.stage] + '）' : '空き地'}`; }
+  else if (selCastle) selTxt = '城：兵・民・偵察・出撃';
+  else if (selSign) { const a = selSign.area && areas.find(q => q.id === selSign.area); selTxt = `目印 ${selSign.label}${a ? (G.open.includes(a.id) ? '（開拓済み）' : '（未開拓）') : '（この先は準備中）'}`; }
+  ui.hud(`<div class="row"><span class="k">第${Math.min(G.week, GM.WEEKS)}週／${GM.WEEKS}</span><span class="ap">行動点 ${'●'.repeat(G.ap)}${'○'.repeat(Math.max(0, GM.apOf(G.morale) - G.ap))}</span>
+    <span>📦物資 ${G.sup}<span class="d"> ${sg(inc)}/週</span></span><span>😊民心 ${Math.round(G.morale)}<span class="${md >= 0 ? 'd' : 'n'}"> ${sg(md)}/週</span></span>
+    <span>⚔兵 ${G.troops}</span><span>🛡防衛 ${Math.round(GM.D(G))}</span><span>🏰耐久 ${G.hp}</span></div><div class="raid">${raidTxt}</div><div class="sel">${selTxt}</div>`);
+  ui.endWeek(G.raid ? '襲撃を迎える' : `週を終える<small>物資${sg(inc)} 民心${sg(md)}</small>`, G.ap === 0 || !!G.raid, !!G.over);
+  renderActions(); if (G.raid) raidModal(); else if (G.over) overModal();
+}
+function renderActions() {
+  if (!G) return; const L = [];
+  if (selSign) { const a = selSign.area && areas.find(q => q.id === selSign.area); const ad = a && G.areaDefs.find(q => q.id === a.id);
+    if (ad && !G.open.includes(ad.id)) L.push({ label: `${ad.name}を開拓する`, sub: `行動点-1 物資-${ad.cost}／毎週の物資+${ad.income}・区画8`, can: GM.canOpen(G, ad), fn: () => act(() => GM.openArea(G, ad), `${ad.name}を開拓した`) }); }
+  else if (selCastle) { for (const [id, c] of Object.entries(GM.CASTLE)) L.push({ label: c.t, sub: `${c.cost ? '物資-' + c.cost + ' ' : ''}${c.d}`, can: GM.canCastle(G, id), fn: () => act(() => { const ok = GM.doCastle(G, id); if (ok && G.raid) setTimeout(raidModal, 0); return ok; }, c.t + 'を行った') }); }
+  else if (selected) { const id = selected.id, p = G.plots[id];
+    if (!p) for (const [f, d] of Object.entries(FAC)) L.push({ label: `${d.n}を建てる`, sub: `物資-${d.cost}／${d.d}`, can: GM.canBuild(G, f), fn: () => act(() => GM.build(G, id, f), `${d.n}の建築を始めた（週末に完成）`) });
+    else { const d = FAC[p.fac];
+      if (p.stage === 2) L.push({ label: '発展させる', sub: `物資-${d.up}／効果が2倍`, can: GM.canUpgrade(G, id), fn: () => act(() => GM.upgrade(G, id), `${d.n}を発展させた`) });
+      if (p.stage === 1) L.push({ label: '建築中', sub: '週末に完成', can: false, fn: () => { } });
+      L.push({ label: '取り壊す', sub: '行動点は使わない', fn: () => act(() => GM.demolish(G, id), `${d.n}を取り壊した`) }); } }
+  ui.actions(L);
+}
 // ---------- 視点（パン・ズーム） ----------
 const view = { cx: AREA0_W / 2, cz: zOf(REF_H * .5), zoom: 1 };
 let fitZoom = 1, W = 1, H = 1;
@@ -516,10 +575,11 @@ function pickAt(cx, cy) { // 画面の点 → 基準画像の座標（高さ0の
 canvas.addEventListener('pointerup', e => {
   if (drag && !drag.moved) {
     const [sx, sy] = pickAt(e.clientX, e.clientY);
-    const sg = signs.find(q => Math.abs(sx - q.x) < 38 && sy > q.y - 86 && sy < q.y + 10);
-    if (sg) { select(null); selSign = sg; renderActions(); }
+    const sgn = signs.find(q => !lockedAt(q.x) && Math.abs(sx - q.x) < 38 && sy > q.y - 86 && sy < q.y + 10);
+    if (G.raid || G.over) { refreshUI(); }
+    else if (sgn) { select(null); selSign = sgn; refreshUI(); }
     else if (lockedAt(sx)) select(null);
-    else select(hitBuilding(sx, sy) || plots.find(p => pointInPoly(sx, sy, p.poly)) || null);
+    else { const pl = hitBuilding(sx, sy); if (!pl && hitCastle(sx, sy)) { select(null); selCastle = true; refreshUI(); } else select(pl || plots.find(p => pointInPoly(sx, sy, p.poly)) || null); }
   }
   pointers.delete(e.pointerId); if (pointers.size < 2) pinch = null; if (!pointers.size) drag = null;
 });
@@ -534,13 +594,13 @@ function frame(now) {
   groundMat.uniforms.time.value = now / 1000;
   apply(); renderer.render(scene, camera);
   if (acc > 500) { st.textContent = `3D: ${status.ok ? 'OK' : status.reason} / 地面:${status.ground} 小物:${status.sprites}(${status.props}) / ${(frames * 1000 / acc).toFixed(0)}fps / 拡大 ${view.zoom.toFixed(2)}`; frames = 0; acc = 0; }
-  hud.innerHTML = `<b>領地 地形テスト</b>（コード生成の地形）<br>${selected ? `区画 <b>${selected.id}</b>：${selected.fac ? FAC[selected.fac] + '（' + STAGE[selected.stage] + '）' : '空き地'}` : (selSign ? `目印 <b>${selSign.label}</b>${selSign.area ? (areas.find(a => a.id === selSign.area).locked ? '（未開拓）' : '（開拓済み）') : '（この先は準備中）'}` : '区画をタップ')}`;
+  // HUD は refreshUI() が書く
   requestAnimationFrame(frame);
 }
 canvas.addEventListener('webglcontextlost', e => { e.preventDefault(); status.ok = false; status.reason = 'WebGLが失われた'; });
-{ const sv = loadSave(); if (sv) { (sv.open || []).forEach(id => { const a = areas.find(q => q.id === id); if (a) unlockArea(a, true); }); Object.entries(sv.plots || {}).forEach(([id, [f, st]]) => { const pl = plots.find(q => q.id === id); if (pl && FAC[f]) setPlot(pl, f, st, true); }); } }
+G = loadSave() || GM.newState(layout.areas); syncMap(true); refreshUI();
 resize(); apply(); renderer.render(scene, camera); status.ok = true;
 window.__t.setView = (zoom, sx, sy) => { view.zoom = zoom; view.cx = sx; view.cz = zOf(sy); clampView(); apply(); renderer.render(scene, camera); };
 window.__t.select = id => select(plots.find(p => p.id === id) || null);
-window.__t.plots = plots; window.__t.unlock = id => unlockArea(areas.find(a => a.id === id), true); window.__t.reset = () => { try { localStorage.removeItem(SAVE_KEY); } catch (e) { } }; window.__t.pickAt = (cx, cy) => pickAt(cx, cy); window.__t.view = view; window.__t.sel = () => selected && selected.id; window.__t.build = (id, fac, stage) => { const pl = plots.find(q => q.id === id); if (pl) setPlot(pl, fac, stage); };
+window.__t.plots = plots; window.__t.G = () => G; window.__t.GM = GM; window.__t.commit = () => commit(); window.__t.reset = () => { try { localStorage.removeItem(SAVE_KEY); } catch (e) { } }; window.__t.pickAt = (cx, cy) => pickAt(cx, cy); window.__t.view = view; window.__t.sel = () => selected && selected.id; window.__t.build = (id, fac, stage) => { if (stage) G.plots[id] = { fac, stage }; else delete G.plots[id]; commit(); };
 requestAnimationFrame(frame);
