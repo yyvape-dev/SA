@@ -1,8 +1,8 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793192090';
-import { createUI } from './ui.js?v=1793192090';
+import * as GM from './game.js?v=1793192644';
+import { createUI } from './ui.js?v=1793192644';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -311,7 +311,7 @@ function pointInPoly(x, y, poly) { let c = false; for (let i = 0, j = poly.lengt
 function select(p) {
   selSign = null; selCastle = false; selAlly = null;
   if (selGroup) { scene.remove(selGroup); selGroup = null; }
-  selected = p; if (G && p && GM.allyAt(G, p.id)) curLine = GM.lineOf(G, GM.allyAt(G, p.id)); if (G) refreshUI(); if (!p) return;
+  selected = p; if (G && p && GM.allyAt(G, p.id)) newLine(GM.allyAt(G, p.id)); if (G) refreshUI(); if (!p) return;
   // 金色に光る枠（モックの選択表示）：外側に広げた形から内側をくり抜いた帯＋外のにじみ
   const ring = (k0, k1, mat) => { const cx = p.poly.reduce((a, q) => a + q[0], 0) / 4, cy = p.poly.reduce((a, q) => a + q[1], 0) / 4, g = (k) => p.poly.map(([x, y]) => new THREE.Vector2(cx + (x - cx) * k, zOf(cy + (y - cy) * k)));
     const sh = new THREE.Shape(g(k1)); sh.holes.push(new THREE.Path(g(k0).reverse())); const geo = new THREE.ShapeGeometry(sh); geo.rotateX(Math.PI / 2);
@@ -803,6 +803,13 @@ function overModal() {
   if (!G.over) return;
   ui.modal(G.over === 'win' ? '勝利' : '敗北', `${G.why}（第${Math.min(G.week, GM.WEEKS)}週）<br>開拓した区域：${G.open.length}／${areas.length} ／ 施設：${Object.keys(G.plots).length}`, [{ label: '最初から', fn: () => { G = GM.newState(layout.areas); ui.modal(null); select(null); syncMap(true); commit('最初からやり直した'); } }]);
 }
+// せりふ用の立ち絵（バストアップ、1人3枚まで）。せりふが変わるたびにランダムに選ぶ。なければ全身の立ち絵
+const POR = {};
+for (const k of Object.keys(GM.ALLY)) { const L = []; for (let i = 1; i <= 3; i++) { const im = await loadImage(`../ally/por_${k}_${i}.png`); if (im) L.push(`../ally/por_${k}_${i}.png`); } if (L.length) POR[k] = L; }
+const porPick = {};
+function porOf(k) { return POR[k] ? POR[k][porPick[k] || 0] : `../ally/${k}.png`; }
+function newLine(k) { curLine = GM.lineOf(G, k); lineKey = k; if (POR[k]) porPick[k] = Math.floor(Math.random() * POR[k].length); }
+let lineKey = '';
 let advisorMsg = null; // 内政役の報告（吹き出し）。了解で閉じる
 const why = (need) => (G.raid ? '襲撃の最中' : G.ap < 1 ? '行動点が足りない' : need && G.sup < need ? '物資が足りない' : '今はできない');
 function defaultAlly() { const a = GM.advisorOf(G); return a && GM.joined(G, a) ? a : 'mina'; }
@@ -817,20 +824,20 @@ function refreshUI() {
 }
 function renderActions() {
   if (!G) return; const L = []; let title = '', icon = 'build', por = null, bubble = null, key = 'none', mode = 'act';
-  const P = k => ({ src: `../ally/${k}.png`, face: faceURL[k], name: `${GM.ALLY[k].n}（${GM.ALLY[k].r}）` });
+  const P = k => ({ src: porOf(k), bust: !!POR[k], face: faceURL[k], name: `${GM.ALLY[k].n}（${GM.ALLY[k].r}）` });
   if (advisorMsg) { const k = defaultAlly(); ui.panel({ key: 'adv' + G.week, icon: 'ally', title: `${GM.ALLY[k].n}の報告`, por: P(k), bubble: advisorMsg, items: [{ label: '了解', act: '', verb: '了解', fn: () => { advisorMsg = null; refreshUI(); } }], week: weekBtn(), mode: 'talk' }); return; }
   if (selSign) { key = 'sign' + selSign.id; icon = 'flag'; const a = selSign.area && areas.find(q => q.id === selSign.area); const ad = a && G.areaDefs.find(q => q.id === a.id);
     title = `目印・${selSign.label}`;
     if (ad && !G.open.includes(ad.id)) L.push({ label: '開拓', act: `${ad.name}を開拓する`, sup: -ad.cost, ap: 1, eff: `毎週 物資+${ad.income}・区画8${Object.keys(GM.ALLY).filter(k => GM.ALLY[k].join === ad.id).map(k => '・' + GM.ALLY[k].n + 'が仲間に').join('')}`, verb: '開拓する', can: GM.canOpen(G, ad), why: why(ad.cost), fn: () => act(() => GM.openArea(G, ad), `${ad.name}を開拓した`) });
     else bubble = ad ? 'この地はもう陛下の領地です。' : 'この先は、まだ道が拓けていません。'; }
-  else if (selAlly) { const k = selAlly, A = GM.ALLY[k], b = G.bond[k] || 0, at = G.assign[k]; key = 'ally' + k; icon = 'ally'; por = P(k); bubble = curLine; mode = 'talk';
+  else if (selAlly) { const k = selAlly, A = GM.ALLY[k], b = G.bond[k] || 0, at = G.assign[k]; if (lineKey !== k) newLine(k); key = 'ally' + k; icon = 'ally'; por = P(k); bubble = curLine; mode = 'talk';
     title = `${A.n}　絆 ${'●'.repeat(b)}${'○'.repeat(3 - b)}`;
     if (b < 3) L.push({ label: '過ごす', act: `${A.n}と過ごす`, ap: 1, eff: `絆${b + 1}${A.lv[b + 1] ? '：' + A.lv[b + 1] : ''}`, verb: '過ごす', can: GM.canTalk(G, k), why: why(), fn: () => act(() => GM.talk(G, k), `${A.n}と過ごした`) });
     if (at) L.push({ label: '配置を外す', act: `${FAC[G.plots[at].fac].n}（${at}）から外す`, eff: '広場へ戻る', verb: '外す', fn: () => act(() => GM.unassign(G, k), `${A.n}を広場へ戻した`) }); }
   else if (selCastle) { key = 'castle'; icon = 'castle'; title = '城'; por = P(defaultAlly());
     for (const [id, c] of Object.entries(GM.CASTLE)) L.push({ label: c.t, act: c.t, sup: id === 'levy' ? 5 : -c.cost, ap: 1, eff: c.d, verb: c.t, can: GM.canCastle(G, id), why: why(c.cost), fn: () => act(() => { const ok = GM.doCastle(G, id); if (ok && G.raid) setTimeout(raidModal, 0); return ok; }, c.t + 'を行った') }); }
-  else if (selected) { const id = selected.id, p = G.plots[id], here = p && GM.allyAt(G, id); key = 'plot' + id + (p ? p.fac + p.stage : '');
-    por = P(here || defaultAlly()); if (here) { bubble = curLine; mode = 'talk'; }
+  else if (selected) { const id = selected.id, p = G.plots[id], here = p && GM.allyAt(G, id); key = 'plot' + id + (p ? p.fac + p.stage + (here || '') : '');
+    if (here && lineKey !== here) newLine(here); por = P(here || defaultAlly()); if (here) { bubble = curLine; mode = 'talk'; }
     if (!p) { title = '建設予定地'; for (const [f, d] of Object.entries(FAC)) L.push({ label: d.n, act: f === 'farm' ? '畑を整備' : `${d.n}を建てる`, sup: -d.cost, ap: 1, eff: `毎週 ${d.d.replace('毎週の', '')}`, verb: '建設する', can: GM.canBuild(G, f), why: why(d.cost), fn: () => act(() => GM.build(G, id, f), `${d.n}の建築を始めた（週末に完成）`) }); }
     else { const d = FAC[p.fac]; title = `${d.n}（${p.burnt ? '焼かれた' : STAGE[p.stage]}）${here ? '・' + GM.ALLY[here].n : ''}`;
       if (p.burnt) L.push({ label: '修理', act: `${d.n}を修理する`, sup: -GM.REPAIR, ap: 1, eff: '効果が戻る', verb: '修理する', can: GM.canRepair(G, id), why: why(GM.REPAIR), fn: () => act(() => GM.repair(G, id), `${d.n}を修理した`) });
@@ -895,7 +902,7 @@ canvas.addEventListener('pointerup', e => {
     if (G.raid || G.over) { refreshUI(); }
     else if (sgn) { select(null); selSign = sgn; refreshUI(); }
     else if (lockedAt(sx)) select(null);
-    else if (hitAlly(sx, sy)) { const k = hitAlly(sx, sy); select(null); selAlly = k; curLine = GM.lineOf(G, k); refreshUI(); }
+    else if (hitAlly(sx, sy)) { const k = hitAlly(sx, sy); select(null); selAlly = k; newLine(k); refreshUI(); }
     else { const pl = hitBuilding(sx, sy); if (!pl && hitCastle(sx, sy)) { select(null); selCastle = true; refreshUI(); } else select(pl || plots.find(p => pointInPoly(sx, sy, p.poly)) || null); }
   }
   pointers.delete(e.pointerId); if (pointers.size < 2) pinch = null; if (!pointers.size) drag = null;

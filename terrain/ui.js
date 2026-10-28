@@ -105,7 +105,7 @@ export function createUI({ onEndWeek, onReset }) {
       if (mode === 'mini') {
         pnl.innerHTML = `${av}<div class="tx">${p.por ? `<b>${p.por.name.replace(/（.*）/, '')}</b>：` : ''}${p.bubble || ''}</div>${wkBtn}`;
       } else {
-        pnl.innerHTML = `<div class="por">${mode === 'talk' && p.por ? `<img src="${p.por.src}" alt=""><div class="nm">${p.por.name}</div>` : ''}</div>
+        pnl.innerHTML = `<div class="por">${mode === 'talk' && p.por ? `<img src="${p.por.src}" alt="" style="${p.por.bust ? 'width:118%;top:2px' : ''}"><div class="nm">${p.por.name}</div>` : ''}</div>
         <div class="card"><div class="hd">${mode === 'act' ? av : ''}${ico(p.icon || 'build', 20)}<span>${p.title}</span></div>
         ${items.length > 1 ? `<div class="chips">${items.map((x, i) => `<button data-i="${i}" class="${i === pick ? 'on' : ''} ${x.can === false ? 'x' : ''}">${x.label}</button>`).join('')}</div>` : ''}
         ${it ? `<div class="act">${it.act ?? it.label}</div><div class="cost">${it.sup ? `<span class="${it.sup < 0 ? 'm' : 'p'}">${ico('sup', 14)} 物資${it.sup > 0 ? '+' : ''}${it.sup}</span>` : ''}${it.ap ? `<span>${ico('ap', 14)} 行動 ${it.ap}</span>` : ''}${it.eff ? `<span class="eff">${it.eff}</span>` : ''}</div>${it.can === false && it.why ? `<div class="why">${it.why}</div>` : ''}` : ''}
