@@ -19,6 +19,14 @@ export const ALLY = {
   garou: { n: 'ガロウ', r: '火力役', join: 'east', lv: ['', '', '防衛力+4・戦闘のダメージ+15%', '防衛力+7・ダメージ+30%'] },
   sera:  { n: 'セラ',   r: '内政役', join: 'lake', lv: ['', '', '畑の産出+1ずつ・戦闘の最大HP+20', '炊き出しの民心+15・最大HP+40'] },
 };
+// 施設への配置：仲間1人につき施設1つ。完成・発展後の施設だけ。得意な施設なら効果+基本値ぶん、そうでなければ半分（切り上げ）
+export const AFFINITY = { farm: ['sera'], tavern: ['sera', 'garou'], smithy: ['garou', 'mina'] };
+export function assignBonus(fac, k) { const e = Object.values(FAC[fac].eff)[0]; return AFFINITY[fac].includes(k) ? e : Math.ceil(e / 2); }
+export const allyAt = (s, id) => Object.keys(s.assign || {}).find(k => s.assign[k] === id) || null;
+export function canAssign(s, k, id) { const p = s.plots[id]; return joined(s, k) && !!p && p.stage >= 2 && !s.over && !s.raid && s.assign[k] !== id; }
+export function assign(s, k, id) { if (!canAssign(s, k, id)) return false; const other = allyAt(s, id); if (other) delete s.assign[other]; s.assign[k] = id; s.log.push(`${ALLY[k].n}を${FAC[s.plots[id].fac].n}に配置した`); return true; }
+export function unassign(s, k) { if (!s.assign[k]) return false; delete s.assign[k]; return true; }
+function cleanAssign(s) { for (const k of Object.keys(s.assign || {})) { const p = s.plots[s.assign[k]]; if (!p || p.stage < 2) delete s.assign[k]; } }
 export const joined = (s, k) => !ALLY[k].join || s.open.includes(ALLY[k].join);
 const bond = (s, k) => (s.bond && s.bond[k]) || 0;
 export const canTalk = (s, k) => joined(s, k) && bond(s, k) < 3 && !s.over && !s.raid && s.ap >= 1;
@@ -31,11 +39,17 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const mult = st => (st === 2 ? 1 : st === 3 ? 2 : 0);
 
 export function newState(areaDefs) {
-  return { week: 1, ap: 3, sup: 10, morale: 60, troops: 4, hp: 3, plots: {}, open: [], bond: { mina: 0, garou: 0, sera: 0 }, battle: null, scouted: {}, tired: false, over: null, why: '', raid: null, log: [], areaDefs: areaDefs.map(a => ({ id: a.id, name: a.name, cost: a.cost, income: a.income })) };
+  return { week: 1, ap: 3, sup: 10, morale: 60, troops: 4, hp: 3, plots: {}, open: [], bond: { mina: 0, garou: 0, sera: 0 }, assign: {}, battle: null, scouted: {}, tired: false, over: null, why: '', raid: null, log: [], areaDefs: areaDefs.map(a => ({ id: a.id, name: a.name, cost: a.cost, income: a.income })) };
 }
 
 // ---------- 指標（全部ここから計算） ----------
-function effSum(s, key) { let v = 0; for (const p of Object.values(s.plots)) { const f = FAC[p.fac]; if (f && f.eff[key]) v += (f.eff[key] + (key === 'sup' && bond(s, 'sera') >= 2 ? 1 : 0)) * mult(p.stage); } return v; }
+function effSum(s, key) {
+  let v = 0;
+  for (const [id, p] of Object.entries(s.plots)) { const f = FAC[p.fac]; if (!f || !f.eff[key]) continue;
+    v += (f.eff[key] + (key === 'sup' && bond(s, 'sera') >= 2 ? 1 : 0)) * mult(p.stage);
+    const k = allyAt(s, id); if (k && p.stage >= 2) v += assignBonus(p.fac, k); }
+  return v;
+}
 export const D = s => s.troops * 1.5 + effSum(s, 'def') + 2 + (bond(s, 'garou') >= 3 ? 7 : bond(s, 'garou') >= 2 ? 4 : 0);                       // 防衛力
 export const landInc = s => s.areaDefs.filter(a => s.open.includes(a.id)).reduce((t, a) => t + a.income, 0);
 export const income = s => 4 + effSum(s, 'sup') + landInc(s) - Math.floor(s.troops / 2); // 毎週の物資
@@ -52,7 +66,7 @@ export function canBuild(s, fac) { return !s.over && !s.raid && s.ap >= 1 && s.s
 export function build(s, id, fac) { if (!canBuild(s, fac) || s.plots[id]) return false; spend(s, FAC[fac].cost); s.plots[id] = { fac, stage: 1 }; s.log.push(`${FAC[fac].n}の建築を始めた`); return true; }
 export function canUpgrade(s, id) { const p = s.plots[id]; return !!p && p.stage === 2 && !s.over && !s.raid && s.ap >= 1 && s.sup >= FAC[p.fac].up; }
 export function upgrade(s, id) { if (!canUpgrade(s, id)) return false; const p = s.plots[id]; spend(s, FAC[p.fac].up); p.stage = 3; s.log.push(`${FAC[p.fac].n}を発展させた`); return true; }
-export function demolish(s, id) { if (!s.plots[id] || s.raid || s.over) return false; s.log.push(`${FAC[s.plots[id].fac].n}を取り壊した`); delete s.plots[id]; return true; }
+export function demolish(s, id) { if (!s.plots[id] || s.raid || s.over) return false; s.log.push(`${FAC[s.plots[id].fac].n}を取り壊した`); delete s.plots[id]; cleanAssign(s); return true; }
 export function canOpen(s, a) { return !s.open.includes(a.id) && !s.over && !s.raid && s.ap >= 1 && s.sup >= a.cost; }
 export function openArea(s, a) { if (!canOpen(s, a)) return false; spend(s, a.cost); s.open.push(a.id); s.log.push(`${a.name}を開拓した`); return true; }
 
@@ -109,3 +123,47 @@ export function resolve(s, mode, rnd = Math.random, forced) { // forced: アク�
 }
 // 結果の見込み（任せた場合の被害の段階）
 export function autoTier(s, E) { const m = D(s) - E; return m >= 4 ? '被害なし' : m >= 0 ? '小被害' : m >= -4 ? '中被害' : '大被害'; }
+
+// ---------- 吹き出しのせりふ（立ち絵と一緒に出す）。相手は女王（陛下） ----------
+export const LINES = {
+  mina: { idle: ['陛下、縄の結び方なら任せて。逃げる奴は一人も残さないよ。', '広場の噴水、きれいだね。……べ、別にはしゃいでないから。', '敵をまとめて縛るの、得意なんだ。あとはガロウが叩けばいい。'],
+    farm: ['畑の見張りも捕縛役の仕事……かな？ カラスは縛れないけど。'], tavern: ['酒場って情報が集まるんだよ。怪しい客がいたら教えるね。'], smithy: ['捕縛網の目、もっと細かくしてもらってる。これで逃がさない。'],
+    b3: ['陛下を逃がしたあの夜から、わたしの縄は陛下のためにある。'] },
+  garou: { idle: ['斧が鈍る。早く戦をよこせ。', '城壁は高いほどいい。だが、最後に守るのは人だ。', '女王の兵か。悪くない響きだ。'],
+    farm: ['畑仕事は性に合わんが……腹が減っては戦えん。'], tavern: ['酒場で兵の話を聞くのも、将の仕事だ。一杯だけだぞ。'], smithy: ['いい鉄だ。これなら群れごと叩き割れる。'],
+    b3: ['陛下が前に立つなら、俺はその隣に立つ。それだけだ。'] },
+  sera: { idle: ['物資の帳簿、今週も合いました。陛下のおかげです。', '民の顔が明るい国は、強い国です。', '急がず、でも止まらず。国づくりはそういうものです。'],
+    farm: ['今年の麦は良く実りそうです。冬の蓄えも心配いりません。'], tavern: ['酒場の笑い声は、民心の物差しです。'], smithy: ['鍛冶の帳簿は、鉄より重いんです……。'],
+    b3: ['陛下の国を、もう一度。そのためなら、私は何年でも数字を数えます。'] },
+};
+export function lineOf(s, k, rnd = Math.random) {
+  const L = LINES[k], at = s.assign && s.assign[k], fac = at && s.plots[at] ? s.plots[at].fac : null;
+  const pool = [...L.idle, ...(fac ? L[fac] : []), ...(fac ? L[fac] : []), ...(bond(s, k) >= 3 ? L.b3 : [])];
+  return pool[Math.floor(rnd() * pool.length)];
+}
+
+// ---------- 週末の報告：変更点と注意点 ----------
+// 参謀：仲間に入ると、羊皮紙の代わりに吹き出しで報告する。キャラは未定なので、今は無効（key を ALLY のどれかにすると有効）
+export const ADVISOR = { key: null, join: null };
+export const advisorOf = s => (ADVISOR.key && (!ADVISOR.join || s.open.includes(ADVISOR.join)) ? ADVISOR.key : (s.advisorTest || null));
+export function snap(s) { return { week: s.week, sup: s.sup, morale: s.morale, troops: s.troops, hp: s.hp, plots: JSON.parse(JSON.stringify(s.plots)), logN: s.log.length }; }
+export function weekReport(prev, s) {
+  const ch = [], wr = [], d = (a, b) => (b - a >= 0 ? '+' : '') + (b - a);
+  ch.push(`物資 ${prev.sup} → ${s.sup}（${d(prev.sup, s.sup)}）`);
+  ch.push(`民心 ${Math.round(prev.morale)} → ${Math.round(s.morale)}（${d(Math.round(prev.morale), Math.round(s.morale))}）`);
+  if (prev.troops !== s.troops) ch.push(`兵 ${prev.troops} → ${s.troops}`);
+  if (prev.hp !== s.hp) ch.push(`城の耐久 ${prev.hp} → ${s.hp}`);
+  const done = Object.entries(s.plots).filter(([id, p]) => prev.plots[id] && prev.plots[id].stage === 1 && p.stage === 2).map(([id, p]) => FAC[p.fac].n);
+  if (done.length) ch.push(`完成：${done.join('・')}`);
+  for (const t of s.log.slice(prev.logN)) if (/襲撃|偵察隊|先遣隊|副官|本隊|侵攻/.test(t) && /：/.test(t)) ch.push(t);
+  // 注意点
+  const r = nextRaid(s);
+  if (r) { const lack = r.E - D(s), wk = r.w - s.week; if (lack > -4) wr.push(`${wk ? wk + '週後' : '今週末'}に${r.name}（規模${s.scouted[r.w] ? r.E : '約' + r.E}）。防衛力${Math.round(D(s))}では${lack > 0 ? '足りない' : 'ぎりぎり'}。`); else if (wk <= 1) wr.push(`${wk ? '来週末' : '今週末'}に${r.name}。防衛力は足りている。`); }
+  if (income(s) < 0) wr.push(`毎週の物資が${income(s)}。兵の維持費が重い。`);
+  if (s.morale < 35) wr.push(`民心${Math.round(s.morale)}。30を切ると行動点が2に減る。`);
+  else if (moraleD(s) < 0 && s.morale < 55) wr.push(`民心が毎週${moraleD(s)}ずつ下がっている。酒場か炊き出しを。`);
+  const idle = Object.keys(ALLY).filter(k => joined(s, k) && !(s.assign || {})[k]);
+  if (idle.length && Object.values(s.plots).some(p => p.stage >= 2)) wr.push(`${idle.map(k => ALLY[k].n).join('・')}が施設に配置されていない。`);
+  const a = s.areaDefs.find(a => !s.open.includes(a.id)); if (a && s.sup >= a.cost + 2) wr.push(`物資が貯まっている。${a.name}を開拓できる（物資${a.cost}）。`);
+  return { title: `第${prev.week}週の報告`, changes: ch, warns: wr };
+}

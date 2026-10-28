@@ -487,17 +487,24 @@ for (const k of Object.keys(GM.ALLY)) {
   const [x, y] = ALLY_POS[k], sc = 74 / im.height; const m = sprite3D(t, { w: im.width, h: im.height, ax: .5, ay: .98 }, sc, x, y); m.visible = false; scene.add(m);
   allyMesh[k] = { m, x, y, w: im.width * sc, h: im.height * sc };
 }
+function placeAlly(k, x, y) { const a = allyMesh[k]; if (!a) return; const z = zOf(y); a.m.position.set(x, hgt(x, z), z); a.x = x; a.y = y; }
+function allySpot(k) { // 配置先の施設の手前（左寄り）。配置していなければ家の広場
+  const id = G.assign && G.assign[k], pl = id && plots.find(q => q.id === id);
+  if (!pl) return ALLY_POS[k];
+  return G.plots[id] && G.plots[id].fac === 'farm' ? [pl.cx - 20, pl.base[1] - 34] : [pl.cx - 58, pl.base[1] - 16];
+}
+function showPortrait(k) { if (!k) { ui.portrait(null); return; } const A = GM.ALLY[k]; ui.portrait(`../ally/${k}.png`, `${A.n}（${A.r}）`, GM.lineOf(G, k)); }
 const hitAlly = (sx, sy) => Object.keys(allyMesh).find(k => { const a = allyMesh[k]; return a.m.visible && Math.abs(sx - a.x) < a.w * .45 && sy > a.y - a.h && sy < a.y + 4; });
 
 // ---------- ゲームの状態（game.js のルール）と画面の同期 ----------
 const SAVE_KEY = 'territory_v2';
-let G = null, selCastle = false, selAlly = null;
-function loadSave() { try { const v = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); if (v && v.week) { v.bond = v.bond || { mina: 0, garou: 0, sera: 0 }; return v; } return null; } catch (e) { return null; } }
+let G = null, selCastle = false, selAlly = null, shownPor = null;
+function loadSave() { try { const v = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); if (v && v.week) { v.bond = v.bond || { mina: 0, garou: 0, sera: 0 }; v.assign = v.assign || {}; return v; } return null; } catch (e) { return null; } }
 function writeSave() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(G)); } catch (e) { } }
 function syncMap(instant) { // 状態 → 区画の絵と霧
   for (const pl of plots) { const p = G.plots[pl.id]; const f = p ? p.fac : null, stg = p ? p.stage : 0; if (pl.fac !== f || pl.stage !== stg) setPlot(pl, f, stg); }
   for (const a of areas) showArea(a, G.open.includes(a.id)); updateFog(instant);
-  for (const k of Object.keys(allyMesh)) { const v = GM.joined(G, k); if (v && !allyMesh[k].m.visible && !instant) ui.toast(`${GM.ALLY[k].n}（${GM.ALLY[k].r}）が仲間になった`); allyMesh[k].m.visible = v; }
+  for (const k of Object.keys(allyMesh)) { const v = GM.joined(G, k); if (v && !allyMesh[k].m.visible && !instant) ui.toast(`${GM.ALLY[k].n}（${GM.ALLY[k].r}）が仲間になった`); allyMesh[k].m.visible = v; if (v) placeAlly(k, ...allySpot(k)); }
 }
 const ui = createUI({ onEndWeek: () => endWeek(), onReset: () => { G = GM.newState(layout.areas); select(null); syncMap(true); commit('最初からやり直した'); } });
 function commit(msg) { writeSave(); syncMap(); refreshUI(); if (msg) ui.toast(msg); }
@@ -505,7 +512,18 @@ function act(fn, ok) { if (fn()) commit(ok); else ui.toast('できない（行�
 const sg = n => (n >= 0 ? '+' : '') + n;
 function endWeek() {
   if (G.over) return; if (G.raid) { raidModal(); return; }
-  const msg = GM.endWeek(G); select(null); commit(msg);
+  G.repPrev = GM.snap(G); const msg = GM.endWeek(G); select(null); commit(G.raid ? null : msg); if (!G.raid) showReport();
+}
+function showReport() { // 週末の報告。参謀がいれば吹き出し、いなければ羊皮紙
+  if (!G.repPrev || G.raid) return; if (G.over) { G.repPrev = null; return; } const R = GM.weekReport(G.repPrev, G); G.repPrev = null; writeSave();
+  const adv = GM.advisorOf(G);
+  if (adv && GM.ALLY[adv]) {
+    const A = GM.ALLY[adv], txt = `${R.title}です。<br>${R.changes.join('、')}。${R.warns.length ? '<br><span style="color:#8a1a10">' + R.warns.join('<br>') + '</span>' : '<br>差し迫った心配はありません。'}`;
+    ui.portrait(`../ally/${adv}.png`, `${A.n}（参謀）`, txt); shownPor = adv;
+    ui.modal(null); ui.actions([{ label: '了解', fn: () => { shownPor = null; ui.portrait(null); refreshUI(); } }]); return;
+  }
+  ui.modal(R.title, `<div class="lab">変わったこと</div><ul>${R.changes.map(t => `<li>${t}</li>`).join('')}</ul><div class="lab">気をつけること</div><ul class="w">${R.warns.length ? R.warns.map(t => `<li>${t}</li>`).join('') : '<li style="color:#3a2410">差し迫った心配はない</li>'}</ul>`,
+    [{ label: `第${Math.min(G.week, GM.WEEKS)}週へ`, fn: () => ui.modal(null) }], 'parch');
 }
 function goBattle() { // アクション戦闘へ移る。結果は battle_result に書かれ、戻ってきたときに反映する
   const R = G.raid, id = String(Date.now()), m = GM.battleMods(G); G.battle = { id }; writeSave();
@@ -516,16 +534,16 @@ function takeBattleResult() {
   let r = null; try { r = JSON.parse(localStorage.getItem('battle_result') || 'null'); } catch (e) { }
   if (!r || !G.battle || !G.raid || r.id !== G.battle.id) return;
   try { localStorage.removeItem('battle_result'); } catch (e) { }
-  G.battle = null; const t = GM.resolve(G, 'hand', Math.random, !!r.win); commit(`${t}（撃破${r.kills}）`);
+  G.battle = null; const t = GM.resolve(G, 'hand', Math.random, !!r.win); commit(`${t}（撃破${r.kills}）`); showReport();
 }
 function raidModal() {
   const R = G.raid; if (!R) { ui.modal(null); return; }
   const D = GM.D(G), p = Math.round(GM.handP(G, R.E) * 100), m = GM.battleMods(G), wv = GM.wavesOf(R.E);
   const mods = [m.dmg > 1 ? `ダメージ+${Math.round((m.dmg - 1) * 100)}%` : '', m.bind ? `拘束+${m.bind}秒` : '', m.hp ? `最大HP+${m.hp}` : ''].filter(Boolean).join('・');
   ui.modal(R.kind === 'sortie' ? `出撃：${R.name}` : `襲撃：${R.name}`, `敵の規模 <b>${R.E}</b> ／ こちらの防衛力 <b>${Math.round(D)}</b><br>任せる：見込みは「${GM.autoTier(G, R.E)}」<br>自分で戦う：<b>WAVE ${wv}</b> まで生き残れば勝利。勝てば報酬、負ければ被害が1段重い（${R.kind === 'sortie' ? '行動点-1' : '次の週の行動点-1'}）${mods ? '<br>仲間の補正：' + mods : ''}`,
-    [{ label: '任せる', fn: () => { const t = GM.resolve(G, 'auto'); ui.modal(null); commit(t); } },
+    [{ label: '任せる', fn: () => { const t = GM.resolve(G, 'auto'); ui.modal(null); commit(t); showReport(); } },
      { label: '自分で戦う', sub: `WAVE ${wv}・アクション`, fn: goBattle },
-     { label: '確率で決める', sub: `成功率 約${p}%`, fn: () => { const t = GM.resolve(G, 'hand'); ui.modal(null); commit(t); } }]);
+     { label: '確率で決める', sub: `成功率 約${p}%`, fn: () => { const t = GM.resolve(G, 'hand'); ui.modal(null); commit(t); showReport(); } }]);
 }
 function overModal() {
   if (!G.over) return;
@@ -535,27 +553,34 @@ function refreshUI() {
   const r = GM.raidView(G), inc = GM.income(G), md = GM.moraleD(G);
   const raidTxt = r ? `次の襲撃：<b>${r.name}</b> 第${r.w}週（${r.inWeeks ? 'あと' + r.inWeeks + '週' : '今週末'}）規模 ${r.known ? r.E : r.lo + '〜' + r.hi}${r.known ? '' : '（未偵察）'}` : '襲撃の予定はない';
   let selTxt = '区画・城・目印をタップ';
-  if (selected) { const p = G.plots[selected.id]; selTxt = `区画 ${selected.id}：${p ? FAC[p.fac].n + '（' + STAGE[p.stage] + '）' : '空き地'}`; }
+  if (selected) { const p = G.plots[selected.id], k = GM.allyAt(G, selected.id); selTxt = `区画 ${selected.id}：${p ? FAC[p.fac].n + '（' + STAGE[p.stage] + '）' : '空き地'}${k ? `／${GM.ALLY[k].n}が配置中（+${GM.assignBonus(p.fac, k)}）` : ''}`; }
   else if (selCastle) selTxt = '城：兵・民・偵察・出撃';
-  else if (selAlly) { const A = GM.ALLY[selAlly], b = G.bond[selAlly] || 0; selTxt = `${A.n}（${A.r}） 絆 ${'●'.repeat(b)}${'○'.repeat(3 - b)}${b < 3 ? '／次：' + (A.lv[b + 1] || '絆が深まる') : ''}`; }
+  else if (selAlly) { const A = GM.ALLY[selAlly], b = G.bond[selAlly] || 0; const at = G.assign[selAlly]; selTxt = `${A.n}（${A.r}） 絆 ${'●'.repeat(b)}${'○'.repeat(3 - b)}${at ? '／配置：' + FAC[G.plots[at].fac].n + '（' + at + '）' : '／施設に配置できる'}`; }
   else if (selSign) { const a = selSign.area && areas.find(q => q.id === selSign.area); selTxt = `目印 ${selSign.label}${a ? (G.open.includes(a.id) ? '（開拓済み）' : '（未開拓）') : '（この先は準備中）'}`; }
   ui.hud(`<div class="row"><span class="k">第${Math.min(G.week, GM.WEEKS)}週／${GM.WEEKS}</span><span class="ap">行動点 ${'●'.repeat(G.ap)}${'○'.repeat(Math.max(0, GM.apOf(G.morale) - G.ap))}</span>
     <span>📦物資 ${G.sup}<span class="d"> ${sg(inc)}/週</span></span><span>😊民心 ${Math.round(G.morale)}<span class="${md >= 0 ? 'd' : 'n'}"> ${sg(md)}/週</span></span>
     <span>⚔兵 ${G.troops}</span><span>🛡防衛 ${Math.round(GM.D(G))}</span><span>🏰耐久 ${G.hp}</span></div><div class="raid">${raidTxt}</div><div class="sel">${selTxt}</div>`);
   ui.endWeek(G.raid ? '襲撃を迎える' : `週を終える<small>物資${sg(inc)} 民心${sg(md)}</small>`, G.ap === 0 || !!G.raid, !!G.over);
   renderActions(); if (G.raid) raidModal(); else if (G.over) overModal();
+  const pk = selAlly || (selected && GM.allyAt(G, selected.id)); if (pk !== shownPor) { shownPor = pk; showPortrait(pk); }
 }
 function renderActions() {
   if (!G) return; const L = [];
   if (selSign) { const a = selSign.area && areas.find(q => q.id === selSign.area); const ad = a && G.areaDefs.find(q => q.id === a.id);
     if (ad && !G.open.includes(ad.id)) L.push({ label: `${ad.name}を開拓する`, sub: `行動点-1 物資-${ad.cost}／毎週の物資+${ad.income}・区画8`, can: GM.canOpen(G, ad), fn: () => act(() => GM.openArea(G, ad), `${ad.name}を開拓した`) }); }
-  else if (selAlly) { const k = selAlly, A = GM.ALLY[k], b = G.bond[k] || 0; if (b < 3) L.push({ label: `${A.n}と過ごす`, sub: `行動点-1／絆${b + 1}${A.lv[b + 1] ? '：' + A.lv[b + 1] : ''}`, can: GM.canTalk(G, k), fn: () => act(() => GM.talk(G, k), `${A.n}と過ごした`) }); }
+  else if (selAlly) { const k = selAlly, A = GM.ALLY[k], b = G.bond[k] || 0; if (b < 3) L.push({ label: `${A.n}と過ごす`, sub: `行動点-1／絆${b + 1}${A.lv[b + 1] ? '：' + A.lv[b + 1] : ''}`, can: GM.canTalk(G, k), fn: () => act(() => GM.talk(G, k), `${A.n}と過ごした`) });
+    if (G.assign[k]) L.push({ label: '配置を外す', sub: '広場へ戻る', fn: () => act(() => GM.unassign(G, k), `${A.n}を広場へ戻した`) });
+    else L.push({ label: '配置するには', sub: '完成した施設をタップ', can: false, fn: () => { } }); }
   else if (selCastle) { for (const [id, c] of Object.entries(GM.CASTLE)) L.push({ label: c.t, sub: `${c.cost ? '物資-' + c.cost + ' ' : ''}${c.d}`, can: GM.canCastle(G, id), fn: () => act(() => { const ok = GM.doCastle(G, id); if (ok && G.raid) setTimeout(raidModal, 0); return ok; }, c.t + 'を行った') }); }
   else if (selected) { const id = selected.id, p = G.plots[id];
     if (!p) for (const [f, d] of Object.entries(FAC)) L.push({ label: `${d.n}を建てる`, sub: `物資-${d.cost}／${d.d}`, can: GM.canBuild(G, f), fn: () => act(() => GM.build(G, id, f), `${d.n}の建築を始めた（週末に完成）`) });
     else { const d = FAC[p.fac];
       if (p.stage === 2) L.push({ label: '発展させる', sub: `物資-${d.up}／効果が2倍`, can: GM.canUpgrade(G, id), fn: () => act(() => GM.upgrade(G, id), `${d.n}を発展させた`) });
       if (p.stage === 1) L.push({ label: '建築中', sub: '週末に完成', can: false, fn: () => { } });
+      if (p.stage >= 2) { const here = GM.allyAt(G, id);
+        for (const k of Object.keys(GM.ALLY)) { if (!GM.joined(G, k) || k === here) continue; const A = GM.ALLY[k], bon = GM.assignBonus(p.fac, k), fit = GM.AFFINITY[p.fac].includes(k);
+          L.push({ label: `${A.n}を配置`, sub: `+${bon}${fit ? '（得意）' : ''}${G.assign[k] ? '・今の配置から移る' : ''}`, can: GM.canAssign(G, k, id), fn: () => act(() => GM.assign(G, k, id), `${A.n}を${d.n}に配置した`) }); }
+        if (here) L.push({ label: `${GM.ALLY[here].n}を外す`, sub: '広場へ戻る', fn: () => act(() => GM.unassign(G, here), `${GM.ALLY[here].n}を広場へ戻した`) }); }
       L.push({ label: '取り壊す', sub: '行動点は使わない', fn: () => act(() => GM.demolish(G, id), `${d.n}を取り壊した`) }); } }
   ui.actions(L);
 }
@@ -607,7 +632,7 @@ canvas.addEventListener('pointerup', e => {
     if (G.raid || G.over) { refreshUI(); }
     else if (sgn) { select(null); selSign = sgn; refreshUI(); }
     else if (lockedAt(sx)) select(null);
-    else if (hitAlly(sx, sy)) { const k = hitAlly(sx, sy); select(null); selAlly = k; refreshUI(); }
+    else if (hitAlly(sx, sy)) { const k = hitAlly(sx, sy); select(null); selAlly = k; shownPor = null; refreshUI(); }
     else { const pl = hitBuilding(sx, sy); if (!pl && hitCastle(sx, sy)) { select(null); selCastle = true; refreshUI(); } else select(pl || plots.find(p => pointInPoly(sx, sy, p.poly)) || null); }
   }
   pointers.delete(e.pointerId); if (pointers.size < 2) pinch = null; if (!pointers.size) drag = null;
@@ -631,5 +656,5 @@ G = loadSave() || GM.newState(layout.areas); syncMap(true); refreshUI(); takeBat
 resize(); apply(); renderer.render(scene, camera); status.ok = true;
 window.__t.setView = (zoom, sx, sy) => { view.zoom = zoom; view.cx = sx; view.cz = zOf(sy); clampView(); apply(); renderer.render(scene, camera); };
 window.__t.select = id => select(plots.find(p => p.id === id) || null);
-window.__t.plots = plots; window.__t.G = () => G; window.__t.GM = GM; window.__t.commit = () => commit(); window.__t.reset = () => { try { localStorage.removeItem(SAVE_KEY); } catch (e) { } }; window.__t.pickAt = (cx, cy) => pickAt(cx, cy); window.__t.view = view; window.__t.sel = () => selected && selected.id; window.__t.build = (id, fac, stage) => { if (stage) G.plots[id] = { fac, stage }; else delete G.plots[id]; commit(); };
+window.__t.plots = plots; window.__t.G = () => G; window.__t.showReport = showReport; window.__t.GM = GM; window.__t.commit = () => commit(); window.__t.reset = () => { try { localStorage.removeItem(SAVE_KEY); } catch (e) { } }; window.__t.pickAt = (cx, cy) => pickAt(cx, cy); window.__t.view = view; window.__t.sel = () => selected && selected.id; window.__t.build = (id, fac, stage) => { if (stage) G.plots[id] = { fac, stage }; else delete G.plots[id]; commit(); };
 requestAnimationFrame(frame);
