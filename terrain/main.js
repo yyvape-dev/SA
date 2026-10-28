@@ -1,8 +1,8 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793187150';
-import { createUI } from './ui.js?v=1793187150';
+import * as GM from './game.js?v=1793187529';
+import { createUI } from './ui.js?v=1793187529';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -363,7 +363,8 @@ function pavingTex(opaque) { // 石畳（コード生成）。u,vは建物の足
   if (!opaque) { x.globalCompositeOperation = 'destination-in'; x.fillStyle = '#000'; x.beginPath(); x.roundRect(10, 10, N - 20, N - 20, 40); x.fill(); x.globalCompositeOperation = 'source-over'; }
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; if (opaque) { t.wrapS = t.wrapT = THREE.RepeatWrapping; plazaTex = t; } else pavTex = t; return t;
 }
-function pavingMesh(q, opaque, tex) { // q = [T,R,B,L] の地面座標。B→R が u、B→L が v
+function pavingMesh(q, opaque, tex) {
+  if (opaque) return gridPaving(q, tex); // q = [T,R,B,L] の地面座標。B→R が u、B→L が v
   const [T, R, B, L] = q, P = [B, R, T, L], pos = [], z = p => zOf(p[1]);
   P.forEach(p => pos.push(p[0], hgt(p[0], z(p)) + .8, z(p)));
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
@@ -381,6 +382,15 @@ function cropTexture(stage) { // 畑（コード生成）：1=芽 2=青い畝 3=
       x.fillStyle = stage === 3 ? `hsl(${42 + r() * 8},${70 + r() * 15}%,${52 + r() * 12}%)` : `hsl(${95 + r() * 20},${45 + r() * 15}%,${30 + r() * 14}%)`; x.fillRect(i + r() * 3, y - h, stage === 1 ? 4 : 3, h); } }
   x.globalCompositeOperation = 'destination-in'; x.beginPath(); x.roundRect(4, 4, N - 8, N - 8, 18); x.fill();
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return cropTex[stage] = t;
+}
+function gridPaving(q, tex) { // 広場の石畳：細かい格子にして、地面の起伏に沿わせる（角から土が出ないように）
+  const [T, R, B, L] = q, N = 16, pos = [], uv = [], idx = [];
+  for (let j = 0; j <= N; j++) for (let i = 0; i <= N; i++) { const u = i / N, v = j / N; // B→R が u、B→L が v
+    const x = B[0] + (R[0] - B[0]) * u + (L[0] - B[0]) * v, sy = B[1] + (R[1] - B[1]) * u + (L[1] - B[1]) * v, z = zOf(sy);
+    pos.push(x, hgt(x, z) + 1.2, z); uv.push(u * 2, v * 2); }
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { const a = j * (N + 1) + i, b = a + 1, c = a + N + 1, d = c + 1; idx.push(a, d, b, a, c, d); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx);
+  const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: tex || pavingTex(true), polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3, side: THREE.DoubleSide })); m.frustumCulled = false; return m;
 }
 function grow(q, k) { const cx = q.reduce((a, p) => a + p[0], 0) / 4, cy = q.reduce((a, p) => a + p[1], 0) / 4; return q.map(([x, y]) => [cx + (x - cx) * k, cy + (y - cy) * k]); }
 const FARM_S = .325; // 畑の絵の画素 → 基準画像の画素（柵の外周が区画より少し大きい）
