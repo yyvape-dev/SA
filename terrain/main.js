@@ -303,19 +303,19 @@ let castleHit = null;
 
 // ---------- 区画（コードのデータ）と選択表示 ----------
 const plots = layout.plots.map(p => ({ id: p.id, poly: p.poly, home: p.poly, state: 'empty' }));
-const selMat = new THREE.MeshBasicMaterial({ color: 0xffd25a, transparent: true, opacity: .32, depthTest: false });
-const selLine = new THREE.LineBasicMaterial({ color: 0xffe08a, depthTest: false });
+const selMat = new THREE.MeshBasicMaterial({ color: 0xffe08a, transparent: true, opacity: .95, depthTest: false, side: THREE.DoubleSide });
+const selGlow = new THREE.MeshBasicMaterial({ color: 0xffc040, transparent: true, opacity: .3, depthTest: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending });
 let selGroup = null, selected = null, selSign = null;
 function pointInPoly(x, y, poly) { let c = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const [xi, yi] = poly[i], [xj, yj] = poly[j]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c; } return c; }
 function select(p) {
   selSign = null; selCastle = false; selAlly = null;
   if (selGroup) { scene.remove(selGroup); selGroup = null; }
-  selected = p; if (G) refreshUI(); if (!p) return;
-  const pts = p.poly.map(([sx, sy]) => { const z = zOf(sy); return new THREE.Vector3(sx, hgt(sx, z) + 3, z); });
-  const sh = new THREE.Shape(p.poly.map(([sx, sy]) => new THREE.Vector2(sx, zOf(sy))));
-  const g = new THREE.ShapeGeometry(sh); g.rotateX(Math.PI / 2); // (x,z)->(x,0,z)
-  const fix = new THREE.Mesh(g, selMat); fix.position.y = 4; fix.renderOrder = 10;
-  const line = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts), selLine); line.renderOrder = 11;
+  selected = p; if (G && p && GM.allyAt(G, p.id)) curLine = GM.lineOf(G, GM.allyAt(G, p.id)); if (G) refreshUI(); if (!p) return;
+  // 金色に光る枠（モックの選択表示）：外側に広げた形から内側をくり抜いた帯＋外のにじみ
+  const ring = (k0, k1, mat) => { const cx = p.poly.reduce((a, q) => a + q[0], 0) / 4, cy = p.poly.reduce((a, q) => a + q[1], 0) / 4, g = (k) => p.poly.map(([x, y]) => new THREE.Vector2(cx + (x - cx) * k, zOf(cy + (y - cy) * k)));
+    const sh = new THREE.Shape(g(k1)); sh.holes.push(new THREE.Path(g(k0).reverse())); const geo = new THREE.ShapeGeometry(sh); geo.rotateX(Math.PI / 2);
+    const m = new THREE.Mesh(geo, mat); m.position.y = hgt(cx, zOf(cy)) + 5; m.renderOrder = 10; return m; };
+  const fix = ring(.99, 1.07, selMat), line = ring(1.07, 1.24, selGlow);
   selGroup = new THREE.Group(); selGroup.add(fix, line); scene.add(selGroup);
 }
 
@@ -493,12 +493,12 @@ function allySpot(k) { // 配置先の施設の手前（左寄り）。配置し
   if (!pl) return ALLY_POS[k];
   return G.plots[id] && G.plots[id].fac === 'farm' ? [pl.cx - 20, pl.base[1] - 34] : [pl.cx - 58, pl.base[1] - 16];
 }
-function showPortrait(k) { if (!k) { ui.portrait(null); return; } const A = GM.ALLY[k]; ui.portrait(`../ally/${k}.png`, `${A.n}（${A.r}）`, GM.lineOf(G, k)); }
+let curLine = '';
 const hitAlly = (sx, sy) => Object.keys(allyMesh).find(k => { const a = allyMesh[k]; return a.m.visible && Math.abs(sx - a.x) < a.w * .45 && sy > a.y - a.h && sy < a.y + 4; });
 
 // ---------- ゲームの状態（game.js のルール）と画面の同期 ----------
 const SAVE_KEY = 'territory_v2';
-let G = null, selCastle = false, selAlly = null, shownPor = null;
+let G = null, selCastle = false, selAlly = null;
 function loadSave() { try { const v = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); if (v && v.week) { v.bond = v.bond || { mina: 0, garou: 0, sera: 0 }; v.assign = v.assign || {}; return v; } return null; } catch (e) { return null; } }
 function writeSave() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(G)); } catch (e) { } }
 function syncMap(instant) { // 状態 → 区画の絵と霧
@@ -517,10 +517,9 @@ function endWeek() {
 function showReport() { // 週末の報告。参謀がいれば吹き出し、いなければ羊皮紙
   if (!G.repPrev || G.raid) return; if (G.over) { G.repPrev = null; return; } const R = GM.weekReport(G.repPrev, G); G.repPrev = null; writeSave();
   const adv = GM.advisorOf(G);
-  if (adv && GM.ALLY[adv]) {
-    const A = GM.ALLY[adv], txt = `${R.title}です。<br>${R.changes.join('、')}。${R.warns.length ? '<br><span style="color:#8a1a10">' + R.warns.join('<br>') + '</span>' : '<br>差し迫った心配はありません。'}`;
-    ui.portrait(`../ally/${adv}.png`, `${A.n}（参謀）`, txt); shownPor = adv;
-    ui.modal(null); ui.actions([{ label: '了解', fn: () => { shownPor = null; ui.portrait(null); refreshUI(); } }]); return;
+  if (adv && GM.ALLY[adv] && GM.joined(G, adv)) {
+    advisorMsg = `${R.title}です。${R.changes.join('、')}。${R.warns.length ? '<br><span style="color:#8a1a10">' + R.warns.join('<br>') + '</span>' : '<br>差し迫った心配はありません。'}`;
+    select(null); ui.modal(null); refreshUI(); return;
   }
   ui.modal(R.title, `<div class="lab">変わったこと</div><ul>${R.changes.map(t => `<li>${t}</li>`).join('')}</ul><div class="lab">気をつけること</div><ul class="w">${R.warns.length ? R.warns.map(t => `<li>${t}</li>`).join('') : '<li style="color:#3a2410">差し迫った心配はない</li>'}</ul>`,
     [{ label: `第${Math.min(G.week, GM.WEEKS)}週へ`, fn: () => ui.modal(null) }], 'parch');
@@ -549,41 +548,48 @@ function overModal() {
   if (!G.over) return;
   ui.modal(G.over === 'win' ? '勝利' : '敗北', `${G.why}（第${Math.min(G.week, GM.WEEKS)}週）<br>開拓した区域：${G.open.length}／${areas.length} ／ 施設：${Object.keys(G.plots).length}`, [{ label: '最初から', fn: () => { G = GM.newState(layout.areas); ui.modal(null); select(null); syncMap(true); commit('最初からやり直した'); } }]);
 }
+let advisorMsg = null; // 内政役の報告（吹き出し）。了解で閉じる
+const why = (need) => (G.raid ? '襲撃の最中' : G.ap < 1 ? '行動点が足りない' : need && G.sup < need ? '物資が足りない' : '今はできない');
+function defaultAlly() { const a = GM.advisorOf(G); return a && GM.joined(G, a) ? a : 'mina'; }
 function refreshUI() {
-  const r = GM.raidView(G), inc = GM.income(G), md = GM.moraleD(G);
-  const raidTxt = r ? `次の襲撃：<b>${r.name}</b> 第${r.w}週（${r.inWeeks ? 'あと' + r.inWeeks + '週' : '今週末'}）規模 ${r.known ? r.E : r.lo + '〜' + r.hi}${r.known ? '' : '（未偵察）'}` : '襲撃の予定はない';
-  let selTxt = '区画・城・目印をタップ';
-  if (selected) { const p = G.plots[selected.id], k = GM.allyAt(G, selected.id); selTxt = `区画 ${selected.id}：${p ? FAC[p.fac].n + '（' + STAGE[p.stage] + '）' : '空き地'}${k ? `／${GM.ALLY[k].n}が配置中（+${GM.assignBonus(p.fac, k)}）` : ''}`; }
-  else if (selCastle) selTxt = '城：兵・民・偵察・出撃';
-  else if (selAlly) { const A = GM.ALLY[selAlly], b = G.bond[selAlly] || 0; const at = G.assign[selAlly]; selTxt = `${A.n}（${A.r}） 絆 ${'●'.repeat(b)}${'○'.repeat(3 - b)}${at ? '／配置：' + FAC[G.plots[at].fac].n + '（' + at + '）' : '／施設に配置できる'}`; }
-  else if (selSign) { const a = selSign.area && areas.find(q => q.id === selSign.area); selTxt = `目印 ${selSign.label}${a ? (G.open.includes(a.id) ? '（開拓済み）' : '（未開拓）') : '（この先は準備中）'}`; }
-  ui.hud(`<div class="row"><span class="k">第${Math.min(G.week, GM.WEEKS)}週／${GM.WEEKS}</span><span class="ap">行動点 ${'●'.repeat(G.ap)}${'○'.repeat(Math.max(0, GM.apOf(G.morale) - G.ap))}</span>
-    <span>📦物資 ${G.sup}<span class="d"> ${sg(inc)}/週</span></span><span>😊民心 ${Math.round(G.morale)}<span class="${md >= 0 ? 'd' : 'n'}"> ${sg(md)}/週</span></span>
-    <span>⚔兵 ${G.troops}</span><span>🛡防衛 ${Math.round(GM.D(G))}</span><span>🏰耐久 ${G.hp}</span></div><div class="raid">${raidTxt}</div><div class="sel">${selTxt}</div>`);
-  ui.endWeek(G.raid ? '襲撃を迎える' : `週を終える<small>物資${sg(inc)} 民心${sg(md)}</small>`, G.ap === 0 || !!G.raid, !!G.over);
+  const r = GM.raidView(G), inc = GM.income(G), md = GM.moraleD(G), apMax = GM.apOf(G.morale), wk = Math.min(G.week, GM.WEEKS);
+  ui.top({ title: '再建の12週', week: wk, weeks: GM.WEEKS, raidWeeks: GM.SCHED.map(x => x.w), bossWeek: GM.SCHED.find(x => x.boss).w,
+    band: { wk, next: r ? (r.inWeeks ? `次の襲撃まであと<b style="font-size:15px"> ${r.inWeeks} </b>週` : '今週末に襲撃') : '襲撃の予定はない', foe: r ? `敵 ${r.known ? r.E : r.lo + '〜' + r.hi}` : '' },
+    res: [{ ic: 'sup', lab: '物資', val: G.sup, sub: `${sg(inc)}/週`, cls: inc >= 0 ? 'd' : 'n' }, { ic: 'mor', lab: '民心', val: Math.round(G.morale), bar: G.morale, col: G.morale < 30 ? '#e05a4a' : '#6ac06a' },
+      { ic: 'trp', lab: '兵力', val: G.troops, bar: G.troops / 16 * 100, col: '#7aa8e0' }, { ic: 'def', lab: '防衛', val: Math.round(GM.D(G)) },
+      { ic: 'hp', lab: '耐久', val: `${G.hp}/3` }, { ic: 'ap', lab: '行動', val: `${G.ap}/${apMax}`, sub: '●'.repeat(G.ap) + '○'.repeat(Math.max(0, apMax - G.ap)), cls: 'd' }] });
   renderActions(); if (G.raid) raidModal(); else if (G.over) overModal();
-  const pk = selAlly || (selected && GM.allyAt(G, selected.id)); if (pk !== shownPor) { shownPor = pk; showPortrait(pk); }
 }
 function renderActions() {
-  if (!G) return; const L = [];
-  if (selSign) { const a = selSign.area && areas.find(q => q.id === selSign.area); const ad = a && G.areaDefs.find(q => q.id === a.id);
-    if (ad && !G.open.includes(ad.id)) L.push({ label: `${ad.name}を開拓する`, sub: `行動点-1 物資-${ad.cost}／毎週の物資+${ad.income}・区画8`, can: GM.canOpen(G, ad), fn: () => act(() => GM.openArea(G, ad), `${ad.name}を開拓した`) }); }
-  else if (selAlly) { const k = selAlly, A = GM.ALLY[k], b = G.bond[k] || 0; if (b < 3) L.push({ label: `${A.n}と過ごす`, sub: `行動点-1／絆${b + 1}${A.lv[b + 1] ? '：' + A.lv[b + 1] : ''}`, can: GM.canTalk(G, k), fn: () => act(() => GM.talk(G, k), `${A.n}と過ごした`) });
-    if (G.assign[k]) L.push({ label: '配置を外す', sub: '広場へ戻る', fn: () => act(() => GM.unassign(G, k), `${A.n}を広場へ戻した`) });
-    else L.push({ label: '配置するには', sub: '完成した施設をタップ', can: false, fn: () => { } }); }
-  else if (selCastle) { for (const [id, c] of Object.entries(GM.CASTLE)) L.push({ label: c.t, sub: `${c.cost ? '物資-' + c.cost + ' ' : ''}${c.d}`, can: GM.canCastle(G, id), fn: () => act(() => { const ok = GM.doCastle(G, id); if (ok && G.raid) setTimeout(raidModal, 0); return ok; }, c.t + 'を行った') }); }
-  else if (selected) { const id = selected.id, p = G.plots[id];
-    if (!p) for (const [f, d] of Object.entries(FAC)) L.push({ label: `${d.n}を建てる`, sub: `物資-${d.cost}／${d.d}`, can: GM.canBuild(G, f), fn: () => act(() => GM.build(G, id, f), `${d.n}の建築を始めた（週末に完成）`) });
-    else { const d = FAC[p.fac];
-      if (p.stage === 2) L.push({ label: '発展させる', sub: `物資-${d.up}／効果が2倍`, can: GM.canUpgrade(G, id), fn: () => act(() => GM.upgrade(G, id), `${d.n}を発展させた`) });
-      if (p.stage === 1) L.push({ label: '建築中', sub: '週末に完成', can: false, fn: () => { } });
-      if (p.stage >= 2) { const here = GM.allyAt(G, id);
+  if (!G) return; const L = []; let title = '', icon = 'build', por = null, bubble = null, key = 'none';
+  const P = k => ({ src: `../ally/${k}.png`, name: `${GM.ALLY[k].n}（${GM.ALLY[k].r}）` });
+  if (advisorMsg) { const k = defaultAlly(); ui.panel({ key: 'adv' + G.week, icon: 'ally', title: `${GM.ALLY[k].n}の報告`, por: P(k), bubble: advisorMsg, items: [{ label: '了解', act: '', verb: '了解', fn: () => { advisorMsg = null; refreshUI(); } }], week: weekBtn() }); return; }
+  if (selSign) { key = 'sign' + selSign.id; icon = 'flag'; const a = selSign.area && areas.find(q => q.id === selSign.area); const ad = a && G.areaDefs.find(q => q.id === a.id);
+    title = `目印・${selSign.label}`;
+    if (ad && !G.open.includes(ad.id)) L.push({ label: '開拓', act: `${ad.name}を開拓する`, sup: -ad.cost, ap: 1, eff: `毎週 物資+${ad.income}・区画8${Object.keys(GM.ALLY).filter(k => GM.ALLY[k].join === ad.id).map(k => '・' + GM.ALLY[k].n + 'が仲間に').join('')}`, verb: '開拓する', can: GM.canOpen(G, ad), why: why(ad.cost), fn: () => act(() => GM.openArea(G, ad), `${ad.name}を開拓した`) });
+    else bubble = ad ? 'この地はもう陛下の領地です。' : 'この先は、まだ道が拓けていません。'; }
+  else if (selAlly) { const k = selAlly, A = GM.ALLY[k], b = G.bond[k] || 0, at = G.assign[k]; key = 'ally' + k; icon = 'ally'; por = P(k); bubble = curLine;
+    title = `${A.n}　絆 ${'●'.repeat(b)}${'○'.repeat(3 - b)}`;
+    if (b < 3) L.push({ label: '過ごす', act: `${A.n}と過ごす`, ap: 1, eff: `絆${b + 1}${A.lv[b + 1] ? '：' + A.lv[b + 1] : ''}`, verb: '過ごす', can: GM.canTalk(G, k), why: why(), fn: () => act(() => GM.talk(G, k), `${A.n}と過ごした`) });
+    if (at) L.push({ label: '配置を外す', act: `${FAC[G.plots[at].fac].n}（${at}）から外す`, eff: '広場へ戻る', verb: '外す', fn: () => act(() => GM.unassign(G, k), `${A.n}を広場へ戻した`) }); }
+  else if (selCastle) { key = 'castle'; icon = 'castle'; title = '城'; por = P(defaultAlly());
+    for (const [id, c] of Object.entries(GM.CASTLE)) L.push({ label: c.t, act: c.t, sup: id === 'levy' ? 5 : -c.cost, ap: 1, eff: c.d, verb: c.t, can: GM.canCastle(G, id), why: why(c.cost), fn: () => act(() => { const ok = GM.doCastle(G, id); if (ok && G.raid) setTimeout(raidModal, 0); return ok; }, c.t + 'を行った') }); }
+  else if (selected) { const id = selected.id, p = G.plots[id], here = p && GM.allyAt(G, id); key = 'plot' + id + (p ? p.fac + p.stage : '');
+    por = P(here || defaultAlly()); if (here) bubble = curLine;
+    if (!p) { title = '建設予定地'; for (const [f, d] of Object.entries(FAC)) L.push({ label: d.n, act: f === 'farm' ? '畑を整備' : `${d.n}を建てる`, sup: -d.cost, ap: 1, eff: `毎週 ${d.d.replace('毎週の', '')}`, verb: '建設する', can: GM.canBuild(G, f), why: why(d.cost), fn: () => act(() => GM.build(G, id, f), `${d.n}の建築を始めた（週末に完成）`) }); }
+    else { const d = FAC[p.fac]; title = `${d.n}（${STAGE[p.stage]}）${here ? '・' + GM.ALLY[here].n : ''}`;
+      if (p.stage === 1) { bubble = bubble || '建築中です。週末に完成します。'; }
+      if (p.stage === 2) L.push({ label: '発展', act: `${d.n}を発展させる`, sup: -d.up, ap: 1, eff: '効果が2倍になる', verb: '発展させる', can: GM.canUpgrade(G, id), why: why(d.up), fn: () => act(() => GM.upgrade(G, id), `${d.n}を発展させた`) });
+      if (p.stage >= 2) {
         for (const k of Object.keys(GM.ALLY)) { if (!GM.joined(G, k) || k === here) continue; const A = GM.ALLY[k], bon = GM.assignBonus(p.fac, k), fit = GM.AFFINITY[p.fac].includes(k);
-          L.push({ label: `${A.n}を配置`, sub: `+${bon}${fit ? '（得意）' : ''}${G.assign[k] ? '・今の配置から移る' : ''}`, can: GM.canAssign(G, k, id), fn: () => act(() => GM.assign(G, k, id), `${A.n}を${d.n}に配置した`) }); }
-        if (here) L.push({ label: `${GM.ALLY[here].n}を外す`, sub: '広場へ戻る', fn: () => act(() => GM.unassign(G, here), `${GM.ALLY[here].n}を広場へ戻した`) }); }
-      L.push({ label: '取り壊す', sub: '行動点は使わない', fn: () => act(() => GM.demolish(G, id), `${d.n}を取り壊した`) }); } }
-  ui.actions(L);
+          L.push({ label: `${A.n}を配置`, act: `${A.n}を配置する${fit ? '（得意）' : ''}`, eff: `効果 +${bon}${G.assign[k] ? '・今の配置から移る' : ''}`, verb: '配置する', can: GM.canAssign(G, k, id), why: why(), fn: () => act(() => GM.assign(G, k, id), `${A.n}を${d.n}に配置した`) }); }
+        if (here) L.push({ label: `${GM.ALLY[here].n}を外す`, act: `${GM.ALLY[here].n}を外す`, eff: '広場へ戻る', verb: '外す', fn: () => act(() => GM.unassign(G, here), `${GM.ALLY[here].n}を広場へ戻した`) }); }
+      L.push({ label: '取り壊す', act: `${d.n}を取り壊す`, eff: '行動点は使わない。配置は外れる', verb: '取り壊す', fn: () => act(() => GM.demolish(G, id), `${d.n}を取り壊した`) }); } }
+  else { const k = defaultAlly(); por = P(k); title = '陛下の領地'; icon = 'flag'; key = 'idle';
+    const w = GM.weekReport(GM.snap(G), G).warns; bubble = w.length ? w[0] : '区画・城・仲間・目印をタップしてください。'; }
+  ui.panel({ key, icon, title, por, bubble, items: L, week: weekBtn() });
 }
+function weekBtn() { const inc = GM.income(G), md = GM.moraleD(G); return { label: G.raid ? '襲撃を迎える' : '週を終える', sub: `物資${sg(inc)} 民心${sg(md)}`, hot: G.ap === 0 || !!G.raid, disabled: !!G.over }; }
 // ---------- 視点（パン・ズーム） ----------
 const view = { cx: AREA0_W / 2, cz: zOf(REF_H * .5), zoom: 1 };
 let fitZoom = 1, W = 1, H = 1;
@@ -632,7 +638,7 @@ canvas.addEventListener('pointerup', e => {
     if (G.raid || G.over) { refreshUI(); }
     else if (sgn) { select(null); selSign = sgn; refreshUI(); }
     else if (lockedAt(sx)) select(null);
-    else if (hitAlly(sx, sy)) { const k = hitAlly(sx, sy); select(null); selAlly = k; shownPor = null; refreshUI(); }
+    else if (hitAlly(sx, sy)) { const k = hitAlly(sx, sy); select(null); selAlly = k; curLine = GM.lineOf(G, k); refreshUI(); }
     else { const pl = hitBuilding(sx, sy); if (!pl && hitCastle(sx, sy)) { select(null); selCastle = true; refreshUI(); } else select(pl || plots.find(p => pointInPoly(sx, sy, p.poly)) || null); }
   }
   pointers.delete(e.pointerId); if (pointers.size < 2) pinch = null; if (!pointers.size) drag = null;
@@ -645,7 +651,7 @@ window.addEventListener('resize', resize);
 let last = performance.now(), frames = 0, acc = 0;
 function frame(now) {
   const dt = now - last; last = now; acc += dt; frames++;
-  groundMat.uniforms.time.value = now / 1000;
+  groundMat.uniforms.time.value = now / 1000; selGlow.opacity = .38 + .2 * Math.sin(now / 260);
   apply(); renderer.render(scene, camera);
   if (acc > 500) { st.textContent = `3D: ${status.ok ? 'OK' : status.reason} / 地面:${status.ground} 小物:${status.sprites}(${status.props}) / ${(frames * 1000 / acc).toFixed(0)}fps / 拡大 ${view.zoom.toFixed(2)}`; frames = 0; acc = 0; }
   // HUD は refreshUI() が書く

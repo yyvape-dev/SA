@@ -143,8 +143,8 @@ export function lineOf(s, k, rnd = Math.random) {
 }
 
 // ---------- 週末の報告：変更点と注意点 ----------
-// 参謀：仲間に入ると、羊皮紙の代わりに吹き出しで報告する。キャラは未定なので、今は無効（key を ALLY のどれかにすると有効）
-export const ADVISOR = { key: null, join: null };
+// 報告役（内政役）：仲間に入ると、羊皮紙の代わりに吹き出しで報告する
+export const ADVISOR = { key: 'sera', join: 'lake' }; // 内政役のセラが、湖畔で仲間になると報告役になる
 export const advisorOf = s => (ADVISOR.key && (!ADVISOR.join || s.open.includes(ADVISOR.join)) ? ADVISOR.key : (s.advisorTest || null));
 export function snap(s) { return { week: s.week, sup: s.sup, morale: s.morale, troops: s.troops, hp: s.hp, plots: JSON.parse(JSON.stringify(s.plots)), logN: s.log.length }; }
 export function weekReport(prev, s) {
