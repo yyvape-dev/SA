@@ -1,8 +1,8 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793186281';
-import { createUI } from './ui.js?v=1793186281';
+import * as GM from './game.js?v=1793186848';
+import { createUI } from './ui.js?v=1793186848';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -517,9 +517,9 @@ function setPlot(pl, fac, stage) { pl.fac = stage ? fac : null; pl.stage = stage
 const ALLY_POS = { mina: [372, 1066], garou: [568, 1066], sera: [505, 1090], ranka: [435, 1090] };
 const allyMesh = {};
 for (const k of Object.keys(GM.ALLY)) {
-  const im = await loadImage(`../ally/${k}.png`); if (!im) continue;
+  const mapIm = await loadImage(`../ally/map_${k}.png`), im = mapIm || await loadImage(`../ally/${k}.png`); if (!im) continue; // マップ用の小さな絵（等角）。なければ立ち絵
   const t = new THREE.Texture(im); t.needsUpdate = true; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
-  const [x, y] = ALLY_POS[k], sc = 74 / im.height; const m = sprite3D(t, { w: im.width, h: im.height, ax: .5, ay: .98 }, sc, x, y); m.visible = false; scene.add(m);
+  const [x, y] = ALLY_POS[k], sc = mapIm ? 76 / 635 : 74 / im.height; /* マップ用の絵は4人共通の縮尺（背の違いを残す） */ const m = sprite3D(t, { w: im.width, h: im.height, ax: .5, ay: .98 }, sc, x, y); m.visible = false; scene.add(m);
   allyMesh[k] = { m, x, y, w: im.width * sc, h: im.height * sc };
 }
 function placeAlly(k, x, y) { const a = allyMesh[k]; if (!a) return; const z = zOf(y); a.m.position.set(x, hgt(x, z), z); a.x = x; a.y = y; }
