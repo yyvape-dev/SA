@@ -35,17 +35,25 @@ sctx.drawImage(splatImg, 0, 0);
   sctx.closePath(); sctx.fill(); sctx.globalCompositeOperation = 'source-over';
 }
 let baseSplat;
-{ // 区画は、コードのデータの多角形で描く（縁がはっきりする）。絵から取った不揃いな形は使わない。
-  const id = sctx.getImageData(0, 0, SW, SH); for (let i = 0; i < SW * SH; i++) id.data[i * 4 + 1] = 0; sctx.putImageData(id, 0, 0); baseSplat = id;
+{ // 道は、コードのデータの線（layout.roads）で描く。絵から取った道・区画は使わない（川だけ絵のまま）。
+  const id = sctx.getImageData(0, 0, SW, SH); for (let i = 0; i < SW * SH; i++) { id.data[i * 4] = 0; id.data[i * 4 + 1] = 0; } sctx.putImageData(id, 0, 0);
+  sctx.globalCompositeOperation = 'lighter'; sctx.fillStyle = 'rgb(255,0,0)';
+  layout.roads.forEach((rd, ri) => {
+    let d = 0;
+    for (let k = 0; k < rd.pts.length - 1; k++) {
+      const [x0, y0] = rd.pts[k], [x1, y1] = rd.pts[k + 1], L = Math.hypot(x1 - x0, y1 - y0), nx = -(y1 - y0) / L, ny = (x1 - x0) / L;
+      for (let t = 0; t <= L; t += 5, d += 5) { // 幅と中心を少し揺らす
+        const wob = Math.sin(d * .045 + ri * 2) * .6 + Math.sin(d * .11 + ri) * .4, off = 2.5 * Math.sin(d * .07 + ri * 3);
+        const r = rd.w * (1 + .14 * wob) / 2, px = (x0 + (x1 - x0) * t / L + nx * off) / 2, py = (y0 + (y1 - y0) * t / L + ny * off) / 2;
+        sctx.beginPath(); sctx.arc(px, py, r / 2, 0, Math.PI * 2); sctx.fill();
+      }
+    }
+  });
+  sctx.globalCompositeOperation = 'source-over'; baseSplat = sctx.getImageData(0, 0, SW, SH);
 }
 const maskCv = document.createElement('canvas'); maskCv.width = SW; maskCv.height = SH; const mctx = maskCv.getContext('2d', { willReadFrequently: true });
-function paintYards(polys, clears = []) { // 各区画の地面の形（空き地=絵から取った4角、建物あり=建物の足元の平行四辺形）。clears=元の区画の砂を消す範囲
+function paintYards(polys) { // 各区画の地面の形（空き地=絵から取った4角、建物あり=建物の足元の平行四辺形）。clears=元の区画の砂を消す範囲
   const base = new ImageData(new Uint8ClampedArray(baseSplat.data), SW, SH);
-  if (clears.length) {
-    mctx.clearRect(0, 0, SW, SH); mctx.fillStyle = '#fff';
-    clears.forEach(poly => { mctx.beginPath(); poly.forEach(([x, y], i) => { const px = x / 2, py = y / 2; i ? mctx.lineTo(px, py) : mctx.moveTo(px, py); }); mctx.closePath(); mctx.fill(); });
-    const m = mctx.getImageData(0, 0, SW, SH).data; for (let i = 0; i < SW * SH; i++) if (m[i * 4 + 3] > 20) base.data[i * 4] = 0;
-  }
   sctx.putImageData(base, 0, 0);
   sctx.globalCompositeOperation = 'lighter'; sctx.fillStyle = 'rgb(0,255,0)';
   polys.forEach(poly => { sctx.beginPath(); poly.forEach(([x, y], i) => { const px = x / 2, py = y / 2; i ? sctx.lineTo(px, py) : sctx.moveTo(px, py); }); sctx.closePath(); sctx.fill(); });
@@ -86,7 +94,7 @@ function hgt(x, z) {
   h += 80 * (1 - smooth(.55, 1.15, Math.hypot(ex, ey)));
   h += 190 * smooth(190, 0, x) * smooth(1000, 520, sy); // 左の山
   h += 26 * smooth(560, 360, sy);                       // 奥は少し高く
-  h += (fbm(x / 150, z / 150) - .5) * 26;
+  h += (fbm(x / 150, z / 150) - .5) * 26 * (1 - Math.min(1, zoneAt(x, sy) * 1.6));
   const s = splatAt(x, sy); h -= 16 * s[2];             // 川は低く
   return h;
 }
@@ -290,7 +298,7 @@ function select(p) {
 
 // ---------- 施設（区画の状態：0=空き地 1=建築中 2=完成 3=発展後）----------
 const FAC = { smithy: '鍛冶場', tavern: '酒場' }, STAGE = ['空き地', '建築中', '完成', '発展後'];
-const BS = .42; // 素材シートの画素 → 基準画像の画素
+const BS = .38; // 素材シートの画素 → 基準画像の画素
 for (const f of Object.keys(FAC)) for (let k = 1; k <= 3; k++) bldTex[`${f}_${k}`] = await loadBld(`assets/bld/${f}_${k}.png`);
 plots.forEach(pl => { pl.fac = null; pl.stage = 0; pl.mesh = null; pl.base = pl.poly.reduce((a, q) => q[1] > a[1] ? q : a, pl.poly[0]); pl.cx = pl.poly.reduce((a, q) => a + q[0], 0) / 4; });
 const alphaCache = {};
@@ -349,12 +357,12 @@ function refreshPlot(pl) {
   if (t) {
     const meta = bld[`assets/bld/${key}.png`];
     pl.mesh = sprite3D(t, meta, BS, pl.cx, pl.base[1] - 4); scene.add(pl.mesh);
-    pl.poly = yardOf(pl, meta); pl.pav = pavingMesh(grow(pl.poly, 1.38)); scene.add(pl.pav);
+    pl.pav = pavingMesh(grow(pl.home, 1.0)); scene.add(pl.pav);
     const bottom = pl.base[1] - 4, w = meta.w * BS, h = meta.h * BS;
     pl.hit = { key, left: pl.cx - meta.ax * w, top: bottom - meta.ay * h, w, h };
   }
   pl.stakes.visible = !t;
-  paintYards(plots.map(p => p.poly), plots.filter(p => p.hit).map(p => grow(p.home, 1.14))); splatTex.needsUpdate = true;
+  paintYards(plots.map(p => p.poly)); splatTex.needsUpdate = true;
   if (selected === pl) select(pl);
 }
 function hitBuilding(sx, sy) { // 建物の絵（透明でない所）を押したか。手前の建物を優先
