@@ -1,9 +1,9 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793200972';
-import { createUI } from './ui.js?v=1793200972';
-import { createMorning } from './morning.js?v=1793200972';
+import * as GM from './game.js?v=1793201720';
+import { createUI } from './ui.js?v=1793201720';
+import { createMorning } from './morning.js?v=1793201720';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -727,6 +727,12 @@ const tentTex = canvasSprite(120, 90, g => { g.fillStyle = 'rgba(0,0,0,.35)'; g.
   g.fillStyle = '#5a1410'; g.beginPath(); g.moveTo(8, 84); g.lineTo(60, 14); g.lineTo(112, 84); g.closePath(); g.fill(); g.fillStyle = '#3a0a08'; g.beginPath(); g.moveTo(60, 14); g.lineTo(112, 84); g.lineTo(72, 84); g.closePath(); g.fill();
   g.fillStyle = '#140606'; g.beginPath(); g.moveTo(50, 84); g.lineTo(60, 52); g.lineTo(70, 84); g.fill(); g.strokeStyle = '#2a1a10'; g.lineWidth = 3; g.beginPath(); g.moveTo(60, 14); g.lineTo(60, 0); g.stroke(); g.fillStyle = '#c02a1a'; g.fillRect(60, 0, 18, 10); });
 let camp = null;
+// 敵兵の絵（槍兵・羽飾りの兵・フードの山賊・毛皮の斧の山賊）。読めなければコード描画の影で代用
+const FOE_IMG = await Promise.all([1, 2, 3, 4].map(i => loadImage(`assets/npc/foe_${i}.webp`)));
+const FOE_TEX = FOE_IMG.map(im => { if (!im) return null; const t = new THREE.Texture(im); t.needsUpdate = true; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; });
+function foeSprite(i, sc, x, y) { // i：0〜3。足元を(x,y)に置く。背の高さは約64×sc/.178
+  const t = FOE_TEX[i % 4]; if (!t) return sprite3D(foeTex, { w: 64, h: 96, ax: .5, ay: .94 }, sc * .42 / .178, x, y);
+  const im = FOE_IMG[i % 4]; return sprite3D(t, { w: im.width, h: im.height, ax: .5, ay: .98 }, sc, x, y); }
 function updateCamp() { // 襲撃の2週前から、敵の陣が街の外に見え、週ごとに近づく
   if (camp) { camp.forEach(c => scene.remove(c)); camp = null; }
   const r = GM.raidView(G); if (!r || r.inWeeks > 2 || G.raid) return; const F = FRONTS[r.dir]; if (!F) return;
@@ -734,7 +740,7 @@ function updateCamp() { // 襲撃の2週前から、敵の陣が街の外に見�
   const add = (t, meta, sc, dx, dy) => { const s = sprite3D(t, meta, sc, x + dx, y + dy); scene.add(s); camp.push(s); };
   add(tentTex, { w: 120, h: 90, ax: .5, ay: .93 }, .42, 0, 0); add(tentTex, { w: 120, h: 90, ax: .5, ay: .93 }, .34, -34, 16);
   if (TOWN.torch) add(townTex.torch || (townTex.torch = Object.assign(new THREE.Texture(TOWN.torch), { needsUpdate: true, colorSpace: THREE.SRGBColorSpace })), { w: TOWN.torch.width, h: TOWN.torch.height, ax: .5, ay: .96 }, .14, 26, 10);
-  for (let i = 0; i < Math.min(6, 2 + Math.round(r.E / 10)); i++) add(foeTex, { w: 64, h: 96, ax: .5, ay: .94 }, .36, -20 + i * 14 + (i % 2) * 6, 26 + (i % 2) * 8);
+  for (let i = 0; i < Math.min(6, 2 + Math.round(r.E / 10)); i++) { const s2 = foeSprite((i * 3 + 2) % 4, .15, x - 20 + i * 14 + (i % 2) * 6, y + 26 + (i % 2) * 8); scene.add(s2); camp.push(s2); }
 }
 function raidIntro(done) { // 空が赤くなり、陣から軍勢が街道を進み、前線で止まる。帯で名前を出してから、窓を開く
   const R = G.raid; introPlaying = true; ui.modal(null); if (camp) { camp.forEach(c => scene.remove(c)); camp = null; }
@@ -742,7 +748,7 @@ function raidIntro(done) { // 空が赤くなり、陣から軍勢が街道を�
   view.zoom = Math.max(view.zoom, .75); view.cx = (src[0] + dst[0]) / 2 + 120; view.cz = zOf(dst[1] + 230); clampView(); /* 前線は画面の上寄り（窓に隠れない） */
   foes.forEach(f => scene.remove(f.m)); foes = [];
   const dx = dst[0] - src[0], dy = dst[1] - src[1], L = Math.hypot(dx, dy), nx = -dy / L, ny = dx / L;
-  for (let i = 0; i < n; i++) { const a = (Math.random() - .5) * 70, back = Math.random() * 90, m = sprite3D(foeTex, { w: 64, h: 96, ax: .5, ay: .94 }, .42 * (R.boss && i === 0 ? 1.8 : 1), src[0], src[1]); scene.add(m);
+  for (let i = 0; i < n; i++) { const a = (Math.random() - .5) * 70, back = Math.random() * 90, m = foeSprite(R.boss && i === 0 ? 3 : Math.floor(Math.random() * 4), .165 * (R.boss && i === 0 ? 1.45 : 1), src[0], src[1]); scene.add(m);
     foes.push({ m, x0: src[0] - dx / L * (60 + back) + nx * a, y0: src[1] - dy / L * (60 + back) + ny * a * .6, x1: dst[0] - dx / L * back * .5 + nx * a, y1: dst[1] - dy / L * back * .5 + ny * a * .6, d: Math.random() * .5 }); }
   raidFx.classList.add('on'); const t0 = performance.now();
   const f = now => { const t = (now - t0) / 2800;
@@ -800,7 +806,7 @@ const dCss = document.createElement('style'); dCss.textContent = `
 #duel.shake .stage{animation:dsh .25s}@keyframes dsh{25%{transform:translate(-6px,calc(-50% + 3px))}75%{transform:translate(6px,calc(-50% - 3px))}}`;
 document.head.appendChild(dCss);
 const duelEl = document.createElement('div'); duelEl.id = 'duel'; document.body.appendChild(duelEl);
-const foeURL = foeTex.image.toDataURL();
+const foeURL = FOE_IMG[3] ? 'assets/npc/foe_4.webp' : foeTex.image.toDataURL();
 function playDuel(k, done) {
   const R = G.raid, A = GM.ALLY[k], F = GM.foeGeneral(G), win = GM.duel(G, k), bg = `assets/field/${R.dir || 'pass'}.jpg`;
   duelEl.style.backgroundImage = `url(${bg})`; duelEl.style.display = 'block';
