@@ -1,9 +1,9 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793202976';
-import { createUI } from './ui.js?v=1793202976';
-import { createMorning } from './morning.js?v=1793202976';
+import * as GM from './game.js?v=1793203592';
+import { createUI } from './ui.js?v=1793203592';
+import { createMorning } from './morning.js?v=1793203592';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -730,9 +730,16 @@ let camp = null;
 // 敵兵の絵（槍兵・羽飾りの兵・フードの山賊・毛皮の斧の山賊）。読めなければコード描画の影で代用
 const FOE_IMG = await Promise.all([1, 2, 3, 4].map(i => loadImage(`assets/npc/foe_${i}.webp`)));
 const FOE_TEX = FOE_IMG.map(im => { if (!im) return null; const t = new THREE.Texture(im); t.needsUpdate = true; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; });
-function foeSprite(i, sc, x, y) { // i：0〜3。足元を(x,y)に置く。背の高さは約64×sc/.178
-  const t = FOE_TEX[i % 4]; if (!t) return sprite3D(foeTex, { w: 64, h: 96, ax: .5, ay: .94 }, sc * .42 / .178, x, y);
-  const im = FOE_IMG[i % 4]; return sprite3D(t, { w: im.width, h: im.height, ax: .5, ay: .98 }, sc, x, y); }
+const FOEWALK_META = await fetch('assets/npc/foewalk_meta.json').then(r => r.json()).catch(() => null); // 敵の歩き（4×2の8コマ）
+const FOEWALK_IMG = FOEWALK_META ? await Promise.all([1, 2, 3, 4].map(i => loadImage(`assets/npc/foewalk_${i}.webp`))) : [];
+const FOEWALK_TEX = FOEWALK_IMG.map(im => { if (!im) return null; const t = new THREE.Texture(im); t.needsUpdate = true; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; });
+function foeSprite(i, sc, x, y) { // i：0〜3。足元を(x,y)に置く。sc＝立ち絵（高さ360）に掛ける拡大率。歩きの絵があればそれで出す
+  const k = i % 4, wt = FOEWALK_TEX[k];
+  if (wt) { const M = FOEWALK_META[k], u = 360 * sc / M.h, t = wt.clone(); t.needsUpdate = true; t.repeat.set(.25, .5);
+    const m = sprite3D(t, { w: M.cw, h: M.ch, ax: .5, ay: 1 }, u, x, y); m.userData.walk = { t, k }; foeFrame(m, 0, 0); return m; }
+  const t0 = FOE_TEX[k]; if (!t0) return sprite3D(foeTex, { w: 64, h: 96, ax: .5, ay: .94 }, sc * .42 / .178, x, y);
+  const im = FOE_IMG[k]; return sprite3D(t0, { w: im.width, h: im.height, ax: .5, ay: .98 }, sc, x, y); }
+function foeFrame(m, f, dir) { const w = m.userData.walk; if (!w) return; w.t.offset.set((f % 4) * .25, f < 4 ? .5 : 0); if (dir) m.scale.x = Math.abs(m.scale.x) * (dir > 0 ? -1 : 1); } // 絵は左向き。右へ進むときは反転
 function updateCamp() { // 襲撃の2週前から、敵の陣が街の外に見え、週ごとに近づく
   if (camp) { camp.forEach(c => scene.remove(c)); camp = null; }
   const r = GM.raidView(G); if (!r || r.inWeeks > 2 || G.raid) return; const F = FRONTS[r.dir]; if (!F) return;
@@ -752,7 +759,7 @@ function raidIntro(done) { // 空が赤くなり、陣から軍勢が街道を�
     foes.push({ m, x0: src[0] - dx / L * (60 + back) + nx * a, y0: src[1] - dy / L * (60 + back) + ny * a * .6, x1: dst[0] - dx / L * back * .5 + nx * a, y1: dst[1] - dy / L * back * .5 + ny * a * .6, d: Math.random() * .5 }); }
   raidFx.classList.add('on'); const t0 = performance.now();
   const f = now => { const t = (now - t0) / 2800;
-    foes.forEach(o => { const k = Math.min(1, Math.max(0, (t - o.d * .3) / .8)), e = k * (2 - k), x = o.x0 + (o.x1 - o.x0) * e, y = o.y0 + (o.y1 - o.y0) * e, z = zOf(y); o.m.position.set(x, hgt(x, z) + Math.abs(Math.sin(now / 110 + o.d * 9)) * 2 * (k < 1), z); });
+    foes.forEach(o => { const k = Math.min(1, Math.max(0, (t - o.d * .3) / .8)), e = k * (2 - k), x = o.x0 + (o.x1 - o.x0) * e, y = o.y0 + (o.y1 - o.y0) * e, z = zOf(y); o.m.position.set(x, hgt(x, z) + (o.m.userData.walk ? 0 : Math.abs(Math.sin(now / 110 + o.d * 9)) * 2 * (k < 1)), z); if (o.m.userData.walk) foeFrame(o.m, k < 1 ? Math.floor((now + o.d * 900) / 140) % 8 : 0, o.x1 - o.x0); });
     if (t > .35 && !f.b) { f.b = 1; const fr = GM.FRONT[R.dir]; raidBan.innerHTML = `<div>${R.boss ? '将軍の侵攻' : '敵襲'}<small>${R.name}・規模 ${R.E}／${fr ? fr.n + 'で迎え撃つ' : ''}</small></div>`; raidBan.className = 'on'; }
     if (t > 1.05 && !f.c) { f.c = 1; raidBan.className = 'off'; }
     if (t > 1.2) { f.done = true; introPlaying = false; done && done(); } };
@@ -1009,6 +1016,6 @@ G = loadSave() || GM.newState(layout.areas); syncMap(true); refreshUI(); takeBat
 if (params.has('duel')) { const sv = JSON.stringify(G); G.raid = { kind: 'raid', E: 46, name: '将軍の侵攻（試し）', boss: true, w: 12, dir: 'pass', ranka: GM.joined(G, 'ranka') }; maybeDuel(() => { G = JSON.parse(sv); writeSave(); refreshUI(); ui.toast('試しの一騎打ちを終えた（記録は残らない）'); }); } // ?duel で一騎打ちだけ見る
 resize(); apply(); renderer.render(scene, camera); status.ok = true;
 window.__t.setView = (zoom, sx, sy) => { view.zoom = zoom; view.cx = sx; view.cz = zOf(sy); clampView(); apply(); renderer.render(scene, camera); };
-window.__t.playDuel = playDuel; window.__t.allyMesh = allyMesh; window.__t.select = id => select(plots.find(p => p.id === id) || null);
-window.__t.plots = plots; window.__t.G = () => G; window.__t.playDuel = playDuel; window.__t.camp = () => camp && camp.map(c => [c.position.x|0, c.position.y|0, c.position.z|0, c.visible]); window.__t.faces = () => faceURL; window.__t.raidIntro = raidIntro; window.__t.showReport = showReport; window.__t.openMorning = openMorning; window.__t.GM = GM; window.__t.commit = () => commit(); window.__t.reset = () => { try { localStorage.removeItem(SAVE_KEY); } catch (e) { } }; window.__t.pickAt = (cx, cy) => pickAt(cx, cy); window.__t.view = view; window.__t.sel = () => selected && selected.id; window.__t.build = (id, fac, stage) => { if (stage) G.plots[id] = { fac, stage }; else delete G.plots[id]; commit(); };
+window.__t.playDuel = playDuel; window.__t.raidIntro = raidIntro; window.__t.allyMesh = allyMesh; window.__t.select = id => select(plots.find(p => p.id === id) || null);
+window.__t.plots = plots; window.__t.G = () => G; window.__t.playDuel = playDuel; window.__t.raidIntro = raidIntro; window.__t.camp = () => camp && camp.map(c => [c.position.x|0, c.position.y|0, c.position.z|0, c.visible]); window.__t.faces = () => faceURL; window.__t.raidIntro = raidIntro; window.__t.showReport = showReport; window.__t.openMorning = openMorning; window.__t.GM = GM; window.__t.commit = () => commit(); window.__t.reset = () => { try { localStorage.removeItem(SAVE_KEY); } catch (e) { } }; window.__t.pickAt = (cx, cy) => pickAt(cx, cy); window.__t.view = view; window.__t.sel = () => selected && selected.id; window.__t.build = (id, fac, stage) => { if (stage) G.plots[id] = { fac, stage }; else delete G.plots[id]; commit(); };
 requestAnimationFrame(frame);
