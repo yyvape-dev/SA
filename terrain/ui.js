@@ -34,8 +34,8 @@ const css = `
 #top .res b{display:block;font:700 14px/1 system-ui;color:#fff2d0}#top .res small{display:block;font-size:9px;color:#c9b48a;white-space:nowrap}
 #top .res .bar{height:3px;background:#3a2a1a;border-radius:2px;margin-top:2px;overflow:hidden}#top .res .bar span{display:block;height:100%}
 #top .res .d{font-size:9px;color:#9fd08a}#top .res .n{font-size:9px;color:#ff9a8a}
-#pnl{position:fixed;left:4px;right:4px;bottom:calc(env(safe-area-inset-bottom) + 4px);z-index:4;height:186px;display:flex;color:#f3e6c0;font:600 12px/1.35 system-ui,"Noto Sans JP",sans-serif}
-#pnl .por{width:34%;position:relative;overflow:hidden;border-radius:6px 0 0 6px;border-right:1px solid #6a5030;background:radial-gradient(ellipse at 50% 30%,#4a3020,#1a100a)}
+#pnl{position:fixed;left:4px;right:4px;bottom:calc(env(safe-area-inset-bottom) + 4px);z-index:4;height:170px;display:flex;transition:height .15s;color:#f3e6c0;font:600 12px/1.35 system-ui,"Noto Sans JP",sans-serif}
+#pnl .por{width:30%;position:relative;overflow:hidden;border-radius:6px 0 0 6px;border-right:1px solid #6a5030;background:radial-gradient(ellipse at 50% 30%,#4a3020,#1a100a)}
 #pnl .por img{position:absolute;left:50%;top:4px;width:150%;transform:translateX(-50%)}
 #pnl .por .nm{position:absolute;left:0;right:0;bottom:0;padding:3px 6px;background:linear-gradient(#0000,#000c);font:700 12px/1.2 ${SERIF};color:#ffe3a0}
 #pnl .card{flex:1;display:flex;flex-direction:column;padding:7px 9px;min-width:0}
@@ -53,7 +53,13 @@ const css = `
 .big:disabled{filter:grayscale(.85) brightness(.65)}
 .wkb{pointer-events:auto;flex:none;padding:0 10px;min-height:44px;font:700 13px/1.15 ${SERIF};color:#f3e6c0;background:linear-gradient(#3a2a1a,#1a120a);border:2px solid #b48a3c;border-radius:6px}
 .wkb small{display:block;font:600 9px/1.2 system-ui;color:#c9b48a}.wkb.hot{box-shadow:0 0 0 2px #ffd770,0 0 12px #ffcc66}
-#reset{position:fixed;right:6px;bottom:calc(env(safe-area-inset-bottom) + 196px);z-index:5;pointer-events:auto;font-size:11px;padding:3px 7px;border-radius:8px;border:1px solid #fff4;background:#0008;color:#ddd}
+#reset{position:fixed;right:6px;bottom:calc(env(safe-area-inset-bottom) + var(--ph,64px) + 10px);z-index:5;pointer-events:auto;font-size:11px;padding:3px 7px;border-radius:8px;border:1px solid #fff4;background:#0008;color:#ddd}
+#pnl.act{height:auto;min-height:0}#pnl.act .por{display:none}#pnl.act .card{padding:5px 8px}#pnl.act .hd{font-size:14px;padding-bottom:3px}#pnl.act .big,#pnl.act .wkb{min-height:38px}#pnl.act .big{font-size:15px}#pnl.act .act{margin-top:3px;font-size:13px}
+#pnl .av{width:30px;height:30px;border-radius:50%;overflow:hidden;flex:none;border:1.5px solid #b48a3c;background:#3a2414;position:relative}
+#pnl .av img{position:absolute;left:50%;top:-2px;width:240%;transform:translateX(-50%)}
+#pnl.mini{height:auto;align-items:center;padding:5px 6px;gap:7px}#pnl.mini .av{width:42px;height:42px}
+#pnl.mini .tx{flex:1;min-width:0;font:600 12px/1.35 ${SERIF};color:#f3e6c0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+#pnl.mini .tx b{color:#ffe3a0}#pnl.mini .wkb{min-height:40px}
 #modal{position:fixed;inset:0;z-index:8;display:none;align-items:center;justify-content:center;background:radial-gradient(#3a0a0a80,#200404d0)}
 #modal .box{width:min(92vw,380px);padding:16px;color:#f3e6c0;font:14px/1.6 system-ui,"Noto Sans JP",sans-serif}
 #modal h3{margin:0 0 8px;color:#ffd770;font:700 18px/1.3 ${SERIF}}#modal .btns{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}#modal .btns .big{font-size:15px;min-width:30%}
@@ -81,19 +87,28 @@ export function createUI({ onEndWeek, onReset }) {
         <div class="res fr">${d.res.map(r => `<div>${ico(r.ic, 22)}<span style="min-width:0"><small>${r.lab}</small><b>${r.val}</b>${r.bar !== undefined ? `<div class="bar"><span style="width:${Math.max(0, Math.min(100, r.bar))}%;background:${r.col || '#7ac06a'}"></span></div>` : ''}${r.sub ? `<span class="${r.cls || 'd'}">${r.sub}</span>` : ''}</span></div>`).join('')}</div>`;
     },
     // p = {key, icon, title, por:{src,name}|null, bubble, items:[{label, act, sup, ap, eff, can, why, verb, fn}], week:{label, sub, hot, disabled}}
+    // p.mode: 'mini'（何も選んでいない：1行だけ）／'act'（行動：立ち絵なし、小さな顔）／'talk'（会話・報告：立ち絵と吹き出し）
     panel(p) {
       if (p.key !== lastKey) { pick = 0; lastKey = p.key; }
       const items = p.items || []; if (pick >= items.length) pick = 0;
-      const it = items[pick];
-      pnl.innerHTML = `<div class="por">${p.por ? `<img src="${p.por.src}" alt=""><div class="nm">${p.por.name}</div>` : ''}</div>
-        <div class="card"><div class="hd">${ico(p.icon || 'build', 20)}<span>${p.title}</span></div>
+      const it = items[pick], mode = p.mode || 'talk';
+      const wkBtn = `<button class="wkb ${p.week.hot ? 'hot' : ''}" data-wk ${p.week.disabled ? 'disabled' : ''}>${p.week.label} »<small>${p.week.sub || ''}</small></button>`;
+      const av = p.por ? `<span class="av"><img src="${p.por.src}" alt=""></span>` : '';
+      pnl.className = 'fr ' + mode;
+      if (mode === 'mini') {
+        pnl.innerHTML = `${av}<div class="tx">${p.por ? `<b>${p.por.name.replace(/（.*）/, '')}</b>：` : ''}${p.bubble || ''}</div>${wkBtn}`;
+      } else {
+        pnl.innerHTML = `<div class="por">${mode === 'talk' && p.por ? `<img src="${p.por.src}" alt=""><div class="nm">${p.por.name}</div>` : ''}</div>
+        <div class="card"><div class="hd">${mode === 'act' ? av : ''}${ico(p.icon || 'build', 20)}<span>${p.title}</span></div>
         ${items.length > 1 ? `<div class="chips">${items.map((x, i) => `<button data-i="${i}" class="${i === pick ? 'on' : ''} ${x.can === false ? 'x' : ''}">${x.label}</button>`).join('')}</div>` : ''}
         ${it ? `<div class="act">${it.act ?? it.label}</div><div class="cost">${it.sup ? `<span class="${it.sup < 0 ? 'm' : 'p'}">${ico('sup', 16)} 物資${it.sup > 0 ? '+' : ''}${it.sup}</span>` : ''}${it.ap ? `<span>${ico('ap', 16)} 行動 ${it.ap}</span>` : ''}</div>${it.eff ? `<div class="eff">${it.eff}</div>` : ''}${it.can === false && it.why ? `<div class="why">${it.why}</div>` : ''}` : ''}
         ${p.bubble ? `<div class="bub">${p.bubble}</div>` : ''}
-        <div class="btns">${it && it.verb ? `<button class="big" data-go ${it.can === false ? 'disabled' : ''}>${ico(p.icon || 'build', 20)}${it.verb}</button>` : '<span style="flex:1"></span>'}<button class="wkb ${p.week.hot ? 'hot' : ''}" data-wk ${p.week.disabled ? 'disabled' : ''}>${p.week.label} »<small>${p.week.sub || ''}</small></button></div></div>`;
+        <div class="btns" style="margin-top:${mode === 'act' ? '6px' : 'auto'}">${it && it.verb ? `<button class="big" data-go ${it.can === false ? 'disabled' : ''}>${ico(p.icon || 'build', 20)}${it.verb}</button>` : '<span style="flex:1"></span>'}${wkBtn}</div></div>`;
+      }
       pnl.querySelectorAll('.chips button').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); pick = +b.dataset.i; ui.panel(p); }));
       const go = pnl.querySelector('[data-go]'); if (go) go.addEventListener('click', e => { e.stopPropagation(); it.fn(); });
       pnl.querySelector('[data-wk]').addEventListener('click', e => { e.stopPropagation(); onEndWeek(); });
+      document.documentElement.style.setProperty('--ph', pnl.offsetHeight + 'px');
     },
     modal(title, body, buttons, cls) { // buttons: [{label, sub, fn}]
       if (!title) { modal.style.display = 'none'; return; }
