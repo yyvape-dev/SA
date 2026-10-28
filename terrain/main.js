@@ -1,8 +1,8 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793185480';
-import { createUI } from './ui.js?v=1793185480';
+import * as GM from './game.js?v=1793185647';
+import { createUI } from './ui.js?v=1793185647';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -479,7 +479,7 @@ function hitCastle(sx, sy) { const h = castleHit; if (!h) return false; const u 
 function setPlot(pl, fac, stage) { pl.fac = stage ? fac : null; pl.stage = stage; refreshPlot(pl); }
 
 // ---------- 仲間（家の街の広場に立つ。仲間になると現れる）----------
-const ALLY_POS = { mina: [405, 1048], garou: [548, 1046], sera: [508, 1080] };
+const ALLY_POS = { mina: [405, 1048], garou: [548, 1046], sera: [508, 1080], ranka: [432, 1090] };
 const allyMesh = {};
 for (const k of Object.keys(GM.ALLY)) {
   const im = await loadImage(`../ally/${k}.png`); if (!im) continue;
@@ -499,7 +499,7 @@ const hitAlly = (sx, sy) => Object.keys(allyMesh).find(k => { const a = allyMesh
 // ---------- ゲームの状態（game.js のルール）と画面の同期 ----------
 const SAVE_KEY = 'territory_v2';
 let G = null, selCastle = false, selAlly = null;
-function loadSave() { try { const v = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); if (v && v.week) { v.bond = v.bond || { mina: 0, garou: 0, sera: 0 }; v.assign = v.assign || {}; return v; } return null; } catch (e) { return null; } }
+function loadSave() { try { const v = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); if (v && v.week) { v.bond = Object.assign({ mina: 0, garou: 0, sera: 0, ranka: 0 }, v.bond || {}); v.assign = v.assign || {}; return v; } return null; } catch (e) { return null; } }
 function writeSave() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(G)); } catch (e) { } }
 function syncMap(instant) { // 状態 → 区画の絵と霧
   for (const pl of plots) { const p = G.plots[pl.id]; const f = p ? p.fac : null, stg = p ? p.stage : 0; if (pl.fac !== f || pl.stage !== stg) setPlot(pl, f, stg); }

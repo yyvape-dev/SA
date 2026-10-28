@@ -18,9 +18,10 @@ export const ALLY = {
   mina:  { n: 'ミナ',   r: '捕縛役', join: null,   lv: ['', '', '自分で戦う成功率+12%・戦闘の拘束+0.4秒', '自分で戦う成功率+さらに8%・拘束+さらに0.4秒'] },
   garou: { n: 'ガロウ', r: '火力役', join: 'east', lv: ['', '', '防衛力+4・戦闘のダメージ+15%', '防衛力+7・ダメージ+30%'] },
   sera:  { n: 'セラ',   r: '内政役', join: 'lake', lv: ['', '', '畑の産出+1ずつ・戦闘の最大HP+20', '炊き出しの民心+15・最大HP+40'] },
+  ranka: { n: 'ランカ', r: '火力役・将軍', join: 'forest', lv: ['', '', '兵1人の防衛力+0.5・戦闘のダメージ+10%', '兵1人の防衛力+さらに0.5・ダメージ+さらに15%'] },
 };
 // 施設への配置：仲間1人につき施設1つ。完成・発展後の施設だけ。得意な施設なら効果+基本値ぶん、そうでなければ半分（切り上げ）
-export const AFFINITY = { farm: ['sera'], tavern: ['sera', 'garou'], smithy: ['garou', 'mina'] };
+export const AFFINITY = { farm: ['sera'], tavern: ['sera', 'garou', 'ranka'], smithy: ['garou', 'mina', 'ranka'] };
 export function assignBonus(fac, k) { const e = Object.values(FAC[fac].eff)[0]; return AFFINITY[fac].includes(k) ? e : Math.ceil(e / 2); }
 export const allyAt = (s, id) => Object.keys(s.assign || {}).find(k => s.assign[k] === id) || null;
 export function canAssign(s, k, id) { const p = s.plots[id]; return joined(s, k) && !!p && p.stage >= 2 && !s.over && !s.raid && s.assign[k] !== id; }
@@ -32,14 +33,14 @@ const bond = (s, k) => (s.bond && s.bond[k]) || 0;
 export const canTalk = (s, k) => joined(s, k) && bond(s, k) < 3 && !s.over && !s.raid && s.ap >= 1;
 export function talk(s, k) { if (!canTalk(s, k)) return false; s.ap -= 1; s.bond[k] = bond(s, k) + 1; s.log.push(`${ALLY[k].n}と過ごした（絆${s.bond[k]}）`); return true; }
 export function battleMods(s) { // アクション戦闘へ渡す補正
-  const m = bond(s, 'mina'), g = bond(s, 'garou'), r = bond(s, 'sera');
-  return { dmg: 1 + (g >= 3 ? .3 : g >= 2 ? .15 : 0), bind: m >= 3 ? .8 : m >= 2 ? .4 : 0, hp: r >= 3 ? 40 : r >= 2 ? 20 : 0 };
+  const m = bond(s, 'mina'), g = bond(s, 'garou'), r = bond(s, 'sera'), k = bond(s, 'ranka');
+  return { dmg: 1 + (g >= 3 ? .3 : g >= 2 ? .15 : 0) + (k >= 3 ? .25 : k >= 2 ? .1 : 0), bind: m >= 3 ? .8 : m >= 2 ? .4 : 0, hp: r >= 3 ? 40 : r >= 2 ? 20 : 0 };
 }
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const mult = st => (st === 2 ? 1 : st === 3 ? 2 : 0);
 
 export function newState(areaDefs) {
-  return { week: 1, ap: 3, sup: 10, morale: 60, troops: 4, hp: 3, plots: {}, open: [], bond: { mina: 0, garou: 0, sera: 0 }, assign: {}, battle: null, scouted: {}, tired: false, over: null, why: '', raid: null, log: [], areaDefs: areaDefs.map(a => ({ id: a.id, name: a.name, cost: a.cost, income: a.income })) };
+  return { week: 1, ap: 3, sup: 10, morale: 60, troops: 4, hp: 3, plots: {}, open: [], bond: { mina: 0, garou: 0, sera: 0, ranka: 0 }, assign: {}, battle: null, scouted: {}, tired: false, over: null, why: '', raid: null, log: [], areaDefs: areaDefs.map(a => ({ id: a.id, name: a.name, cost: a.cost, income: a.income })) };
 }
 
 // ---------- 指標（全部ここから計算） ----------
@@ -50,7 +51,7 @@ function effSum(s, key) {
     const k = allyAt(s, id); if (k && p.stage >= 2) v += assignBonus(p.fac, k); }
   return v;
 }
-export const D = s => s.troops * 1.5 + effSum(s, 'def') + 2 + (bond(s, 'garou') >= 3 ? 7 : bond(s, 'garou') >= 2 ? 4 : 0);                       // 防衛力
+export const D = s => s.troops * (1.5 + (bond(s, 'ranka') >= 3 ? 1 : bond(s, 'ranka') >= 2 ? .5 : 0)) + effSum(s, 'def') + 2 + (bond(s, 'garou') >= 3 ? 7 : bond(s, 'garou') >= 2 ? 4 : 0); // ランカ（将軍）は兵を強くする                       // 防衛力
 export const landInc = s => s.areaDefs.filter(a => s.open.includes(a.id)).reduce((t, a) => t + a.income, 0);
 export const income = s => 4 + effSum(s, 'sup') + landInc(s) - Math.floor(s.troops / 2); // 毎週の物資
 export const moraleD = s => -2 + effSum(s, 'mor');                                   // 毎週の民心
@@ -135,6 +136,9 @@ export const LINES = {
   sera: { idle: ['物資の帳簿、今週も合いました。陛下のおかげです。', '民の顔が明るい国は、強い国です。', '急がず、でも止まらず。国づくりはそういうものです。'],
     farm: ['今年の麦は良く実りそうです。冬の蓄えも心配いりません。'], tavern: ['酒場の笑い声は、民心の物差しです。'], smithy: ['鍛冶の帳簿は、鉄より重いんです……。'],
     b3: ['陛下の国を、もう一度。そのためなら、私は何年でも数字を数えます。'] },
+  ranka: { idle: ['陛下の将、ランカ。兵の一人ひとりまで、わたくしが鍛えて差し上げます。', '謀反の将軍どもに、本物の将軍というものを見せてやりましょう。', '戦は数ではなく、束ね方。陛下ならお分かりでしょう？'],
+    farm: ['兵糧なくして軍は動きません。……土いじりも、たまには悪くないわね。'], tavern: ['兵の士気は酒場で決まるもの。今夜はわたくしの奢りよ。'], smithy: ['刃は研ぎ澄まして。半端な鉄で、陛下の兵を死なせるわけにはいかない。'],
+    b3: ['この命、陛下の旗の下に。わたくしが倒れるまで、陛下の前に敵は通しません。'] },
 };
 export function lineOf(s, k, rnd = Math.random) {
   const L = LINES[k], at = s.assign && s.assign[k], fac = at && s.plots[at] ? s.plots[at].fac : null;
