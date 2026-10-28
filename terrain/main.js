@@ -1,8 +1,8 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793196764';
-import { createUI } from './ui.js?v=1793196764';
+import * as GM from './game.js?v=1793199589';
+import { createUI } from './ui.js?v=1793199589';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -692,6 +692,7 @@ function raidIntro(done) { // 空が赤くなり、陣から軍勢が街道を�
 }
 function endRaidFx() { raidFx.classList.remove('on'); foes.forEach(f => scene.remove(f.m)); foes = []; raidBan.className = ''; }
 function autoBattle(resolveFn) { // 任せた戦闘：仲間と兵が軍勢とぶつかり、押し合いの末に結果が出る（約3秒、タップで飛ばせる）
+  if (!G.raid) { ui.modal(null); return; }
   const R = G.raid, usD = GM.raidD(G), E = R.E;
   const team = Object.keys(GM.ALLY).filter(k => GM.joined(G, k) && !(k === 'ranka' && (G.rankaAway || !R.ranka))).slice(0, 4);
   const t = resolveFn(); // 先に結果を決め、演出をその結果に合わせる
@@ -784,7 +785,7 @@ function takeBattleResult() {
   let r = null; try { r = JSON.parse(localStorage.getItem('battle_result') || 'null'); } catch (e) { }
   if (!r || !G.battle || !G.raid || r.id !== G.battle.id) return;
   try { localStorage.removeItem('battle_result'); } catch (e) { }
-  G.battle = null; const t = GM.resolve(G, 'hand', Math.random, !!r.win); endRaidFx(); commit(`${t}（撃破${r.kills}）`); showReport();
+  G.battle = null; const t = GM.resolve(G, 'hand', Math.random, !!r.win); endRaidFx(); commit(`${t}（撃破${r.kills}）`); ui.modal(null); /* 出撃は週の報告がなく、起動時に開いた出撃の窓が残って止まっていた */ showReport();
 }
 function raidModal() {
   const R = G.raid; if (!R) { ui.modal(null); return; } if (introPlaying || abt.style.display === 'flex' || duelEl.style.display === 'block' || /一騎打ち/.test(document.querySelector('#modal h3') ? document.querySelector('#modal h3').textContent : '')) return;
@@ -820,7 +821,7 @@ function refreshUI() {
     res: [{ ic: 'sup', lab: '物資', val: G.sup, sub: `${sg(inc)}/週`, cls: inc >= 0 ? 'd' : 'n' }, { ic: 'mor', lab: '民心', val: Math.round(G.morale), bar: G.morale, col: G.morale < 30 ? '#e05a4a' : '#6ac06a' },
       { ic: 'trp', lab: '兵力', val: G.troops, bar: G.troops / 16 * 100, col: '#7aa8e0' }, { ic: 'def', lab: '防衛', val: Math.round(GM.D(G)) },
       { ic: 'hp', lab: '耐久', val: `${G.hp}/3` }, { ic: 'ap', lab: '行動', val: `${G.ap}/${apMax}`, sub: '●'.repeat(G.ap) + '○'.repeat(Math.max(0, apMax - G.ap)), cls: 'd' }] });
-  renderActions(); if (G.raid) raidModal(); else if (G.over) overModal();
+  renderActions(); if (G.raid) raidModal(); else { const h = document.querySelector('#modal h3'); if (h && /^(出撃|襲撃)：/.test(h.textContent)) ui.modal(null); /* 終わった襲撃の窓を残さない */ if (G.over) overModal(); }
 }
 function renderActions() {
   if (!G) return; const L = []; let title = '', icon = 'build', por = null, bubble = null, key = 'none', mode = 'act';
