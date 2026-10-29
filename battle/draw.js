@@ -85,13 +85,7 @@ function drawFoe(e) { // 赤い兵：歩き（シート）／攻撃（連番）�
     ctx.drawImage(im, sx, sy, sw, shh, -ox, -oy, sw, shh);
   }
   ctx.restore();
-  if (e.bind > 0 && e.state === 'walk') { // 拘束の輪（足元と腰）。切れる直前は薄くなる
-    var al = Math.min(1, e.bind / 0.25) * 0.9, wob = 1 + 0.06 * Math.sin(e.t * 14), s2 = depthScale(e.y) * e.size;
-    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = 'rgba(160,130,255,' + al + ')'; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.ellipse(e.x, e.y, 40 * s2 * wob, 11 * s2 * wob, 0, 0, 7); ctx.stroke();
-    ctx.beginPath(); ctx.ellipse(e.x, e.y - H0 * 0.45, 30 * s2, 8 * s2, 0, 0, 7); ctx.stroke();
-    ctx.restore();
-  }
+  if (e.bind > 0 && e.state === 'walk') drawBindBand(e); // 拘束の帯（battle/fx.js）。床の印は drawBindFloor
 }
 function drawSkeleton(e) { // 予備（敵の絵が読めなかったとき）
   var sc = depthScale(e.y) * e.size, t = e.t;
@@ -118,13 +112,7 @@ function drawSkeleton(e) { // 予備（敵の絵が読めなかったとき）
   ctx.fillStyle = C.dark; ctx.fillRect(-1.5, -86, 3, 4);
   ctx.strokeStyle = C.dark; ctx.lineWidth = 1.5; ctx.beginPath(); for (var j = -6; j <= 6; j += 4) { ctx.moveTo(j, -79); ctx.lineTo(j, -73); } ctx.stroke();
   ctx.restore();
-  if (e.bind > 0 && e.state === 'walk') { // 拘束の輪（足元と腰）。切れる直前は薄くなる
-    var al = Math.min(1, e.bind / 0.25) * 0.9, wob = 1 + 0.06 * Math.sin(e.t * 14);
-    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = 'rgba(160,130,255,' + al + ')'; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.ellipse(e.x, e.y, 30 * sc * wob, 8 * sc * wob, 0, 0, 7); ctx.stroke();
-    ctx.beginPath(); ctx.ellipse(e.x, e.y - 40 * sc, 22 * sc, 6 * sc, 0, 0, 7); ctx.stroke();
-    ctx.restore();
-  }
+  if (e.bind > 0 && e.state === 'walk') drawBindBand(e); // 拘束の帯（battle/fx.js）。床の印は drawBindFloor
 }
 
 function drawFx() {
@@ -146,6 +134,7 @@ function drawFx() {
       ctx.fillStyle = 'rgba(120,190,255,' + (0.55 * fl) + ')'; ctx.beginPath(); ctx.moveTo(40, 0); ctx.lineTo(40 + Ll * 0.15, -wl); ctx.lineTo(40 + Ll, 0); ctx.lineTo(40 + Ll * 0.15, wl); ctx.closePath(); ctx.fill();
       ctx.fillStyle = 'rgba(255,255,255,' + (0.95 * fl) + ')'; ctx.beginPath(); ctx.moveTo(40, 0); ctx.lineTo(40 + Ll * 0.15, -wl * 0.35); ctx.lineTo(40 + Ll, 0); ctx.lineTo(40 + Ll * 0.15, wl * 0.35); ctx.closePath(); ctx.fill();
       ctx.restore();
+    } else if (f.type === 'vpull') { drawVPull(f);
     } else if (f.type === 'ring') {
       ctx.strokeStyle = 'rgba(' + (f.rgb || '255,205,110') + ',' + (1 - p) + ')'; ctx.lineWidth = 16 * (1 - p) + 2;
       ctx.beginPath(); ctx.ellipse(f.x, f.y, f.R * p, f.R * 0.4 * p, 0, 0, 7); ctx.stroke();
@@ -385,6 +374,7 @@ function draw() {
   if (G.state === 'play' && h0.state === 'atk' && h0.kind === 'ult' && h0.t < ULT.hit + 0.02) {
     ctx.fillStyle = 'rgba(6,4,14,' + (0.5 * Math.min(1, h0.t / 0.5)) + ')'; ctx.fillRect(camX - 10, camY + TOPY - 10, W + 20, CVH() + 20);
   }
+  drawBindFloor(); // 拘束の床の印（敵より先＝足元の下）
   var list = [];
   G.enemies.forEach(function (e) { list.push({ y: e.y, f: function () { drawFoe(e); } }); });
   if (G.state !== 'title') list.push({ y: G.hero.y, f: drawHero });

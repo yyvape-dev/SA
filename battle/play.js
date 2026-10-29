@@ -268,7 +268,7 @@ function doHit(n) {
 
 // 吸引：前方の一点へ敵を引き寄せ、S.bind 秒だけ動けなくする（ダメージは与えない）
 function doPull(c) {
-  var R = 560 * S.range, gx = clamp(c.x + c.face * 110, heroMinX() + 10, heroMaxX() - 10), n = 0;
+  var R = 560 * S.range, gx = clamp(c.x + c.face * 110, heroMinX() + 10, heroMaxX() - 10), n = 0, got = [];
   for (var i = 0; i < G.enemies.length; i++) {
     var e = G.enemies[i];
     if (e.state !== 'walk' || Math.abs(e.x - c.x) > R) continue;
@@ -277,14 +277,12 @@ function doPull(c) {
     var f = e.elite ? 0.4 : 1; // 強敵は半分以下しか引けず、拘束も短い
     tx = e.x + (tx - e.x) * f; ty = e.y + (ty - e.y) * f;
     e.pull = { t: 0, dur: 0.18, sx: e.x, sy: e.y, tx: tx, ty: ty };
-    e.bind = S.bind * (e.elite ? 0.5 : 1); e.stun = 0; e.kx = 0; e.atkCD = Math.max(e.atkCD, 0.3);
-    G.fx.push({ type: 'pline', x1: e.x, y1: e.y, x2: tx, y2: ty, t: 0, life: 0.22 });
+    e.bind = e.bindMax = S.bind * (e.elite ? 0.5 : 1); e.stun = 0; e.kx = 0; e.atkCD = Math.max(e.atkCD, 0.3);
+    got.push(e);
     n++;
   }
-  G.fx.push({ type: 'ring', x: c.x, y: c.y, R: R, t: 0, life: 0.4, rgb: '150,120,255', rgb2: '110,80,220' });
-  G.fx.push({ type: 'suck', x: gx, y: c.y, t: 0, life: 0.5 });
+  fxPull(gx, c.y, Math.min(R, 520), got); // コードの吸引エフェクト（battle/fx.js）
   if (n) {
-    for (var k = 0; k < 16; k++) G.parts.push({ x: gx + rnd(-60, 60), y: c.y - rnd(10, 90), vx: rnd(-60, 60), vy: rnd(-120, -20), g: 100, life: rnd(0.3, 0.7), t: 0, c: '#b7a6ff', s: rnd(3, 6) });
     G.freeze = Math.max(G.freeze, 0.04 + Math.min(n, 10) * 0.006);
     G.shake = Math.max(G.shake, 3 + Math.min(n, 12) * 0.8);
     addText(gx, c.y - 230, n + '体 捕縛！', 30, '#c9bcff', 0.9);
