@@ -1,10 +1,10 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793283085';
-import { createUI } from './ui.js?v=1793283085';
-import { createMorning } from './morning.js?v=1793283085';
-import { slashFX } from './fx_slash.js?v=1793283085';
+import * as GM from './game.js?v=1793283622';
+import { createUI } from './ui.js?v=1793283622';
+import { createMorning } from './morning.js?v=1793283622';
+import { slashFX } from './fx_slash.js?v=1793283622';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -1002,9 +1002,9 @@ function playDuel(k, done) { // 画面いっぱいの一騎打ち。五合の勝
       r.onclick = e => { e.stopPropagation(); if (!r.classList.contains('on')) return; timers.forEach(clearTimeout); if (actL) actL.reset(); if (actR) actR.reset(); duelEl.style.display = 'none'; done(); }; }, 1900); };
   // カメラ：走り出した側に寄って追いかける → 攻撃で二人がぎりぎり収まる大きさまで引く → 元の位置へ戻りながら引きへ
   const FOCUS_ATK = true; // true＝攻撃も攻める側に寄ったまま／false＝攻撃で二人が収まるまで引く
-  const camTo = (z, wx, ms, ease = 'cubic-bezier(.2,.7,.3,1)') => { // 世界の x＝wx を画面の中央に、足元（舞台の85%）が画面の92%に来るよう、z倍に寄る（背景の外が見えないように抑える）
+  const camTo = (z, wx, ms, ease = 'cubic-bezier(.2,.7,.3,1)', fr = .5) => { // fr＝wx を画面の横のどこに置くか（.5＝中央） // 世界の x＝wx を画面の中央に、足元（舞台の85%）が画面の92%に来るよう、z倍に寄る（背景の外が見えないように抑える）
     const sw = stage.clientWidth, sh = stage.clientHeight; z = Math.max(1, z);
-    const tx = Math.min(0, Math.max(sw - z * sw, sw / 2 - z * wx)), ty = Math.min(0, Math.max(sh - z * sh, sh * (.92 - z * .85)));
+    const tx = Math.min(0, Math.max(sw - z * sw, sw * fr - z * wx)), ty = Math.min(0, Math.max(sh - z * sh, sh * (.92 - z * .85)));
     cam.style.transition = `transform ${ms}ms ${ease}`; cam.style.transformOrigin = '0 0'; cam.style.transform = z === 1 ? '' : `translate(${tx}px,${ty}px) scale(${z})`; };
   const runRound = i => { inWin = false; gb.classList.remove('ready');
     const r = GM.duelRound(plan, i, armed), at = r.ally ? L : Rf, df = r.ally ? Rf : L, dir = r.ally ? 1 : -1, act = r.ally ? actL : actR; armed = false;
@@ -1015,14 +1015,14 @@ function playDuel(k, done) { // 画面いっぱいの一騎打ち。五合の勝
     const zFit = Math.min(2.2, sw / (span + sw * .1)), zRun = Math.max(zFit + .5, 2.1); // 攻撃＝二人がぎりぎり収まる／走り＝その人を大きく
     const runMs = D(dx ? 470 : 160), ran = act && dx ? act.run(runMs, r.ally ? 1 : 2.2) : false, lead = D(140);
     at.style.transition = `transform ${runMs}ms ${ran ? 'linear' : 'ease-in'}`; at.style.transform = `translateX(${dx}px)`;
-    camTo(zRun, cx0 + dx * .25, lead); T(() => camTo(zRun, cx1, runMs - lead, 'linear'), lead); // 寄ってから、走りに合わせて追う
+    const FR = dir > 0 ? .32 : .68; /* 寄るとき、攻める側を中央より後ろに置き、進む先（相手と斬撃）に余白を残す（2026-10-29） */ camTo(zRun, cx0 + dx * .25, lead, undefined, FR); T(() => camTo(zRun, cx1, runMs - lead, 'linear', FR), lead); // 寄ってから、走りに合わせて追う
     const clashX = (r.ally ? ra.right + dx : ra.left + dx) - rs.left + dir * sw * .02, tame = D(big ? 300 : 170);
     const P = act ? act.play(Math.max(0, runMs - D(120)), tame) /* 走りの終わりに重ねて振りかぶり始める（踏み込みながら構える） */ : { c: null, hitAt: runMs + 240 };
-    const zAtk = big ? zRun * 1.08 : zRun, fx = cx1 + dir * sw * .06; // 攻撃の間も、走った側に寄ったまま（少しだけ前へ向ける）。二人を収める案は FOCUS_ATK=false
-    T(() => FOCUS_ATK ? camTo(zAtk, fx, D(220)) : camTo(big ? zFit * 1.06 : zFit, mid, D(big ? 320 : 240)), runMs);
+    const zAtk = big ? zRun * 1.08 : zRun, fx = cx1; // 攻撃の間も、走った側に寄ったまま（少しだけ前へ向ける）。二人を収める案は FOCUS_ATK=false
+    T(() => FOCUS_ATK ? camTo(zAtk, fx, D(220), undefined, FR) : camTo(big ? zFit * 1.06 : zFit, mid, D(big ? 320 : 240)), runMs);
     if (r.kind === 'counter') { const c = $('.cut'); c.querySelector('div').innerHTML = `COUNTER<small>見切り　${A.n}が大技を受け流す</small>`; T(() => c.classList.add('on'), runMs); T(() => c.classList.remove('on'), P.hitAt + 500); }
     T(() => { let sl; if (R.boss) { /* 将軍戦：コードの斬撃（fx_slash.js）。味方の攻撃は青、敵は赤。カメラの寄りに合わせて、画面上の相手の位置に出す */ const rs2 = stage.getBoundingClientRect(), r2 = df.getBoundingClientRect(); slashFX(stage, { x: (r2.left + r2.right) / 2 - rs2.left - dir * r2.width * .05, y: r2.top - rs2.top + r2.height * .42, size: Math.min(rs2.height * .95, r2.height * 1.05), dir, big, speed: spd, color: r.ally ? 'blue' : 'red' }); sl = document.createElement('i'); } else { sl = document.createElement('div'); sl.className = 'slash'; sl.style.left = (clashX / sw * 100 - (r.ally ? 4 : 12)) + '%'; cam.appendChild(sl); } df.classList.remove('hit'); void df.offsetWidth; df.classList.add('hit'); df.style.transition = 'transform .18s ease-out'; df.style.transform = `translateX(${dir * sw * .04}px)`; duelEl.classList.add('shake');
-      FOCUS_ATK ? camTo(zAtk * 1.05, fx, 90) : camTo((big ? zFit * 1.06 : zFit) * 1.05, mid, 90); // 当たりの瞬間、少しだけ寄る
+      FOCUS_ATK ? camTo(zAtk * 1.05, fx, 90, undefined, FR) : camTo((big ? zFit * 1.06 : zFit) * 1.05, mid, 90); // 当たりの瞬間、少しだけ寄る
       const n = document.createElement('div'); n.className = 'num'; n.textContent = r.dmg * 7 + Math.round(Math.random() * 9); n.style.left = (clashX / sw * 100 + (r.ally ? 6 : -14)) + '%'; n.style.top = '30%'; cam.appendChild(n); setTimeout(() => { sl.remove(); n.remove(); }, 900);
       apply(i, r); upd(); say(r.ally ? 'l' : 'r', pickOf((r.ally ? AL : FL).hit), 1500); T(() => say(r.ally ? 'r' : 'l', pickOf((r.ally ? FL : AL).hurt), 1400), D(350)); }, P.hitAt);
     T(() => { df.classList.remove('hit'); duelEl.classList.remove('shake'); df.style.transform = ''; }, P.hitAt + 260);
