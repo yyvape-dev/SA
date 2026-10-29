@@ -137,6 +137,8 @@ function drawFx() {
     } else if (f.type === 'vpull') { drawVPull(f);
     } else if (f.type === 'varc') { drawVArc(f);
     } else if (f.type === 'vhit') { drawVHit(f);
+    } else if (f.type === 'vring') { drawVRing(f);
+    } else if (f.type === 'vlance') { drawVLance(f);
     } else if (f.type === 'ring') {
       ctx.strokeStyle = 'rgba(' + (f.rgb || '255,205,110') + ',' + (1 - p) + ')'; ctx.lineWidth = 16 * (1 - p) + 2;
       ctx.beginPath(); ctx.ellipse(f.x, f.y, f.R * p, f.R * 0.4 * p, 0, 0, 7); ctx.stroke();
@@ -160,9 +162,9 @@ function drawFx() {
       ctx.restore();
     } else if (f.type === 'shock') { // 地面を走る衝撃波（前後へ）
       var sx0 = f.x + f.dir * (60 + 760 * p), fa2 = 1 - p;
-      ctx.strokeStyle = 'rgba(255,240,205,' + fa2 + ')'; ctx.lineWidth = 14 * fa2 + 2; ctx.lineCap = 'round';
+      ctx.strokeStyle = (f.rana ? 'rgba(255,200,110,' : 'rgba(255,240,205,') + fa2 + ')'; ctx.lineWidth = 14 * fa2 + 2; ctx.lineCap = 'round';
       ctx.beginPath(); ctx.ellipse(sx0, f.y - 30, 46, 96, 0, -Math.PI / 2, Math.PI / 2, f.dir < 0); ctx.stroke();
-      ctx.strokeStyle = 'rgba(190,225,255,' + (0.5 * fa2) + ')'; ctx.lineWidth = 5;
+      ctx.strokeStyle = (f.rana ? 'rgba(220,40,40,' : 'rgba(190,225,255,') + (0.5 * fa2) + ')'; ctx.lineWidth = 5;
       ctx.beginPath(); ctx.moveTo(f.x + f.dir * 40, f.y); ctx.lineTo(sx0, f.y); ctx.stroke();
     } else if (f.type === 'boom') {
       ctx.strokeStyle = 'rgba(255,120,60,' + (1 - p) + ')'; ctx.lineWidth = 8 * (1 - p) + 1;
@@ -391,7 +393,7 @@ function draw() {
   });
   ctx.restore(); // 世界座標ここまで
   ctx.restore();
-  if (G.flash > 0) { ctx.fillStyle = 'rgba(255,255,255,' + Math.min(1, G.flash) + ')'; ctx.fillRect(0, 0, W, CVH()); }
+  if (G.flash > 0) { ctx.fillStyle = 'rgba(' + (G.flashRGB || '255,255,255') + ',' + Math.min(1, G.flash) + ')'; ctx.fillRect(0, 0, W, CVH()); }
   if (G.state !== 'title') drawHud();
   uiTick();
   drawOverlay();

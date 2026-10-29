@@ -136,15 +136,16 @@ function doUlt(h) {
     hurt(e, dmg * (0.9 + Math.random() * 0.2), e.x >= h.x ? 1 : -1, true); hits++;
   }
   var sf = -h.face; // 動画の振り抜きは、立ち姿の向きと逆へ出る（剣の見える側）
-  G.fx.push({ type: 'ultarc', x: h.x, y: h.y, face: sf, t: 0, life: 0.42 });
-  G.fx.push({ type: 'ultarc', x: h.x, y: h.y, face: -sf, t: 0, life: 0.34, small: true });
-  G.fx.push({ type: 'shock', x: h.x, y: h.y, dir: 1, t: 0, life: 0.6 });
-  G.fx.push({ type: 'shock', x: h.x, y: h.y, dir: -1, t: 0, life: 0.6 });
-  G.fx.push({ type: 'ring', x: h.x, y: h.y, R: R, t: 0, life: 0.55, rgb: '200,235,255', rgb2: '120,180,255' });
-  G.flash = 0.85;
+  // 必殺：巨大な三日月（赤黒・金）を前後に、床の衝撃の輪（battle/fx.js）
+  fxArc(h, sf, R, 0.6, true, false, VFX_RANA, { rx: 720, ry: 280, a0: 1.25, a1: -1.55, w: 120, ox: 40, oy: -130, sw: 150 });
+  fxArc(h, -sf, R, 0.5, true, false, VFX_RANA, { rx: 460, ry: 180, a0: 1.2, a1: -1.4, w: 70, ox: 40, oy: -130, sw: 130 });
+  G.fx.push({ type: 'shock', x: h.x, y: h.y, dir: 1, t: 0, life: 0.6, rana: true });
+  G.fx.push({ type: 'shock', x: h.x, y: h.y, dir: -1, t: 0, life: 0.6, rana: true });
+  fxRing(h.x, h.y, R * 1.15, 0.7);
+  G.flash = 0.38; G.flashRGB = '255,205,160'; /* 白い全面の光は弱め・暖色に（紅の三日月が見えなくなるため） */
   G.freeze = Math.max(G.freeze, 0.14 + Math.min(hits, 14) * 0.006);
   G.shake = Math.max(G.shake, 22 + Math.min(hits, 14) * 1.2);
-  for (i = 0; i < 40; i++) { var dr = i % 2 ? 1 : -1; G.parts.push({ x: h.x + dr * rnd(40, 400), y: h.y - rnd(0, 30), vx: dr * rnd(80, 520), vy: -rnd(120, 520), g: 900, life: rnd(0.4, 0.9), t: 0, c: i % 3 ? '#d9d2bd' : '#ffe9a8', s: rnd(3, 8) }); }
+  for (i = 0; i < 40; i++) { var dr = i % 2 ? 1 : -1; G.parts.push({ x: h.x + dr * rnd(40, 400), y: h.y - rnd(0, 30), vx: dr * rnd(80, 520), vy: -rnd(120, 520), g: 900, life: rnd(0.4, 0.9), t: 0, c: i % 3 ? '#d9d2bd' : '#ffc76a', s: rnd(3, 8) }); }
   addText(h.x, h.y - 280, '必殺！', 58, '#ffe9a8', 1.0);
   if (hits) addText(h.x, h.y - 340, hits + '体 撃破', 30, '#ffb3b3', 1.0);
 }
@@ -228,12 +229,11 @@ function doThr(h) {
     var dx = (e.x - h.x) * h.face, dy = Math.abs(e.y - h.y);
     if (dx > -40 && dx < R && dy < lane) { hurt(e, base * (e.bind > 0 ? 1.5 : 1) * (0.9 + Math.random() * 0.2), h.face, true); hits++; }
   }
-  G.fx.push({ type: 'lance', x: h.x, y: h.y, face: h.face, R: R, t: 0, life: 0.34 });
-  G.fx.push({ type: 'shock', x: h.x, y: h.y, dir: h.face, t: 0, life: 0.5 });
+  fxLance(h, R); // 突きの槍（battle/fx.js、赤黒・金）
+  G.fx.push({ type: 'shock', x: h.x, y: h.y, dir: h.face, t: 0, life: 0.5, rana: true });
   G.freeze = Math.max(G.freeze, 0.06 + Math.min(hits, 12) * 0.008);
   G.shake = Math.max(G.shake, 8 + Math.min(hits, 12) * 1.4);
-  for (i = 0; i < 18; i++) G.parts.push({ x: h.x + h.face * rnd(60, R), y: h.y - rnd(20, 120), vx: h.face * rnd(100, 500), vy: -rnd(40, 240), g: 500, life: rnd(0.25, 0.6), t: 0, c: i % 2 ? '#d9f0ff' : '#ffffff', s: rnd(3, 6) });
-  addText(h.x + h.face * 200, h.y - 250, '貫通！', 40, '#bfe4ff', 0.9);
+  addText(h.x + h.face * 200, h.y - 250, '貫通！', 40, '#ffd27a', 0.9);
   if (hits) addText(h.x + h.face * 200, h.y - 300, hits + '体 貫く', 24, '#d9f0ff', 0.9);
 }
 function atkFrame(t, a) {
@@ -260,8 +260,8 @@ function doHit(n) {
     else ok = dx > -50 && dx < R && dy < lane;
     if (ok) { hurt(e, dmg * (0.9 + Math.random() * 0.2), (e.x >= h.x ? 1 : -1) * (sk ? 1 : h.face > 0 ? 1 : -1), sk); hits++; }
   }
-  if (sk) G.fx.push({ type: 'ring', x: h.x, y: h.y, R: R, t: 0, life: 0.5 });
-  fxArc(h, h.face, R, sk ? 0.28 : 0.2, sk, n === 2);
+  if (sk) fxRing(h.x, h.y, R * 1.1, 0.55);
+  fxArc(h, h.face, R, sk ? 0.28 : 0.2, sk, n === 2, sk ? VFX_RANA : null);
   if (hits) { G.freeze = Math.max(G.freeze, 0.05 + Math.min(hits, 10) * 0.008); G.shake = Math.max(G.shake, 5 + Math.min(hits, 12) * (sk ? 1.8 : 1.1)); }
   else G.shake = Math.max(G.shake, sk ? 6 : 1.5);
 }

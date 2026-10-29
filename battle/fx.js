@@ -107,7 +107,9 @@ function drawBindBand(e) {
 }
 
 // ===== 攻撃：剣の軌跡（三日月×3層）と、当たった敵ごとの衝撃 =====
-var VFX_ATK = { glow: '90,160,255', main: '150,205,255', core: '255,255,255', spark: '200,230,255', dark: '10,20,50' };
+var VFX_ATK = { glow: '90,160,255', main: '150,205,255', core: '255,255,255', spark: '200,230,255', dark: '10,20,50', dk: 0.28, dw: 1.25 };
+// ラナの技の色：剣（黒・金）とトレードカラー（赤黒）。黒い煙の層（通常の合成・濃い）→紅の光→金の縁→白金の芯。剣の振りがそのまま伸びたように見せる
+var VFX_RANA = { glow: '210,25,35', main: '255,90,40', core: '255,232,160', spark: '255,200,110', dark: '16,3,6', dk: 0.6, dw: 1.75 };
 // 楕円の弧に沿った三日月のリボン（ローカル座標）。a0→a1 へ刃が走る。u0〜u1 は描く区間（0〜1）
 function vArcRibbon(rx, ry, a0, a1, u0, u1, w, style) {
   if (u1 - u0 < 0.01) return;
@@ -130,16 +132,19 @@ function vArcGrad(rx, ry, a0, a1, u0, u1, col, a) {
   return g;
 }
 function drawVArc(f) {
-  var C = VFX_ATK, ms = f.t * 1000, SW = f.big ? 120 : 90, FD = f.life * 1000 - SW;
-  var rx = f.R * (f.second ? 0.62 : 0.68), ry = f.second ? 78 : 128, a0 = f.second ? -0.95 : -1.85, a1 = f.second ? 0.95 : 0.8;
+  var C = f.pal || VFX_ATK, ms = f.t * 1000, SW = f.geo ? f.geo.sw : f.big ? 130 : 100, FD = f.life * 1000 - SW;
+  // 大げさに：体の動きより大きく、長く、太く（2026-10-29）
+  var rx = f.R * (f.second ? 0.78 : 0.85), ry = f.second ? 100 : 165, a0 = f.second ? -1.25 : -2.15, a1 = f.second ? 1.2 : 1.0;
   if (f.big) { rx *= 1.12; ry *= 1.15; }
-  var W = (f.big ? 52 : 36), fade = ms > SW ? Math.max(0, 1 - (ms - SW) / FD) : 1;
-  var LY = [{ c: C.glow, lag: 40, tail: 0.6, w: 2.2, a: 0.5 }, { c: C.main, lag: 15, tail: 0.45, w: 1.0, a: 0.95 }, { c: C.core, lag: 0, tail: 0.32, w: 0.38, a: 1 }];
-  ctx.save(); ctx.translate(f.x + f.face * 30, f.y - 95 * depthScale(f.y) + (f.second ? 30 : 0)); ctx.scale(f.face, 1);
+  var W = (f.big ? 70 : 50), ox = 30, oy = -95 * depthScale(f.y) + (f.second ? 30 : 0);
+  if (f.geo) { rx = f.geo.rx; ry = f.geo.ry; a0 = f.geo.a0; a1 = f.geo.a1; W = f.geo.w; ox = f.geo.ox; oy = f.geo.oy; }
+  var fade = ms > SW ? Math.max(0, 1 - (ms - SW) / FD) : 1;
+  var LY = [{ c: C.glow, lag: 40, tail: 0.6, w: C === VFX_RANA ? 1.45 : 2.2, a: C === VFX_RANA ? 0.75 : 0.5 }, { c: C.main, lag: 15, tail: 0.45, w: 1.0, a: 0.95 }, { c: C.core, lag: 0, tail: 0.32, w: 0.38, a: 1 }];
+  ctx.save(); ctx.translate(f.x + f.face * ox, f.y + oy); ctx.scale(f.face, 1);
   // 暗い下地（明るい床でも形が残る）：本体と同じ形を、通常の合成で薄く
   var hd = vEase((ms - 15) / SW), tl = vEase((ms - 15 - SW * 0.45) / (SW * 1.4));
   ctx.globalCompositeOperation = 'source-over';
-  vArcRibbon(rx, ry, a0, a1, Math.min(hd, tl), hd, W * 1.25, vArcGrad(rx, ry, a0, a1, Math.min(hd, tl), hd, C.dark, 0.28 * fade));
+  vArcRibbon(rx, ry, a0, a1, Math.min(hd, tl), hd, W * C.dw, vArcGrad(rx, ry, a0, a1, Math.min(hd, tl), hd, C.dark, C.dk * fade));
   ctx.globalCompositeOperation = 'lighter';
   for (var l = 0; l < 3; l++) {
     var L = LY[l], head = vEase((ms - L.lag) / SW); if (head <= 0) continue;
@@ -152,16 +157,16 @@ function drawVArc(f) {
     var th = a0 + (a1 - a0) * q.u, tx = -rx * Math.sin(th) * (a1 > a0 ? 1 : -1), ty = ry * Math.cos(th) * (a1 > a0 ? 1 : -1), m = Math.hypot(tx, ty) || 1;
     var vx = tx / m * q.v, vy = ty / m * q.v - 120, dr = Math.exp(-age * 5), x = rx * Math.cos(th) + vx * (1 - dr) / 5, y = ry * Math.sin(th) + vy * (1 - dr) / 5 + 260 * age * age;
     var cvx = vx * dr, cvy = vy * dr + 520 * age, cm = Math.hypot(cvx, cvy) || 1, ln = Math.min(46, cm * 0.05) + 3, al = 1 - age / q.life;
-    ctx.strokeStyle = vrgba(C.spark, 0.9 * al); ctx.lineWidth = q.s * (0.5 + 0.5 * al); ctx.lineCap = 'round';
+    ctx.strokeStyle = vrgba(k % 3 ? C.spark : C.core, 0.9 * al); ctx.lineWidth = q.s * (0.5 + 0.5 * al) * (f.geo ? 1.5 : 1); ctx.lineCap = 'round';
     ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - cvx / cm * ln, y - cvy / cm * ln); ctx.stroke();
   }
   ctx.restore();
 }
-function fxArc(h, face, R, life, big, second) {
-  var sp = [], n = big ? 26 : 16;
+function fxArc(h, face, R, life, big, second, pal, geo) {
+  var sp = [], n = geo ? 60 : big ? 30 : 18;
   for (var i = 0; i < n; i++) sp.push({ u: 0.35 + Math.random() * 0.65, d: 20 + Math.random() * 90, v: 300 + Math.random() * 700, life: 0.18 + Math.random() * 0.3, s: 1.2 + Math.random() * 2.2 });
   G.vhitN = 0; // 1振りで光と切り口を出す敵は先頭の4体まで（重なると白く飛ぶ）
-  G.fx.push({ type: 'varc', x: h.x, y: h.y, face: face, R: R, t: 0, life: Math.max(life, 0.3), big: big, second: second, sp: sp });
+  G.fx.push({ type: 'varc', x: h.x, y: h.y, face: face, R: R, t: 0, life: Math.max(life, geo ? 0.6 : 0.36), big: big, second: second, sp: sp, pal: pal, geo: geo });
 }
 // 当たった敵ごとの衝撃：一瞬の光＋刃の向きの短い切り口＋飛び散る火花
 function fxHit(e, dir, strong) {
@@ -170,7 +175,7 @@ function fxHit(e, dir, strong) {
   G.fx.push({ type: 'vhit', e: e, x: e.x, y: e.y - eh(e) * 0.55, h: eh(e), dir: dir, strong: strong, lead: lead, t: 0, life: 0.4, sp: sp, rot: -0.5 + Math.random() * 0.35 });
 }
 function drawVHit(f) {
-  var C = VFX_ATK, t = f.t, x = f.x, y = f.y, sz = f.h * (f.strong ? 0.75 : 0.55);
+  var C = f.strong ? VFX_RANA : VFX_ATK, /* 技の当たりはラナの色（紅・金） */ t = f.t, x = f.x, y = f.y, sz = f.h * (f.strong ? 0.75 : 0.55);
   if (f.lead && t < 0.1) { // 光
     var k = 1 - t / 0.1, r = sz * (0.3 + 0.35 * (1 - k)), g = ctx.createRadialGradient(x, y, 0, x, y, r);
     g.addColorStop(0, vrgba(C.core, 0.5 * k)); g.addColorStop(0.3, vrgba(C.main, 0.22 * k)); g.addColorStop(1, vrgba(C.glow, 0)); ctx.fillStyle = g; ctx.fillRect(x - r, y - r, r * 2, r * 2);
@@ -185,7 +190,62 @@ function drawVHit(f) {
   for (var i = 0; i < f.sp.length; i++) { // 火花：打った向きへ、速度に沿って伸びる
     var q = f.sp[i]; if (t > q.life) continue;
     var dr = Math.exp(-t * 6), px = x + q.vx * (1 - dr) / 6, py = y + q.vy * (1 - dr) / 6 + 500 * t * t, cvx = q.vx * dr, cvy = q.vy * dr + 1000 * t, cm = Math.hypot(cvx, cvy) || 1, ln = Math.min(40, cm * 0.045) + 2, al = 1 - t / q.life;
-    ctx.strokeStyle = vrgba(i % 3 ? C.spark : '255,236,190', al); ctx.lineWidth = q.s; ctx.lineCap = 'round';
+    ctx.strokeStyle = vrgba(f.strong ? (i % 2 ? VFX_RANA.spark : VFX_RANA.core) : i % 3 ? C.spark : '255,236,190', al); ctx.lineWidth = q.s; ctx.lineCap = 'round';
     ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px - cvx / cm * ln, py - cvy / cm * ln); ctx.stroke();
   }
+}
+
+// ===== ラナの技（赤黒・金） =====
+// 床を広がる衝撃の輪：黒の下地＋紅・橙・金の3層（時間差）＋土ぼこり（通常の合成）
+function fxRing(x, y, R, life) {
+  var du = [];
+  for (var i = 0; i < 26; i++) { var a = Math.random() * 6.283; du.push({ a: a, v: R * (0.6 + Math.random() * 0.8), up: 120 + Math.random() * 260, life: 0.35 + Math.random() * 0.4, s: 4 + Math.random() * 7 }); }
+  G.fx.push({ type: 'vring', x: x, y: y, R: R, t: 0, life: life || 0.55, du: du });
+}
+function drawVRing(f) {
+  var C = VFX_RANA, t = f.t, fade = 1 - t / f.life;
+  var L = [{ c: C.dark, lag: 0, w: 26, a: 0.5, dk: 1 }, { c: C.glow, lag: 0, w: 30, a: 0.55 }, { c: C.main, lag: 0.025, w: 10, a: 0.9 }, { c: C.core, lag: 0.045, w: 3.5, a: 1 }];
+  for (var l = 0; l < L.length; l++) {
+    var Ly = L[l], k = vEase((t - Ly.lag) / (f.life * 0.75)); if (k <= 0) continue;
+    var r = f.R * k + 70, inn = Math.min(1, k * 4); // 出始めは細く（小さいうちに太いと、塗りつぶしの円に見える）
+    ctx.globalCompositeOperation = Ly.dk ? 'source-over' : 'lighter';
+    ctx.strokeStyle = vrgba(Ly.c, Ly.a * (1 - k * 0.7) * fade * inn); ctx.lineWidth = Ly.w * (1.2 - k * 0.7) * inn;
+    ctx.beginPath(); ctx.ellipse(f.x, f.y + (Ly.dk ? 3 : 0), r, r * 0.3, 0, 0, 6.283); ctx.stroke();
+  }
+  ctx.globalCompositeOperation = 'source-over'; // 土ぼこり：光らない
+  for (var i = 0; i < f.du.length; i++) {
+    var q = f.du[i]; if (t > q.life) continue;
+    var dr = Math.exp(-t * 4), px = f.x + Math.cos(q.a) * q.v * (1 - dr) / 4 * 4, py = f.y + Math.sin(q.a) * q.v * 0.3 * (1 - dr) - q.up * t + 260 * t * t, al = (1 - t / q.life) * 0.45;
+    ctx.fillStyle = 'rgba(120,96,70,' + al + ')'; ctx.beginPath(); ctx.arc(px, py, q.s * (1 + t * 2.5), 0, 6.283); ctx.fill();
+  }
+  ctx.globalCompositeOperation = 'lighter';
+}
+// 突きの槍：前へ一気に伸びる細長い刃（黒・紅・金の層、時間差）＋前へ流れる光の筋
+function fxLance(h, R) {
+  var st = [];
+  for (var i = 0; i < 22; i++) st.push({ y: (Math.random() - 0.5) * 70, d: Math.random() * 0.1, v: 1800 + Math.random() * 1600, len: 60 + Math.random() * 140, life: 0.12 + Math.random() * 0.18, s: 1 + Math.random() * 2.2 });
+  G.fx.push({ type: 'vlance', x: h.x, y: h.y, face: h.face, R: R, t: 0, life: 0.42, st: st });
+}
+function vSpear(x0, L, w, style) { // 根本 x0 から長さ L の槍の形（根本寄りで最も太く、先で尖る）
+  ctx.fillStyle = style; ctx.beginPath(); ctx.moveTo(x0, 0); ctx.quadraticCurveTo(x0 + L * 0.12, -w, x0 + L * 0.3, -w * 0.8); ctx.lineTo(x0 + L, 0); ctx.lineTo(x0 + L * 0.3, w * 0.8); ctx.quadraticCurveTo(x0 + L * 0.12, w, x0, 0); ctx.closePath(); ctx.fill();
+}
+function drawVLance(f) {
+  var C = VFX_RANA, ms = f.t * 1000, SW = 90, fade = ms > SW ? Math.max(0, 1 - (ms - SW) / (f.life * 1000 - SW)) : 1, R = f.R * 1.15;
+  ctx.save(); ctx.translate(f.x, f.y - 95 * depthScale(f.y)); ctx.scale(f.face, 1);
+  var LY = [{ c: C.dark, lag: 10, w: 46, a: C.dk, dk: 1 }, { c: C.glow, lag: 25, w: 40, a: 0.7 }, { c: C.main, lag: 10, w: 18, a: 0.95 }, { c: C.core, lag: 0, w: 6, a: 1 }];
+  for (var l = 0; l < LY.length; l++) {
+    var Ly = LY[l], k = vEase((ms - Ly.lag) / SW); if (k <= 0) continue;
+    var L = R * k, tail = vEase((ms - Ly.lag - SW * 0.5) / (SW * 2)), x0 = 30 + L * tail * 0.8;
+    var g = ctx.createLinearGradient(x0, 0, 30 + L, 0); g.addColorStop(0, vrgba(Ly.c, 0)); g.addColorStop(0.5, vrgba(Ly.c, Ly.a * 0.5 * fade)); g.addColorStop(0.92, vrgba(Ly.c, Ly.a * fade)); g.addColorStop(1, vrgba(Ly.c, Ly.a * 0.7 * fade));
+    ctx.globalCompositeOperation = Ly.dk ? 'source-over' : 'lighter';
+    vSpear(x0, 30 + L - x0, Ly.w * (0.7 + 0.3 * fade), g);
+  }
+  ctx.globalCompositeOperation = 'lighter';
+  for (var i = 0; i < f.st.length; i++) { // 前へ流れる筋
+    var q = f.st[i], a = f.t - q.d; if (a < 0 || a > q.life) continue;
+    var px = 40 + q.v * a * (1 - a / (q.life * 2)), al = 1 - a / q.life;
+    ctx.strokeStyle = vrgba(i % 3 ? C.spark : C.core, al); ctx.lineWidth = q.s; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(px, q.y); ctx.lineTo(px - q.len, q.y); ctx.stroke();
+  }
+  ctx.restore();
 }
