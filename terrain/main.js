@@ -1,9 +1,9 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793248344';
-import { createUI } from './ui.js?v=1793248344';
-import { createMorning } from './morning.js?v=1793248344';
+import * as GM from './game.js?v=1793248875';
+import { createUI } from './ui.js?v=1793248875';
+import { createMorning } from './morning.js?v=1793248875';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -921,6 +921,7 @@ function clipActor(el, sp, clips, base, T) { // 動画由来の連番を、枠(e
     const start = Math.max(0, t0 + 180 - c.durs.slice(0, c.hit).reduce((x, y) => x + y, 0) / SPD); let acc = 0; T(() => use(c), Math.max(0, start - 5));
     c.durs.forEach((d, fi) => { T(() => setFrame(fi), start + acc / SPD); acc += d; }); T(() => use(c0), start + acc / SPD + 30); return c; } };
 }
+const HUMAN = { mina: 163, sera: 157, ranka: 166, garou: 212, sol: 197, f1: 197, f2: 205, f3: 180, f4: 204 }; // 見た目の背の高さ：一騎打ちと戦場の大きさをこれで揃える。槍の穂先・兜の飾りが測った高さに入る絵は大きめの値（並べて目で合わせた値）
 const duelSel = document.createElement('div'); duelSel.id = 'dsel'; document.body.appendChild(duelSel);
 const duelRank = () => G.raid && G.raid.boss ? 'boss' : G.raid && G.raid.E >= 30 ? 'vice' : 'cap';
 const pickOf = a => a[Math.floor(Math.random() * a.length)];
@@ -932,7 +933,7 @@ function playDuel(k, done) { // 画面いっぱいの一騎打ち。五合の勝
     <div class="ct"><small>第${R.w || G.week}週</small><img src="assets/ui2/divider2.webp"><h1>一騎打ち</h1></div>
     <div class="sd r"><div class="fw"><div class="fc foe" style="background-image:url(assets/npc/foe_${look}.webp)"></div><i class="rg"></i></div><div class="hb"><div class="nm">${F.n}</div><div class="hp"><b style="width:100%"></b></div></div></div></div>
     <div class="stage" style="background-image:url(assets/field/${R.dir || 'pass'}.jpg)"><div class="say l"></div><div class="say r foe"></div>
-      <div class="f L">${(DUEL_CLIP[k] || []).length ? `<div class="sp"></div>` : `<img src="../ally/${k}.png">`}</div><div class="f R" style="height:${R.boss ? 40 : 36}%">${(FOEDUEL[look] || []).length ? `<div class="sp" data-filter="drop-shadow(0 0 10px #f30) drop-shadow(0 6px 8px #000)"></div>` : `<img src="assets/npc/foe_${look}.webp" style="filter:drop-shadow(0 0 10px #f30) drop-shadow(0 6px 8px #000)">`}</div>
+      <div class="f L" style="height:${34 * (HUMAN[k] || 165) / 170}%">${(DUEL_CLIP[k] || []).length ? `<div class="sp"></div>` : `<img src="../ally/${k}.png">`}</div><div class="f R" style="height:${34 * (HUMAN['f' + look] || 178) / 170}%">${(FOEDUEL[look] || []).length ? `<div class="sp" data-filter="drop-shadow(0 0 10px #f30) drop-shadow(0 6px 8px #000)"></div>` : `<img src="assets/npc/foe_${look}.webp" style="filter:drop-shadow(0 0 10px #f30) drop-shadow(0 6px 8px #000)">`}</div>
       <div class="cut"><img src="${faceURL[k]}"><div></div></div></div>
     <div class="ft"><i class="cn bl"></i><i class="cn br"></i><h3>戦況</h3><div class="blr"><span>自軍</span><div class="bal"><b style="width:50%"></b><u style="left:50%"></u></div><span>敵軍</span></div>
       <div class="row"><div class="pips">${pipsHtml}</div><div class="stt">間合いを測る</div></div>
@@ -1088,17 +1089,18 @@ function fieldBattle(mode, onEnd) { // onEnd：試しのとき、結果を記録
     <div class="fr"></div>`;
   abt.style.display = 'flex';
   const $ = q => abt.querySelector(q), st = $('.fs'), balB = $('.bal b'), balU = $('.bal u'), stt = $('.stt'), dbtn = $('.dbtn'), ban = $('.ban');
-  const W = () => st.clientWidth, Hs = () => st.clientHeight, unit = Hs() * .105; // 兵の背の高さ＝舞台の約12%
+  const W = () => st.clientWidth, Hs = () => st.clientHeight, unit = Hs() * .1; // 兵の背の高さ＝舞台の約12%
   let timers = [], spd = 1, phase = 'march', gauge = 50, done = false; const T = (f, ms) => { const t = setTimeout(f, ms / spd); timers.push(t); return t; };
   const setG = v => { gauge = Math.max(5, Math.min(95, v)); balB.style.width = gauge + '%'; balU.style.left = gauge + '%'; if (phase !== 'duel') stt.textContent = gauge > 62 ? '優勢' : gauge < 38 ? '劣勢' : '拮抗'; };
   // 布陣（モック準拠）：味方＝左（仲間は一番左の列）、敵＝右（将は一番右）
-  const us = [], foe = [], nSol = Math.max(6, Math.min(12, 4 + (G.troops || 0))), nFoe = Math.max(12, Math.min(24, Math.round(E / 2.2)));
+  const us = [], foe = [], nSol = Math.max(9, Math.min(18, 6 + (G.troops || 0) * 2)), nFoe = Math.max(18, Math.min(36, Math.round(E / 1.4)));
   const rowY = (i, n) => 28 + (i + .5) * 62 / n, jit = () => (Math.random() - .5) * 3;
-  team.forEach((k, i) => us.push(fbUnit(st, k, K, 'us', 10 + (i % 2) * 3, 34 + i * 52 / Math.max(1, team.length - 1 || 1), unit * K[k].h)));
-  for (let i = 0; i < nSol; i++) { const col = i % 2, row = Math.floor(i / 2), rows = Math.ceil(nSol / 2); us.push(fbUnit(st, 'sol', K, 'us', 22 + col * 10 + jit(), rowY(row, rows) + col * 3 + jit(), unit)); }
-  const fk = ['f1', 'f2', 'f3']; for (let i = 0; i < nFoe; i++) { const col = i % 3, row = Math.floor(i / 3), rows = Math.ceil(nFoe / 3); foe.push(fbUnit(st, fk[(i * 7 + row) % 3], K, 'foe', 60 + col * 9 + jit(), rowY(row, rows) + (col % 2) * 3 + jit(), unit)); }
-  const gen = fbUnit(st, 'f' + look, K, 'foe', 89, 58, unit * (R.boss ? 1.4 : 1.2)); gen.gen = true; foe.push(gen);
-  if (rank !== 'boss') { foe.push(fbUnit(st, 'f3', K, 'foe', 90, 36, unit)); foe.push(fbUnit(st, 'f3', K, 'foe', 88, 80, unit)); }
+  const hu = n => unit * (HUMAN[n] || 190) / 190;
+  team.forEach((k, i) => us.push(fbUnit(st, k, K, 'us', 9 + (i % 2) * 3, 34 + i * 52 / Math.max(1, team.length - 1 || 1), hu(k))));
+  for (let i = 0; i < nSol; i++) { const col = i % 3, row = Math.floor(i / 3), rows = Math.ceil(nSol / 3); us.push(fbUnit(st, 'sol', K, 'us', 19 + col * 8 + jit(), rowY(row, rows) + (col % 2) * 3 + jit(), hu('sol'))); }
+  const fk = ['f1', 'f2', 'f3']; for (let i = 0; i < nFoe; i++) { const col = i % 4, row = Math.floor(i / 4), rows = Math.ceil(nFoe / 4), kd = fk[(i * 7 + row) % 3]; foe.push(fbUnit(st, kd, K, 'foe', 57 + col * 8 + jit(), rowY(row, rows) + (col % 2) * 3 + jit(), hu(kd))); }
+  const gen = fbUnit(st, 'f' + look, K, 'foe', 91, 58, hu('f' + look) * 1.06); gen.gen = true; foe.push(gen);
+  if (rank !== 'boss') { foe.push(fbUnit(st, 'f3', K, 'foe', 92, 36, hu('f3'))); foe.push(fbUnit(st, 'f3', K, 'foe', 90, 80, hu('f3'))); }
   [...us, ...foe].forEach(u => u.idle());
   // 行進（歩きのコマで少し前へ）
   const march = (ms, dist) => { const t0 = performance.now(); const tick = () => { if (done) return; const k = Math.min(1, (performance.now() - t0) * spd / ms);
@@ -1128,8 +1130,8 @@ function fieldBattle(mode, onEnd) { // onEnd：試しのとき、結果を記録
   // 1. 行進 → 2. 斬り合い（見込みの方向へ） → 3. 接戦なら敵将の挑戦 → 4. 決着
   const m0 = GM.raidD(G) - E, lean = 50 + Math.max(-16, Math.min(16, m0 * 2));
   banner(R.boss ? '将軍の侵攻' : '開戦', fr ? `${fr.n}で迎え撃つ` : '', 1500 * spd);
-  march(1300, 3); T(() => { const fr1 = (s, n) => (s === 'us' ? us : foe).filter(u => !u.gen && !GM.ALLY[u.kind]).sort((a, b) => s === 'us' ? b.x - a.x : a.x - b.x).slice(0, n); [...fr1('us', Math.ceil(nSol * .6)), ...fr1('foe', Math.ceil(nFoe * .5))].forEach((u, i) => T(() => melee(u), i * 60)); }, 1300);
-  T(() => { phase = 'clash'; clash(3800, lean, 2, 3); }, 2100);
+  march(1300, 3); T(() => { const fr1 = (s, n) => (s === 'us' ? us : foe).filter(u => !u.gen && !GM.ALLY[u.kind]).sort((a, b) => s === 'us' ? b.x - a.x : a.x - b.x).slice(0, n); [...fr1('us', Math.ceil(nSol * .55)), ...fr1('foe', Math.ceil(nFoe * .45))].forEach((u, i) => T(() => melee(u), i * 60)); }, 1300);
+  T(() => { phase = 'clash'; clash(3800, lean, 3, 4); }, 2100);
   const wantDuel = GM.duelDue(G) && R.duel === undefined;
   T(() => wantDuel ? challenge() : finale(), 6000);
   function challenge() { // 敵将が前に出て、一騎打ちを挑む。押すまで待つ
@@ -1145,7 +1147,7 @@ function fieldBattle(mode, onEnd) { // onEnd：試しのとき、結果を記録
     T(finale, r === undefined || r === null ? 0 : 1300); }
   function finale() { // ここで結果を決め、演出を合わせる
     phase = 'end'; const t = GM.resolve(G, mode); const good = /被害なし|完勝|勝利/.test(t) && !/敗北/.test(t), mid = /小被害|苦戦/.test(t);
-    const fin = good ? 84 : mid ? 58 : 22; clash(2600, fin, good ? 2 : mid ? 4 : 6, good ? 8 : mid ? 5 : 2);
+    const fin = good ? 84 : mid ? 58 : 22; clash(2600, fin, good ? 3 : mid ? 5 : 8, good ? 11 : mid ? 6 : 3);
     T(() => { if (good) live(foe).forEach((u, i) => T(() => { u.busy = false; moveTo(u, 112, u.y + (Math.random() - .5) * 10, 1400); }, i * 40)); else if (!mid) live(us).filter(u => !GM.ALLY[u.kind]).forEach((u, i) => T(() => { u.busy = false; moveTo(u, Math.max(18, u.x - 18), u.y, 1200); }, i * 50)); }, 2700);
     T(() => result(t, good, mid), 3400); }
   function result(t, good, mid) { if (done) return; done = true; timers.forEach(clearTimeout); const label = good ? '勝利' : mid ? '辛勝' : '敗北', cls = good ? 'w' : mid ? 'm' : 'l';
