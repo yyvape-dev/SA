@@ -43,6 +43,9 @@ const css = `
 #pnl .por{width:26%;position:relative;overflow:hidden;border-right:1px solid #6a5030;background:radial-gradient(ellipse at 50% 30%,#4a3020,#1a100a)}
 #pnl .por img{position:absolute;left:50%;top:0;width:150%;transform:translateX(-50%)}#pnl.talk .big{font-size:14px;white-space:nowrap}
 #pnl.talk .bub{position:absolute;left:24%;right:10px;bottom:calc(100% + 2px);max-height:none;margin:0;box-shadow:0 3px 10px #000a;border:1.5px solid #8a6430}#pnl.talk .bub:before{left:14px;top:auto;bottom:-14px;border:7px solid transparent;border-top:9px solid #fbf4e2}
+#pnl.talk .por{overflow:visible;background:none;border-right:0;z-index:3}/* 会話の場面：立ち絵を大きく、枠より上へはみ出して手前に出す（2026-10-30） */
+#pnl.talk .por img{top:auto!important;bottom:0;left:47%;width:112%!important;height:158%;max-width:none;object-fit:cover;object-position:50% 0;transform:translateX(-50%);filter:drop-shadow(0 4px 8px #000c);-webkit-mask-image:linear-gradient(#000 88%,transparent);mask-image:linear-gradient(#000 88%,transparent)}
+#pnl.talk .bub{left:30%}
 #pnl .por .nm{position:absolute;left:0;right:0;bottom:0;padding:3px 6px;background:linear-gradient(#0000,#000c);font:700 12px/1.2 ${SERIF};color:#ffe3a0}
 #pnl .card{flex:1;display:flex;flex-direction:column;padding:3px 6px;min-width:0}
 #pnl .hd{display:flex;align-items:center;gap:5px;font:700 13px/1.2 ${SERIF};color:#ffe3a0;padding-bottom:5px;background:url(assets/ui/divider.png) bottom/100% 5px no-repeat}
