@@ -91,3 +91,11 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 #ov .row .go { min-width: 0; flex: 1; letter-spacing: .1em; }
 .note { position: absolute; left: 50%; bottom: 40%; transform: translateX(-50%); z-index: 2; margin: 0; color: #c9b88e; font-size: 13px; pointer-events: none; text-shadow: 0 1px 3px #000; white-space: nowrap; }
 .keys, #fs { display: none !important; }
+
+/* 連携（仲間が参入してから出る）。絵は仲間の立ち絵の顔のあたりを丸く切り抜く（ally.js が src を差し替える） */
+#btnC { left: calc(var(--k) * 822); top: calc(var(--k) * 372); display: none; }
+#btnC.on { display: block; animation: coin .4s ease-out; }
+@keyframes coin { from { transform: scale(.4); opacity: 0; } }
+#btnC img { inset: 8%; width: 84%; height: 84%; border-radius: 50%; object-fit: cover; object-position: 50% 6%; box-shadow: 0 0 0 calc(var(--k) * 4) #d9b878, 0 0 0 calc(var(--k) * 7) #2a3f5c, 0 0 calc(var(--k) * 18) #6fbaff; background: #1b2a40; }
+#btnC:not(.cool) img { animation: coglow 1.2s ease-in-out infinite alternate; }
+@keyframes coglow { to { box-shadow: 0 0 0 calc(var(--k) * 4) #f3dfae, 0 0 0 calc(var(--k) * 7) #2a3f5c, 0 0 calc(var(--k) * 30) #9fd8ff; } }

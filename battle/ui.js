@@ -48,14 +48,15 @@ function uiShow() { // 重ね表示の中身を、今の状態に合わせて作
     u.row.appendChild(uiBtn('再開する', togglePause));
   } else if (G.state === 'title') {
     if (BAT.on) {
-      u.t1.textContent = '出撃'; u.h2.textContent = BAT.name; u.s1.textContent = '戦場 ' + BAT.waves + ' つを突破すれば勝利';
+      u.t1.textContent = '出撃'; u.h2.textContent = BAT.name; u.s1.textContent = '戦場 ' + ROOM.segs + ' つ。最後に' + (BAT.boss ? '将軍' : '敵将') + 'が待つ';
       var mods = []; if (BAT.dmg > 1) mods.push('ダメージ+' + Math.round((BAT.dmg - 1) * 100) + '%'); if (BAT.bind) mods.push('拘束+' + BAT.bind + '秒'); if (BAT.hp) mods.push('最大HP+' + BAT.hp);
       if (mods.length) u.s2.textContent = '仲間の補正：' + mods.join('・');
+      if (ALLY_K) u.s2.textContent += (u.s2.textContent ? '／' : '') + '途中で仲間が駆けつける';
     } else { u.t1.textContent = '試し斬り'; u.h2.textContent = '前線'; u.s1.textContent = '群れを、一振りで薙ぎ払え。'; }
     u.row.appendChild(uiBtn('戦いを始める', function () { startRun(); }));
   } else if (G.state === 'result') {
     u.t1.textContent = BAT.name; u.h2.textContent = G.result ? '勝利' : '敗北'; u.h2.className = G.result ? 'win' : 'lose';
-    u.s1.textContent = '突破 ' + (G.result ? BAT.waves : Math.max(0, G.seg)) + ' / ' + BAT.waves + '　撃破 ' + G.kills + '　最大コンボ ' + G.bestCombo;
+    u.s1.textContent = '突破 ' + (G.result ? ROOM.segs : Math.max(0, G.seg)) + ' / ' + ROOM.segs + '　撃破 ' + G.kills + '　最大コンボ ' + G.bestCombo;
     u.s2.textContent = '物資 +' + G.sup + '（領地へ持ち帰る）';
     var b = uiBtn('領地へ戻る', backToMap); if (G.resT <= 0.8) b.disabled = true; u.row.appendChild(b);
   } else if (G.state === 'dead') {

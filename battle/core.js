@@ -46,6 +46,7 @@ function loadAll() {
   var names = [];
   Object.keys(M.clips).forEach(function (c) { for (var i = 0; i < M.clips[c]; i++) names.push(c + '_' + pad2(i)); });
   total = names.length + 2 + FOE_TYPES.length;
+  if (typeof allyLoad === 'function') allyLoad(one); // 参入する仲間の絵（battle/ally.js）
   function one(key, src) { var im = new Image(); im.onload = onDone; im.onerror = function () { failed++; onDone(); }; im.src = src; IMG[key] = im; }
   one('fbk', 'terrain/assets/field/duel.jpg'); // 昼の草原（上＝奥の背景、土の帯＝床）
   FOE_TYPES.forEach(function (n) { one('fw' + n, 'terrain/assets/npc/foewalk_' + n + '.webp'); });
@@ -97,7 +98,13 @@ var keys = {}, pad = { x: 0, y: 0, mag: 0 };
 var G, S;
 /* ---------- 領地からの出撃（?battle=1）：WAVE waves まで生き残れば勝利。結果を localStorage の battle_result に書いて、領地へ戻る ---------- */
 var BAT = (function () { var q = new URLSearchParams(location.search || ''); if (q.get('battle') !== '1') return { on: false };
-  return { on: true, id: q.get('id') || '', waves: Math.max(1, +q.get('waves') || 3), name: q.get('name') || '出撃', dmg: +q.get('dmg') || 1, bind: +q.get('bind') || 0, hp: +q.get('hp') || 0, ret: q.get('ret') || 'terrain/index.html' }; })();
+  return { on: true, id: q.get('id') || '', waves: Math.max(1, +q.get('waves') || 3), name: q.get('name') || '出撃', dmg: +q.get('dmg') || 1, bind: +q.get('bind') || 0, hp: +q.get('hp') || 0, al: (q.get('al') || '').split(',').filter(Boolean), boss: q.get('boss') === '1', ret: q.get('ret') || 'terrain/index.html' }; })();
+/* 途中で参入する仲間（battle/ally.js）：領地から渡された候補（al）からランダムに1人。試し（?battle なし）は4人から。?ally=mina で固定。候補が無ければ参入なし */
+var ALLY_K = (function () { var q = new URLSearchParams(location.search || ''), f = q.get('ally'), pool = BAT.on ? BAT.al : ['mina', 'garou', 'sera', 'ranka'];
+  if (f === 'none') return ''; if (f && ['mina', 'garou', 'sera', 'ranka'].indexOf(f) >= 0) return f; return pool.length ? pool[Math.floor(Math.random() * pool.length)] : ''; })();
+/* 戦場の数：領地の wavesOf は「規模÷7（2〜7）＋2」。前半＝雑兵、JOIN の戦場から仲間が参入して強敵が混じる、最後＝敵将 */
+function SEGS() { return BAT.on ? Math.max(3, BAT.waves) : 5; }
+function JOIN() { return Math.max(1, Math.floor(SEGS() * 0.4)); } // 仲間が参入する戦場（0始まり）
 function finishBattle(win) {
   if (G.state === 'result') return; G.state = 'result'; G.result = !!win; G.resT = 0;
   try { localStorage.setItem('battle_result', JSON.stringify({ id: BAT.id, win: !!win, kills: G.kills, wave: G.wave, sup: G.sup })); } catch (e) { }
@@ -106,13 +113,13 @@ function backToMap() { if (G.resT < 0.8) return; location.href = BAT.ret; }
 
 function newGame() {
   S = { dmg: 1, range: 1, aspd: 1.75, cd: 1, chain: 0, pcd: 1, bind: 0.8 }; // 強化の選択をやめたぶん、攻撃速度は最初から少し速い（1.5→1.75）
-  ROOMS[0].segs = BAT.on ? BAT.waves : 4; ROOMS[0].w = BW * ROOMS[0].segs;
+  ROOMS[0].segs = SEGS(); ROOMS[0].w = BW * ROOMS[0].segs;
   ROOM = ROOMS[0]; setRoomVars(); camX = 0; camY = 0;
   G = {
     roomNo: 0, seg: 0, phase: 'fight', trans: null,
     state: 'title', t: 0, wave: 0, enemies: [], drops: [], parts: [], fx: [], texts: [], booms: [],
     queue: [], qT: 0, shake: 0, freeze: 0, combo: 0, comboT: 0, bestCombo: 0, kills: 0, gold: 0, rare: 0, sup: 0, paused: false, fieldTotal: 1,
-    skCD: 0, skMax: 3.2, pullCD: 0, pullMax: 6, thrCD: 0, thrMax: 8, ultCD: 0, ultMax: 14, dodgeCD: 0, dodgeMax: 1.1, flash: 0, picks: [], pickOpts: [], upgraded: [],
+    ally: null, cutin: null, boss: null, coCD: 0, coMax: 12, skCD: 0, skMax: 3.2, pullCD: 0, pullMax: 6, thrCD: 0, thrMax: 8, ultCD: 0, ultMax: 14, dodgeCD: 0, dodgeMax: 1.1, flash: 0, picks: [], pickOpts: [], upgraded: [],
     hero: { x: 340, y: 560, face: 1, hp: 120, max: 120, state: 'idle', t: 0, anim: 0, sk: false, kind: 'atk', fxT: 0, ringT: 0, h1: false, h2: false, h3: false, v: 0, lastAtkEnd: -9, lastAtkKind: '', x0: 0, buf: 0, cancelT: 0, total: 0, inv: 0, flash: 0, kb: 0, dx: 0, dy: 0, dsx: 0, dsy: 0, trail: [], trT: 0 }
   };
 }

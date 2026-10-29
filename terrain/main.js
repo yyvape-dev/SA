@@ -1,7 +1,7 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793283930';
+import * as GM from './game.js?v=1793287812';
 import { createUI } from './ui.js?v=1793283930';
 import { createMorning } from './morning.js?v=1793283930';
 import { slashFX } from './fx_slash.js?v=1793283930';
@@ -1230,7 +1230,8 @@ function fieldBattle(mode, onEnd) { // onEnd：試しのとき、結果を記録
 }
 function goBattle() { // アクション戦闘へ移る。結果は battle_result に書かれ、戻ってきたときに反映する
   const R = G.raid, id = String(Date.now()), m = GM.battleMods(G); G.battle = { id }; writeSave();
-  const q = new URLSearchParams({ battle: '1', id, waves: GM.wavesOf(R.E), name: R.name, dmg: m.dmg, bind: m.bind, hp: m.hp, ret: 'terrain/index.html' });
+  const al = Object.keys(GM.ALLY).filter(k => GM.joined(G, k) && !(k === 'ranka' && !R.ranka)).join(','); // 途中で参入する仲間の候補（戦闘の側でランダムに1人。ランカは街にいる週だけ）
+  const q = new URLSearchParams({ battle: '1', id, waves: GM.wavesOf(R.E), name: R.name, dmg: m.dmg, bind: m.bind, hp: m.hp, al, boss: R.boss ? 1 : 0, ret: 'terrain/index.html' });
   location.href = '../index.html?' + q.toString();
 }
 function takeBattleResult() {
@@ -1279,7 +1280,7 @@ const rdCss = document.createElement('style'); rdCss.textContent = `
 #rdec .rk img{width:calc(40*var(--u));height:calc(40*var(--u));border-radius:50%;object-fit:cover;object-position:50% 8%;box-shadow:0 0 0 1px #a48a5c}
 #rdec .rk span{flex:1;min-width:0;font-size:calc(14*var(--u));letter-spacing:.06em}#rdec .rk small{display:block;font-size:calc(10.5*var(--u));color:var(--ink2);letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #rdec .rk button{flex:0 0 auto;min-width:calc(92*var(--u));height:calc(40*var(--u));background:url(assets/ui2/btn_cream.webp) center/100% 100% no-repeat;font-size:calc(13.5*var(--u));letter-spacing:.06em}
-#rdec .rk button.on{background-image:url(assets/ui2/btn_teal.webp);color:#f3ead2;text-shadow:0 1px 2px #0006}#rdec .rk.off{opacity:.6}
+#rdec .rk>b{flex:0 0 auto;font-size:calc(13.5*var(--u));letter-spacing:.1em;color:var(--teal)}#rdec .rk button.on{background-image:url(assets/ui2/btn_teal.webp);color:#f3ead2;text-shadow:0 1px 2px #0006}#rdec .rk.off{opacity:.6}
 #rdec .go{width:88%;height:calc(66*var(--u));margin-top:auto;background:url(assets/ui2/btn_teal.webp) center/100% 100% no-repeat;color:#f3ead2;font-size:calc(20*var(--u));letter-spacing:.16em;text-shadow:0 1px 2px #0006}
 #rdec .go:active{filter:brightness(1.12)}
 #rdec::after{content:'';position:absolute;left:0;right:0;bottom:0;height:calc(40*var(--u));background:url(assets/ui2/vine.webp) center bottom/100% 100% no-repeat;opacity:.85;pointer-events:none}`;
@@ -1289,7 +1290,7 @@ let rdSel = 'auto';
 function raidModal() { // 襲撃・出撃の決断。選んでから大ボタンで決める（一騎打ちの選出と同じ2手）
   const R = G.raid; if (!R) { rdec.style.display = 'none'; ui.modal(null); return; } if (introPlaying || abt.style.display === 'flex' || duelEl.style.display === 'flex' || duelSel.style.display === 'flex') return;
   raidFx.classList.add('on'); ui.modal(null);
-  if (R.ranka === undefined) R.ranka = GM.rankaReady(G); // 出られるなら出す（ここで切り替えられる）
+  R.ranka = GM.rankaReady(G); // 2026-10-30 街にいれば必ず出る（連戦できるので、温存の切り替えはやめた）
   const P = GM.raidPlan(G), D = Math.round(GM.raidD(G)), m = GM.battleMods(G), fr = GM.FRONT[R.dir], look = foeLook(), sortie = R.kind === 'sortie';
   const mods = [m.dmg > 1 ? `ダメージ+${Math.round((m.dmg - 1) * 100)}%` : '', m.bind ? `拘束+${m.bind}秒` : '', m.hp ? `最大HP+${m.hp}` : ''].filter(Boolean).join('・');
   const duel = P.duel ? '敵将が一騎打ちを挑む' : '';
@@ -1300,8 +1301,8 @@ function raidModal() { // 襲撃・出撃の決断。選んでから大ボタン
       l: [`<i>勝てば</i><span class="ok">${P.act.win}</span>`, `<i>負ければ</i><span class="ng">${P.act.lose}</span>`], c: [P.act.cost, mods.replace('最大HP', 'HP')].filter(Boolean).join('・'), go: '自ら剣を取る' }];
   if (!ops.some(o => o.k === rdSel)) rdSel = 'auto';
   let rk = '';
-  if (GM.joined(G, 'ranka')) { const ready = GM.rankaReady(G), why = G.rankaAway ? '今週は街にいない' : G.rankaRest ? '前の戦闘に出たので休み' : '';
-    rk = `<div class="rk${ready ? '' : ' off'}"><img src="${porOf('ranka')}"><span>ランカ<small>${ready ? `防衛力+${GM.rankaD(G)}・ダメージ+${Math.round(GM.rankaDmg(G) * 100)}%／次は休み` : why}</small></span>${ready ? `<button class="${R.ranka ? 'on' : ''}">${R.ranka ? '出撃する' : '温存する'}</button>` : ''}</div>`; }
+  if (GM.joined(G, 'ranka')) { const ready = GM.rankaReady(G), why = G.rankaAway ? '今週は街にいない（出られない）' : '';
+    rk = `<div class="rk${ready ? '' : ' off'}"><img src="${porOf('ranka')}"><span>ランカ<small>${ready ? `防衛力+${GM.rankaD(G)}・ダメージ+${Math.round(GM.rankaDmg(G) * 100)}%` : why}</small></span>${ready ? '<b>出撃</b>' : ''}</div>`; }
   const pct = Math.max(8, Math.min(92, D / (D + R.E) * 100));
   const shown = rdec.style.display === 'flex';
   rdec.innerHTML = `<div class="hero" style="background-image:url(assets/npc/bust_${look}.webp),url(assets/field/${R.dir || 'pass'}.jpg);background-size:cover,cover;background-position:62% 0,center"><div class="tt"><small>第${R.w || G.week}週${fr ? '・' + fr.n : ''}</small><img src="assets/ui2/divider2.webp"><h1 class="${R.boss ? 'boss' : ''}">${sortie ? '出撃' : R.boss ? '将軍の侵攻' : '敵襲'}</h1>${R.boss || R.name === '敵襲' ? '' : `<div class="nm">${R.name}</div>`}</div></div>
@@ -1312,7 +1313,6 @@ function raidModal() { // 襲撃・出撃の決断。選んでから大ボタン
       ${rk}<button class="go"></button></div>`;
   const go = rdec.querySelector('.go'), mark = () => { rdec.querySelectorAll('.oc').forEach(c => c.classList.toggle('on', c.dataset.k === rdSel)); go.textContent = ops.find(o => o.k === rdSel).go; }; mark();
   rdec.querySelectorAll('.oc').forEach(c => { c.onclick = e => { e.stopPropagation(); rdSel = c.dataset.k; mark(); }; });
-  const tg = rdec.querySelector('.rk button'); if (tg) tg.onclick = e => { e.stopPropagation(); GM.setRanka(G, !R.ranka); writeSave(); raidModal(); };
   go.onclick = e => { e.stopPropagation(); rdec.style.display = 'none'; const k = rdSel; rdSel = 'auto'; if (k === 'act') goBattle(); else fieldBattle(k); };
   if (!shown) { rdec.classList.remove('in'); void rdec.offsetWidth; rdec.classList.add('in'); }
   rdec.style.display = 'flex';

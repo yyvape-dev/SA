@@ -45,7 +45,7 @@ const bond = (s, k) => (s.bond && s.bond[k]) || 0;
 export const canTalk = (s, k) => joined(s, k) && !(k === 'ranka' && s.rankaAway) && bond(s, k) < 3 && !s.over && !s.raid && s.ap >= 1;
 export function talk(s, k) { if (!canTalk(s, k)) return false; s.ap -= 1; s.bond[k] = bond(s, k) + 1; s.log.push(`${ALLY[k].n}と過ごした（絆${s.bond[k]}）`); return true; }
 // ランカの出撃：最強の戦力。出た次の戦闘は休み（2回続けて出られない）
-export const rankaReady = s => joined(s, 'ranka') && !s.rankaRest && !s.rankaAway;
+export const rankaReady = s => joined(s, 'ranka') && !s.rankaAway; // 2026-10-30 連戦できる（休みはなし）。街にいない週だけ出られない
 export const rankaD = s => 10 + (bond(s, 'ranka') >= 3 ? 8 : bond(s, 'ranka') >= 2 ? 4 : 0);
 export const rankaDmg = s => .4 + (bond(s, 'ranka') >= 3 ? .2 : bond(s, 'ranka') >= 2 ? .1 : 0);
 export const orders = s => 1 + Math.round(effSum(s, 'order')); // 一騎打ちで使える鬨の声の回数
@@ -86,7 +86,7 @@ export const apOf = m => (m < 30 ? 2 : m >= 80 ? 4 : 3);
 export const nextRaid = s => SCHED.find(r => r.w >= s.week);
 export const handP = (s, E) => clamp(.45 + clamp((raidD(s) - E) / 40, -.2, .2) + (bond(s, 'mina') >= 2 ? .12 : 0) + (bond(s, 'mina') >= 3 ? .08 : 0), .12, .92); // 確率で解決するときの成功率
 // アクション戦闘で耐える波の数（敵の規模から）
-export const wavesOf = E => clamp(Math.round(E / 7), 2, 7);
+export const wavesOf = E => clamp(Math.round(E / 7), 2, 7) + 2; // 2026-10-30 +2（中盤で仲間が参入、最後の戦場は敵将）
 
 // ---------- 行動 ----------
 const spend = (s, c) => { s.ap -= 1; s.sup -= c; };
@@ -150,7 +150,7 @@ export const canRepair = (s, id) => !!s.plots[id] && s.plots[id].burnt && !s.ove
 export function repair(s, id) { if (!canRepair(s, id)) return false; s.ap -= 1; s.sup -= REPAIR; delete s.plots[id].burnt; s.log.push(`${FAC[s.plots[id].fac].n}を修理した`); return true; }
 export function resolve(s, mode, rnd = Math.random, forced) { // forced: アクション戦闘の結果（true/false）。なければ確率で解決
   const R = s.raid; if (!R) return ''; const E = R.E, m = raidD(s) - E * (0.9 + rnd() * 0.2) + (R.duel === true ? 7 : R.duel === false ? -7 : 0); // 一騎打ちの勝敗で、結果が約1段動く
-  if (joined(s, 'ranka')) s.rankaRest = !!R.ranka; // 出たら次は休み、休んだら次は出られる
+  s.rankaRest = false; // 2026-10-30 休みの決まりはやめた（古い保存の値も消す）
   const at = m >= 4 ? 0 : m >= 0 ? 1 : m >= -4 ? 2 : 3; let ok, tier, t = `${R.name}（${mode === 'auto' ? '任せた' : forced === undefined ? '自分で戦った' : '自分で戦った・' + (forced ? '勝利' : '敗北')}）：`;
   if (mode === 'auto') { tier = at; ok = tier === 0; } else { ok = forced === undefined ? rnd() < handP(s, E) : !!forced; tier = ok ? 0 : clamp(at + 1, 1, 3); if (R.kind === 'sortie') s.ap = Math.max(0, s.ap - 1); else s.tired = true; }
   s.raid = null;
@@ -199,7 +199,6 @@ export const LINES = {
 };
 export function lineOf(s, k, rnd = Math.random) {
   const L = LINES[k], at = s.assign && s.assign[k], fac = at && s.plots[at] ? s.plots[at].fac : null;
-  if (k === 'ranka' && s.rankaRest && L.rest) return L.rest[0];
   const pool = [...L.idle, ...((fac && L[fac]) || []), ...((fac && L[fac]) || []), ...(bond(s, k) >= 3 ? L.b3 : [])];
   return pool[Math.floor(rnd() * pool.length)];
 }

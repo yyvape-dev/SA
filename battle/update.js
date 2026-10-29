@@ -85,6 +85,8 @@ function update(dt) {
   }
   updateCam(dt);
 
+  allyTick(dt); // 参入した仲間（battle/ally.js）
+
   // 敵の出現
   G.qT += dt;
   while (G.queue.length && G.queue[0].at <= G.qT) spawn(G.queue.shift());
@@ -157,7 +159,7 @@ function update(dt) {
   updateFx(dt);
 
   // ウェーブ終了
-  if (G.state === 'play' && G.phase === 'fight' && !G.queue.length && !G.enemies.length) { if (BAT.on && G.wave >= BAT.waves) finishBattle(true); else clearField(); }
+  if (G.state === 'play' && G.phase === 'fight' && !G.queue.length && !G.enemies.length) { if (BAT.on && G.seg >= ROOM.segs - 1) finishBattle(true); else clearField(); } /* 最後の戦場（敵将）を倒しきれば勝利 */
 }
 
 function startFoeAtk(e) {

@@ -20,8 +20,13 @@ function startWave(n) {
   G.wave = n; G.queue = []; G.qT = 0;
   var count = Math.min(70, 10 + n * 6);
   count = Math.min(28, 6 + n * 4); // 2026-10-30 敵を速くしたぶん、数は約3割減（以前 min(40, 8+5n)）
-  for (var i = 0; i < count; i++) G.queue.push({ at: rnd(0, 4.5), elite: false });
-  if (n % 3 === 0) G.queue.push({ at: 4, elite: true });
+  /* 3段の構成（2026-10-30）：前半＝雑兵／JOIN() の戦場から＝仲間が参入、強敵が混じる／最後の戦場＝敵将＋雑兵 */
+  var last = G.seg >= ROOM.segs - 1, mid = G.seg >= JOIN();
+  if (last) count = Math.round(count * 0.6);
+  for (var i = 0; i < count; i++) G.queue.push({ at: rnd(0, last ? 7 : 4.5), elite: false });
+  if (last) G.queue.push({ at: 1.2, elite: true, boss: true });
+  else if (mid) { G.queue.push({ at: 2.5, elite: true }); if (G.seg >= ROOM.segs - 2) G.queue.push({ at: 4.5, elite: true }); }
+  if (G.seg === JOIN()) allyJoin();
   G.fieldTotal = Math.max(1, G.queue.length); G.queue.sort(function (a, b) { return a.at - b.at; }); // 波の表示は出さない（倒しきったら、戦場が右へ進む）
 }
 // 部屋に入る：戦場0に立ち、カメラをその位置へ合わせて、最初の波を始める
@@ -46,6 +51,10 @@ function spawn(q) {
     max: (22 + n * 5) * (q.elite ? 10 : 1), hp: 0, sp: (135 + rnd(0, 45) + n * 4) * (q.elite ? 0.8 : 1), /* 2026-10-30 速く（以前 78+0〜40+3n） */
     state: 'walk', t: rnd(0, 6), atkCD: rnd(0.05, 0.35), bind: 0, /* bind を 0 で持たないと「拘束でない」の判定が外れ、歩きの絵が出なかった */ stun: 0, kx: 0, flash: 0, dt: 0, dmg: 7 + n * (q.elite ? 2 : 1)
   };
+  if (q.boss) { // 敵将：大きく硬い。引き寄せと拘束はほとんど効かない（e.boss）。HPは上の帯に出す
+    e.boss = true; e.size = 1.38; e.max = (22 + n * 5) * 42; e.sp *= 0.75; e.dmg = 10 + n * 3; e.x = cl + W + 60; e.y = (LANE_Y0 + LANE_Y1) / 2;
+    G.boss = e; addText(cl + W * 0.5, LANE_Y0 - 60, BAT.boss ? '将軍 出陣！' : '敵将 出現！', 46, '#ff8a7a', 1.6); G.shake = Math.max(G.shake, 8);
+  }
   e.hp = e.max; G.enemies.push(e);
 }
 
@@ -278,10 +287,10 @@ function doPull(c) {
     if (e.state !== 'walk' || Math.abs(e.x - c.x) > R) continue;
     var ang = n * 2.4, rad = 10 + Math.sqrt(n) * 17;
     var tx = gx + Math.cos(ang) * rad, ty = clamp(c.y + Math.sin(ang) * rad * 0.22, LANE_Y0 - 6, LANE_Y1 + 6);
-    var f = e.elite ? 0.4 : 1; // 強敵は半分以下しか引けず、拘束も短い
+    var f = e.boss ? 0.15 : e.elite ? 0.4 : 1; // 強敵は半分以下しか引けず、拘束も短い。敵将はほぼ動かない
     tx = e.x + (tx - e.x) * f; ty = e.y + (ty - e.y) * f;
     e.pull = { t: 0, dur: 0.18, sx: e.x, sy: e.y, tx: tx, ty: ty };
-    e.bind = e.bindMax = S.bind * (e.elite ? 0.5 : 1); e.stun = 0; e.kx = 0; e.atkCD = Math.max(e.atkCD, 0.3);
+    e.bind = e.bindMax = S.bind * (e.boss ? 0.3 : e.elite ? 0.5 : 1); e.stun = 0; e.kx = 0; e.atkCD = Math.max(e.atkCD, 0.3);
     got.push(e);
     n++;
   }
@@ -298,7 +307,7 @@ function doPull(c) {
 
 function hurt(e, d, dir, strong) {
   var bound = e.bind > 0; // 拘束中は、吹き飛ばず、その場に固まったまま
-  e.hp -= d; e.flash = 0.1; e.stun = bound ? 0 : (strong ? 0.5 : 0.13) * (e.elite ? 0.5 : 1); e.kx = dir * (strong ? 460 : 190) /* 通常の当たりのひるみを短く（以前0.28秒・280）：連打だけで封じられないように */ * (e.elite ? 0.3 : 1) * (bound ? 0.12 : 1);
+  e.hp -= d; e.flash = 0.1; e.stun = bound ? 0 : (strong ? 0.5 : 0.13) * (e.boss ? 0.25 : e.elite ? 0.5 : 1); e.kx = dir * (strong ? 460 : 190) /* 通常の当たりのひるみを短く（以前0.28秒・280）：連打だけで封じられないように */ * (e.elite ? 0.3 : 1) * (bound ? 0.12 : 1);
   addText(e.x + rnd(-14, 14), e.y - eh(e) - 10, String(Math.round(d)), strong ? 30 : 22, strong ? '#ffe28a' : '#ffffff', 0.7);
   e.atk = null;
   fxHit(e, dir, strong); // 当たりの衝撃（battle/fx.js）
@@ -309,7 +318,8 @@ function kill(e, dir) {
   e.state = 'dying'; e.dt = 0; e.dir = dir;
   G.kills++; G.combo++; G.comboT = 2.4; if (G.combo > G.bestCombo) G.bestCombo = G.combo;
   for (var i = 0; i < 9; i++) G.parts.push({ x: e.x, y: e.y - eh(e) * 0.5, vx: rnd(-240, 240), vy: rnd(-420, -60), g: 800, life: rnd(0.4, 0.9), t: 0, c: i % 3 ? '#b8473a' : '#9aa0a8', s: rnd(4, 9) });
-  var nd = e.elite ? 2 : (Math.random() < 0.07 ? 1 : 0); // 落とすのは物資だけ（1つ＝領地の物資+1）。強敵は2つ
+  if (e.boss) { G.boss = null; addText(e.x, e.y - eh(e) - 40, '敵将 撃破！', 48, '#ffe28a', 1.4); G.freeze = Math.max(G.freeze, 0.2); G.shake = Math.max(G.shake, 24); }
+  var nd = e.boss ? 5 : e.elite ? 2 : (Math.random() < 0.07 ? 1 : 0); // 落とすのは物資だけ（1つ＝領地の物資+1）。強敵は2つ
   for (var k = 0; k < nd; k++) G.drops.push({ x: e.x, y: e.y, z: 20, vx: rnd(-120, 120), vz: rnd(180, 340), type: 3, t: 0, home: false });
   if (S.chain > 0) G.booms.push({ x: e.x, y: e.y, t: 0.12 });
 }

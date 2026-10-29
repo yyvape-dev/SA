@@ -201,6 +201,13 @@ function txt(s, x, y, size, col, align, w) {
 
 function drawHud() {
   if (G.phase === 'go' && G.state === 'play' && !G.trans && Math.floor(G.t * 2.5) % 2 === 0) txt('GO →', W - 90, VH / 2, 58, '#ffd27a', 'center'); // 全滅したら、進む先を点滅で示す
+  if (G.boss && G.boss.state === 'walk') { // 敵将のHP（上の端）
+    var bx = 40, bw = W - 80, by = 22, bk = Math.max(0, G.boss.hp / G.boss.max);
+    ctx.fillStyle = 'rgba(8,6,10,0.8)'; ctx.fillRect(bx - 3, by - 3, bw + 6, 20);
+    ctx.fillStyle = '#5a1712'; ctx.fillRect(bx, by, bw, 14); ctx.fillStyle = '#d9483b'; ctx.fillRect(bx, by, bw * bk, 14);
+    ctx.strokeStyle = '#d9b878'; ctx.lineWidth = 1.5; ctx.strokeRect(bx - 3, by - 3, bw + 6, 20);
+    txt(BAT.boss ? '将軍' : '敵将', bx, by + 44, 24, '#ffb3a8', 'left', 4);
+  }
   if (G.combo >= 2) {
     var s = 34 + Math.min(G.combo, 40) * 0.9;
     txt(G.combo + ' COMBO', W - 24, 60 + (s - 34) * 0.4, s, '#ff9a5a', 'right');
@@ -283,8 +290,9 @@ function wrapText(s, x, y, maxW, size, col, align, lh) {
 }
 
 var CDB = null;
-function updateTouchCd() { // スキルボタンの円グラフ（残り時間の割合）と、使えない間の暗さ
-  if (!CDB) CDB = [['btnP', 'pullCD', function () { return G.pullMax * S.pcd; }], ['btnS', 'skCD', function () { return G.skMax * S.cd; }], ['btnT', 'thrCD', function () { return G.thrMax; }], ['btnU', 'ultCD', function () { return G.ultMax; }], ['btnD', 'dodgeCD', function () { return G.dodgeMax; }]].map(function (d) { return { el: document.getElementById(d[0]), key: d[1], max: d[2], last: -1 }; });
+function updateTouchCd() {
+  var bc = document.getElementById('btnC'); if (bc && bc.classList) bc.classList.toggle('on', !!G.ally); // 連携は仲間が参入してから // スキルボタンの円グラフ（残り時間の割合）と、使えない間の暗さ
+  if (!CDB) CDB = [['btnC', 'coCD', function () { return G.coMax; }], ['btnP', 'pullCD', function () { return G.pullMax * S.pcd; }], ['btnS', 'skCD', function () { return G.skMax * S.cd; }], ['btnT', 'thrCD', function () { return G.thrMax; }], ['btnU', 'ultCD', function () { return G.ultMax; }], ['btnD', 'dodgeCD', function () { return G.dodgeMax; }]].map(function (d) { return { el: document.getElementById(d[0]), key: d[1], max: d[2], last: -1 }; });
   for (var i = 0; i < CDB.length; i++) {
     var b = CDB[i], v = Math.round(Math.max(0, Math.min(1, G[b.key] / b.max())) * 50) / 50;
     if (v === b.last || !b.el.style || !b.el.style.setProperty) continue;
@@ -381,6 +389,7 @@ function draw() {
   drawBindFloor(); // 拘束の床の印（敵より先＝足元の下）
   var list = [];
   G.enemies.forEach(function (e) { list.push({ y: e.y, f: function () { drawFoe(e); } }); });
+  if (G.ally) list.push({ y: G.ally.y, f: drawAlly });
   if (G.state !== 'title') list.push({ y: G.hero.y, f: drawHero });
   else list.push({ y: G.hero.y, f: function () { G.hero.anim += 0.016; drawHero(); } });
   list.sort(function (a, b) { return a.y - b.y; });
@@ -395,6 +404,7 @@ function draw() {
   ctx.restore();
   if (G.flash > 0) { ctx.fillStyle = 'rgba(' + (G.flashRGB || '255,255,255') + ',' + Math.min(1, G.flash) + ')'; ctx.fillRect(0, 0, W, CVH()); }
   if (G.state !== 'title') drawHud();
+  drawCutin(); // 仲間の参入（battle/ally.js）
   uiTick();
   drawOverlay();
   if (G.trans) { // 部屋の移動：暗転→部屋名→明転

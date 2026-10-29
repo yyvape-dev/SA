@@ -30,6 +30,7 @@ function onPress(code) {
   if (code === 'KeyU' || code === 'KeyV') tryAttack('ult');
   if (code === 'KeyI' || code === 'KeyB') tryAttack('thr');
   if (code === 'KeyO' || code === 'KeyN') tryAttack('dodge');
+  if (code === 'KeyM' || code === 'KeyQ') tryCo();
 }
 
 function canvasPoint(ev) {
@@ -96,3 +97,4 @@ tapBtn('btnP', function () { tryAttack('pull'); });
 tapBtn('btnU', function () { tryAttack('ult'); });
 tapBtn('btnT', function () { tryAttack('thr'); });
 tapBtn('btnD', function () { tryAttack('dodge'); });
+tapBtn('btnC', function () { tryCo(); });
