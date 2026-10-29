@@ -1,10 +1,10 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793283622';
-import { createUI } from './ui.js?v=1793283622';
-import { createMorning } from './morning.js?v=1793283622';
-import { slashFX } from './fx_slash.js?v=1793283622';
+import * as GM from './game.js?v=1793283757';
+import { createUI } from './ui.js?v=1793283757';
+import { createMorning } from './morning.js?v=1793283757';
+import { slashFX } from './fx_slash.js?v=1793283757';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -1009,7 +1009,7 @@ function playDuel(k, done) { // 画面いっぱいの一騎打ち。五合の勝
   const runRound = i => { inWin = false; gb.classList.remove('ready');
     const r = GM.duelRound(plan, i, armed), at = r.ally ? L : Rf, df = r.ally ? Rf : L, dir = r.ally ? 1 : -1, act = r.ally ? actL : actR; armed = false;
     const big = r.kind === 'counter' || r.kind === 'heavy', sw = stage.clientWidth, rs = stage.getBoundingClientRect(), ra = at.getBoundingClientRect(), rd = df.getBoundingClientRect();
-    const gap = r.ally ? rd.left - ra.right : ra.left - rd.right, dx = dir * Math.max(0, gap - sw * .04); // 相手の手前まで詰める
+    const CLOSE = .07; /* 詰める深さ：絵の枠（余白つき）同士を、舞台の幅のこの割合だけ重ねる（2026-10-29、もっと近くへ） */ const gap = r.ally ? rd.left - ra.right : ra.left - rd.right, dx = dir * Math.max(0, gap + sw * CLOSE); // 相手の懐まで詰める
     const cx0 = (ra.left + ra.right) / 2 - rs.left, cx1 = cx0 + dx; // 走る側の中心（世界の座標。カメラは毎合 引きから始まる）
     const span = Math.max(ra.right + dx, rd.right) - Math.min(ra.left + dx, rd.left), mid = (Math.max(ra.right + dx, rd.right) + Math.min(ra.left + dx, rd.left)) / 2 - rs.left;
     const zFit = Math.min(2.2, sw / (span + sw * .1)), zRun = Math.max(zFit + .5, 2.1); // 攻撃＝二人がぎりぎり収まる／走り＝その人を大きく
