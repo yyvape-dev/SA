@@ -1,9 +1,9 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793273958';
-import { createUI } from './ui.js?v=1793273958';
-import { createMorning } from './morning.js?v=1793273958';
+import * as GM from './game.js?v=1793276115';
+import { createUI } from './ui.js?v=1793276115';
+import { createMorning } from './morning.js?v=1793276115';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -927,7 +927,7 @@ function clipActor(el, sp, clips, base, T, run, runBase) { // 動画由来の連
   el.style.width = c0.idle.w * sc + 'px'; Object.assign(sp.style, { position: 'absolute' });
   const sh = document.createElement('i'); sh.className = 'sh'; sp.appendChild(sh); const gs = document.createElement('i'); gs.className = 'gs'; el.insertBefore(gs, sp); // 陰影（絵の形に切り抜いたグラデーション）と足元の影
   const shade = (url, size, pos) => { sh.style.webkitMaskImage = sh.style.maskImage = url; sh.style.webkitMaskSize = sh.style.maskSize = size; sh.style.webkitMaskPosition = sh.style.maskPosition = pos; };
-  const use = c => { cur = c; const cw = c.cw * sc, ch = c.ch * sc, cx = (c.idle.x + c.idle.w / 2) * sc;
+  const use = c => { cur = c; const sc = el.clientHeight / c.idle.h, cw = c.cw * sc, ch = c.ch * sc, cx = (c.idle.x + c.idle.w / 2) * sc; // 連番ごとに倍率（拡大AIで作り直した連番は寸法が違う）
     Object.assign(sp.style, { left: el.clientWidth / 2 - cx + 'px', bottom: -(c.pad ?? 2.8) * sc + 'px', width: cw + 'px', height: ch + 'px', backgroundImage: `url(${base}${c.f})`, backgroundSize: `${c.cols * cw}px ${4 * ch}px` });
     shade(`url(${base}${c.f})`, `${c.cols * cw}px ${4 * ch}px`, '0 0');
     setFrame = i => { const ps = `${-(i % c.cols) * cw}px ${-Math.floor(i / c.cols) * ch}px`; sp.style.backgroundPosition = ps; sh.style.webkitMaskPosition = sh.style.maskPosition = ps; }; setFrame(0); };
