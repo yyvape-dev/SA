@@ -15,7 +15,7 @@ function drawSprite(name, x, y, face, sc, sy, an, rot) {
 }
 
 function drawHero() {
-  var h = G.hero, sc = depthScale(h.y);
+  var h = G.hero, sc = depthScale(h.y) * HERO_K;
   shadow(h.x, h.y, 62 * sc);
   var name = 'idle_00', sy = 1, anch = null, jit = 0;
   if (h.state === 'idle') sy = 1 + 0.012 * Math.sin(h.anim * 2 * Math.PI / 1.7);
@@ -38,7 +38,7 @@ function drawHero() {
   var blink = h.inv > 0 && Math.floor(G.t * 24) % 2 === 0 && G.state !== 'dead';
   for (var ti = 0; ti < h.trail.length; ti++) { // 回避の残像：古いほど薄く
     var tr = h.trail[ti]; ctx.globalAlpha = 0.38 * (1 - tr.t / 0.22) * (ti + 1) / h.trail.length;
-    drawSprite('run_' + pad2(tr.f), tr.x, tr.y, tr.face, depthScale(tr.y) * RUN_K, 1, null, 0);
+    drawSprite('run_' + pad2(tr.f), tr.x, tr.y, tr.face, depthScale(tr.y) * RUN_K * HERO_K, 1, null, 0);
   }
   ctx.globalAlpha = blink ? 0.55 : 1;
   drawSprite(name, h.x + jit, h.y, h.face, sc * (h.state === 'run' || h.state === 'dodge' ? RUN_K : 1), sy, anch, rot);

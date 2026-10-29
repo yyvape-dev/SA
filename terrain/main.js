@@ -1,10 +1,10 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793287812';
-import { createUI } from './ui.js?v=1793283930';
-import { createMorning } from './morning.js?v=1793283930';
-import { slashFX } from './fx_slash.js?v=1793283930';
+import * as GM from './game.js?v=1793289358';
+import { createUI } from './ui.js?v=1793289358';
+import { createMorning } from './morning.js?v=1793289358';
+import { slashFX } from './fx_slash.js?v=1793289358';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -588,11 +588,12 @@ function setPlot(pl, fac, stage) { pl.fac = stage ? fac : null; pl.stage = stage
 
 // ---------- 仲間（家の街の広場に立つ。仲間になると現れる）----------
 const ALLY_POS = { mina: [372, 1066], garou: [568, 1066], sera: [505, 1090], ranka: [435, 1090] };
+const MAP_BB = { mina: 635, garou: 670, sera: 635, ranka: 625 }, MAP_H = { mina: 76, sera: 76, ranka: 76 * 202 / 210, garou: 76 * 228 / 210 }; // マップ用の絵（ally/map_*.png）の人物の高さ（実測）と、描く高さ
 const allyMesh = {}, WALK_BBH = { mina: 420, garou: 452, sera: 424, ranka: 426 }; // 歩行コマの中の人物の高さ（元の512px基準）
 for (const k of Object.keys(GM.ALLY)) {
   const mapIm = await loadImage(`../ally/map_${k}.png`), im = mapIm || await loadImage(`../ally/${k}.png`); if (!im) continue; // マップ用の小さな絵（等角）。なければ立ち絵
   const t = new THREE.Texture(im); t.needsUpdate = true; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
-  const [x, y] = ALLY_POS[k], sc = mapIm ? 76 / 635 : 74 / im.height; /* マップ用の絵は4人共通の縮尺（背の違いを残す） */ const m = sprite3D(t, { w: im.width, h: im.height, ax: .5, ay: .98 }, sc, x, y); m.visible = false; scene.add(m);
+  const [x, y] = ALLY_POS[k], sc = mapIm ? MAP_H[k] / MAP_BB[k] : 74 / im.height; /* マップ用の絵：背の高さは HUMAN と同じ比（2026-10-30） */ const m = sprite3D(t, { w: im.width, h: im.height, ax: .5, ay: .98 }, sc, x, y); m.visible = false; scene.add(m);
   allyMesh[k] = { m, x, y, w: im.width * sc, h: im.height * sc, stand: t, sw: 1, sh: 1, walkT: null };
   // 歩行シート（4×4、1コマ192×240。ループ16コマ）。立ち姿と同じ背の高さになるよう拡大率を合わせる
   const wim = await loadImage(`../ally/walk_${k}.webp`);
@@ -969,7 +970,7 @@ function clipActor(el, sp, clips, base, T, run, runBase) { // 動画由来の連
       start({ Lo: lay[ci], ts, end, done: idle }, at);
       return { c, hitAt: at + ts[c.hit] }; } };
 }
-const HUMAN = { mina: 163, sera: 157, ranka: 166, garou: 212, sol: 197, f1: 197, f2: 205, f3: 180, f4: 204 }; // 見た目の背の高さ：一騎打ちと戦場の大きさをこれで揃える。槍の穂先・兜の飾りが測った高さに入る絵は大きめの値（並べて目で合わせた値）
+const HUMAN = { mina: 181, sera: 181, ranka: 174, garou: 196, sol: 200, f1: 200, f2: 182, f3: 194, f4: 182 }; /* 2026-10-30 ゲーム全体の背の高さ（battle/core.js の HEIGHT と同じ比。×0.86 で、一騎打ち・任せた戦闘の画面の大きさは従来並み） */ // 見た目の背の高さ：一騎打ちと戦場の大きさをこれで揃える。槍の穂先・兜の飾りが測った高さに入る絵は大きめの値（並べて目で合わせた値）
 const duelSel = document.createElement('div'); duelSel.id = 'dsel'; document.body.appendChild(duelSel);
 const duelRank = () => G.raid && G.raid.boss ? 'boss' : G.raid && G.raid.E >= 30 ? 'vice' : 'cap';
 const pickOf = a => a[Math.floor(Math.random() * a.length)];

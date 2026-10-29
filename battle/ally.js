@@ -4,15 +4,15 @@
 'use strict';
 /* 絵：走り＝ally/side_meta.json（右向き12コマ。セラは歩き）、攻撃＝ally/duel_meta.json（一騎打ちの連番）。
    一騎打ちの連番は向きがそろっていない（ガロウの1つ目・セラの1つ目は左向き）ので、右向きのものだけ使う（clips の番号）。
-   h＝見た目の背の高さ（領地の HUMAN 表。敵の槍兵 197＝FOE_H）。pow＝通常攻撃1回のダメージ。 */
+   h＝見た目の背の高さ（core.js の HEIGHT）。pow＝通常攻撃1回のダメージ。 */
 var ALLY_DEF = {
-  mina: { n: 'ミナ', r: '捕縛役', clips: [0, 2], h: 163, pow: 16, range: 240, sk: '捕縛網', col: '#c9bcff',
+  mina: { n: 'ミナ', r: '捕縛役', clips: [0, 2], h: HEIGHT.mina, pow: 16, range: 240, sk: '捕縛網', col: '#c9bcff',
     join: '姫、遅くなった！ ……べ、別に急いで来たわけじゃ、ないけど。', use: 'まとめて縛るよ、姫！' },
-  garou: { n: 'ガロウ', r: '火力役', clips: [1], h: 212, pow: 26, range: 230, sk: '大薙ぎ', col: '#ffb27a',
+  garou: { n: 'ガロウ', r: '火力役', clips: [1], h: HEIGHT.garou, pow: 26, range: 230, sk: '大薙ぎ', col: '#ffb27a',
     join: 'ガハハ！ 姫、加勢に参りましたぜ！', use: 'まとめて吹っ飛べぇ！' },
-  sera: { n: 'セラ', r: '内政役', clips: [2], h: 157, pow: 9, range: 200, sk: '癒しの頁', col: '#b8f0c0',
+  sera: { n: 'セラ', r: '内政役', clips: [2], h: HEIGHT.sera, pow: 9, range: 200, sk: '癒しの頁', col: '#b8f0c0',
     join: '姫さま、お待たせしました！ 手当ては任せてください。', use: '姫さま、いま治します！' },
-  ranka: { n: 'ランカ', r: '将軍', clips: [0, 1, 2], h: 166, pow: 34, range: 250, sk: '星震', col: '#9fd8ff',
+  ranka: { n: 'ランカ', r: '将軍', clips: [0, 1, 2], h: HEIGHT.ranka, pow: 34, range: 250, sk: '星震', col: '#9fd8ff',
     join: 'お嬢、お待たせ〜。あとはわたしが片付けるじゃん？', use: '星、震わせちゃおっか。' }
 };
 var ALLY_SPD = 2.8, ALLY_RUN = null, ALLY_CLIP = []; // 攻撃の連番は一騎打ちの2.8倍速
@@ -31,7 +31,7 @@ function allyLoad(one) {
     onDone();
   }).catch(function () { failed++; onDone(); });
 }
-function allyH(a) { return FOE_H * ALLY_DEF[a.k].h / 197 * depthScale(a.y); }
+function allyH(a) { return ALLY_DEF[a.k].h * depthScale(a.y); } // 背の高さは core.js の HEIGHT
 
 /* ---------- 参入 ---------- */
 function allyJoin() { // JOIN() 番目の戦場の始まりに呼ぶ（startWave）
