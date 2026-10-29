@@ -1,9 +1,9 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793253014';
-import { createUI } from './ui.js?v=1793253014';
-import { createMorning } from './morning.js?v=1793253014';
+import * as GM from './game.js?v=1793253972';
+import { createUI } from './ui.js?v=1793253972';
+import { createMorning } from './morning.js?v=1793253972';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -794,7 +794,7 @@ function autoBattle(resolveFn) { // 任せた戦闘：仲間と兵が軍勢と�
 // ---------- 一騎打ちの演出（仮：マップ用の絵を大きく並べ、動きはコード）----------
 const dCss = document.createElement('style'); dCss.textContent = `
 @font-face{font-family:'DMincho';src:url(assets/font/mincho-b.woff2) format('woff2');font-weight:700;font-display:swap}
-#dsel,#duel{--u:min(.2326vw,.1073vh);--ink:#2b1d10;--ink2:#5e4728;--gold:#a8833c;--teal:#2c6a64;--red:#a3362b;
+#dsel,#duel{--u:min(.2326vw,.1073dvh);--ink:#2b1d10;--ink2:#5e4728;--gold:#a8833c;--teal:#2c6a64;--red:#a3362b;
   position:fixed;inset:0;display:none;flex-direction:column;overflow:hidden;font-family:'DMincho','Hiragino Mincho ProN','Yu Mincho',serif;font-weight:700;color:var(--ink);
   background:#efe3c8 url(assets/ui2/parch.jpg) 0 0/calc(760*var(--u)) auto repeat;-webkit-font-smoothing:antialiased}
 #dsel{z-index:10}#duel{z-index:11}
@@ -993,7 +993,7 @@ function maybeDuel(next) { // 接戦なら、一騎打ちに出す仲間を選�
 }
 // ---------- 任せた戦闘（俯瞰の戦場。モック準拠）：兵がぶつかる → 接戦なら敵将が一騎打ちを挑む → 勝敗 ----------
 const fbCss = document.createElement('style'); fbCss.textContent = `
-#abt.fb{--u:min(.2326vw,.1073vh);--ink:#2b1d10;--ink2:#5e4728;--gold:#a8833c;--teal:#2c6a64;--red:#a3362b;display:none;flex-direction:column;align-items:stretch;justify-content:flex-start;padding:0;
+#abt.fb{--u:min(.2326vw,.1073dvh);--ink:#2b1d10;--ink2:#5e4728;--gold:#a8833c;--teal:#2c6a64;--red:#a3362b;display:none;flex-direction:column;align-items:stretch;justify-content:flex-start;padding:0;
   font-family:'DMincho','Hiragino Mincho ProN','Yu Mincho',serif;font-weight:700;color:var(--ink);background:#efe3c8 url(assets/ui2/parch.jpg) 0 0/calc(760*var(--u)) auto repeat}
 #abt.fb *{box-sizing:border-box}
 #abt.fb .cn{position:absolute;width:calc(62*var(--u));aspect-ratio:220/153;background:url(assets/ui2/corner.webp) center/contain no-repeat;pointer-events:none;z-index:1;opacity:.92}
@@ -1171,20 +1171,20 @@ function takeBattleResult() {
 }
 // ---------- 襲撃の決断（一騎打ちの選出と同じ見た目：上＝敵将と戦場、下＝3つの迎え撃ち方）----------
 const rdCss = document.createElement('style'); rdCss.textContent = `
-#rdec{--u:min(.2326vw,.1073vh);--ink:#2b1d10;--ink2:#5e4728;--gold:#a8833c;--teal:#2c6a64;--red:#a3362b;position:fixed;inset:0;z-index:9;display:none;flex-direction:column;overflow:hidden;
+#rdec{--u:min(.2326vw,.1073dvh);--ink:#2b1d10;--ink2:#5e4728;--gold:#a8833c;--teal:#2c6a64;--red:#a3362b;position:fixed;inset:0;z-index:9;display:none;flex-direction:column;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y;
   font-family:'DMincho','Hiragino Mincho ProN','Yu Mincho',serif;font-weight:700;color:var(--ink);background:#efe3c8 url(assets/ui2/parch.jpg) 0 0/calc(760*var(--u)) auto repeat;-webkit-font-smoothing:antialiased}
 #rdec.in{animation:rdin .35s ease-out}@keyframes rdin{from{opacity:0}}
 #rdec *{box-sizing:border-box}#rdec button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;padding:0}
 #rdec .cn{position:absolute;width:calc(62*var(--u));aspect-ratio:220/153;background:url(assets/ui2/corner.webp) center/contain no-repeat;pointer-events:none;z-index:1;opacity:.92}
 #rdec .cn.tl{left:calc(4*var(--u));top:calc(4*var(--u))}#rdec .cn.tr{right:calc(4*var(--u));top:calc(4*var(--u));transform:scaleX(-1)}
-#rdec .hero{position:relative;flex:0 0 45%;background-repeat:no-repeat;-webkit-mask-image:linear-gradient(#000 86%,transparent);mask-image:linear-gradient(#000 86%,transparent)}
+#rdec .hero{position:relative;flex:0 1 45%;min-height:28%;background-repeat:no-repeat;-webkit-mask-image:linear-gradient(#000 86%,transparent);mask-image:linear-gradient(#000 86%,transparent)}
 #rdec .hero::before{content:'';position:absolute;left:-10%;top:-6%;width:74%;height:84%;background:radial-gradient(closest-side,#f3ead6e6,#f3ead6a0 55%,transparent);pointer-events:none}
 #rdec .tt{position:absolute;left:calc(26*var(--u));top:calc(28*var(--u))}
 #rdec .tt small{display:block;font-size:calc(12*var(--u));letter-spacing:.12em;color:var(--ink2)}
 #rdec .tt img{display:block;width:calc(150*var(--u));margin:calc(3*var(--u)) 0 calc(4*var(--u))}
 #rdec .tt h1{margin:0;font-size:calc(30*var(--u));font-weight:700;letter-spacing:.14em;line-height:1.15}#rdec .tt h1.boss{color:var(--red)}
 #rdec .tt .nm{margin-top:calc(6*var(--u));font-size:calc(14.5*var(--u));letter-spacing:.06em}
-#rdec .pn{position:relative;z-index:1;flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;padding:calc(2*var(--u)) calc(20*var(--u)) calc(44*var(--u))}
+#rdec .pn{position:relative;z-index:1;flex:1 0 auto;display:flex;flex-direction:column;align-items:center;padding:calc(2*var(--u)) calc(20*var(--u)) calc(44*var(--u))}
 #rdec .vs{width:100%;display:flex;align-items:center;gap:calc(10*var(--u));font-size:calc(12.5*var(--u));letter-spacing:.04em;white-space:nowrap}
 #rdec .vs b{font-size:calc(19*var(--u));margin-left:.2em}#rdec .vs .us b{color:var(--teal)}#rdec .vs .fo b{color:var(--red)}
 #rdec .bal{flex:1;height:calc(12*var(--u));padding:1px;background:#2a1e12;border:1px solid #8c6c34;box-shadow:0 0 0 1px #e9dcbcaa;position:relative}
