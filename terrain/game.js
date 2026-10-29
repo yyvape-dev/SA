@@ -17,7 +17,7 @@ const CAP_TROOPS = 16;
 export const FRONT = { pass: { n: '山道の峠', from: '北西の山道' }, river: { n: '川の渡し場', from: '西の川' } };
 // 仲間。join=仲間になる条件（開拓した区域）。絆は0〜3。効果は絆2と絆3で増える（base5 の式をもとに、戦闘の補正を足した）
 export const ALLY = {
-  mina:  { n: 'ミナ',   r: '捕縛役', join: null,   lv: ['', '', '自分で戦う成功率+12%・戦闘の拘束+0.4秒', '自分で戦う成功率+さらに8%・拘束+さらに0.4秒'] },
+  mina:  { n: 'ミナ',   r: '捕縛役', join: null,   lv: ['', '', '一騎打ちの勝率+12%・戦闘の拘束+0.4秒', '一騎打ちの勝率+さらに8%・拘束+さらに0.4秒'] },
   garou: { n: 'ガロウ', r: '火力役', join: 'east', lv: ['', '', '防衛力+4・戦闘のダメージ+15%', '防衛力+7・ダメージ+30%'] },
   sera:  { n: 'セラ',   r: '内政役', join: 'lake', lv: ['', '', '畑の産出+1ずつ・戦闘の最大HP+20', '炊き出しの民心+15・最大HP+40'] },
   ranka: { n: 'ランカ', r: '火力役・将軍', join: 'forest', lv: ['', '', '出撃時の効果がさらに強くなる（防衛力+4・ダメージ+10%）', '出撃時の効果がさらに強くなる（防衛力+8・ダメージ+20%）'] },
@@ -233,7 +233,11 @@ export const duelDue = s => !!s.raid && (s.raid.boss || s.raid.E >= 30 || Math.a
 export const champions = s => Object.keys(ALLY).filter(k => joined(s, k) && !(k === 'ranka' && (s.rankaAway || !s.raid.ranka)));
 export const foeGeneral = s => ({ n: s.raid.boss ? '謀反の将軍' : s.raid.E >= 30 ? '将軍の副官' : '敵の隊長', pow: s.raid.E / 3 + (s.raid.boss ? 6 : s.raid.E >= 30 ? 2 : 0) });
 export const duelPow = (s, k) => DUEL_POW[k] + bond(s, k) * 1.5;
-export const duelP = (s, k) => clamp(.5 + (duelPow(s, k) - foeGeneral(s).pow) / 16, .1, .9);
+export const duelP = (s, k) => { // ミナは絆2・3で勝率が上がる。ランカは相手が誰でも7割は勝つ（最強の将）
+  let p = clamp(.5 + (duelPow(s, k) - foeGeneral(s).pow) / 16, .1, .9);
+  if (k === 'mina') p += (bond(s, 'mina') >= 2 ? .12 : 0) + (bond(s, 'mina') >= 3 ? .08 : 0);
+  if (k === 'ranka') p = Math.max(.7, p);
+  return clamp(p, .1, k === 'ranka' ? .95 : .9); };
 export function duelSet(s, k, win) { s.raid.duel = win; s.raid.champ = k; s.log.push(`一騎打ち：${ALLY[k].n}が${win ? '勝った' : '敗れた'}`); return win; }
 export function duel(s, k, rnd = Math.random) { return duelSet(s, k, rnd() < duelP(s, k)); } // 演出なしで決めるとき
 

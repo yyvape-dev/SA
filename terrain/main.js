@@ -1,9 +1,9 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793252505';
-import { createUI } from './ui.js?v=1793252505';
-import { createMorning } from './morning.js?v=1793252505';
+import * as GM from './game.js?v=1793253014';
+import { createUI } from './ui.js?v=1793253014';
+import { createMorning } from './morning.js?v=1793253014';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -1177,7 +1177,7 @@ const rdCss = document.createElement('style'); rdCss.textContent = `
 #rdec *{box-sizing:border-box}#rdec button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;padding:0}
 #rdec .cn{position:absolute;width:calc(62*var(--u));aspect-ratio:220/153;background:url(assets/ui2/corner.webp) center/contain no-repeat;pointer-events:none;z-index:1;opacity:.92}
 #rdec .cn.tl{left:calc(4*var(--u));top:calc(4*var(--u))}#rdec .cn.tr{right:calc(4*var(--u));top:calc(4*var(--u));transform:scaleX(-1)}
-#rdec .hero{position:relative;flex:0 0 33%;background-repeat:no-repeat;-webkit-mask-image:linear-gradient(#000 86%,transparent);mask-image:linear-gradient(#000 86%,transparent)}
+#rdec .hero{position:relative;flex:0 0 45%;background-repeat:no-repeat;-webkit-mask-image:linear-gradient(#000 86%,transparent);mask-image:linear-gradient(#000 86%,transparent)}
 #rdec .hero::before{content:'';position:absolute;left:-10%;top:-6%;width:74%;height:84%;background:radial-gradient(closest-side,#f3ead6e6,#f3ead6a0 55%,transparent);pointer-events:none}
 #rdec .tt{position:absolute;left:calc(26*var(--u));top:calc(28*var(--u))}
 #rdec .tt small{display:block;font-size:calc(12*var(--u));letter-spacing:.12em;color:var(--ink2)}
@@ -1234,7 +1234,7 @@ function raidModal() { // 襲撃・出撃の決断。選んでから大ボタン
     rk = `<div class="rk${ready ? '' : ' off'}"><img src="${porOf('ranka')}"><span>ランカ<small>${ready ? `防衛力+${GM.rankaD(G)}・ダメージ+${Math.round(GM.rankaDmg(G) * 100)}%／次は休み` : why}</small></span>${ready ? `<button class="${R.ranka ? 'on' : ''}">${R.ranka ? '出撃する' : '温存する'}</button>` : ''}</div>`; }
   const pct = Math.max(8, Math.min(92, D / (D + R.E) * 100));
   const shown = rdec.style.display === 'flex';
-  rdec.innerHTML = `<div class="hero" style="background-image:url(assets/npc/bust_${look}.webp),url(assets/field/${R.dir || 'pass'}.jpg);background-size:118% auto,cover;background-position:30% 0,center"><div class="tt"><small>第${R.w || G.week}週${fr ? '・' + fr.n : ''}</small><img src="assets/ui2/divider2.webp"><h1 class="${R.boss ? 'boss' : ''}">${sortie ? '出撃' : R.boss ? '将軍の侵攻' : '敵襲'}</h1>${R.boss || R.name === '敵襲' ? '' : `<div class="nm">${R.name}</div>`}</div></div>
+  rdec.innerHTML = `<div class="hero" style="background-image:url(assets/npc/bust_${look}.webp),url(assets/field/${R.dir || 'pass'}.jpg);background-size:cover,cover;background-position:62% 0,center"><div class="tt"><small>第${R.w || G.week}週${fr ? '・' + fr.n : ''}</small><img src="assets/ui2/divider2.webp"><h1 class="${R.boss ? 'boss' : ''}">${sortie ? '出撃' : R.boss ? '将軍の侵攻' : '敵襲'}</h1>${R.boss || R.name === '敵襲' ? '' : `<div class="nm">${R.name}</div>`}</div></div>
     <div class="pn">
       <div class="vs"><span class="us">防衛力<b>${D}</b></span><div class="bal"><i style="width:${pct}%"></i><u style="left:${pct}%"></u></div><span class="fo">敵<b>${R.E}</b></span></div>
       <h2>どう迎え撃つ？</h2><img class="dv" src="assets/ui2/divider2.webp">
