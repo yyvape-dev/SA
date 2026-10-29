@@ -1,9 +1,9 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793246416';
-import { createUI } from './ui.js?v=1793246416';
-import { createMorning } from './morning.js?v=1793246416';
+import * as GM from './game.js?v=1793246437';
+import { createUI } from './ui.js?v=1793246437';
+import { createMorning } from './morning.js?v=1793246437';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -1071,7 +1071,7 @@ function fbUnit(stage, kind, K, side, x, y, H) { // x,y＝足元（舞台の％�
   u.die = () => { u.alive = false; el.classList.add('dead'); el.style.transform = `translate(${-face * 12}px,6px) rotate(${-face * 14}deg)`; };
   return u;
 }
-function fieldBattle(mode) { // mode：'auto'（任せる）／'hand'（確率で決める）
+function fieldBattle(mode, onEnd) { // onEnd：試しのとき、結果を記録せずに呼ぶ // mode：'auto'（任せる）／'hand'（確率で決める）
   if (!G.raid) { ui.modal(null); return; }
   const R = G.raid, usD = Math.round(GM.raidD(G)), E = R.E, fr = GM.FRONT[R.dir], K = fbKinds(), rank = duelRank(), FL = GM.DUEL_LINES[rank], F = GM.foeGeneral(G), look = foeLook();
   const team = Object.keys(GM.ALLY).filter(k => GM.joined(G, k) && !(k === 'ranka' && (G.rankaAway || !R.ranka))).slice(0, 4);
@@ -1139,7 +1139,7 @@ function fieldBattle(mode) { // mode：'auto'（任せる）／'hand'（確率�
     T(() => result(t, good, mid), 3400); }
   function result(t, good, mid) { if (done) return; done = true; timers.forEach(clearTimeout); const label = good ? '勝利' : mid ? '辛勝' : '敗北', cls = good ? 'w' : mid ? 'm' : 'l';
     const fr2 = $('.fr'); fr2.innerHTML = `<div class="bd"><div class="k">${R.kind === 'sortie' ? '出撃' : '防衛戦'}</div><h2 class="${cls}">${label}</h2><img src="assets/ui2/divider2.webp"><p>${(t.split('：')[1] || '').replace(/ /g, '　')}<small>タップで続ける</small></p></div>`; fr2.classList.add('on');
-    fr2.onclick = e => { e.stopPropagation(); abt.style.display = 'none'; abt.className = ''; abt.innerHTML = ''; endRaidFx(); commit(t); showReport(); }; }
+    fr2.onclick = e => { e.stopPropagation(); abt.style.display = 'none'; abt.className = ''; abt.innerHTML = ''; endRaidFx(); if (onEnd) { onEnd(); return; } commit(t); showReport(); }; }
   $('.spd').onclick = e => { e.stopPropagation(); spd = spd === 1 ? 2 : 1; e.currentTarget.textContent = `速度 ×${spd}`; };
   $('.sk').onclick = e => { e.stopPropagation(); if (done) return; if (phase === 'duel') { dbtn.click(); return; }
     timers.forEach(clearTimeout); timers = []; if (wantDuel && G.raid && G.raid.duel === undefined) { challenge(); return; } if (phase !== 'end') { const t = GM.resolve(G, mode); const good = /被害なし|完勝|勝利/.test(t) && !/敗北/.test(t), mid = /小被害|苦戦/.test(t); setG(good ? 84 : mid ? 58 : 22); result(t, good, mid); } };
@@ -1294,6 +1294,7 @@ function frame(now) {
 }
 canvas.addEventListener('webglcontextlost', e => { e.preventDefault(); status.ok = false; status.reason = 'WebGLが失われた'; });
 G = loadSave() || GM.newState(layout.areas); syncMap(true); refreshUI(); takeBattleResult();
+if (params.has('field')) { const sv = JSON.stringify(G); for (const a of Object.values(GM.ALLY)) if (a.join && !G.open.includes(a.join)) G.open.push(a.join); G.raid = { kind: 'raid', E: 46, name: '将軍の侵攻（試し）', boss: true, w: 12, dir: 'pass', ranka: false }; G.troops = Math.max(G.troops || 0, 6); fieldBattle('auto', () => { G = JSON.parse(sv); writeSave(); refreshUI(); ui.toast('試しの戦闘を終えた（記録は残らない）'); }); } // ?field で任せた戦闘だけ見る
 if (params.has('duel')) { const sv = JSON.stringify(G); G.raid = { kind: 'raid', E: 46, name: '将軍の侵攻（試し）', boss: true, w: 12, dir: 'pass', ranka: GM.joined(G, 'ranka') }; maybeDuel(() => { G = JSON.parse(sv); writeSave(); refreshUI(); ui.toast('試しの一騎打ちを終えた（記録は残らない）'); }); } // ?duel で一騎打ちだけ見る
 resize(); apply(); renderer.render(scene, camera); status.ok = true;
 window.__t.setView = (zoom, sx, sy) => { view.zoom = zoom; view.cx = sx; view.cz = zOf(sy); clampView(); apply(); renderer.render(scene, camera); };
