@@ -12,6 +12,8 @@ window.addEventListener('blur', function () { keys = {}; });
 
 function onPress(code) {
   if (!started) return;
+  if ((code === 'Escape' || code === 'KeyP') && (G.state === 'play' || G.paused)) { togglePause(); return; }
+  if (G.paused) { if (code === 'Space' || code === 'Enter') togglePause(); return; }
   if (G.state === 'result') { backToMap(); return; }
   if (G.state === 'title') { startRun(); return; }
   if (G.state === 'dead') { if (code === 'KeyR' || code === 'Space' || code === 'Enter') { newGame(); startRun(); } return; }
@@ -95,8 +97,7 @@ function iconSlot(el, src) {
   im.onload = function () { el.insertBefore(im, el.firstChild); el.classList.add('has-img'); };
   im.src = src;
 }
-['btnA', 'btnP', 'btnS', 'btnT', 'btnU'].forEach(function (id) { var b = document.getElementById(id); iconSlot(b, b.getAttribute('data-icon')); });
-iconSlot(padEl, 'ui/pad_base.png'); iconSlot(knob, 'ui/pad_knob.png');
+// ボタンとパッドの絵は、操作盤の絵（battle/ui/panel.webp）に描いてある。iconSlot は差し込み口として残す
 tapBtn('btnA', function () { tryAttack('atk'); });
 tapBtn('btnS', function () { tryAttack('sk'); });
 tapBtn('btnP', function () { tryAttack('pull'); });

@@ -1,114 +1,45 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
-<title>月夜の回廊 試作</title>
+<!doctype html><html lang="ja"><head><meta charset="utf-8">
+<title>前線（アクション戦闘）</title>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,viewport-fit=cover">
-<meta name="claude:viewport-fit-sides" content="cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&display=swap">
-<style>
-/* 一画面のアリーナ。暗い石の回廊に合わせた単一の見た目（ライト/ダークの切り替えは行わない）。 */
-:root {
-  --bg: #0c0a11;
-  --panel: #17131f;
-  --fg: #ece6f2;
-  --muted: #9d93ab;
-  --line: #2e2638;
-  --accent: #ffb347;
-  --ui-op: .5; /* タッチボタンの通常時の濃さ（押している間は1） */
-  --font: "Zen Kaku Gothic New", "Hiragino Sans", "Noto Sans JP", "Yu Gothic", sans-serif;
-  color-scheme: dark;
-}
-* { box-sizing: border-box; }
-html, body { height: 100%; touch-action: none; -webkit-text-size-adjust: 100%; }
-body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--fg); font-family: var(--font); font-size: 14px; line-height: 1.6; overscroll-behavior: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
-/* 縦画面：上12%＝顔とHP、中58%＝戦場、下30%＝操作パネル（一騎打ちと同じ配置）。横版は index_land.html に残してある */
-.wrap { position: fixed; inset: 0; background: #000; }
-.head { display: none; }
-#stage { position: absolute; top: 0; bottom: 0; left: 50%; transform: translateX(-50%); width: min(100vw, 60dvh); background: #000; overflow: hidden; touch-action: none; display: flex; flex-direction: column; }
-#top { flex: 0 0 12%; position: relative; padding-top: env(safe-area-inset-top, 0px); background: #17131f; border-bottom: 1px solid var(--line); }
-#field { flex: 0 0 58%; position: relative; overflow: hidden; }
-#ctl { flex: 1 1 auto; position: relative; background: #17131f; border-top: 1px solid var(--line); }
-#game { display: block; width: 100%; height: 100%; outline: none; object-fit: contain; }
-#hud { position: absolute; left: 0; right: 0; bottom: 0; top: env(safe-area-inset-top, 0px); display: flex; flex-direction: column; justify-content: center; gap: 4px; padding: 0 4%; }
-#hud .hpw { position: relative; height: 18px; border-radius: 9px; background: rgba(8,6,12,.8); overflow: hidden; }
-#hud .hpw i { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; background: #c9344a; }
-#hud .hpw i.low { background: #ff5a3c; }
-#hud .hpw span { position: absolute; left: 10px; top: 0; line-height: 18px; font-size: 12px; font-weight: 900; text-shadow: 0 1px 2px #000; }
-#hud .info { display: flex; justify-content: space-between; font-size: 14px; font-weight: 900; color: #ffd27a; }
-#hud .info b { color: #fff2b8; font-weight: 900; }
-#fs { position: absolute; top: max(6px, env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); z-index: 3; font: inherit; font-size: 12px; font-weight: 700; padding: 3px 12px; border-radius: 6px; border: 1px solid var(--line); background: rgba(12,10,17,.55); color: var(--fg); cursor: pointer; opacity: .75; }
-.keys { transition: opacity 1.2s; position: absolute; left: 10px; bottom: 8px; z-index: 2; display: flex; flex-direction: column; gap: 1px; padding: 6px 8px; border-radius: 6px; background: rgba(8,6,12,.5); color: var(--muted); font-size: 11.5px; line-height: 1.5; pointer-events: none; }
-.keys b { color: var(--fg); font-weight: 700; margin-right: 6px; }
-.note { position: absolute; left: 50%; bottom: 4px; transform: translateX(-50%); z-index: 2; margin: 0; color: var(--muted); font-size: 12px; pointer-events: none; text-shadow: 0 1px 3px #000; }
-/* タッチ操作：左下に移動パッド、右下に大きな攻撃ボタン。その周りに、一回り小さいスキルが弧を描いて並ぶ */
-.touch { display: block; position: absolute; left: 0; right: 0; top: 0; bottom: env(safe-area-inset-bottom, 0px); z-index: 2; pointer-events: none; touch-action: none; user-select: none; -webkit-user-select: none; container-type: size; }
-.keys { display: none !important; } /* 縦画面ではボタンを常に出す。キーの説明はタイトル画面に出る */
-#pad { --P: min(38cqw, 72cqh); position: absolute; left: 5cqw; top: calc(50% - var(--P) / 2); width: var(--P); aspect-ratio: 1; border-radius: 50%; background: rgba(23,19,31,.45); border: 2px solid rgba(255,255,255,.25); pointer-events: auto; opacity: var(--ui-op); transition: opacity .08s; }
-#pad.pressed { opacity: 1; }
-#pad.has-img { background: none; border-color: transparent; }
-#knob.has-img { background: none; }
-#pad img, .btn img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; pointer-events: none; -webkit-user-drag: none; }
-#knob { position: absolute; width: 38%; height: 38%; border-radius: 50%; background: var(--accent); opacity: .8; left: 31%; top: 31%; pointer-events: none; }
-.btns { --A: min(28cqw, 50cqh); --s: calc(var(--A) * .58); --r: calc((var(--A) + var(--s)) / 2 + 6px);
-  position: absolute; right: 10cqw; bottom: 8cqh; width: var(--A); height: var(--A); pointer-events: none; }
-.btn { position: absolute; font: inherit; font-weight: 900; border-radius: 50%; border: 2px solid rgba(255,255,255,.32); background: rgba(23,19,31,.62); color: var(--fg); touch-action: none; pointer-events: auto; padding: 0; line-height: 1.15; opacity: var(--ui-op); transition: opacity .08s; }
-.btn .lbl { position: relative; z-index: 1; }
-.btn.has-img { background: none !important; border-color: transparent !important; }
-.btn.has-img .lbl { display: none; }
-.btn.a { left: 0; top: 0; width: var(--A); height: var(--A); font-size: calc(var(--A) * .2); background: rgba(58,42,20,.78); border-color: var(--accent); }
-.btn.s { left: 50%; top: 50%; width: var(--s); height: var(--s); margin: calc(var(--s) / -2) 0 0 calc(var(--s) / -2); font-size: calc(var(--s) * .2); transform: translate(calc(var(--cx) * var(--r)), calc(var(--cy) * var(--r))); overflow: hidden; }
-.btn.s::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(rgba(8,6,14,.74) calc(var(--cd, 0) * 1turn), transparent 0); pointer-events: none; }
-.btn.s.cool { border-color: rgba(255,255,255,.14); color: #9d93ab; }
-.btn.s small { display: block; font-size: .72em; font-weight: 700; opacity: .8; }
-.btn.l { border-color: #b7a6ff; } .btn.k { border-color: #ffcd6e; } .btn.i { border-color: #8fd0ff; } .btn.u { border-color: #ff8a8a; background: rgba(70,24,30,.78); }
-.btn { -webkit-tap-highlight-color: transparent; }
-.btn.pressed { opacity: 1; filter: brightness(1.35); }
-
-</style>
-
+<link rel="stylesheet" href="battle/battle.css?v=1793255618">
+</head><body>
+<!-- 横画面の旧版は index_land.html。戦闘の中身は battle/*.js（上から順に読み込む） -->
 <div class="wrap" id="wrap">
-  <div class="head"><h1>月夜の回廊 試作</h1></div>
   <div id="stage">
     <div id="top"><div id="hud">
-      <div class="hpw"><i id="hpI"></i><span id="hpT">HP</span></div>
-      <div class="info"><span id="hWave">WAVE 1</span><span id="hKill">撃破 <b>0</b></span><span id="hGold">素材 <b>0</b></span></div>
+      <div class="hp"><i id="hpI"></i><span id="hpT">HP</span></div>
+      <div class="ul" id="ulW"><i id="ulI"></i></div>
+      <div class="info"><span id="hWave">戦場 <b>1 / 3</b></span><i class="sep"></i><span><img src="battle/ui/ic_skull.webp" alt="">残り <b id="hLeft">0</b></span><i class="sep"></i><span><img src="battle/ui/ic_chest.webp" alt="">物資 <b id="hSup">0</b></span></div>
+      <button id="pz" type="button" aria-label="一時停止"></button>
     </div></div>
-    <div id="field"><canvas id="game" tabindex="0" aria-label="ゲーム画面"></canvas></div>
+    <div id="field"><canvas id="game" tabindex="0" aria-label="ゲーム画面"></canvas>
+      <div id="ov"><div class="card"><div class="t1"></div><h2></h2><p class="s1"></p><p class="s2"></p><div class="row"></div></div></div>
+      <p class="note" id="loadnote">素材を読み込み中です。</p>
+    </div>
     <button id="fs" type="button" hidden>全画面</button>
     <div id="ctl"><div class="touch">
+      <div id="gauge"><i id="gI"></i></div><i id="gdia"></i>
       <div id="pad" aria-label="移動パッド"><div id="knob"></div></div>
-      <div class="btns">
-        <button class="btn s l" id="btnP" type="button" style="--cx:-0.985;--cy:0.174" data-icon="ui/btn_pull.png"><span class="lbl">吸引</span></button>
-        <button class="btn s k" id="btnS" type="button" style="--cx:-0.829;--cy:-0.559" data-icon="ui/btn_shock.png"><span class="lbl">衝撃波</span></button>
-        <button class="btn s i" id="btnT" type="button" style="--cx:-0.208;--cy:-0.978" data-icon="ui/btn_thrust.png"><span class="lbl">突き</span></button>
-        <button class="btn s u" id="btnU" type="button" style="--cx:0.53;--cy:-0.848" data-icon="ui/btn_ult.png"><span class="lbl">必殺</span></button>
-        <button class="btn a" id="btnA" type="button" data-icon="ui/btn_attack.png"><span class="lbl">攻撃</span></button>
-      </div>
+      <button class="btn s" id="btnS" type="button"><span class="lbl">衝撃波</span></button>
+      <button class="btn s" id="btnP" type="button"><span class="lbl">吸引</span></button>
+      <button class="btn s" id="btnT" type="button"><i class="ic"></i><svg viewBox="0 0 64 64"><path d="M6 46 L44 20 L41 15 L60 8 L53 27 L48 24 L10 50 Z" fill="#cfeaff" stroke="#5fb0ff" stroke-width="2" stroke-linejoin="round"/><path d="M8 34 L24 28 M14 54 L30 44" stroke="#8fd0ff" stroke-width="2.5" stroke-linecap="round" opacity=".8"/></svg><span class="lb">突き</span></button>
+      <button class="btn s" id="btnU" type="button"><span class="lbl">必殺</span></button>
+      <button class="btn a" id="btnA" type="button"><span class="lbl">攻撃</span></button>
     </div></div>
   </div>
-  <div class="keys" id="keys">
-    <span><b>← ↑ ↓ →</b>移動（WASDも可）</span>
-    <span><b>Shift</b>走る</span>
-    <span><b>J / Space</b>攻撃（連打で縦斬り→横薙ぎ）</span>
-    <span><b>L</b>吸引（敵を引き寄せて拘束）</span>
-    <span><b>U</b>必殺技（回転斬り・周囲一掃）</span>
-    <span><b>K</b>衝撃波</span>
-    <span><b>I</b>貫通の突き（前方を一直線に貫く）</span>
-    <span><b>1 2 3</b>強化を選ぶ</span>
-    <span><b>R</b>やり直す</span>
-  </div>
-  <p class="note" id="loadnote">素材を読み込み中です。</p>
+  <div class="keys" id="keys"></div>
 </div>
 
-<script src="battle/core.js?v=1"></script>
-<script src="battle/input.js?v=1"></script>
-<script src="battle/play.js?v=1"></script>
-<script src="battle/update.js?v=1"></script>
-<script src="battle/draw.js?v=1"></script>
-<script src="battle/loop.js?v=1"></script>
+<script src="battle/core.js?v=1793255618"></script>
+<script src="battle/input.js?v=1793255618"></script>
+<script src="battle/play.js?v=1793255618"></script>
+<script src="battle/update.js?v=1793255618"></script>
+<script src="battle/draw.js?v=1793255618"></script>
+<script src="battle/ui.js?v=1793255618"></script>
+<script src="battle/loop.js?v=1793255618"></script>
 
 
 </body></html>

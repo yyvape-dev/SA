@@ -1,9 +1,9 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793253972';
-import { createUI } from './ui.js?v=1793253972';
-import { createMorning } from './morning.js?v=1793253972';
+import * as GM from './game.js?v=1793255618';
+import { createUI } from './ui.js?v=1793255618';
+import { createMorning } from './morning.js?v=1793255618';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -1167,7 +1167,7 @@ function takeBattleResult() {
   let r = null; try { r = JSON.parse(localStorage.getItem('battle_result') || 'null'); } catch (e) { }
   if (!r || !G.battle || !G.raid || r.id !== G.battle.id) return;
   try { localStorage.removeItem('battle_result'); } catch (e) { }
-  G.battle = null; const t = GM.resolve(G, 'hand', Math.random, !!r.win); endRaidFx(); commit(`${t}（撃破${r.kills}）`); ui.modal(null); /* 出撃は週の報告がなく、起動時に開いた出撃の窓が残って止まっていた */ showReport();
+  G.battle = null; const t = GM.resolve(G, 'hand', Math.random, !!r.win); const sup = Math.max(0, Math.floor(+r.sup || 0)); if (sup) G.sup += sup; /* 戦場で拾った物資 */ endRaidFx(); commit(`${t}（撃破${r.kills}${sup ? `・物資+${sup}` : ''}）`); ui.modal(null); /* 出撃は週の報告がなく、起動時に開いた出撃の窓が残って止まっていた */ showReport();
 }
 // ---------- 襲撃の決断（一騎打ちの選出と同じ見た目：上＝敵将と戦場、下＝3つの迎え撃ち方）----------
 const rdCss = document.createElement('style'); rdCss.textContent = `

@@ -92,7 +92,7 @@ var BAT = (function () { var q = new URLSearchParams(location.search || ''); if 
   return { on: true, id: q.get('id') || '', waves: Math.max(1, +q.get('waves') || 3), name: q.get('name') || '出撃', dmg: +q.get('dmg') || 1, bind: +q.get('bind') || 0, hp: +q.get('hp') || 0, ret: q.get('ret') || 'terrain/index.html' }; })();
 function finishBattle(win) {
   if (G.state === 'result') return; G.state = 'result'; G.result = !!win; G.resT = 0;
-  try { localStorage.setItem('battle_result', JSON.stringify({ id: BAT.id, win: !!win, kills: G.kills, wave: G.wave })); } catch (e) { }
+  try { localStorage.setItem('battle_result', JSON.stringify({ id: BAT.id, win: !!win, kills: G.kills, wave: G.wave, sup: G.sup })); } catch (e) { }
 }
 function backToMap() { if (G.resT < 0.8) return; location.href = BAT.ret; }
 
@@ -103,7 +103,7 @@ function newGame() {
   G = {
     roomNo: 0, seg: 0, phase: 'fight', trans: null,
     state: 'title', t: 0, wave: 0, enemies: [], drops: [], parts: [], fx: [], texts: [], booms: [],
-    queue: [], qT: 0, shake: 0, freeze: 0, combo: 0, comboT: 0, bestCombo: 0, kills: 0, gold: 0, rare: 0,
+    queue: [], qT: 0, shake: 0, freeze: 0, combo: 0, comboT: 0, bestCombo: 0, kills: 0, gold: 0, rare: 0, sup: 0, paused: false, fieldTotal: 1,
     skCD: 0, skMax: 3.2, pullCD: 0, pullMax: 6, thrCD: 0, thrMax: 8, ultCD: 0, ultMax: 14, flash: 0, picks: [], pickOpts: [], upgraded: [],
     hero: { x: 340, y: 560, face: 1, hp: 120, max: 120, state: 'idle', t: 0, anim: 0, sk: false, kind: 'atk', fxT: 0, ringT: 0, h1: false, h2: false, h3: false, v: 0, lastAtkEnd: -9, lastAtkKind: '', x0: 0, buf: 0, cancelT: 0, total: 0, inv: 0, flash: 0, kb: 0 }
   };

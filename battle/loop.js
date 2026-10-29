@@ -11,9 +11,10 @@ function frame(ts) {
 function boot() {
   document.getElementById('loadnote').textContent = failed
     ? '読み込めない素材が ' + failed + ' 個あります。ページを開き直してください。'
-    : '読み込み完了。画面をクリックして始めます。';
+    : '';
+  uiShow();
   started = true; newGame();
-  if (document.fonts && document.fonts.load) document.fonts.load('900 20px "Zen Kaku Gothic New"').catch(function () {});
+  if (document.fonts && document.fonts.load) document.fonts.load('700 20px "DMincho"').catch(function () {});
 }
 newGame();
 loadAll();

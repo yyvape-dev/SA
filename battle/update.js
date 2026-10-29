@@ -5,7 +5,7 @@
 function update(dt) {
   G.t += dt;
   if (G.shake > 0.1) G.shake *= Math.pow(0.002, dt); else G.shake = 0;
-  if (G.state === 'title') return;
+  if (G.state === 'title' || G.paused) return;
   if (G.freeze > 0) { G.freeze -= dt; return; }
   if (G.state === 'dead') G.deadT = (G.deadT || 0) + dt;
   if (G.state === 'result') G.resT += dt;
@@ -176,6 +176,7 @@ function clearField() { // 戦場の敵を倒しきった：少し回復して�
 }
 
 function collect(d) {
+  if (d.type === 3) { G.sup++; addText(G.hero.x, G.hero.y - 250, '物資 +1', 24, '#f0c869', 0.9); return; }
   if (d.type === 0) G.gold += 1;
   else if (d.type === 1) { G.gold += 5; G.rare++; addText(G.hero.x, G.hero.y - 260, 'レア素材', 22, '#7ec8ff', 0.9); }
   else { G.gold += 30; G.rare += 3; addText(G.hero.x, G.hero.y - 260, 'エピック素材！', 26, '#d48cff', 1.1); }

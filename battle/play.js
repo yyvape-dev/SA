@@ -22,7 +22,7 @@ function startWave(n) {
   count = Math.min(40, 8 + n * 5); // 横が狭いので、横版より少なめ
   for (var i = 0; i < count; i++) G.queue.push({ at: rnd(0, 5.5), elite: false });
   if (n % 3 === 0) G.queue.push({ at: 4, elite: true });
-  G.queue.sort(function (a, b) { return a.at - b.at; }); // 波の表示は出さない（倒しきったら、戦場が右へ進む）
+  G.fieldTotal = Math.max(1, G.queue.length); G.queue.sort(function (a, b) { return a.at - b.at; }); // 波の表示は出さない（倒しきったら、戦場が右へ進む）
 }
 // 部屋に入る：戦場0に立ち、カメラをその位置へ合わせて、最初の波を始める
 function enterRoom(i) {
@@ -284,11 +284,8 @@ function kill(e, dir) {
   e.state = 'dying'; e.dt = 0; e.dir = dir;
   G.kills++; G.combo++; G.comboT = 2.4; if (G.combo > G.bestCombo) G.bestCombo = G.combo;
   for (var i = 0; i < 9; i++) G.parts.push({ x: e.x, y: e.y - eh(e) * 0.5, vx: rnd(-240, 240), vy: rnd(-420, -60), g: 800, life: rnd(0.4, 0.9), t: 0, c: i % 3 ? '#b8473a' : '#9aa0a8', s: rnd(4, 9) });
-  var nd = e.elite ? 8 : (Math.random() < 0.35 ? 2 : 1);
-  for (var k = 0; k < nd; k++) {
-    var r = Math.random(), type = r < 0.03 || e.elite ? 2 : r < 0.2 ? 1 : 0;
-    G.drops.push({ x: e.x, y: e.y, z: 20, vx: rnd(-120, 120), vz: rnd(180, 340), type: type, t: 0, home: false });
-  }
+  var nd = e.elite ? 2 : (Math.random() < 0.07 ? 1 : 0); // 落とすのは物資だけ（1つ＝領地の物資+1）。強敵は2つ
+  for (var k = 0; k < nd; k++) G.drops.push({ x: e.x, y: e.y, z: 20, vx: rnd(-120, 120), vz: rnd(180, 340), type: 3, t: 0, home: false });
   if (S.chain > 0) G.booms.push({ x: e.x, y: e.y, t: 0.12 });
 }
 

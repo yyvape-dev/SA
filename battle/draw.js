@@ -169,7 +169,7 @@ function drawFx() {
 
 function drawDrops() {
   for (var i = 0; i < G.drops.length; i++) {
-    var d = G.drops[i], col = d.type === 2 ? '#d48cff' : d.type === 1 ? '#7ec8ff' : '#fff2b8', r = d.type === 2 ? 9 : d.type === 1 ? 7 : 5;
+    var d = G.drops[i], col = d.type === 3 ? '#e8b85a' : d.type === 2 ? '#d48cff' : d.type === 1 ? '#7ec8ff' : '#fff2b8', r = d.type === 3 ? 9 : d.type === 2 ? 9 : d.type === 1 ? 7 : 5;
     var y = d.y - d.z - 6;
     ctx.save(); ctx.translate(d.x, y);
     ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = col; ctx.globalAlpha = 0.25;
@@ -181,9 +181,9 @@ function drawDrops() {
 }
 
 function txt(s, x, y, size, col, align, w) {
-  ctx.font = '900 ' + size + 'px "Zen Kaku Gothic New","Hiragino Sans","Noto Sans JP",sans-serif';
+  ctx.font = '700 ' + size + 'px "DMincho","Hiragino Mincho ProN","Yu Mincho",serif';
   var mw = ctx.measureText(s).width; // 縦画面は幅が狭いので、はみ出す文字は小さくする
-  if (mw > W - 24) { size = size * (W - 24) / mw; ctx.font = '900 ' + size + 'px "Zen Kaku Gothic New","Hiragino Sans","Noto Sans JP",sans-serif'; if (w) w = Math.max(2, w * (W - 24) / mw); }
+  if (mw > W - 24) { size = size * (W - 24) / mw; ctx.font = '700 ' + size + 'px "DMincho","Hiragino Mincho ProN","Yu Mincho",serif'; if (w) w = Math.max(2, w * (W - 24) / mw); }
   ctx.textAlign = align || 'left'; ctx.textBaseline = 'alphabetic';
   ctx.lineJoin = 'round'; ctx.lineWidth = w || Math.max(3, size / 6); ctx.strokeStyle = 'rgba(8,6,12,0.9)';
   ctx.strokeText(s, x, y); ctx.fillStyle = col; ctx.fillText(s, x, y);
@@ -198,20 +198,6 @@ function drawHud() {
   }
   // スキルの残り時間は、下の段のボタンに出す（updateTouchCd）
 }
-var DH = null, DHlast = '';
-function updateDomHud() { // 上の段：HP・WAVE・撃破・素材（変わったときだけ書き換える）
-  if (!DH) DH = { i: document.getElementById('hpI'), t: document.getElementById('hpT'), w: document.getElementById('hWave'), k: document.getElementById('hKill'), g: document.getElementById('hGold') };
-  var h = G.hero, left = G.enemies.filter(function (e) { return e.state === 'walk'; }).length + G.queue.length;
-  var wv = '戦場 ' + Math.max(1, G.seg + 1) + ' / ' + ROOM.segs;
-  var key = Math.ceil(h.hp) + '|' + h.max + '|' + wv + '|' + left + '|' + G.kills + '|' + G.gold + '|' + G.rare;
-  if (key === DHlast || !DH.i) return; DHlast = key;
-  DH.i.style.width = Math.max(0, Math.min(100, 100 * h.hp / h.max)) + '%';
-  DH.i.className = h.hp / h.max > 0.3 ? '' : 'low';
-  DH.t.textContent = 'HP ' + Math.ceil(h.hp) + ' / ' + h.max;
-  DH.w.textContent = wv + '　残り ' + left;
-  DH.k.innerHTML = '撃破 <b>' + G.kills + '</b>';
-  DH.g.innerHTML = '素材 <b>' + G.gold + '</b>　レア <b>' + G.rare + '</b>';
-}
 function skillIcon(cx, cy, key, label, cd, max, ring, keyCol) {
   var r = 36, ready = cd <= 0;
   ctx.fillStyle = 'rgba(8,6,12,0.75)'; ctx.beginPath(); ctx.arc(cx, cy, r, 0, 7); ctx.fill();
@@ -222,7 +208,7 @@ function skillIcon(cx, cy, key, label, cd, max, ring, keyCol) {
 }
 
 function pickRect(i) { return { x: 24, y: 200 + i * 165, w: W - 48, h: 150 }; } // 強化のカード（720の枠の中の座標）
-function drawOverlay() { var oy = (VH - 720) / 2; ctx.save(); ctx.translate(0, oy); drawOverlay0(oy); ctx.restore(); }
+function drawOverlay() { if (G.state === 'title' || G.state === 'result' || G.state === 'dead') return; var oy = (VH - 720) / 2; ctx.save(); ctx.translate(0, oy); drawOverlay0(oy); ctx.restore(); }
 function drawOverlay0(oy) {
   var i;
   if (G.state === 'result') {
@@ -276,7 +262,7 @@ function drawOverlay0(oy) {
 }
 
 function wrapText(s, x, y, maxW, size, col, align, lh) {
-  ctx.font = '900 ' + size + 'px "Zen Kaku Gothic New","Hiragino Sans","Noto Sans JP",sans-serif';
+  ctx.font = '700 ' + size + 'px "DMincho","Hiragino Mincho ProN","Yu Mincho",serif';
   var line = '', lines = [];
   for (var i = 0; i < s.length; i++) {
     var t = line + s[i];
@@ -395,7 +381,7 @@ function draw() {
   ctx.restore();
   if (G.flash > 0) { ctx.fillStyle = 'rgba(255,255,255,' + Math.min(1, G.flash) + ')'; ctx.fillRect(0, 0, W, VH); }
   if (G.state !== 'title') drawHud();
-  updateDomHud();
+  uiTick();
   drawOverlay();
   if (G.trans) { // 部屋の移動：暗転→部屋名→明転
     var tk = G.trans.t, ta = tk < 0.5 ? tk / 0.5 : Math.max(0, (1 - tk) / 0.5);
