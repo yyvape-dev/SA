@@ -1,9 +1,9 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793278311';
-import { createUI } from './ui.js?v=1793278311';
-import { createMorning } from './morning.js?v=1793278311';
+import * as GM from './game.js?v=1793278549';
+import { createUI } from './ui.js?v=1793278549';
+import { createMorning } from './morning.js?v=1793278549';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -861,6 +861,8 @@ const dCss = document.createElement('style'); dCss.textContent = `
 #duel .f .sp .sh{position:absolute;inset:0;pointer-events:none;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;background:linear-gradient(100deg,#fff3 0%,#0000 34%,#0000 48%,#0a0e2aa6 100%),linear-gradient(180deg,#0000 50%,#1a0f0a8c 100%)}
 #duel .R .sp .sh{background:linear-gradient(260deg,#fff3 0%,#0000 34%,#0000 48%,#0a0e2aa6 100%),linear-gradient(180deg,#0000 50%,#1a0f0a8c 100%)}
 #duel .cam,#duel .f{will-change:transform}
+#duel .ld{position:absolute;inset:0;z-index:6;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(10*var(--u));background:#0007;color:#f3e7c8;font-size:calc(15*var(--u));letter-spacing:.15em;transition:opacity .3s}#duel .ld.out{opacity:0}
+#duel .ld i{width:50%;height:calc(4*var(--u));background:#0008;border:1px solid #a8833c}#duel .ld u{display:block;height:100%;width:0;background:#d9b878;transition:width .15s}
 #duel .L{left:9%}#duel .R{right:8%}
 #duel .cam{position:absolute;inset:0;transform-origin:50% 72%;transition:transform .26s cubic-bezier(.2,.7,.3,1)}#duel .cam .bg{position:absolute;inset:-2%;background:#222 center 66%/cover no-repeat}
 #duel .f.hit{animation:fhit .32s linear}#duel .f.hit .sp,#duel .f.hit img{filter:sepia(.35) saturate(2.2) hue-rotate(-25deg) brightness(1.06)!important}
@@ -916,7 +918,12 @@ const duelEl = document.createElement('div'); duelEl.id = 'duel'; document.body.
 const foeURL = FOE_IMG[3] ? 'assets/npc/foe_4.webp' : foeTex.image.toDataURL();
 // 大将戦の攻撃モーション（動画由来の24コマ）。ある仲間だけ。ない仲間は立ち絵のまま
 const DUEL_CLIP = await fetch('../ally/duel_meta.json').then(r => r.json()).catch(() => ({})); // 仲間ごとの攻撃モーション一覧
-const duelWarm = k => (DUEL_CLIP[k] || []).forEach(c => { new Image().src = `../ally/${c.f}`; }); // 一騎打ちの前に絵を先読み
+// 一騎打ちの絵の先読み：読み込みに加えて decode まで済ませ、Image を持ち続ける（切り替えの瞬間に消える・カクつくのを防ぐ）
+const IMGHOLD = new Map();
+const holdImg = src => { if (!IMGHOLD.has(src)) { const im = new Image(); im.src = src; IMGHOLD.set(src, (im.decode ? im.decode() : new Promise(r => { im.onload = r; })).catch(() => {}).then(() => im)); } return IMGHOLD.get(src); };
+const duelSrcs = (k, look) => [...(DUEL_CLIP[k] || []).map(c => `../ally/${c.f}`), ...(runClipOf(k) ? [`../ally/${runClipOf(k).f}`] : []),
+  ...(look ? [...(FOEDUEL[look] || []).map(c => `assets/npc/${c.f}`), ...(foeRunOf(look) ? [`assets/npc/${foeRunOf(look).f}`] : [])] : [])];
+const duelWarm = k => duelSrcs(k, G && G.raid ? foeLook() : null).forEach(holdImg);
 const SIDE_ALLY = await fetch('../ally/side_meta.json').then(r => r.json()).catch(() => ({})); // 仲間の横向きの走り（右向き）
 const SIDE_FOE = await fetch('assets/npc/side_meta.json').then(r => r.json()).catch(() => ({}));  // 敵の横向きの歩き（左向き）
 const runClipOf = k => SIDE_ALLY['run_' + k] || SIDE_ALLY['walk_' + k] || null, foeRunOf = look => SIDE_FOE['walk_' + look] || null;
@@ -1014,7 +1021,10 @@ function playDuel(k, done) { // 画面いっぱいの一騎打ち。五合の勝
   $('.sk').onclick = e => { e.stopPropagation(); if (over) return; timers.forEach(clearTimeout); if (actL) actL.reset(); if (actR) actR.reset(); [L, Rf].forEach(x => { x.style.transform = ''; x.style.filter = ''; }); camTo(1, stage.clientWidth / 2, 0); duelEl.classList.remove('shake'); $('.cut').classList.remove('on'); pips.forEach(p => p.classList.remove('cur'));
     while (aw < 3 && fw < 3 && nextI < 5) { apply(nextI, GM.duelRound(plan, nextI, armed)); armed = false; } upd(); finish(); };
   duelEl.onclick = null;
-  say('l', pickOf(AL.open), 2200); say('r', pickOf(FL.open), 2200); T(() => roundStart(0), 2300);
+  const srcs = duelSrcs(k, look), ld = document.createElement('div'); ld.className = 'ld'; ld.innerHTML = '<b>構えを整えている…</b><i><u></u></i>'; stage.appendChild(ld); // 全部の絵を読み終えてから始める
+  let got = 0; const bar = ld.querySelector('u');
+  Promise.all(srcs.map(sr => holdImg(sr).then(() => { got++; bar.style.width = (got / srcs.length * 100) + '%'; }))).then(() => { if (over) return; ld.classList.add('out'); setTimeout(() => ld.remove(), 300);
+    say('l', pickOf(AL.open), 2200); say('r', pickOf(FL.open), 2200); T(() => roundStart(0), 2300); });
 }
 function openSelect(cs, F, onPick, onDecline) { // 一騎打ちに送り出す仲間を選ぶ（モック準拠：上に敵将、下に仲間のカード）
   const R = G.raid, look = foeLook(), FLo = GM.DUEL_LINES[duelRank()]; let sel = cs[0];
