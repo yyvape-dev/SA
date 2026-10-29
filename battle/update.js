@@ -168,10 +168,10 @@ function startFoeAtk(e) {
   if (!c) { e.atk = { t: 0, hitT: 0.35, endT: 0.6, ci: -1, done: false }; return; } // 攻撃の絵が無いときは、少し止まってから当たる
   var acc = 0, hitT = 0, starts = [];
   for (var i = 0; i < c.n; i++) { starts.push(acc / 1000 / FOE_SPD); if (i === c.hit) hitT = acc / 1000 / FOE_SPD; acc += c.durs[i]; }
-  e.atk = { t: 0, hitT: hitT, endT: acc / 1000 / FOE_SPD, ci: ci, starts: starts, done: false };
+  e.atk = { t: 0, hitT: hitT, endT: acc / 1000 / FOE_SPD, ci: ci, starts: starts, done: false }; fxWarn(e, hitT);
 }
 function hitHero(e) {
-  var h = G.hero; h.hp -= e.dmg; h.inv = 0.45; h.flash = 0.25; G.shake = Math.max(G.shake, 4);
+  var h = G.hero; h.hp -= e.dmg; h.inv = 0.45; h.flash = 0.25; G.shake = Math.max(G.shake, e.boss ? 12 : 6); fxHurt(h, e); G.freeze = Math.max(G.freeze, e.boss ? 0.08 : 0.04);
   addText(h.x, h.y - 230, '-' + e.dmg, 26, '#ff6b6b', 0.7);
   if (h.state !== 'atk' && h.hp > 0) { h.state = 'hurt'; h.t = 0; h.buf = 0; h.kb = (h.x >= e.x ? 1 : -1) * 240; }
   if (h.hp <= 0) { h.hp = 0; G.state = 'dead'; G.deadT = 0; if (BAT.on) finishBattle(false); }
@@ -181,6 +181,7 @@ function clearField() { // 戦場の敵を倒しきった：少し回復して�
 }
 
 function collect(d) {
+  fxPick(G.hero.x, G.hero.y - 90);
   if (d.type === 3) { G.sup++; addText(G.hero.x, G.hero.y - 250, '物資 +1', 24, '#f0c869', 0.9); return; }
   if (d.type === 0) G.gold += 1;
   else if (d.type === 1) { G.gold += 5; G.rare++; addText(G.hero.x, G.hero.y - 260, 'レア素材', 22, '#7ec8ff', 0.9); }

@@ -197,13 +197,13 @@ function drawVHit(f) {
 
 // ===== ラナの技（赤黒・金） =====
 // 床を広がる衝撃の輪：黒の下地＋紅・橙・金の3層（時間差）＋土ぼこり（通常の合成）
-function fxRing(x, y, R, life) {
+function fxRing(x, y, R, life, pal) {
   var du = [];
   for (var i = 0; i < 26; i++) { var a = Math.random() * 6.283; du.push({ a: a, v: R * (0.6 + Math.random() * 0.8), up: 120 + Math.random() * 260, life: 0.35 + Math.random() * 0.4, s: 4 + Math.random() * 7 }); }
-  G.fx.push({ type: 'vring', x: x, y: y, R: R, t: 0, life: life || 0.55, du: du });
+  G.fx.push({ type: 'vring', x: x, y: y, R: R, t: 0, life: life || 0.55, du: du, pal: pal });
 }
 function drawVRing(f) {
-  var C = VFX_RANA, t = f.t, fade = 1 - t / f.life;
+  var C = f.pal || VFX_RANA, t = f.t, fade = 1 - t / f.life;
   var L = [{ c: C.dark, lag: 0, w: 30, a: 0.75, dk: 1 }, { c: C.glow, lag: 0, w: 34, a: 0.8 }, { c: C.main, lag: 0.025, w: 12, a: 1 }, { c: C.core, lag: 0.045, w: 3.5, a: 1 }];
   for (var l = 0; l < L.length; l++) {
     var Ly = L[l], k = vEase((t - Ly.lag) / (f.life * 0.75)); if (k <= 0) continue;

@@ -115,11 +115,13 @@ function drawSkeleton(e) { // 予備（敵の絵が読めなかったとき）
   if (e.bind > 0 && e.state === 'walk') drawBindBand(e); // 拘束の帯（battle/fx.js）。床の印は drawBindFloor
 }
 
+var DUSTC = { '#d8c9a3': 1, '#d9d2bd': 1 };
 function drawFx() {
   var i, f, p;
   ctx.save(); ctx.globalCompositeOperation = 'lighter';
   for (i = 0; i < G.fx.length; i++) {
     f = G.fx[i]; p = f.t / f.life;
+    if (FX2[f.type]) { FX2[f.type](f); ctx.globalCompositeOperation = 'lighter'; continue; } // battle/fx2.js
     if (f.type === 'arc') {
       ctx.save(); ctx.translate(f.x, f.y - 95 * depthScale(f.y)); ctx.scale(f.face, 1);
       var rx = f.R * (0.55 + 0.45 * Math.min(1, p * 1.6)), ry = f.second ? 70 : 110;
@@ -171,24 +173,16 @@ function drawFx() {
       ctx.beginPath(); ctx.ellipse(f.x, f.y - 30, f.R * p, f.R * 0.5 * p, 0, 0, 7); ctx.stroke();
     }
   }
-  for (i = 0; i < G.parts.length; i++) {
-    p = G.parts[i]; ctx.globalAlpha = 1 - p.t / p.life; ctx.fillStyle = p.c; ctx.fillRect(p.x, p.y, p.s, p.s);
+  for (i = 0; i < G.parts.length; i++) { // 粒子：土ぼこりは光らない丸、それ以外は速度の向きへ伸びる光の筋
+    p = G.parts[i]; var pa = 1 - p.t / p.life;
+    if (DUSTC[p.c]) { ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = pa * 0.55; ctx.fillStyle = p.c; ctx.beginPath(); ctx.arc(p.x, p.y, p.s * (0.8 + p.t * 2), 0, 6.283); ctx.fill(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 1; }
+    else { var pm = Math.hypot(p.vx, p.vy); ctx.globalAlpha = 1; ctx.strokeStyle = p.c; ctx.globalAlpha = pa; ctx.lineWidth = p.s * 0.75; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - p.vx / (pm || 1) * (Math.min(30, pm * 0.035) + 2), p.y - p.vy / (pm || 1) * (Math.min(30, pm * 0.035) + 2)); ctx.stroke(); }
   }
+  ctx.globalAlpha = 1;
   ctx.restore();
 }
 
-function drawDrops() {
-  for (var i = 0; i < G.drops.length; i++) {
-    var d = G.drops[i], col = d.type === 3 ? '#e8b85a' : d.type === 2 ? '#d48cff' : d.type === 1 ? '#7ec8ff' : '#fff2b8', r = d.type === 3 ? 9 : d.type === 2 ? 9 : d.type === 1 ? 7 : 5;
-    var y = d.y - d.z - 6;
-    ctx.save(); ctx.translate(d.x, y);
-    ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = col; ctx.globalAlpha = 0.25;
-    ctx.beginPath(); ctx.arc(0, 0, r * 2.6, 0, 7); ctx.fill(); ctx.globalAlpha = 1;
-    ctx.globalCompositeOperation = 'source-over'; ctx.rotate(Math.PI / 4 + d.t * 3);
-    ctx.fillStyle = col; ctx.fillRect(-r * 0.7, -r * 0.7, r * 1.4, r * 1.4);
-    ctx.restore();
-  }
-}
+// drawDrops は fx2.js（光の柱・吸い寄せの尾）
 
 function txt(s, x, y, size, col, align, w) {
   ctx.font = '700 ' + size + 'px "DMincho","Hiragino Mincho ProN","Yu Mincho",serif';
@@ -386,6 +380,7 @@ function draw() {
   if (G.state === 'play' && h0.state === 'atk' && h0.kind === 'ult' && h0.t < ULT.hit + 0.02) {
     ctx.fillStyle = 'rgba(6,4,14,' + (0.5 * Math.min(1, h0.t / 0.5)) + ')'; ctx.fillRect(camX - 10, camY + TOPY - 10, W + 20, CVH() + 20);
   }
+  drawFoeAura(); // 敵将・強敵の足元の気配（battle/fx2.js）
   drawBindFloor(); // 拘束の床の印（敵より先＝足元の下）
   var list = [];
   G.enemies.forEach(function (e) { list.push({ y: e.y, f: function () { drawFoe(e); } }); });
@@ -403,6 +398,7 @@ function draw() {
   ctx.restore(); // 世界座標ここまで
   ctx.restore();
   if (G.flash > 0) { ctx.fillStyle = 'rgba(' + (G.flashRGB || '255,255,255') + ',' + Math.min(1, G.flash) + ')'; ctx.fillRect(0, 0, W, CVH()); }
+  drawScreenFx(); // 被弾・瀕死の画面の端の赤（battle/fx2.js）
   if (G.state !== 'title') drawHud();
   drawCutin(); // 仲間の参入（battle/ally.js）
   uiTick();

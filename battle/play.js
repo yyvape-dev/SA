@@ -53,7 +53,7 @@ function spawn(q) {
   };
   if (q.boss) { // 敵将：大きく硬い。引き寄せと拘束はほとんど効かない（e.boss）。HPは上の帯に出す
     e.boss = true; e.size = 1.38; e.max = (22 + n * 5) * 42; e.sp *= 0.75; e.dmg = 10 + n * 3; e.x = cl + W + 60; e.y = (LANE_Y0 + LANE_Y1) / 2;
-    G.boss = e; addText(cl + W * 0.5, LANE_Y0 - 60, BAT.boss ? '将軍 出陣！' : '敵将 出現！', 46, '#ff8a7a', 1.6); G.shake = Math.max(G.shake, 8);
+    G.boss = e; fxBossIn(e); addText(cl + W * 0.5, LANE_Y0 - 60, BAT.boss ? '将軍 出陣！' : '敵将 出現！', 46, '#ff8a7a', 1.6); G.shake = Math.max(G.shake, 8);
   }
   e.hp = e.max; G.enemies.push(e);
 }
@@ -131,10 +131,10 @@ function ultTick(h, dt) {
     h.fxT -= dt;
     if (h.fxT <= 0) {
       h.fxT = 0.04;
-      for (var i = 0; i < 2 + Math.floor(k * 3); i++) G.parts.push({ x: h.x + rnd(-80, 80), y: h.y - rnd(0, 230), vx: rnd(-20, 20), vy: -rnd(80, 240), g: 0, life: rnd(0.4, 0.8), t: 0, c: i % 2 ? '#bfe4ff' : '#fff1c4', s: rnd(3, 7) });
+      for (var i = 0; i < 2 + Math.floor(k * 3); i++) G.parts.push({ x: h.x + rnd(-80, 80), y: h.y - rnd(0, 230), vx: rnd(-20, 20), vy: -rnd(80, 240), g: 0, life: rnd(0.4, 0.8), t: 0, c: i % 2 ? '#ff9a6a' : '#ffe2a0', s: rnd(3, 7) });
     }
     h.ringT -= dt;
-    if (h.ringT <= 0) { h.ringT = 0.28; G.fx.push({ type: 'suck', x: h.x, y: h.y, t: 0, life: 0.45, rgb: '150,215,255' }); }
+    if (h.ringT <= 0) { h.ringT = 0.28; G.fx.push({ type: 'vsuck', x: h.x, y: h.y, t: 0, life: 0.45 }); }
     if (t > ULT.charge) G.shake = Math.max(G.shake, 2.5); // 止めている間の、ためた震え
   }
   if (!h.h1 && t >= ULT.hit) { h.h1 = true; doUlt(h); }
@@ -152,8 +152,8 @@ function doUlt(h) {
   // 必殺：巨大な三日月（赤黒・金）を前後に、床の衝撃の輪（battle/fx.js）
   fxArc(h, sf, R, 0.6, true, false, VFX_RANA, { rx: 720, ry: 280, a0: 1.25, a1: -1.55, w: 120, ox: 40, oy: -130, sw: 150 });
   fxArc(h, -sf, R, 0.5, true, false, VFX_RANA, { rx: 460, ry: 180, a0: 1.2, a1: -1.4, w: 70, ox: 40, oy: -130, sw: 130 });
-  G.fx.push({ type: 'shock', x: h.x, y: h.y, dir: 1, t: 0, life: 0.6, rana: true });
-  G.fx.push({ type: 'shock', x: h.x, y: h.y, dir: -1, t: 0, life: 0.6, rana: true });
+  G.fx.push({ type: 'vshock', x: h.x, y: h.y, dir: 1, t: 0, life: 0.6, rana: true });
+  G.fx.push({ type: 'vshock', x: h.x, y: h.y, dir: -1, t: 0, life: 0.6, rana: true });
   fxRing(h.x, h.y, R * 1.15, 0.7);
   G.flash = 0.38; G.flashRGB = '255,205,160'; /* 白い全面の光は弱め・暖色に（紅の三日月が見えなくなるため） */
   G.freeze = Math.max(G.freeze, 0.14 + Math.min(hits, 14) * 0.006);
@@ -243,7 +243,7 @@ function doThr(h) {
     if (dx > -40 && dx < R && dy < lane) { hurt(e, base * (e.bind > 0 ? 1.5 : 1) * (0.9 + Math.random() * 0.2), h.face, true); hits++; }
   }
   fxLance(h, R); // 突きの槍（battle/fx.js、赤黒・金）
-  G.fx.push({ type: 'shock', x: h.x, y: h.y, dir: h.face, t: 0, life: 0.5, rana: true });
+  G.fx.push({ type: 'vshock', x: h.x, y: h.y, dir: h.face, t: 0, life: 0.5, rana: true });
   G.freeze = Math.max(G.freeze, 0.06 + Math.min(hits, 12) * 0.008);
   G.shake = Math.max(G.shake, 8 + Math.min(hits, 12) * 1.4);
   addText(h.x + h.face * 200, h.y - 250, '貫通！', 40, '#ffd27a', 0.9);
@@ -317,7 +317,7 @@ function hurt(e, d, dir, strong) {
 function kill(e, dir) {
   e.state = 'dying'; e.dt = 0; e.dir = dir;
   G.kills++; G.combo++; G.comboT = 2.4; if (G.combo > G.bestCombo) G.bestCombo = G.combo;
-  for (var i = 0; i < 9; i++) G.parts.push({ x: e.x, y: e.y - eh(e) * 0.5, vx: rnd(-240, 240), vy: rnd(-420, -60), g: 800, life: rnd(0.4, 0.9), t: 0, c: i % 3 ? '#b8473a' : '#9aa0a8', s: rnd(4, 9) });
+  if (e.boss) fxBossDown(e); else fxKill(e, dir); // 撃破のエフェクト（battle/fx2.js）
   if (e.boss) { G.boss = null; addText(e.x, e.y - eh(e) - 40, '敵将 撃破！', 48, '#ffe28a', 1.4); G.freeze = Math.max(G.freeze, 0.2); G.shake = Math.max(G.shake, 24); }
   var nd = e.boss ? 5 : e.elite ? 2 : (Math.random() < 0.07 ? 1 : 0); // 落とすのは物資だけ（1つ＝領地の物資+1）。強敵は2つ
   for (var k = 0; k < nd; k++) G.drops.push({ x: e.x, y: e.y, z: 20, vx: rnd(-120, 120), vz: rnd(180, 340), type: 3, t: 0, home: false });

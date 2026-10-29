@@ -135,7 +135,7 @@ function allySkill(a) {
     }
     fxArc(a, a.face, R2, 0.5, true, false, null, { rx: 520, ry: 200, a0: 1.25, a1: -1.55, w: 90, ox: 30, oy: -110, sw: 140 });
     fxArc(a, -a.face, R2 * 0.8, 0.45, true, false);
-    fxRing(a.x, a.y, R2 * 1.1, 0.6);
+    fxRing(a.x, a.y, R2 * 1.1, 0.6, VFX_ATK);
     G.freeze = Math.max(G.freeze, 0.1 + Math.min(n, 12) * 0.006); G.shake = Math.max(G.shake, 18 + Math.min(n, 12));
     addText(a.x, a.y - 280, '大薙ぎ！', 46, d.col, 1.0); if (n) addText(a.x, a.y - 330, n + '体', 26, '#ffe0b8', 0.9);
   } else if (a.k === 'sera') { // 癒しの頁：主人公を回復し、近くの敵を足止めする
@@ -144,17 +144,15 @@ function allySkill(a) {
       e = G.enemies[i]; if (e.state !== 'walk' || Math.abs(e.x - h.x) > 420 || e.bind > 0) continue;
       e.stun = 1.3 * (e.boss ? 0.3 : 1); e.kx = (e.x >= h.x ? 1 : -1) * 120; e.atk = null; n++;
     }
-    for (i = 0; i < 36; i++) G.parts.push({ x: h.x + rnd(-90, 90), y: h.y - rnd(0, 220), vx: rnd(-30, 30), vy: -rnd(60, 220), g: 0, life: rnd(0.5, 1.0), t: 0, c: i % 2 ? '#c9f5c8' : '#fff1b8', s: rnd(3, 7) });
-    G.fx.push({ type: 'ring', x: h.x, y: h.y, R: 420, t: 0, life: 0.6, rgb: '190,245,190', rgb2: '150,230,170' });
+    fxHeal(h); // 癒しの頁（battle/fx2.js）
     addText(h.x, h.y - 260, 'HP +' + heal, 34, d.col, 1.1); if (n) addText(h.x, h.y - 305, n + '体 足止め', 22, '#e8f6d8', 0.9);
   } else { // 星震：画面の敵すべてに大ダメージ（拘束中は1.5倍）
     for (i = 0; i < G.enemies.length; i++) {
       e = G.enemies[i]; if (e.state !== 'walk' || e.x < camX - 40 || e.x > camX + W + 40) continue;
       hurt(e, 150 * (0.9 + Math.random() * 0.2) * (e.bind > 0 ? 1.5 : 1), e.x >= a.x ? 1 : -1, true); n++;
-      for (var s = 0; s < 4; s++) G.parts.push({ x: e.x + rnd(-30, 30), y: e.y - eh(e) - rnd(120, 360), vx: rnd(-40, 40), vy: rnd(500, 900), g: 0, life: rnd(0.25, 0.45), t: 0, c: s % 2 ? '#bfe4ff' : '#ffe9a8', s: rnd(3, 6) });
+      fxStar(e, n - 1); // 星の筋（battle/fx2.js）
     }
-    fxRing(a.x, a.y, W * 0.9, 0.8);
-    G.fx.push({ type: 'ring', x: a.x, y: a.y, R: W * 1.1, t: 0, life: 0.7, rgb: '160,215,255', rgb2: '120,180,255' });
+    fxRing(a.x, a.y, W * 0.9, 0.8, VFX_STAR);
     G.flash = 0.3; G.flashRGB = '190,220,255';
     G.freeze = Math.max(G.freeze, 0.14 + Math.min(n, 14) * 0.006); G.shake = Math.max(G.shake, 26);
     addText(a.x, a.y - 290, '星震！', 56, d.col, 1.1); if (n) addText(a.x, a.y - 345, n + '体', 28, '#e6f4ff', 0.9);
