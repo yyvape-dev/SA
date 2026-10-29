@@ -1,9 +1,9 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793239474';
-import { createUI } from './ui.js?v=1793239474';
-import { createMorning } from './morning.js?v=1793239474';
+import * as GM from './game.js?v=1793246416';
+import { createUI } from './ui.js?v=1793246416';
+import { createMorning } from './morning.js?v=1793246416';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -987,6 +987,163 @@ function maybeDuel(next) { // 接戦なら、一騎打ちに出す仲間を選�
   const F = GM.foeGeneral(G), cs = GM.champions(G); cs.forEach(duelWarm); ui.modal(null);
   openSelect(cs, F, k => playDuel(k, next), () => { G.raid.duel = null; next(); });
 }
+// ---------- 任せた戦闘（俯瞰の戦場。モック準拠）：兵がぶつかる → 接戦なら敵将が一騎打ちを挑む → 勝敗 ----------
+const fbCss = document.createElement('style'); fbCss.textContent = `
+#abt.fb{--u:min(.2326vw,.1073vh);--ink:#2b1d10;--ink2:#5e4728;--gold:#a8833c;--teal:#2c6a64;--red:#a3362b;display:none;flex-direction:column;align-items:stretch;justify-content:flex-start;padding:0;
+  font-family:'DMincho','Hiragino Mincho ProN','Yu Mincho',serif;font-weight:700;color:var(--ink);background:#efe3c8 url(assets/ui2/parch.jpg) 0 0/calc(760*var(--u)) auto repeat}
+#abt.fb *{box-sizing:border-box}
+#abt.fb .cn{position:absolute;width:calc(62*var(--u));aspect-ratio:220/153;background:url(assets/ui2/corner.webp) center/contain no-repeat;pointer-events:none;z-index:1;opacity:.92}
+#abt.fb .cn.tl{left:calc(4*var(--u));top:calc(4*var(--u))}#abt.fb .cn.tr{right:calc(4*var(--u));top:calc(4*var(--u));transform:scaleX(-1)}#abt.fb .cn.bl{left:calc(4*var(--u));bottom:calc(4*var(--u));transform:scaleY(-1)}#abt.fb .cn.br{right:calc(4*var(--u));bottom:calc(4*var(--u));transform:scale(-1,-1)}
+#abt.fb .fh{position:relative;flex:0 0 auto;height:calc(96*var(--u));padding:calc(10*var(--u)) calc(20*var(--u)) 0;text-align:center}
+#abt.fb .fh .tag{position:absolute;left:calc(24*var(--u));top:calc(14*var(--u));padding:calc(3*var(--u)) calc(14*var(--u));border:1px solid var(--ink2);box-shadow:inset 0 0 0 calc(2*var(--u)) #efe3c8,inset 0 0 0 calc(3*var(--u)) #a48a5c;font-size:calc(13*var(--u));letter-spacing:.12em}
+#abt.fb .fh h1{margin:0;font-size:calc(27*var(--u));font-weight:700;letter-spacing:.14em;line-height:1.3}
+#abt.fb .fh img{display:block;width:calc(190*var(--u));margin:calc(2*var(--u)) auto}
+#abt.fb .fh .sub{display:flex;justify-content:space-between;align-items:baseline;font-size:calc(13*var(--u));letter-spacing:.08em;margin-top:calc(-2*var(--u))}
+#abt.fb .fh .sub b{font-size:1.65em;font-weight:700;margin-left:.3em;letter-spacing:0}#abt.fb .fh .sub .md{font-size:calc(12.5*var(--u));color:var(--ink2)}
+#abt.fb .fs{position:relative;z-index:0;isolation:isolate;flex:1;min-height:0;overflow:hidden;background:#6b6a3a url(assets/field/top.jpg) center/cover no-repeat}
+#abt.fb .fs.nobg{background:radial-gradient(120% 80% at 50% 45%,#9a9452,#6d6a35 70%,#4c4a26),#6d6a35}
+#abt.fb .fs::after{content:'';position:absolute;inset:0;box-shadow:inset 0 0 calc(40*var(--u)) #0006;pointer-events:none;z-index:1550}
+#abt.fb .un{position:absolute;width:0;height:0}
+#abt.fb .un .s{position:absolute;background-repeat:no-repeat;pointer-events:none;filter:drop-shadow(0 calc(3*var(--u)) calc(3*var(--u)) #0007)}
+#abt.fb .un .sh{position:absolute;left:calc(-14*var(--u));top:calc(-4*var(--u));width:calc(28*var(--u));height:calc(8*var(--u));border-radius:50%;background:#0004}
+#abt.fb .un.hit .s{filter:brightness(2.6) drop-shadow(0 0 4px #fff)}
+#abt.fb .un.dead{transition:opacity .9s .2s,transform .6s;opacity:0}
+#abt.fb .un.foe .s{filter:drop-shadow(0 0 calc(2*var(--u)) #c0301c) drop-shadow(0 calc(3*var(--u)) calc(3*var(--u)) #0007)}
+#abt.fb .spk{position:absolute;width:calc(46*var(--u));height:calc(46*var(--u));margin:calc(-23*var(--u)) 0 0 calc(-23*var(--u));background:radial-gradient(circle,#fff 0,#ffe7a0 18%,#ffb04066 40%,transparent 70%);animation:fspk .32s ease-out forwards;pointer-events:none;z-index:1600}
+@keyframes fspk{from{transform:scale(.3)}to{transform:scale(1.4);opacity:0}}
+#abt.fb .dn{position:absolute;font:italic 700 calc(19*var(--u)) Georgia,'DMincho',serif;color:#fff3d2;-webkit-text-stroke:calc(.8*var(--u)) #4a1c08;text-shadow:0 calc(1.5*var(--u)) 0 #4a1c08;animation:fdn .8s ease-out forwards;pointer-events:none;z-index:1601;transform:translateX(-50%)}
+#abt.fb .dn.us{color:#ffd6c8}
+@keyframes fdn{from{margin-top:0;opacity:1}to{margin-top:calc(-30*var(--u));opacity:0}}
+#abt.fb .say{position:absolute;max-width:56%;padding:calc(12*var(--u)) calc(13*var(--u)) calc(9*var(--u));background:#fbf6e9;border:1.5px solid #6e1f17;border-radius:calc(12*var(--u));box-shadow:0 calc(4*var(--u)) calc(12*var(--u)) #0005;font-size:calc(15*var(--u));line-height:1.45;opacity:0;transform:translate(-80%,-100%) scale(.6);transform-origin:80% 100%;transition:opacity .12s,transform .22s cubic-bezier(.2,1.5,.4,1);z-index:1700;white-space:nowrap;pointer-events:none}
+#abt.fb .say.on{opacity:1;transform:translate(-80%,-100%)}#abt.fb .say::after{content:'';position:absolute;bottom:calc(-9*var(--u));right:18%;width:calc(14*var(--u));height:calc(14*var(--u));background:#fbf6e9;border:1.5px solid #6e1f17;border-top:0;border-left:0;transform:rotate(45deg)}
+#abt.fb .say small{position:absolute;top:calc(-10*var(--u));right:calc(10*var(--u));padding:0 calc(8*var(--u));background:#6e1f17;color:#f3e7c8;border-radius:calc(3*var(--u));font-size:calc(10*var(--u));letter-spacing:.1em;line-height:1.7}
+#abt.fb .say.us{border-color:#3b2a16;transform:translate(-20%,-100%) scale(.6);transform-origin:20% 100%}#abt.fb .say.us.on{transform:translate(-20%,-100%)}#abt.fb .say.us::after{right:auto;left:18%;border-color:#3b2a16}#abt.fb .say.us small{right:auto;left:calc(10*var(--u));background:#3b2a16}
+#abt.fb .ban{position:absolute;left:0;right:0;top:40%;padding:calc(10*var(--u)) 0;text-align:center;background:linear-gradient(90deg,transparent,#1b120ad0 20%,#1b120ad0 80%,transparent);color:#f6ecd0;font-size:calc(22*var(--u));letter-spacing:.3em;opacity:0;transition:opacity .3s;z-index:1650;pointer-events:none}
+#abt.fb .ban.on{opacity:1}#abt.fb .ban small{display:block;font-size:calc(11*var(--u));letter-spacing:.12em;color:#e3d2a6}
+#abt.fb .ff{position:relative;z-index:2;flex:0 0 auto;height:calc(214*var(--u));display:flex;flex-direction:column;align-items:center;padding:calc(18*var(--u)) calc(22*var(--u)) calc(10*var(--u))}
+#abt.fb .ff::before{content:'';position:absolute;left:0;right:0;top:calc(-20*var(--u));height:calc(40*var(--u));background:url(assets/ui2/vine.webp) center/100% 100% no-repeat;pointer-events:none}
+#abt.fb .ff h3{margin:calc(4*var(--u)) 0 calc(6*var(--u));font-size:calc(18*var(--u));font-weight:700;letter-spacing:.3em;padding-left:.3em;display:flex;align-items:center;gap:calc(12*var(--u))}
+#abt.fb .ff h3::before,#abt.fb .ff h3::after{content:'';width:calc(80*var(--u));height:1px;background:linear-gradient(90deg,transparent,var(--gold))}#abt.fb .ff h3::after{background:linear-gradient(90deg,var(--gold),transparent)}
+#abt.fb .bal{width:96%;height:calc(13*var(--u));padding:1px;background:#2a1e12;border:1px solid #8c6c34;box-shadow:0 0 0 1px #e9dcbcaa;position:relative}
+#abt.fb .bal::before{content:'';position:absolute;inset:1px;background:linear-gradient(#d4705c,#a3362b 60%,#86281f)}
+#abt.fb .bal b{position:absolute;left:1px;top:1px;bottom:1px;background:linear-gradient(#5aa59a,#2c6a64 60%,#24564f);transition:width .6s cubic-bezier(.3,.8,.3,1)}
+#abt.fb .bal u{position:absolute;top:50%;width:calc(15*var(--u));height:calc(15*var(--u));background:linear-gradient(135deg,#f6e2a0,#c99a3c);border:1px solid #5e4320;transform:translate(-50%,-50%) rotate(45deg);transition:left .6s cubic-bezier(.3,.8,.3,1)}
+#abt.fb .stt{margin-top:calc(8*var(--u));font-size:calc(14.5*var(--u));letter-spacing:.14em;min-height:1.5em}
+#abt.fb .dbtn{margin-top:calc(8*var(--u));width:80%;height:calc(66*var(--u));display:flex;align-items:center;gap:calc(14*var(--u));padding:0 calc(18*var(--u));border:1px solid #6a5434;box-shadow:inset 0 0 0 calc(3*var(--u)) #efe3c8,inset 0 0 0 calc(4*var(--u)) #a48a5c;background:#f1e7cf;font:inherit;color:var(--ink);font-size:calc(19*var(--u));letter-spacing:.12em;cursor:pointer;visibility:hidden;opacity:0;transform:translateY(8px);transition:opacity .25s,transform .25s}
+#abt.fb .dbtn.on{visibility:visible;opacity:1;transform:none;animation:fdb 1s infinite alternate}@keyframes fdb{to{box-shadow:inset 0 0 0 calc(3*var(--u)) #efe3c8,inset 0 0 0 calc(4*var(--u)) #a48a5c,0 0 calc(14*var(--u)) #d8a03a}}
+#abt.fb .dbtn i{flex:0 0 calc(50*var(--u));height:calc(50*var(--u));border-radius:50%;background:#7a1d14 50% 10%/240% no-repeat;box-shadow:0 0 0 calc(2*var(--u)) #6e1f17,0 0 0 calc(3.5*var(--u)) #d8b86a}
+#abt.fb .dbtn span{flex:1;text-align:center}
+#abt.fb .fk{position:absolute;left:calc(26*var(--u));right:calc(26*var(--u));bottom:calc(12*var(--u));display:flex;justify-content:space-between;font-size:calc(13.5*var(--u));letter-spacing:.08em;z-index:3}
+#abt.fb .fk button{font:inherit;color:inherit;background:none;border:0;padding:calc(6*var(--u)) calc(4*var(--u));border-bottom:1px solid #a48a5c88;cursor:pointer}
+#abt.fb .fr{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:#0006;z-index:80;cursor:pointer}
+#abt.fb .fr.on{display:flex}
+#abt.fb .fr .bd{width:100%;padding:calc(22*var(--u)) calc(16*var(--u)) calc(18*var(--u));display:flex;flex-direction:column;align-items:center;text-align:center;background:#efe3c8 url(assets/ui2/parch.jpg) 0 0/calc(760*var(--u)) auto;border-top:1px solid var(--gold);border-bottom:1px solid var(--gold);box-shadow:0 0 calc(30*var(--u)) #0008;animation:dres .35s cubic-bezier(.2,1.3,.4,1)}
+#abt.fb .fr .k{font-size:calc(12*var(--u));letter-spacing:.3em;color:var(--ink2)}
+#abt.fb .fr h2{margin:calc(2*var(--u)) 0;font-size:calc(40*var(--u));font-weight:700;letter-spacing:.3em;padding-left:.3em}#abt.fb .fr h2.w{color:var(--teal)}#abt.fb .fr h2.m{color:#8a6a24}#abt.fb .fr h2.l{color:var(--red)}
+#abt.fb .fr img{width:calc(200*var(--u))}#abt.fb .fr p{margin:calc(6*var(--u)) 0 0;font-size:calc(13*var(--u));letter-spacing:.06em;line-height:1.6}#abt.fb .fr p small{display:block;margin-top:calc(8*var(--u));font-size:calc(11*var(--u));color:var(--ink2)}`;
+document.head.appendChild(fbCss);
+const FB_TOP = await loadImage('assets/field/top.jpg'); // 俯瞰の戦場の絵（無ければ仮の地面）
+const fbImg = {}; const fbSize = src => fbImg[src] || (fbImg[src] = new Promise(res => { const im = new Image(); im.onload = () => res([im.width, im.height]); im.onerror = () => res(null); im.src = src; }));
+// 部隊の種類：歩き（シート）と攻撃（一騎打ち用の連番を流用）。right＝元の絵が右向きか
+function fbKinds() {
+  const K = {};
+  for (const k of Object.keys(GM.ALLY)) K[k] = { walk: `../ally/walk_${k}.webp`, wc: 4, wr: 4, wn: 16, wp: (WALK_BBH[k] || 430) / 512, wr0: true, clips: (DUEL_CLIP[k] || []).map(c => ({ ...c, base: '../ally/' })), cr: true, h: 1.2 };
+  const FW = FOEWALK_META || [];
+  K.sol = { walk: 'assets/npc/solwalk_1.webp', wc: 4, wr: 2, wn: 8, wp: FW[0] ? FW[0].h / FW[0].ch : .9, wr0: true, clips: (FOEDUEL[1] || []).map(c => ({ ...c, f: c.f.replace('foeduel', 'solduel'), base: 'assets/npc/' })), cr: false, h: 1 };
+  for (const n of [1, 2, 3, 4]) K['f' + n] = { walk: `assets/npc/foewalk_${n}.webp`, wc: 4, wr: 2, wn: 8, wp: FW[n - 1] ? FW[n - 1].h / FW[n - 1].ch : .9, wr0: true, clips: (FOEDUEL[n] || []).map(c => ({ ...c, base: 'assets/npc/' })), cr: false, h: 1 };
+  return K;
+}
+function fbUnit(stage, kind, K, side, x, y, H) { // x,y＝足元（舞台の％）、H＝人物の高さ(px)
+  const el = document.createElement('div'); el.className = 'un ' + side; el.style.left = x + '%'; el.style.top = y + '%'; el.style.zIndex = Math.round(y * 10);
+  el.innerHTML = '<i class="sh"></i><div class="s"></div>'; stage.appendChild(el); const s = el.lastChild, k = K[kind];
+  const face = side === 'us' ? 1 : -1; // 味方は右向き、敵は左向き
+  const u = { el, s, kind, side, x, y, H, alive: true, busy: false, f: Math.floor(Math.random() * 16) };
+  u.setWalk = async (frame) => { const sz = await fbSize(k.walk); if (!sz) return; const fw = sz[0] / k.wc, fh = sz[1] / k.wr, sc = H / (fh * k.wp);
+    const i = frame % k.wn, cx = i % k.wc, cy = Math.floor(i / k.wc), flip = (k.wr0 ? 1 : -1) * face < 0;
+    Object.assign(s.style, { width: fw * sc + 'px', height: fh * sc + 'px', left: -fw * sc / 2 + 'px', top: -fh * sc * .985 + 'px', backgroundImage: `url(${k.walk})`, backgroundSize: `${sz[0] * sc}px ${sz[1] * sc}px`, backgroundPosition: `${-cx * fw * sc}px ${-cy * fh * sc}px`, transform: flip ? 'scaleX(-1)' : '' }); };
+  u.clipFrame = (c, i) => { const sc = H / c.idle.h, cw = c.cw * sc, ch = c.ch * sc, cx = (c.idle.x + c.idle.w / 2) * sc, flip = (k.cr ? 1 : -1) * face < 0, rows = Math.ceil(c.n / c.cols);
+    Object.assign(s.style, { width: cw + 'px', height: ch + 'px', left: (flip ? -(cw - cx) : -cx) + 'px', top: -(ch - (c.pad ?? 2.8) * sc) + 'px', backgroundImage: `url(${c.base}${c.f})`, backgroundSize: `${c.cols * cw}px ${rows * ch}px`, backgroundPosition: `${-(i % c.cols) * cw}px ${-Math.floor(i / c.cols) * ch}px`, transform: flip ? 'scaleX(-1)' : '' }); };
+  u.idle = () => { if (k.clips.length) u.clipFrame(k.clips[0], 0); else u.setWalk(0); };
+  u.attack = (T, onHit) => { // 一騎打ち用の連番を速めて流す。山場で onHit
+    if (!k.clips.length) { T(onHit, 200); return 600; } const c = k.clips[Math.floor(Math.random() * k.clips.length)], SPD = 2.6; let acc = 0; u.busy = true;
+    c.durs.forEach((d, fi) => { T(() => { if (u.alive) u.clipFrame(c, fi); if (fi === c.hit) onHit(); }, acc / SPD); acc += d; });
+    T(() => { u.busy = false; if (u.alive) u.idle(); }, acc / SPD + 20); return acc / SPD; };
+  u.die = () => { u.alive = false; el.classList.add('dead'); el.style.transform = `translate(${-face * 12}px,6px) rotate(${-face * 14}deg)`; };
+  return u;
+}
+function fieldBattle(mode) { // mode：'auto'（任せる）／'hand'（確率で決める）
+  if (!G.raid) { ui.modal(null); return; }
+  const R = G.raid, usD = Math.round(GM.raidD(G)), E = R.E, fr = GM.FRONT[R.dir], K = fbKinds(), rank = duelRank(), FL = GM.DUEL_LINES[rank], F = GM.foeGeneral(G), look = foeLook();
+  const team = Object.keys(GM.ALLY).filter(k => GM.joined(G, k) && !(k === 'ranka' && (G.rankaAway || !R.ranka))).slice(0, 4);
+  abt.className = 'fb'; abt.style.backgroundImage = ''; abt.onclick = null;
+  abt.innerHTML = `<div class="fh"><i class="cn tl"></i><i class="cn tr"></i><div class="tag">${R.kind === 'sortie' ? '出撃' : '防衛戦'}</div><h1>${R.name}</h1><img src="assets/ui2/divider2.webp">
+      <div class="sub"><span>防衛力<b>${usD}</b></span><span class="md">${fr ? fr.n : ''}</span><span>敵の規模<b>${E}</b></span></div></div>
+    <div class="fs${FB_TOP ? '' : ' nobg'}"><div class="ban"></div></div>
+    <div class="ff"><i class="cn bl"></i><i class="cn br"></i><h3>戦況</h3><div class="bal"><b style="width:50%"></b><u style="left:50%"></u></div><div class="stt">両軍、前へ</div>
+      <button class="dbtn"><i style="background-image:url(assets/npc/bust_${look}.webp)"></i><span>一騎打ちの挑戦 ›</span></button>
+      <div class="fk"><button class="spd">速度 ×1</button><button class="sk">スキップ ›</button></div></div>
+    <div class="fr"></div>`;
+  abt.style.display = 'flex';
+  const $ = q => abt.querySelector(q), st = $('.fs'), balB = $('.bal b'), balU = $('.bal u'), stt = $('.stt'), dbtn = $('.dbtn'), ban = $('.ban');
+  const W = () => st.clientWidth, Hs = () => st.clientHeight, unit = Hs() * .105; // 兵の背の高さ＝舞台の約12%
+  let timers = [], spd = 1, phase = 'march', gauge = 50, done = false; const T = (f, ms) => { const t = setTimeout(f, ms / spd); timers.push(t); return t; };
+  const setG = v => { gauge = Math.max(5, Math.min(95, v)); balB.style.width = gauge + '%'; balU.style.left = gauge + '%'; if (phase !== 'duel') stt.textContent = gauge > 62 ? '優勢' : gauge < 38 ? '劣勢' : '拮抗'; };
+  // 布陣（モック準拠）：味方＝左（仲間は一番左の列）、敵＝右（将は一番右）
+  const us = [], foe = [], nSol = Math.max(4, Math.min(10, 3 + (G.troops || 0))), nFoe = Math.max(6, Math.min(12, Math.round(E / 4.5)));
+  const rowY = (i, n) => 30 + (i + .5) * 58 / n;
+  team.forEach((k, i) => us.push(fbUnit(st, k, K, 'us', 12 + (i % 2) * 3, 34 + i * 52 / Math.max(1, team.length - 1 || 1), unit * K[k].h)));
+  for (let i = 0; i < nSol; i++) { const col = i % 2, row = Math.floor(i / 2), rows = Math.ceil(nSol / 2); us.push(fbUnit(st, 'sol', K, 'us', 25 + col * 12, rowY(row, rows) + col * 4, unit)); }
+  const fk = ['f1', 'f2', 'f3']; for (let i = 0; i < nFoe; i++) { const col = i % 2, row = Math.floor(i / 2), rows = Math.ceil(nFoe / 2); foe.push(fbUnit(st, fk[(i * 7 + row) % 3], K, 'foe', 63 + col * 12, rowY(row, rows) + col * 4, unit)); }
+  const gen = fbUnit(st, 'f' + look, K, 'foe', 86, 58, unit * (R.boss ? 1.4 : 1.2)); gen.gen = true; foe.push(gen);
+  if (rank !== 'boss') { foe.push(fbUnit(st, 'f3', K, 'foe', 87, 36, unit)); foe.push(fbUnit(st, 'f3', K, 'foe', 85, 80, unit)); }
+  [...us, ...foe].forEach(u => u.idle());
+  // 行進（歩きのコマで少し前へ）
+  const march = (ms, dist) => { const t0 = performance.now(); const tick = () => { if (done) return; const k = Math.min(1, (performance.now() - t0) * spd / ms);
+      [...us, ...foe].forEach(u => { if (!u.alive || u.gen) return; const dx = (u.side === 'us' ? 1 : -1) * dist * (k * (2 - k)); u.el.style.left = (u.x + dx) + '%'; u.f++; if (k < 1) u.setWalk(Math.floor(u.f / 5)); });
+      if (k < 1) requestAnimationFrame(tick); else [...us, ...foe].forEach(u => { if (u.alive && !u.gen) { u.x += (u.side === 'us' ? 1 : -1) * dist; u.idle(); } }); }; tick(); };
+  const pos = u => [parseFloat(u.el.style.left) / 100 * W(), parseFloat(u.el.style.top) / 100 * Hs()];
+  const spark = (u, n, mine) => { const [x, y] = pos(u), s = document.createElement('i'); s.className = 'spk'; s.style.left = x + 'px'; s.style.top = (y - u.H * .55) + 'px'; st.appendChild(s);
+    const d = document.createElement('div'); d.className = 'dn' + (mine ? ' us' : ''); d.textContent = n; d.style.left = x + 'px'; d.style.top = (y - u.H * 1.05) + 'px'; st.appendChild(d);
+    u.el.classList.add('hit'); setTimeout(() => { u.el.classList.remove('hit'); s.remove(); d.remove(); }, 820); };
+  const say = (u, text, ms = 1800) => { const [x, y] = pos(u), b = document.createElement('div'); b.className = 'say ' + u.side; b.innerHTML = `<small>${u.side === 'us' ? GM.ALLY[u.kind] ? GM.ALLY[u.kind].n : '兵' : F.n}</small>${text}`;
+    b.style.left = x + 'px'; b.style.top = (y - u.H * 1.15) + 'px'; st.appendChild(b); requestAnimationFrame(() => b.classList.add('on')); setTimeout(() => { b.classList.remove('on'); setTimeout(() => b.remove(), 300); }, ms / spd); };
+  const live = a => a.filter(u => u.alive && !u.gen);
+  // 斬り合い：優勢な側ほど多く当てる。lossUs/lossFoe＝この区間で倒れる数
+  const clash = (ms, toward, lossUs, lossFoe) => { const n = Math.round(ms / 330), g0 = gauge; let du = 0, df = 0;
+    for (let j = 0; j < n; j++) T(() => { if (done) return; const ourTurn = Math.random() < gauge / 100, A = live(ourTurn ? us : foe), D = live(ourTurn ? foe : us); if (!A.length || !D.length) return;
+      const a = A.filter(u => !u.busy)[0] ? A.filter(u => !u.busy).sort(() => Math.random() - .5)[0] : null; if (!a) return; const d = D.sort((p, q) => Math.abs(p.y - a.y) - Math.abs(q.y - a.y))[Math.floor(Math.random() * Math.min(2, D.length))];
+      a.attack(T, () => { spark(d, Math.round(8 + Math.random() * E / 2), !ourTurn); const kill = !GM.ALLY[d.kind] && (ourTurn ? (df < lossFoe && Math.random() < .5) : (du < lossUs && Math.random() < .5)); if (kill) { if (ourTurn) df++; else du++; T(() => d.die(), 160); } });
+      setG(g0 + (toward - g0) * (j + 1) / n + (Math.random() - .5) * 6); }, j * 330 + Math.random() * 120); };
+  const banner = (h, sub, ms) => { ban.innerHTML = `${h}${sub ? `<small>${sub}</small>` : ''}`; ban.classList.add('on'); T(() => ban.classList.remove('on'), ms); };
+  // 1. 行進 → 2. 斬り合い（見込みの方向へ） → 3. 接戦なら敵将の挑戦 → 4. 決着
+  const m0 = GM.raidD(G) - E, lean = 50 + Math.max(-16, Math.min(16, m0 * 2));
+  banner(R.boss ? '将軍の侵攻' : '開戦', fr ? `${fr.n}で迎え撃つ` : '', 1500 * spd);
+  march(1500, 4); T(() => { phase = 'clash'; clash(3600, lean, 1, 1); }, 1600);
+  const wantDuel = GM.duelDue(G) && R.duel === undefined;
+  T(() => wantDuel ? challenge() : finale(), 5400);
+  function challenge() { // 敵将が前に出て、一騎打ちを挑む。押すまで待つ
+    phase = 'duel'; stt.textContent = '敵将が前に出た'; gen.el.style.transition = `left ${0.8 / spd}s ease-out`; gen.x -= 8; gen.el.style.left = gen.x + '%';
+    T(() => say(gen, FL.open[0], 2600), 700); T(() => dbtn.classList.add('on'), 900); }
+  dbtn.onclick = e => { e.stopPropagation(); if (phase !== 'duel' || done) return; dbtn.classList.remove('on');
+    const cs = GM.champions(G); cs.forEach(duelWarm);
+    openSelect(cs, F, k => playDuel(k, afterDuel), () => { G.raid.duel = null; afterDuel(); }); };
+  function afterDuel() { // 一騎打ちの結果を戦場に返す
+    abt.style.display = 'flex'; phase = 'clash'; const r = G.raid.duel;
+    if (r === true) { gen.die(); banner('敵将を討ち取った', '味方の士気が上がる', 1500 * spd); setG(gauge + 14); live(us).slice(0, 2).forEach((u, i) => T(() => say(u, i ? 'おおっ！' : '今だ、押せ！', 1300), 300 + i * 500)); }
+    else if (r === false) { const c = us.find(u => u.kind === G.raid.champ); if (c) c.die(); banner('一騎打ちに敗れた', '敵の勢いが増す', 1500 * spd); setG(gauge - 14); }
+    T(finale, r === undefined || r === null ? 0 : 1300); }
+  function finale() { // ここで結果を決め、演出を合わせる
+    phase = 'end'; const t = GM.resolve(G, mode); const good = /被害なし|完勝|勝利/.test(t) && !/敗北/.test(t), mid = /小被害|苦戦/.test(t);
+    const fin = good ? 84 : mid ? 58 : 22; clash(2600, fin, good ? 1 : 3, good ? 4 : mid ? 2 : 1);
+    T(() => { if (good) live(foe).forEach((u, i) => T(() => u.die(), i * 90)); else if (!mid) live(us).filter(u => !GM.ALLY[u.kind]).slice(0, 3).forEach((u, i) => T(() => u.die(), i * 120)); }, 2700);
+    T(() => result(t, good, mid), 3400); }
+  function result(t, good, mid) { if (done) return; done = true; timers.forEach(clearTimeout); const label = good ? '勝利' : mid ? '辛勝' : '敗北', cls = good ? 'w' : mid ? 'm' : 'l';
+    const fr2 = $('.fr'); fr2.innerHTML = `<div class="bd"><div class="k">${R.kind === 'sortie' ? '出撃' : '防衛戦'}</div><h2 class="${cls}">${label}</h2><img src="assets/ui2/divider2.webp"><p>${(t.split('：')[1] || '').replace(/ /g, '　')}<small>タップで続ける</small></p></div>`; fr2.classList.add('on');
+    fr2.onclick = e => { e.stopPropagation(); abt.style.display = 'none'; abt.className = ''; abt.innerHTML = ''; endRaidFx(); commit(t); showReport(); }; }
+  $('.spd').onclick = e => { e.stopPropagation(); spd = spd === 1 ? 2 : 1; e.currentTarget.textContent = `速度 ×${spd}`; };
+  $('.sk').onclick = e => { e.stopPropagation(); if (done) return; if (phase === 'duel') { dbtn.click(); return; }
+    timers.forEach(clearTimeout); timers = []; if (wantDuel && G.raid && G.raid.duel === undefined) { challenge(); return; } if (phase !== 'end') { const t = GM.resolve(G, mode); const good = /被害なし|完勝|勝利/.test(t) && !/敗北/.test(t), mid = /小被害|苦戦/.test(t); setG(good ? 84 : mid ? 58 : 22); result(t, good, mid); } };
+}
 function goBattle() { // アクション戦闘へ移る。結果は battle_result に書かれ、戻ってきたときに反映する
   const R = G.raid, id = String(Date.now()), m = GM.battleMods(G); G.battle = { id }; writeSave();
   const q = new URLSearchParams({ battle: '1', id, waves: GM.wavesOf(R.E), name: R.name, dmg: m.dmg, bind: m.bind, hp: m.hp, ret: 'terrain/index.html' });
@@ -1005,9 +1162,9 @@ function raidModal() {
   const D = GM.raidD(G), p = Math.round(GM.handP(G, R.E) * 100), m = GM.battleMods(G), wv = GM.wavesOf(R.E);
   const mods = [m.dmg > 1 ? `ダメージ+${Math.round((m.dmg - 1) * 100)}%` : '', m.bind ? `拘束+${m.bind}秒` : '', m.hp ? `最大HP+${m.hp}` : ''].filter(Boolean).join('・');
   const rk = GM.joined(G, 'ranka') ? (G.rankaAway ? '<br><span style="color:#c9b48a">ランカは今週、街にいない</span>' : G.rankaRest ? '<br><span style="color:#c9b48a">ランカは前の戦闘に出たので休み（2回続けて出られない）</span>' : `<br>ランカ：<b>${R.ranka ? '出撃する' : '温存する'}</b>（防衛力+${GM.rankaD(G)}・ダメージ+${Math.round(GM.rankaDmg(G) * 100)}%。出ると次の戦闘は休み）`) : '';
-  const btns = [{ label: '任せる', sub: '仲間と兵が戦う', fn: () => { ui.modal(null); maybeDuel(() => autoBattle(() => GM.resolve(G, 'auto'))); } },
+  const btns = [{ label: '任せる', sub: '仲間と兵が戦う', fn: () => { ui.modal(null); fieldBattle('auto'); } },
      { label: '自分で戦う', sub: `WAVE ${wv}・アクション`, fn: goBattle },
-     { label: '確率で決める', sub: `成功率 約${p}%`, fn: () => { ui.modal(null); maybeDuel(() => autoBattle(() => GM.resolve(G, 'hand'))); } }];
+     { label: '確率で決める', sub: `成功率 約${p}%`, fn: () => { ui.modal(null); fieldBattle('hand'); } }];
   if (GM.rankaReady(G)) btns.push({ label: R.ranka ? 'ランカを温存する' : 'ランカを出す', sub: R.ranka ? '次の戦闘に回す' : '最強の戦力', fn: () => { GM.setRanka(G, !R.ranka); writeSave(); raidModal(); } });
   ui.modal(R.kind === 'sortie' ? `出撃：${R.name}` : `襲撃：${R.name}`, `敵の規模 <b>${R.E}</b> ／ こちらの防衛力 <b>${Math.round(D)}</b><br>任せる：見込みは「${GM.autoTier(G, R.E)}」<br>自分で戦う：<b>WAVE ${wv}</b> まで生き残れば勝利。勝てば報酬、負ければ被害が1段重い${mods ? '<br>仲間の補正：' + mods : ''}${rk}`, btns, 'fr low');
 }
@@ -1140,6 +1297,6 @@ G = loadSave() || GM.newState(layout.areas); syncMap(true); refreshUI(); takeBat
 if (params.has('duel')) { const sv = JSON.stringify(G); G.raid = { kind: 'raid', E: 46, name: '将軍の侵攻（試し）', boss: true, w: 12, dir: 'pass', ranka: GM.joined(G, 'ranka') }; maybeDuel(() => { G = JSON.parse(sv); writeSave(); refreshUI(); ui.toast('試しの一騎打ちを終えた（記録は残らない）'); }); } // ?duel で一騎打ちだけ見る
 resize(); apply(); renderer.render(scene, camera); status.ok = true;
 window.__t.setView = (zoom, sx, sy) => { view.zoom = zoom; view.cx = sx; view.cz = zOf(sy); clampView(); apply(); renderer.render(scene, camera); };
-window.__t.playDuel = playDuel; window.__t.maybeDuel = maybeDuel; window.__t.raidIntro = raidIntro; window.__t.allyMesh = allyMesh; window.__t.select = id => select(plots.find(p => p.id === id) || null);
-window.__t.plots = plots; window.__t.G = () => G; window.__t.playDuel = playDuel; window.__t.maybeDuel = maybeDuel; window.__t.raidIntro = raidIntro; window.__t.camp = () => camp && camp.map(c => [c.position.x|0, c.position.y|0, c.position.z|0, c.visible]); window.__t.faces = () => faceURL; window.__t.raidIntro = raidIntro; window.__t.showReport = showReport; window.__t.openMorning = openMorning; window.__t.GM = GM; window.__t.commit = () => commit(); window.__t.reset = () => { try { localStorage.removeItem(SAVE_KEY); } catch (e) { } }; window.__t.pickAt = (cx, cy) => pickAt(cx, cy); window.__t.view = view; window.__t.sel = () => selected && selected.id; window.__t.build = (id, fac, stage) => { if (stage) G.plots[id] = { fac, stage }; else delete G.plots[id]; commit(); };
+window.__t.playDuel = playDuel; window.__t.fieldBattle = fieldBattle; window.__t.maybeDuel = maybeDuel; window.__t.raidIntro = raidIntro; window.__t.allyMesh = allyMesh; window.__t.select = id => select(plots.find(p => p.id === id) || null);
+window.__t.plots = plots; window.__t.G = () => G; window.__t.playDuel = playDuel; window.__t.fieldBattle = fieldBattle; window.__t.maybeDuel = maybeDuel; window.__t.raidIntro = raidIntro; window.__t.camp = () => camp && camp.map(c => [c.position.x|0, c.position.y|0, c.position.z|0, c.visible]); window.__t.faces = () => faceURL; window.__t.raidIntro = raidIntro; window.__t.showReport = showReport; window.__t.openMorning = openMorning; window.__t.GM = GM; window.__t.commit = () => commit(); window.__t.reset = () => { try { localStorage.removeItem(SAVE_KEY); } catch (e) { } }; window.__t.pickAt = (cx, cy) => pickAt(cx, cy); window.__t.view = view; window.__t.sel = () => selected && selected.id; window.__t.build = (id, fac, stage) => { if (stage) G.plots[id] = { fac, stage }; else delete G.plots[id]; commit(); };
 requestAnimationFrame(frame);
