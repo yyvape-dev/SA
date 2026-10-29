@@ -1,9 +1,10 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793279801';
-import { createUI } from './ui.js?v=1793279801';
-import { createMorning } from './morning.js?v=1793279801';
+import * as GM from './game.js?v=1793283085';
+import { createUI } from './ui.js?v=1793283085';
+import { createMorning } from './morning.js?v=1793283085';
+import { slashFX } from './fx_slash.js?v=1793283085';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -1020,7 +1021,7 @@ function playDuel(k, done) { // 画面いっぱいの一騎打ち。五合の勝
     const zAtk = big ? zRun * 1.08 : zRun, fx = cx1 + dir * sw * .06; // 攻撃の間も、走った側に寄ったまま（少しだけ前へ向ける）。二人を収める案は FOCUS_ATK=false
     T(() => FOCUS_ATK ? camTo(zAtk, fx, D(220)) : camTo(big ? zFit * 1.06 : zFit, mid, D(big ? 320 : 240)), runMs);
     if (r.kind === 'counter') { const c = $('.cut'); c.querySelector('div').innerHTML = `COUNTER<small>見切り　${A.n}が大技を受け流す</small>`; T(() => c.classList.add('on'), runMs); T(() => c.classList.remove('on'), P.hitAt + 500); }
-    T(() => { const sl = document.createElement('div'); sl.className = 'slash'; sl.style.left = (clashX / sw * 100 - (r.ally ? 4 : 12)) + '%'; cam.appendChild(sl); df.classList.remove('hit'); void df.offsetWidth; df.classList.add('hit'); df.style.transition = 'transform .18s ease-out'; df.style.transform = `translateX(${dir * sw * .04}px)`; duelEl.classList.add('shake');
+    T(() => { let sl; if (R.boss) { /* 将軍戦：コードの斬撃（fx_slash.js）。味方の攻撃は青、敵は赤。カメラの寄りに合わせて、画面上の相手の位置に出す */ const rs2 = stage.getBoundingClientRect(), r2 = df.getBoundingClientRect(); slashFX(stage, { x: (r2.left + r2.right) / 2 - rs2.left - dir * r2.width * .05, y: r2.top - rs2.top + r2.height * .42, size: Math.min(rs2.height * .95, r2.height * 1.05), dir, big, speed: spd, color: r.ally ? 'blue' : 'red' }); sl = document.createElement('i'); } else { sl = document.createElement('div'); sl.className = 'slash'; sl.style.left = (clashX / sw * 100 - (r.ally ? 4 : 12)) + '%'; cam.appendChild(sl); } df.classList.remove('hit'); void df.offsetWidth; df.classList.add('hit'); df.style.transition = 'transform .18s ease-out'; df.style.transform = `translateX(${dir * sw * .04}px)`; duelEl.classList.add('shake');
       FOCUS_ATK ? camTo(zAtk * 1.05, fx, 90) : camTo((big ? zFit * 1.06 : zFit) * 1.05, mid, 90); // 当たりの瞬間、少しだけ寄る
       const n = document.createElement('div'); n.className = 'num'; n.textContent = r.dmg * 7 + Math.round(Math.random() * 9); n.style.left = (clashX / sw * 100 + (r.ally ? 6 : -14)) + '%'; n.style.top = '30%'; cam.appendChild(n); setTimeout(() => { sl.remove(); n.remove(); }, 900);
       apply(i, r); upd(); say(r.ally ? 'l' : 'r', pickOf((r.ally ? AL : FL).hit), 1500); T(() => say(r.ally ? 'r' : 'l', pickOf((r.ally ? FL : AL).hurt), 1400), D(350)); }, P.hitAt);
