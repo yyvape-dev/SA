@@ -1,7 +1,7 @@
 # 横向きの動きのコマ（ユーザー作成：frame_01〜12.png ＋ frames.json、910×512 の透過PNG）を、一騎打ちの連番と同じ形のシートにまとめる。
 #   出力: ally/side_<名前>.webp（6列×2段）と ally/side_meta.json（{名前: {f, cols, cw, ch, n, durs, ph, ax, ay}}）
 #   ph＝コマの中の人物の高さ（全コマの最大）、ax・ay＝足元の基準（コマの中の座標）。向きは右。
-# 使い方: cd terrain && python3 -I tools/pack_side_clips.py <フォルダ> <名前> [<フォルダ> <名前> ...]
+# 使い方: cd terrain && python3 -I tools/pack_side_clips.py [--out <出力フォルダ>] <フォルダ> <名前> [<フォルダ> <名前> ...]（出力の既定は ../ally/）
 #   例: mina_run12 run_mina  rana_walk12 walk_sera  kimono_run12 run_ranka
 import sys, os, json, numpy as np
 from PIL import Image
@@ -12,9 +12,10 @@ def color_fix(a):  # 動画AIの色ずれ（足元が緑・紫に変わる）を
     bad = m & (((h >= 60) & (h <= 170)) | ((h >= 275) & (h <= 335)))
     hs[..., 1] = np.where(bad, hs[..., 1] * .15, hs[..., 1]); hs[..., 0] = np.where(bad, 30 / 360, hs[..., 0])
     a[..., :3] = np.clip(mc.hsv_to_rgb(hs) * 255, 0, 255).astype(np.uint8)
-OUT = '../ally/'; MAXH = 300; COLS = 6
+args = sys.argv[1:]; OUT = '../ally/'
+if args and args[0] == '--out': OUT = args[1].rstrip('/') + '/'; args = args[2:]   # 敵は --out assets/npc
+MAXH = 300; COLS = 6
 mp = OUT + 'side_meta.json'; meta = json.load(open(mp)) if os.path.exists(mp) else {}
-args = sys.argv[1:]
 for src, name in zip(args[0::2], args[1::2]):
     info = json.load(open(os.path.join(src, 'frames.json')))
     fr = [np.array(Image.open(os.path.join(src, 'frame_%02d.png' % (i + 1))).convert('RGBA')) for i in range(info['count'])]

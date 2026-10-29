@@ -54,6 +54,11 @@ function drawFoe(e) { // 赤い兵：歩き（シート）／攻撃（連番）�
     im = IMG['fd' + e.kind + '_' + e.atk.ci]; k = H0 / c.idle.h; sw = c.cw; shh = c.ch; sx = (fi % c.cols) * c.cw; sy = Math.floor(fi / c.cols) * c.ch;
     flip = e.face > 0; // 攻撃の絵は左向き
     ox = (c.idle.x + c.idle.w / 2); oy = c.ch - (c.pad == null ? 2.8 : c.pad);
+  } else if (FOE_SW[e.kind] && IMG['sw' + e.kind] && IMG['sw' + e.kind].naturalWidth && e.state === 'walk' && e.stun <= 0 && e.bind <= 0) {
+    // 歩き：横向きの歩きの絵（左向き12コマ）。歩く速さに合わせて回す
+    c = FOE_SW[e.kind]; im = IMG['sw' + e.kind]; k = H0 / c.ph; sw = c.cw; shh = c.ch;
+    var wf = Math.floor((e.t * 1000 + e.yo * 37) / c.durs[0] * (e.sp / 120)) % c.n; wf = (wf + c.n) % c.n;
+    sx = (wf % c.cols) * c.cw; sy = Math.floor(wf / c.cols) * c.ch; flip = e.face > 0; ox = c.ax; oy = c.ay;
   } else if ((FOE_CLIP[e.kind] || [])[0] && IMG['fd' + e.kind + '_0'] && IMG['fd' + e.kind + '_0'].naturalWidth) {
     // 歩き：一騎打ちの横向きの絵（攻撃の連番の1コマ目＝構え）を、上下の揺れと傾きで歩かせる（横向きの歩きの絵ができたら差し替える）
     c = FOE_CLIP[e.kind][0]; im = IMG['fd' + e.kind + '_0']; k = H0 / c.idle.h; sw = c.cw; shh = c.ch; sx = 0; sy = 0;

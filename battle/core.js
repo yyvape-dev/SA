@@ -53,6 +53,11 @@ function loadAll() {
     FOE_TYPES.forEach(function (n) { FOE_CLIP[n] = (meta[n] || []).map(function (c, i) { total++; one('fd' + n + '_' + i, 'terrain/assets/npc/' + c.f); return c; }); });
     onDone();
   }).catch(function () { failed++; onDone(); });
+  total++; // 横向きの歩き（ユーザー作成、左向き12コマ）。ある種類だけ使い、無い種類は構えの揺れで代用
+  fetch('terrain/assets/npc/side_meta.json').then(function (r) { return r.json(); }).then(function (meta) {
+    FOE_TYPES.forEach(function (n) { var c = meta['walk_' + n]; if (!c) return; FOE_SW[n] = c; total++; one('sw' + n, 'terrain/assets/npc/' + c.f); });
+    onDone();
+  }).catch(function () { onDone(); });
   names.forEach(function (n) {
     var im = new Image(); im.onload = onDone; im.onerror = function () { failed++; onDone(); };
     im.src = 'sprites/' + n + '.png'; IMG[n] = im;
@@ -63,7 +68,7 @@ function loadAll() {
 var FOE_TYPES = [1, 2, 3, 4]; // 1=槍兵 2=赤マントの騎士（強敵） 3=フードの山賊 4=斧の戦士
 var FOE_WALK = { 1: { cw: 145, ch: 257, h: 240 }, 2: { cw: 146, ch: 220, h: 210 }, 3: { cw: 145, ch: 211, h: 202 }, 4: { cw: 161, ch: 220, h: 209 } }; // terrain/assets/npc/foewalk_meta.json と同じ
 var FOE_HK = { 1: 1, 2: 1.04, 3: 0.91, 4: 1.04 }; // 背の高さの比（領地の HUMAN 表：f1 197・f2 205・f3 180・f4 204）
-var FOE_H = 200, FOE_SPD = 2.6, FOE_CLIP = {}; // FOE_H＝槍兵の見た目の背の高さ（世界座標。主人公は約220）。攻撃は一騎打ちの2.6倍速
+var FOE_H = 200, FOE_SPD = 2.6, FOE_CLIP = {}, FOE_SW = {}; // FOE_H＝槍兵の見た目の背の高さ（世界座標。主人公は約220）。攻撃は一騎打ちの2.6倍速
 function eh(e) { return FOE_H * FOE_HK[e.kind] * depthScale(e.y) * e.size; } // 敵の見た目の背の高さ
 
 /* ---------- 定数と状態 ---------- */
