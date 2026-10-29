@@ -1,9 +1,9 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793236333';
-import { createUI } from './ui.js?v=1793236333';
-import { createMorning } from './morning.js?v=1793236333';
+import * as GM from './game.js?v=1793237128';
+import { createUI } from './ui.js?v=1793237128';
+import { createMorning } from './morning.js?v=1793237128';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -616,13 +616,14 @@ function walkAllies(dt) { const now = performance.now();
     const sp = 22 * dt; placeAlly(k, a.x + dx / d * Math.min(sp, d), a.y + dy / d * Math.min(sp, d)); if (Math.abs(dx) > 1) a.m.scale.x = Math.abs(a.m.scale.x) * (dx < 0 ? -1 : 1);
     setWalkPose(a, true, now); }
 }
-const faceTex = {}, faceURL = {};
+const faceTex = {}, faceURL = {}, faceRaw = {};
 const FACE = { mina: [178, 74, 56], garou: [247, 50, 58], sera: [150, 64, 54], ranka: [180, 62, 56] }; // 立ち絵の顔の中心と半径（画素）
 async function makeFace(k) { // 立ち絵の顔を丸く切り抜いて、金の縁をつける
   const im = await loadImage(`../ally/${k}.png`); if (!im) return null; const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
   g.fillStyle = '#2a1a0c'; g.beginPath(); g.arc(64, 64, 60, 0, 7); g.fill(); g.save(); g.beginPath(); g.arc(64, 64, 54, 0, 7); g.clip();
   const [fx, fy, fr] = FACE[k] || [im.width / 2, 70, 60], s = fr * 2.3; g.drawImage(im, fx - s / 2, fy - s / 2, s, s, 10, 10, 108, 108); g.restore();
   g.strokeStyle = '#e8c060'; g.lineWidth = 7; g.beginPath(); g.arc(64, 64, 56, 0, 7); g.stroke(); g.strokeStyle = '#5a3a10'; g.lineWidth = 2; g.beginPath(); g.arc(64, 64, 60, 0, 7); g.stroke();
+  { const c2 = document.createElement('canvas'); c2.width = c2.height = 128; const g2 = c2.getContext('2d'); g2.beginPath(); g2.arc(64, 64, 64, 0, 7); g2.clip(); g2.drawImage(im, fx - s / 2, fy - s / 2, s, s, 0, 0, 128, 128); faceRaw[k] = c2.toDataURL(); }
   faceURL[k] = c.toDataURL(); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; }
 for (const k of Object.keys(GM.ALLY)) faceTex[k] = await makeFace(k);
 let badges = [];
@@ -791,7 +792,7 @@ function autoBattle(resolveFn) { // 任せた戦闘：仲間と兵が軍勢と�
 }
 // ---------- 一騎打ちの演出（仮：マップ用の絵を大きく並べ、動きはコード）----------
 const dCss = document.createElement('style'); dCss.textContent = `
-#dsel,#duel{position:fixed;inset:0;display:none;flex-direction:column;overflow:hidden;font-family:"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif;color:#2a1a0c;background:#efe3c8 radial-gradient(120% 70% at 50% 0,#f8f0da,#e9dcbb 65%,#dccba3)}
+#dsel,#duel{position:fixed;inset:0;display:none;flex-direction:column;overflow:hidden;font-family:"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif;color:#2a1a0c;background:#efe3c8 url(assets/ui2/parch.jpg) 0 0/760px auto repeat}
 #dsel{z-index:10}#duel{z-index:11}
 #dsel button,#duel button{font-family:inherit;cursor:pointer}
 #dsel .hero{position:relative;flex:0 0 38.5%;background:#222 0 0/124% auto no-repeat;-webkit-mask-image:linear-gradient(#000 90%,transparent);mask-image:linear-gradient(#000 90%,transparent)}
@@ -802,7 +803,8 @@ const dCss = document.createElement('style'); dCss.textContent = `
 #dsel .qt small{display:block;margin-top:.8vh;font-size:.58em;font-weight:400;padding-left:6%}
 #dsel .bust{position:absolute;right:-9%;bottom:-3%;height:112%;max-width:70%;object-fit:contain;object-position:right bottom;filter:drop-shadow(0 4px 12px #000a)}
 #dsel .bust.fb{height:150%;bottom:-48%;right:-16%;max-width:none;width:auto}
-#dsel .pn{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;gap:1.1vh;padding:0 4% 2.2vh}
+#dsel .dv{width:58%;margin-top:-.4vh}#dsel .cn{position:absolute;width:min(16vw,70px);aspect-ratio:220/153;background:url(assets/ui2/corner.webp) center/contain no-repeat;pointer-events:none}#dsel .cn.tl{left:0;top:0}#dsel .cn.tr{right:0;top:0;transform:scaleX(-1)}
+#dsel::after{content:'';position:absolute;left:0;right:0;bottom:0;height:5.6vh;background:url(assets/ui2/vine.webp) center/100% 100% no-repeat;opacity:.9;pointer-events:none;z-index:0}#dsel .pn{position:relative;z-index:1;padding-bottom:5.4vh!important;flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;gap:1.1vh;padding:0 4% 2.2vh}
 #dsel h2{margin:0;font-size:min(7.6vw,33px);letter-spacing:.06em}
 #dsel .grid{width:100%;display:grid;grid-template-columns:1fr 1fr;gap:2.4vw}
 #dsel .cd{position:relative;aspect-ratio:1.7;border:2px solid #b8a272;border-radius:3px;overflow:hidden;background:#e9dcbb;filter:saturate(.75) brightness(.95);transition:transform .15s,box-shadow .15s,filter .15s}
@@ -815,12 +817,12 @@ const dCss = document.createElement('style'); dCss.textContent = `
 #dsel .cd .ck{display:none;position:absolute;right:3%;bottom:4%;width:min(7.5vw,32px);height:min(7.5vw,32px);border-radius:50%;background:#2d4a3a;color:#fff;align-items:center;justify-content:center;font-size:min(5vw,22px)}
 #dsel .cd.on .ck{display:flex}
 #dsel .hint{font-size:min(4vw,17px);margin-top:auto}
-#dsel .go{width:92%;padding:1.5vh 0;border:2px solid #d8b86a;box-shadow:inset 0 0 0 4px #1d4a4a,inset 0 0 0 5px #d8b86a88;border-radius:12px;background:linear-gradient(#2f6f6c,#1f4d4d);color:#f4ead0;font-size:min(8vw,34px);letter-spacing:.08em}
+#dsel .go{width:92%;padding:2.1vh 0;border:0;background:url(assets/ui2/btn_teal.webp) center/100% 100% no-repeat;color:#f4ead0;font-size:min(8vw,34px);letter-spacing:.08em}
 #dsel .no{font-size:min(4.4vw,18px);border-bottom:1px solid #6a5632;padding-bottom:2px;cursor:pointer}
 #duel .hd{position:relative;flex:0 0 14%;display:flex;align-items:flex-end;justify-content:space-between;gap:4%;padding:0 3% 1.1vh}
 #duel .sd{display:flex;align-items:center;gap:3%;flex:1;min-width:0}#duel .sd.r{flex-direction:row-reverse;text-align:right}
-#duel .fc{flex:0 0 min(15.5vw,68px);width:min(15.5vw,68px);height:min(15.5vw,68px);border-radius:50%;object-fit:cover}
-#duel .fc.foe{background:#c9b68a 50% 4%/300% no-repeat;border:3px solid #2a1a0c;box-shadow:0 0 0 2px #e8c060}
+#duel .fw{position:relative;flex:0 0 min(19vw,82px);width:min(19vw,82px);aspect-ratio:290/281}#duel .fw .fc{position:absolute;left:50%;top:50%;width:70%;height:70%;transform:translate(-50%,-50%);border-radius:50%;object-fit:cover}#duel .fw .rg{position:absolute;inset:0;background:url(assets/ui2/ring.webp) center/100% 100% no-repeat;pointer-events:none}
+#duel .fc.foe{background:#c9b68a 50% 4%/300% no-repeat}
 #duel .hb{flex:1;min-width:0}#duel .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:min(4.2vw,18px);font-weight:700;margin-bottom:.4vh}
 #duel .hp{height:14px;border:2px solid #5a4222;background:#3a2a1a;position:relative;overflow:hidden}
 #duel .hp b{position:absolute;top:0;bottom:0;left:0;background:linear-gradient(#52a79c,#2c6b66);transition:width .35s}
@@ -839,14 +841,16 @@ const dCss = document.createElement('style'); dCss.textContent = `
 @keyframes dsl{to{transform:rotate(-18deg) scaleX(1);opacity:0}}
 #duel .cut{position:absolute;left:0;right:0;top:26%;height:26%;display:flex;align-items:center;gap:12px;padding:0 6%;background:linear-gradient(90deg,#000e,#3a0806e8 60%,#0000);transform:translateX(-100%);transition:transform .3s cubic-bezier(.2,.9,.3,1);z-index:5;color:#fff}
 #duel .cut.on{transform:none}#duel .cut img{height:80%;border-radius:50%}#duel .cut div{font:900 min(8vw,34px)/1.3 serif;text-shadow:0 0 10px #f60}#duel .cut small{display:block;font-size:13px;color:#ffd8b0;font-weight:400}
-#duel .ft{flex:0 0 24.5%;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:1.2vh 4% 2vh}
+#duel .ft{position:relative;z-index:2;flex:0 0 24.5%;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:1.2vh 4% 2vh}
 #duel .ft h3{margin:0;font-size:min(5.6vw,24px);letter-spacing:.25em;font-weight:700}
 #duel .bl{display:flex;align-items:center;gap:2%;width:100%;font-size:min(4.2vw,18px)}
 #duel .bal{flex:1;height:15px;border:2px solid #5a4222;background:#a63a30;position:relative}
 #duel .bal b{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(#52a79c,#2c6b66);transition:width .4s}
 #duel .bal u{position:absolute;top:50%;width:17px;height:17px;background:#e8c870;border:2px solid #5a4222;transform:translate(-50%,-50%) rotate(45deg);transition:left .4s}
 #duel .stt{font-size:min(4.4vw,19px);letter-spacing:.2em}
-#duel .pips{position:absolute;left:0;right:0;bottom:3.5%;display:flex;justify-content:center;gap:3.4vw;z-index:3;pointer-events:none}
+#duel .cn{position:absolute;width:min(16vw,70px);aspect-ratio:220/153;background:url(assets/ui2/corner.webp) center/contain no-repeat;pointer-events:none;z-index:1}#duel .cn.tl{left:0;top:0}#duel .cn.tr{right:0;top:0;transform:scaleX(-1)}#duel .cn.bl{left:0;bottom:0;transform:scaleY(-1)}#duel .cn.br{right:0;bottom:0;transform:scale(-1,-1)}
+#duel .ft::before{content:'';position:absolute;left:0;right:0;top:-2.8vh;height:5.4vh;background:url(assets/ui2/vine.webp) center/100% 100% no-repeat;pointer-events:none}
+#duel .pips{position:absolute;left:0;right:0;bottom:7%;display:flex;justify-content:center;gap:3.4vw;z-index:3;pointer-events:none}
 #duel .tgw{position:absolute;left:0;right:0;top:1.5%;display:flex;flex-direction:column;align-items:center;gap:4px;z-index:3;pointer-events:none}
 #duel .tgw .tg{padding:.4vh 4vw;background:#f8f0dcdd;border:1.5px solid #6a5028;border-radius:14px}#duel .tgw .tg:empty{display:none}
 #duel .pips i{position:relative;width:min(7.6vw,33px);height:min(7.6vw,33px);display:flex;align-items:center;justify-content:center;border:2px solid #8a7648;background:#e6d8b4;font-style:normal;font-weight:700;font-size:min(3.8vw,16px);transform:rotate(45deg)}
@@ -858,12 +862,12 @@ const dCss = document.createElement('style'); dCss.textContent = `
 #duel .tg{font-size:min(3.9vw,16px);text-align:center}
 #duel .tm{width:46%;height:5px;background:#0004}#duel .tm b{display:block;height:100%;width:0;background:#b8372a}
 #duel .bt{display:flex;gap:2%;width:100%;align-items:stretch}
-#duel .bt button{border:2px solid #8a7648;border-radius:12px;background:#ece0c0;color:#2a1a0c;font-size:min(4vw,17px)}
-#duel .bt .sp2,#duel .bt .sk{flex:0 0 24%}
-#duel .bt .go2{flex:1;position:relative;display:flex;align-items:center;gap:3%;padding:1.2vh 3%;border:2px solid #d8b86a;box-shadow:inset 0 0 0 3px #1d4a4a;background:linear-gradient(#2f6f6c,#1f4d4d);color:#f4ead0;text-align:left}
-#duel .go2 .fl{font-size:min(8vw,34px)}#duel .go2 b{display:block;font-size:min(6.6vw,28px);letter-spacing:.2em}#duel .go2 small{display:block;font-size:min(3.2vw,13px)}
+#duel .bt button{border:0;background:url(assets/ui2/btn_cream.webp) center/100% 100% no-repeat;color:#2a1a0c;font-size:min(3.6vw,15px);padding:0 2%;white-space:nowrap;line-height:1.2}
+#duel .bt .sp2,#duel .bt .sk{flex:0 0 25%}
+#duel .bt .go2{flex:1;position:relative;display:flex;align-items:center;gap:3%;padding:1vh 7%;justify-content:center;background:url(assets/ui2/btn_teal.webp) center/100% 100% no-repeat;color:#f4ead0;text-align:left}
+#duel .go2 .fl{display:none}#duel .go2 span{white-space:nowrap}#duel .go2{text-align:center!important}#duel .go2 b{display:block;font-size:min(6.6vw,28px);letter-spacing:.2em}#duel .go2 small{display:block;font-size:min(3vw,12px);line-height:1.25}
 #duel .go2 em{position:absolute;right:3%;top:6%;font-style:normal;font-size:min(3.2vw,13px);border:1px solid #d8b86a99;border-radius:10px;padding:0 6px;background:#0003}
-#duel .go2.ready{animation:dgo .7s infinite alternate}@keyframes dgo{to{box-shadow:inset 0 0 0 3px #1d4a4a,0 0 16px 2px #ffd060}}
+#duel .go2.ready{animation:dgo .7s infinite alternate}@keyframes dgo{to{filter:drop-shadow(0 0 8px #ffd060) brightness(1.15)}}
 #duel .go2.used{filter:grayscale(.9) brightness(.8);animation:none}
 #duel .res{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;background:#000a;z-index:9;text-align:center;color:#fff;font:900 min(10vw,44px) serif;text-shadow:0 0 12px #f60}
 #duel .res.on{display:flex}#duel .res small{display:block;margin-top:1.4vh;font-size:min(4vw,16px);font-weight:400;color:#e8d8b0;text-shadow:none}
@@ -895,14 +899,14 @@ function playDuel(k, done) { // 画面いっぱいの一騎打ち。五合の勝
   const R = G.raid, A = GM.ALLY[k], F = GM.foeGeneral(G), look = foeLook(), plan = GM.duelPlan(G, k), AL = GM.DUEL_LINES[k] || GM.DUEL_LINES.mina, FL = GM.DUEL_LINES[duelRank()];
   duelEl.style.display = 'flex';
   const pipsHtml = [0, 1, 2, 3, 4].map(i => `<i class="${plan.heavy.includes(i) ? 'h' : ''}"><span>${'一二三四五'[i]}</span></i>`).join('');
-  duelEl.innerHTML = `<div class="hd"><div class="sd"><img class="fc" src="${faceURL[k]}"><div class="hb"><div class="nm">${A.n}</div><div class="hp"><b style="width:100%"></b></div></div></div>
+  duelEl.innerHTML = `<div class="hd"><i class="cn tl"></i><i class="cn tr"></i><div class="sd"><div class="fw"><img class="fc" src="${faceRaw[k]}"><i class="rg"></i></div><div class="hb"><div class="nm">${A.n}</div><div class="hp"><b style="width:100%"></b></div></div></div>
     <div class="ct"><small>第${R.w || G.week}週</small><h1>一騎打ち</h1></div>
-    <div class="sd r"><div class="fc foe" style="background-image:url(assets/npc/foe_${look}.webp)"></div><div class="hb"><div class="nm">${F.n}</div><div class="hp"><b style="width:100%"></b></div></div></div></div>
+    <div class="sd r"><div class="fw"><div class="fc foe" style="background-image:url(assets/npc/foe_${look}.webp)"></div><i class="rg"></i></div><div class="hb"><div class="nm">${F.n}</div><div class="hp"><b style="width:100%"></b></div></div></div></div>
     <div class="stage" style="background-image:url(assets/field/${R.dir || 'pass'}.jpg)"><div class="tgw"><div class="tg"></div><div class="tm"><b></b></div></div><div class="pips">${pipsHtml}</div><div class="say l"></div><div class="say r"></div>
       <div class="f L">${(DUEL_CLIP[k] || []).length ? `<div class="sp"></div>` : `<img src="../ally/${k}.png">`}</div><div class="f R" style="height:${R.boss ? 47 : 43}%">${(FOEDUEL[look] || []).length ? `<div class="sp" data-filter="drop-shadow(0 0 10px #f30) drop-shadow(0 6px 8px #000)"></div>` : `<img src="assets/npc/foe_${look}.webp" style="filter:drop-shadow(0 0 10px #f30) drop-shadow(0 6px 8px #000)">`}</div>
       <div class="cut"><img src="${faceURL[k]}"><div></div></div></div>
-    <div class="ft"><h3>戦 況</h3><div class="bl"><span>自軍</span><div class="bal"><b style="width:50%"></b><u style="left:50%"></u></div><span>敵軍</span></div><div class="stt">拮抗</div>
-      <div class="bt"><button class="sp2">▶▶ 速度 ×1</button><button class="go2"><span class="fl">⚑</span><span><b>号令</b><small>次の一合を強化<br>大技には見切り</small></span><em>残り1回</em></button><button class="sk">スキップ ›</button></div></div>
+    <div class="ft"><i class="cn bl"></i><i class="cn br"></i><h3>戦 況</h3><div class="bl"><span>自軍</span><div class="bal"><b style="width:50%"></b><u style="left:50%"></u></div><span>敵軍</span></div><div class="stt">拮抗</div>
+      <div class="bt"><button class="sp2">▶▶ ×1</button><button class="go2"><span class="fl">⚑</span><span><b>号令</b><small>次の一合を強化<br>大技には見切り</small></span><em>残り1回</em></button><button class="sk">スキップ ›</button></div></div>
     <div class="res"></div>`;
   const $ = q => duelEl.querySelector(q), L = $('.L'), Rf = $('.R'), hl = $('.sd:not(.r) .hp b'), hr = $('.sd.r .hp b'), pips = [...duelEl.querySelectorAll('.pips i')], tg = $('.tg'), tm = $('.tm b'), gb = $('.go2'), stt = $('.stt'), bal = $('.bal b'), balu = $('.bal u'), stage = $('.stage');
   let timers = [], spd = 1, hpL = 100, hpR = 100, aw = 0, fw = 0, nextI = 0, used = false, armed = false, inWin = false, over = false, winT = null, cur = -1;
@@ -931,7 +935,7 @@ function playDuel(k, done) { // 画面いっぱいの一騎打ち。五合の勝
     const w = D(2600); tm.style.transition = 'none'; tm.style.width = '100%'; void tm.offsetWidth; tm.style.transition = `width ${w}ms linear`; tm.style.width = '0%'; if (!used) gb.classList.add('ready'); winT = T(() => goRound(i), w); };
   gb.onclick = e => { e.stopPropagation(); if (used || over || !inWin) return; used = true; armed = true; gb.classList.remove('ready'); gb.classList.add('used'); gb.querySelector('em').textContent = '使用済み';
     const heavy = plan.heavy.includes(cur); tg.innerHTML = `<b style="color:#1f5d58">号令！　${heavy ? '見切りの構え' : '次の一合を強化'}</b>`; clearTimeout(winT); winT = T(() => goRound(cur), D(650)); };
-  $('.sp2').onclick = e => { e.stopPropagation(); spd = spd === 1 ? 2 : 1; e.currentTarget.textContent = `▶▶ 速度 ×${spd}`; };
+  $('.sp2').onclick = e => { e.stopPropagation(); spd = spd === 1 ? 2 : 1; e.currentTarget.textContent = `▶▶ ×${spd}`; };
   $('.sk').onclick = e => { e.stopPropagation(); if (over) return; timers.forEach(clearTimeout); if (actL) actL.reset(); if (actR) actR.reset(); [L, Rf].forEach(x => { x.style.transform = ''; x.style.filter = ''; }); duelEl.classList.remove('shake'); $('.cut').classList.remove('on'); pips.forEach(p => p.classList.remove('cur'));
     while (aw < 3 && fw < 3 && nextI < 5) { apply(nextI, GM.duelRound(plan, nextI, armed)); armed = false; } upd(); finish(); };
   duelEl.onclick = null;
@@ -941,7 +945,7 @@ function openSelect(cs, F, onPick, onDecline) { // 一騎打ちに送り出す�
   const R = G.raid, look = foeLook(), FLo = GM.DUEL_LINES[duelRank()]; let sel = cs[0];
   const por = {}; cs.forEach(k => { por[k] = POR[k] ? pickOf(POR[k]) : `../ally/${k}.png`; });
   duelSel.innerHTML = `<div class="hero" style="background-image:url(assets/npc/bust_${look}.webp),url(assets/field/${R.dir || 'pass'}.jpg);background-size:124% auto,cover;background-position:0 0,center"><div class="tt"><small>第${R.w || G.week}週</small><h1>一騎打ち</h1></div><div class="qt">「${FLo.open[0]}」<small>── ${F.n}</small></div></div>
-    <div class="pn"><h2>誰を送り出す？</h2><div class="grid">${cs.map(k => { const p = Math.round(GM.duelP(G, k) * 100); return `<div class="cd" data-k="${k}"><img src="${por[k]}"><div class="tx"><div class="nm">${GM.ALLY[k].n}</div><div class="pw">勝率 約${p}%<i class="pb"><b style="width:${p}%"></b></i></div></div><div class="ck">✓</div></div>`; }).join('')}</div>
+    <div class="pn"><i class="cn tl"></i><i class="cn tr"></i><h2>誰を送り出す？</h2><img class="dv" src="assets/ui2/divider2.webp"><div class="grid">${cs.map(k => { const p = Math.round(GM.duelP(G, k) * 100); return `<div class="cd" data-k="${k}"><img src="${por[k]}"><div class="tx"><div class="nm">${GM.ALLY[k].n}</div><div class="pw">勝率 約${p}%<i class="pb"><b style="width:${p}%"></b></i></div></div><div class="ck">✓</div></div>`; }).join('')}</div>
       <div class="hint">勝てば有利に、負ければ不利になる</div>${cs.length ? '<button class="go"></button>' : ''}<div class="no">挑戦に応じない</div></div>`;
   const go = duelSel.querySelector('.go'), mark = () => { duelSel.querySelectorAll('.cd').forEach(c => c.classList.toggle('on', c.dataset.k === sel)); if (go) go.textContent = `${GM.ALLY[sel].n}を送り出す`; }; mark();
   duelSel.querySelectorAll('.cd').forEach(c => { c.onclick = e => { e.stopPropagation(); sel = c.dataset.k; mark(); }; });
