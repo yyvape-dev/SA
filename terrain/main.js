@@ -821,7 +821,7 @@ const dCss = document.createElement('style'); dCss.textContent = `
 #duel .sd{display:flex;align-items:center;gap:2.5%;flex:1;min-width:0}#duel .sd.r{flex-direction:row-reverse;text-align:right}
 #duel .fc{flex:0 0 min(12.5vw,54px);width:min(12.5vw,54px);height:min(12.5vw,54px);border-radius:50%;object-fit:cover}
 #duel .fc.foe{background:#c9b68a 50% 4%/300% no-repeat;border:3px solid #2a1a0c;box-shadow:0 0 0 2px #e8c060}
-#duel .hb{flex:1;min-width:0}#duel .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:min(3.8vw,16px);font-weight:700;margin-bottom:.4vh}
+#duel .hb{flex:1;min-width:0}#duel .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:min(3.4vw,15px);font-weight:700;margin-bottom:.4vh}
 #duel .hp{height:12px;border:2px solid #5a4222;background:#3a2a1a;position:relative;overflow:hidden}
 #duel .hp b{position:absolute;top:0;bottom:0;left:0;background:linear-gradient(#52a79c,#2c6b66);transition:width .35s}
 #duel .sd.r .hp b{left:auto;right:0;background:linear-gradient(#e0735f,#a63a30)}
