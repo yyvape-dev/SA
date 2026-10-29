@@ -116,3 +116,85 @@ export function slashFX(host, o) {
   requestAnimationFrame(frame);
   return cv;
 }
+
+/* ===== 一騎打ちの残りのエフェクト（2026-10-30）。同じ骨組み：1回＝キャンバス1枚、加算の光、時間差、t から位置 ===== */
+PAL.teal = { glow: [70, 230, 200], main: [40, 200, 180], core: [240, 255, 250], spark: [180, 255, 230] };
+PAL.red.dark = [40, 0, 0]; PAL.gold = { glow: [255, 170, 40], main: [255, 205, 100], core: [255, 250, 228], spark: [255, 226, 150], dark: [60, 30, 0] };
+// キャンバスを重ねて draw(ctx, T, dt) を回す。draw が false を返したら消す
+function layer(host, sp, draw, z = 7, blend = 'screen') { // blend＝'normal' のときは、暗い下地を描ける（明るい背景で色を残す）
+  const dpr = Math.min(2, window.devicePixelRatio || 1), W = host.clientWidth, H = host.clientHeight;
+  const cv = document.createElement('canvas'); cv.width = W * dpr; cv.height = H * dpr;
+  cv.style.cssText = `position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:${z};mix-blend-mode:${blend}`;
+  host.appendChild(cv); const ctx = cv.getContext('2d'); ctx.scale(dpr, dpr);
+  let start = 0, prev = 0, dead = false;
+  const frame = now => { if (dead) return; if (!start) start = prev = now; const T = (now - start) * sp, dt = Math.min(50, now - prev) * sp / 1000; prev = now;
+    ctx.clearRect(0, 0, W, H); ctx.globalCompositeOperation = 'lighter';
+    if (draw(ctx, T, dt) === false) { cv.remove(); dead = true; return; } requestAnimationFrame(frame); };
+  requestAnimationFrame(frame);
+  return { stop() { dead = true; cv.remove(); }, cv };
+}
+const glow = (ctx, x, y, r, pal, a) => { if (a <= 0) return; const g = ctx.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, rgba(pal.core, .7 * a)); g.addColorStop(.3, rgba(pal.main, .3 * a)); g.addColorStop(1, rgba(pal.glow, 0)); ctx.fillStyle = g; ctx.fillRect(x - r, y - r, r * 2, r * 2); };
+const streak = (ctx, x, y, vx, vy, len, w, col, a) => { const m = Math.hypot(vx, vy) || 1, ex = x - vx / m * len, ey = y - vy / m * len, g = ctx.createLinearGradient(x, y, ex, ey); g.addColorStop(0, rgba(col, a)); g.addColorStop(1, rgba(col, 0)); ctx.strokeStyle = g; ctx.lineWidth = w; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(ex, ey); ctx.stroke(); };
+const star4 = (ctx, x, y, r, rot, col, a) => { ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.fillStyle = rgba(col, a); ctx.beginPath(); for (let i = 0; i < 4; i++) { const th = i * Math.PI / 2; ctx.lineTo(Math.cos(th) * r, Math.sin(th) * r); ctx.lineTo(Math.cos(th + .785) * r * .14, Math.sin(th + .785) * r * .14); } ctx.closePath(); ctx.fill(); ctx.restore(); };
+const ring = (ctx, x, y, r, w, col, a, sq = .3) => { if (a <= 0 || r <= 0) return; ctx.strokeStyle = rgba(col, a); ctx.lineWidth = w; ctx.beginPath(); ctx.ellipse(x, y, r, r * sq, 0, 0, 7); ctx.stroke(); };
+// 火花の束（t から位置）
+const sparkSet = (n, dir, v0, v1, size) => Array.from({ length: n }, () => { const th = (Math.random() - .5) * 2.2 - .35; const v = (v0 + Math.random() * (v1 - v0)) * size; return { vx: (dir || (Math.random() < .5 ? 1 : -1)) * Math.cos(th) * v, vy: Math.sin(th) * v, life: 200 + Math.random() * 380, r: 1 + Math.random() * 2.4 }; });
+const drawSparkSet = (ctx, S, x, y, T, pal, size) => { let alive = false; for (const s of S) { const t = T / 1000; if (T > s.life) continue; alive = true; const dr = Math.exp(-t * 4), px = x + s.vx * (1 - dr) / 4, py = y + s.vy * (1 - dr) / 4 + size * .9 * t * t, cvx = s.vx * dr, cvy = s.vy * dr + size * 1.8 * t, k = 1 - T / s.life; streak(ctx, px, py, cvx, cvy, Math.min(size * .3, Math.hypot(cvx, cvy) * .06) + s.r, s.r * (.5 + .5 * k), k > .5 ? pal.core : pal.spark, k); } return alive; };
+
+// 当たりの衝撃：放射の楔＋床の輪＋光。ko＝決着の一撃（金・大きく・長く）
+export function impactFX(host, o) {
+  const pal = PAL[o.ko ? 'gold' : o.color] || PAL.blue, size = o.size * (o.ko ? 1.3 : 1), sp = o.speed || 1, dir = o.dir || 1;
+  const rays = Array.from({ length: o.ko ? 16 : 9 }, (_, i) => ({ a: (o.ko ? i / 16 * 6.283 : (Math.random() - .5) * 1.6 + (dir > 0 ? 0 : Math.PI)) + (Math.random() - .5) * .2, L: .6 + Math.random() * .6, w: .6 + Math.random() * .7 }));
+  const S = sparkSet(o.ko ? 40 : 18, o.ko ? 0 : dir, .8, 2.6, size), END = o.ko ? 900 : 520;
+  return layer(host, sp, (ctx, T) => {
+    const rk = easeOut(clamp01(T / 140)), rf = clamp01(1 - (T - 120) / (o.ko ? 500 : 260));
+    for (const r of rays) { const L = size * .75 * r.L * rk, w = size * .028 * r.w * rf, c = Math.cos(r.a), s = Math.sin(r.a); if (rf <= 0) break;
+      const g = ctx.createLinearGradient(o.x, o.y, o.x + c * L, o.y + s * L); g.addColorStop(0, rgba(pal.core, .8 * rf)); g.addColorStop(.35, rgba(pal.main, .45 * rf)); g.addColorStop(1, rgba(pal.glow, 0));
+      ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(o.x - s * w, o.y + c * w); ctx.lineTo(o.x + c * L, o.y + s * L); ctx.lineTo(o.x + s * w, o.y - c * w); ctx.closePath(); ctx.fill(); }
+    const k = easeOut(clamp01(T / (o.ko ? 520 : 320))); if (k < 1) { ring(ctx, o.x, o.y + size * .42, size * (.15 + .7 * k), size * .03 * (1 - k) + 1, pal.glow, .8 * (1 - k)); ring(ctx, o.x, o.y + size * .42, size * (.15 + .7 * k), 1.5, pal.core, .8 * (1 - k)); }
+    if (T < 160) glow(ctx, o.x, o.y, size * (.35 + T / 600), pal, 1 - T / 160);
+    const a = drawSparkSet(ctx, S, o.x, o.y, T, pal, size);
+    return a || T < END;
+  }, 8);
+}
+// 見切り（COUNTER）：刃と刃がぶつかる。青緑の十字の光＋2つの輪＋左右へ散る火花
+export function clashFX(host, o) {
+  const pal = PAL.teal, size = o.size, S = sparkSet(36, 0, 1, 3, size);
+  return layer(host, o.speed || 1, (ctx, T) => {
+    if (T < 220) { const k = 1 - T / 220, r = size * (.25 + .8 * easeOut(T / 220)); glow(ctx, o.x, o.y, r, pal, k); star4(ctx, o.x, o.y, size * .9 * (.4 + .6 * easeOut(T / 90)), .785, pal.main, .8 * k); star4(ctx, o.x, o.y, size * .55, 0, pal.core, k); }
+    for (let j = 0; j < 2; j++) { const k = easeOut(clamp01((T - j * 70) / 380)); if (k > 0 && k < 1) { ring(ctx, o.x, o.y, size * (.1 + .65 * k), size * .025 * (1 - k) + 1, pal.glow, .9 * (1 - k), 1); ring(ctx, o.x, o.y, size * (.1 + .65 * k), 1.2, pal.core, .9 * (1 - k), 1); } }
+    return drawSparkSet(ctx, S, o.x, o.y, T, pal, size) || T < 600;
+  }, 8);
+}
+// 大技の構え：相手（el）の体から赤黒の炎の筋が昇り、足元の輪が脈打つ。stop() まで続く
+export function chargeFX(host, el, o = {}) { let L;
+  const pal = PAL[o.color || 'red'], N = 34, seeds = Array.from({ length: N }, (_, i) => ({ x: Math.random() * 2 - 1, p: Math.random(), v: .6 + Math.random() * .7, w: 2 + Math.random() * 2.2 }));
+  el.classList.add('chg'); // 体の縁が赤く光る（CSS の drop-shadow、main.js）
+  L = layer(host, o.speed || 1, (ctx, T) => {
+    const hr = host.getBoundingClientRect(), r = el.getBoundingClientRect(); if (!r.width) return true;
+    const cx = (r.left + r.right) / 2 - hr.left, by = r.bottom - hr.top - r.height * .04, w = r.width * .32, h = r.height, k = clamp01(T / 300);
+    const pulse = .75 + .25 * Math.sin(T / 90);
+    ctx.globalCompositeOperation = 'source-over'; // 暗い下地：足元の影と、体のまわりの赤黒いもや
+    const g0 = ctx.createRadialGradient(cx, by - h * .4, 0, cx, by - h * .4, h * .55); g0.addColorStop(0, rgba(pal.dark, .0)); g0.addColorStop(.55, rgba(pal.dark, .22 * k)); g0.addColorStop(1, rgba(pal.dark, 0)); ctx.fillStyle = g0; ctx.fillRect(cx - h, by - h, h * 2, h * 1.1);
+    ring(ctx, cx, by + 2, w * 1.25, 10 * k, pal.dark, .45 * k);
+    ctx.globalCompositeOperation = 'lighter';
+    ring(ctx, cx, by, w * 1.25 * (1 + .06 * Math.sin(T / 90)), 6 * k, pal.glow, .55 * k * pulse); ring(ctx, cx, by, w * 1.25 * (1 + .06 * Math.sin(T / 90)), 1.5, pal.core, .6 * k * pulse);
+    const g = ctx.createRadialGradient(cx, by - h * .45, 0, cx, by - h * .45, h * .6); g.addColorStop(0, rgba(pal.glow, .18 * k * pulse)); g.addColorStop(1, rgba(pal.glow, 0)); ctx.fillStyle = g; ctx.fillRect(cx - h, by - h * 1.1, h * 2, h * 1.2);
+    for (const s of seeds) { const ph = (T / 1000 * s.v + s.p) % 1, x = cx + s.x * w * 1.4 * (1 - ph * .3) + Math.sin(T / 120 + s.p * 9) * w * .06, y = by - ph * h * .95; const ea = Math.sin(ph * Math.PI) * k; glow(ctx, x, y, s.w * 4, pal, ea * .5); streak(ctx, x, y, Math.sin(T / 150 + s.p * 7) * .3, -1, h * .035, s.w * .8, ph < .5 ? pal.core : pal.spark, ea); } // 火の粉（小さな光と短い尾）
+    return true;
+  }, 3, 'normal');
+  return { stop() { el.classList.remove('chg'); L.stop(); } };
+}
+// 鬨の声：味方（el）の足元から金の輪が2重に広がり、光の筋が昇る
+export function rallyFX(host, el, o = {}) {
+  const pal = PAL.gold, seeds = Array.from({ length: 32 }, () => ({ x: Math.random() * 2 - 1, d: Math.random() * 250, v: .8 + Math.random() * .8, w: 1.4 + Math.random() * 2.2 }));
+  return layer(host, o.speed || 1, (ctx, T) => {
+    const hr = host.getBoundingClientRect(), r = el.getBoundingClientRect(), cx = (r.left + r.right) / 2 - hr.left, by = r.bottom - hr.top - r.height * .04, w = r.width * .35, h = r.height;
+    for (let j = 0; j < 2; j++) { const k = easeOut(clamp01((T - j * 150) / 600)); if (k > 0 && k < 1) { ctx.globalCompositeOperation = 'source-over'; ring(ctx, cx, by + 2, w * (.5 + 2.2 * k), 10 * (1 - k) + 2, pal.dark, .4 * (1 - k)); ctx.globalCompositeOperation = 'lighter'; ring(ctx, cx, by, w * (.5 + 2.2 * k), 14 * (1 - k) + 2, pal.glow, (1 - k)); ring(ctx, cx, by, w * (.5 + 2.2 * k), 2.5, pal.core, (1 - k)); } }
+    if (T < 700) { const k = clamp01(T / 120) * clamp01(1 - (T - 300) / 400), g = ctx.createRadialGradient(cx, by - h * .45, 0, cx, by - h * .45, h * .6); g.addColorStop(0, rgba(pal.main, .35 * k)); g.addColorStop(1, rgba(pal.glow, 0)); ctx.fillStyle = g; ctx.fillRect(cx - h, by - h * 1.1, h * 2, h * 1.2); }
+    let alive = T < 800;
+    for (const s of seeds) { const t = T - s.d; if (t < 0 || t > 600) { if (t < 0) alive = true; continue; } alive = true; const ph = t / 600; ctx.globalCompositeOperation = 'source-over'; streak(ctx, cx + s.x * w * 1.6, by - ph * h * s.v + 2, 0, -1, h * .1, s.w * 2, pal.dark, Math.sin(ph * Math.PI) * .3); ctx.globalCompositeOperation = 'lighter'; streak(ctx, cx + s.x * w * 1.6, by - ph * h * s.v, 0, -1, h * .1, s.w, ph < .4 ? pal.core : pal.spark, Math.sin(ph * Math.PI)); }
+    if (T < 200) glow(ctx, cx, by - h * .5, h * .5, pal, .6 * (1 - T / 200));
+    return alive;
+  }, 8, 'normal');
+}
