@@ -1,9 +1,9 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793237128';
-import { createUI } from './ui.js?v=1793237128';
-import { createMorning } from './morning.js?v=1793237128';
+import * as GM from './game.js?v=1793239474';
+import { createUI } from './ui.js?v=1793239474';
+import { createMorning } from './morning.js?v=1793239474';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -792,86 +792,113 @@ function autoBattle(resolveFn) { // 任せた戦闘：仲間と兵が軍勢と�
 }
 // ---------- 一騎打ちの演出（仮：マップ用の絵を大きく並べ、動きはコード）----------
 const dCss = document.createElement('style'); dCss.textContent = `
-#dsel,#duel{position:fixed;inset:0;display:none;flex-direction:column;overflow:hidden;font-family:"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif;color:#2a1a0c;background:#efe3c8 url(assets/ui2/parch.jpg) 0 0/760px auto repeat}
+@font-face{font-family:'DMincho';src:url(assets/font/mincho-b.woff2) format('woff2');font-weight:700;font-display:swap}
+#dsel,#duel{--u:min(.2326vw,.1073vh);--ink:#2b1d10;--ink2:#5e4728;--gold:#a8833c;--teal:#2c6a64;--red:#a3362b;
+  position:fixed;inset:0;display:none;flex-direction:column;overflow:hidden;font-family:'DMincho','Hiragino Mincho ProN','Yu Mincho',serif;font-weight:700;color:var(--ink);
+  background:#efe3c8 url(assets/ui2/parch.jpg) 0 0/calc(760*var(--u)) auto repeat;-webkit-font-smoothing:antialiased}
 #dsel{z-index:10}#duel{z-index:11}
-#dsel button,#duel button{font-family:inherit;cursor:pointer}
-#dsel .hero{position:relative;flex:0 0 38.5%;background:#222 0 0/124% auto no-repeat;-webkit-mask-image:linear-gradient(#000 90%,transparent);mask-image:linear-gradient(#000 90%,transparent)}
-#dsel .tt,#dsel .qt{z-index:2}#dsel .tt{position:absolute;left:0;top:4%;padding:1.2vh 7vw 1vh 6vw;background:linear-gradient(90deg,#f6edd6ee 70%,#f6edd600)}
-#dsel .tt small{display:block;font-size:min(3.8vw,16px);letter-spacing:.1em}
-#dsel .tt h1{margin:0;font-size:min(13vw,56px);letter-spacing:.06em;line-height:1.1;border-bottom:2px solid #6a5028;padding-bottom:.6vh}
-#dsel .qt{position:absolute;left:5%;top:40%;max-width:42%;font-size:min(5.4vw,24px);font-weight:700;line-height:1.5;text-shadow:0 0 8px #f6edd6,0 0 4px #f6edd6,0 0 2px #f6edd6}
-#dsel .qt small{display:block;margin-top:.8vh;font-size:.58em;font-weight:400;padding-left:6%}
-#dsel .bust{position:absolute;right:-9%;bottom:-3%;height:112%;max-width:70%;object-fit:contain;object-position:right bottom;filter:drop-shadow(0 4px 12px #000a)}
-#dsel .bust.fb{height:150%;bottom:-48%;right:-16%;max-width:none;width:auto}
-#dsel .dv{width:58%;margin-top:-.4vh}#dsel .cn{position:absolute;width:min(16vw,70px);aspect-ratio:220/153;background:url(assets/ui2/corner.webp) center/contain no-repeat;pointer-events:none}#dsel .cn.tl{left:0;top:0}#dsel .cn.tr{right:0;top:0;transform:scaleX(-1)}
-#dsel::after{content:'';position:absolute;left:0;right:0;bottom:0;height:5.6vh;background:url(assets/ui2/vine.webp) center/100% 100% no-repeat;opacity:.9;pointer-events:none;z-index:0}#dsel .pn{position:relative;z-index:1;padding-bottom:5.4vh!important;flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;gap:1.1vh;padding:0 4% 2.2vh}
-#dsel h2{margin:0;font-size:min(7.6vw,33px);letter-spacing:.06em}
-#dsel .grid{width:100%;display:grid;grid-template-columns:1fr 1fr;gap:2.4vw}
-#dsel .cd{position:relative;aspect-ratio:1.7;border:2px solid #b8a272;border-radius:3px;overflow:hidden;background:#e9dcbb;filter:saturate(.75) brightness(.95);transition:transform .15s,box-shadow .15s,filter .15s}
-#dsel .cd img{position:absolute;left:0;top:0;height:100%;width:52%;object-fit:cover;object-position:50% 12%}
-#dsel .cd .tx{position:absolute;right:0;top:0;bottom:0;width:48%;display:flex;flex-direction:column;justify-content:center;gap:.7vh;padding-right:3%}
-#dsel .cd .nm{white-space:nowrap;font-size:min(6vw,26px);font-weight:700;letter-spacing:.05em}
-#dsel .cd .pw{white-space:nowrap;font-size:min(3.7vw,15px);border-top:1px solid #8a7648;padding-top:.7vh}
-#dsel .cd .pb{display:block;height:4px;background:#0003;margin-top:.5vh}#dsel .cd .pb b{display:block;height:100%;background:#4d7b55}
-#dsel .cd.on{filter:none;border-color:#4d7b55;box-shadow:0 0 0 2px #4d7b5599,0 0 20px #7fbf8aaa;transform:scale(1.04);z-index:1;background:#dfe6c8}
-#dsel .cd .ck{display:none;position:absolute;right:3%;bottom:4%;width:min(7.5vw,32px);height:min(7.5vw,32px);border-radius:50%;background:#2d4a3a;color:#fff;align-items:center;justify-content:center;font-size:min(5vw,22px)}
+#dsel *,#duel *{box-sizing:border-box}#dsel button,#duel button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;padding:0}
+#dsel .cn,#duel .cn{position:absolute;width:calc(62*var(--u));aspect-ratio:220/153;background:url(assets/ui2/corner.webp) center/contain no-repeat;pointer-events:none;z-index:1;opacity:.92}
+#dsel .cn.tl,#duel .cn.tl{left:calc(4*var(--u));top:calc(4*var(--u))}#dsel .cn.tr,#duel .cn.tr{right:calc(4*var(--u));top:calc(4*var(--u));transform:scaleX(-1)}#dsel .cn.bl,#duel .cn.bl{left:calc(4*var(--u));bottom:calc(4*var(--u));transform:scaleY(-1)}#dsel .cn.br,#duel .cn.br{right:calc(4*var(--u));bottom:calc(4*var(--u));transform:scale(-1,-1)}
+#dsel .dline{display:flex;align-items:center;justify-content:center;gap:calc(10*var(--u));color:var(--ink2)}
+#dsel #dsel .dline::before,#dsel .dline::after{content:'';height:1px;width:calc(70*var(--u));background:linear-gradient(90deg,transparent,var(--gold))}
+#dsel .dline::after{background:linear-gradient(90deg,var(--gold),transparent)}
+/* ---------- 選出 ---------- */
+#dsel .hero{position:relative;flex:0 0 41%;background:#222 0 0/124% auto no-repeat;-webkit-mask-image:linear-gradient(#000 88%,transparent);mask-image:linear-gradient(#000 88%,transparent)}
+#dsel .hero::before{content:'';position:absolute;left:-10%;top:-6%;width:72%;height:78%;background:radial-gradient(closest-side,#f3ead6e6,#f3ead6a0 55%,transparent);pointer-events:none}
+#dsel .tt{position:absolute;left:calc(26*var(--u));top:calc(30*var(--u))}
+#dsel .tt small{display:block;font-size:calc(12*var(--u));letter-spacing:.12em;color:var(--ink2)}
+#dsel .tt .dv0{display:block;width:calc(150*var(--u));margin:calc(3*var(--u)) 0 calc(4*var(--u))}
+#dsel .tt h1{margin:0;font-size:calc(30*var(--u));font-weight:700;letter-spacing:.14em;line-height:1.15}
+#dsel .tt .dv1{display:block;width:calc(170*var(--u));margin-top:calc(6*var(--u))}
+#dsel .qt{position:absolute;left:calc(26*var(--u));top:43%;max-width:44%;font-size:calc(15*var(--u));line-height:1.6;letter-spacing:.04em}
+#dsel .qt small{display:flex;align-items:center;gap:calc(6*var(--u));margin-top:calc(6*var(--u));font-size:calc(11*var(--u));color:var(--ink2)}
+#dsel .qt small::before{content:'';width:calc(26*var(--u));height:1px;background:var(--ink2)}
+#dsel .pn{position:relative;z-index:1;flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;padding:0 calc(16*var(--u)) calc(52*var(--u))}
+#dsel h2{margin:calc(-2*var(--u)) 0 0;font-size:calc(23*var(--u));font-weight:700;letter-spacing:.12em}
+#dsel .dv{width:calc(220*var(--u));margin:calc(2*var(--u)) 0 calc(12*var(--u))}
+#dsel .grid{width:100%;display:grid;grid-template-columns:1fr 1fr;gap:calc(10*var(--u))}
+#dsel .cd{position:relative;aspect-ratio:1.58;overflow:hidden;cursor:pointer;background:#ece2c8;border:1px solid #bba57a;box-shadow:inset 0 0 0 calc(3*var(--u)) #ece2c8,inset 0 0 0 calc(4*var(--u)) #cdb98e;transition:box-shadow .15s,background .15s}
+#dsel .cd img{position:absolute;left:0;top:0;height:100%;width:60%;object-fit:cover;object-position:50% 10%;-webkit-mask-image:linear-gradient(90deg,#000 62%,transparent);mask-image:linear-gradient(90deg,#000 62%,transparent)}
+#dsel .cd .tx{position:absolute;right:calc(8*var(--u));top:0;bottom:0;width:44%;display:flex;flex-direction:column;justify-content:center;align-items:center}
+#dsel .cd .nm{font-size:calc(19*var(--u));letter-spacing:.1em;white-space:nowrap}
+#dsel .cd .ln{width:100%;height:calc(9*var(--u));margin:calc(4*var(--u)) 0;background:linear-gradient(var(--ink2),var(--ink2)) center/100% 1px no-repeat;position:relative;opacity:.7}
+#dsel .cd .ln::after{content:'';position:absolute;left:50%;top:50%;width:calc(6*var(--u));height:calc(6*var(--u));background:#ece2c8;border:1px solid var(--ink2);transform:translate(-50%,-50%) rotate(45deg)}
+#dsel .cd .pw{font-size:calc(13.5*var(--u));white-space:nowrap;color:var(--ink2)}#dsel .cd .pw b{font-size:1.1em;color:var(--ink)}
+#dsel .cd.on{background:#dfe5cc;border-color:#58775a;box-shadow:inset 0 0 0 calc(3*var(--u)) #dfe5cc,inset 0 0 0 calc(4*var(--u)) #8aa483,0 0 calc(10*var(--u)) #5a8a5f66}
+#dsel .cd .ck{display:none;position:absolute;right:calc(7*var(--u));top:calc(7*var(--u));width:calc(26*var(--u));height:calc(26*var(--u));border-radius:50%;background:#2f4a3c;border:1px solid #c9d6bb;color:#f2f0e0;align-items:center;justify-content:center;font-size:calc(15*var(--u))}
 #dsel .cd.on .ck{display:flex}
-#dsel .hint{font-size:min(4vw,17px);margin-top:auto}
-#dsel .go{width:92%;padding:2.1vh 0;border:0;background:url(assets/ui2/btn_teal.webp) center/100% 100% no-repeat;color:#f4ead0;font-size:min(8vw,34px);letter-spacing:.08em}
-#dsel .no{font-size:min(4.4vw,18px);border-bottom:1px solid #6a5632;padding-bottom:2px;cursor:pointer}
-#duel .hd{position:relative;flex:0 0 14%;display:flex;align-items:flex-end;justify-content:space-between;gap:4%;padding:0 3% 1.1vh}
-#duel .sd{display:flex;align-items:center;gap:3%;flex:1;min-width:0}#duel .sd.r{flex-direction:row-reverse;text-align:right}
-#duel .fw{position:relative;flex:0 0 min(19vw,82px);width:min(19vw,82px);aspect-ratio:290/281}#duel .fw .fc{position:absolute;left:50%;top:50%;width:70%;height:70%;transform:translate(-50%,-50%);border-radius:50%;object-fit:cover}#duel .fw .rg{position:absolute;inset:0;background:url(assets/ui2/ring.webp) center/100% 100% no-repeat;pointer-events:none}
-#duel .fc.foe{background:#c9b68a 50% 4%/300% no-repeat}
-#duel .hb{flex:1;min-width:0}#duel .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:min(4.2vw,18px);font-weight:700;margin-bottom:.4vh}
-#duel .hp{height:14px;border:2px solid #5a4222;background:#3a2a1a;position:relative;overflow:hidden}
-#duel .hp b{position:absolute;top:0;bottom:0;left:0;background:linear-gradient(#52a79c,#2c6b66);transition:width .35s}
-#duel .sd.r .hp b{left:auto;right:0;background:linear-gradient(#e0735f,#a63a30)}
-#duel .ct{position:absolute;left:0;right:0;top:.6vh;text-align:center;white-space:nowrap;pointer-events:none}#duel .ct small{display:block;font-size:min(3.6vw,15px);letter-spacing:.1em}#duel .ct h1{margin:0;font-size:min(7.4vw,32px);letter-spacing:.1em}
-#duel .stage{position:relative;flex:1;min-height:0;background:#222 center 66%/cover no-repeat;overflow:hidden}
-#duel .f{position:absolute;bottom:17%;height:42%;transition:transform .18s ease-out,filter .08s}
+#dsel .hint{margin-top:auto;font-size:calc(12.5*var(--u));letter-spacing:.06em}
+#dsel .go{width:88%;height:calc(66*var(--u));margin-top:calc(10*var(--u));background:url(assets/ui2/btn_teal.webp) center/100% 100% no-repeat;color:#f3ead2;font-size:calc(20*var(--u));letter-spacing:.16em;text-shadow:0 1px 2px #0006}
+#dsel .go:active{filter:brightness(1.12)}
+#dsel .no{margin-top:calc(12*var(--u));font-size:calc(13*var(--u));letter-spacing:.1em;color:var(--ink2);border-bottom:1px solid #8a7450;padding:0 calc(10*var(--u)) calc(3*var(--u));cursor:pointer}
+#dsel::after{content:'';position:absolute;left:0;right:0;bottom:0;height:calc(46*var(--u));background:url(assets/ui2/vine.webp) center bottom/100% 100% no-repeat;opacity:.85;pointer-events:none}
+/* ---------- 戦闘 ---------- */
+#duel .hd{position:relative;flex:0 0 14.5%;display:flex;align-items:flex-end;justify-content:space-between;gap:calc(26*var(--u));padding:0 calc(14*var(--u)) calc(12*var(--u))}
+#duel .ct{position:absolute;left:0;right:0;top:calc(14*var(--u));display:flex;flex-direction:column;align-items:center;pointer-events:none}
+#duel .ct small{font-size:calc(11*var(--u));letter-spacing:.14em;color:var(--ink2)}#duel .ct img{width:calc(120*var(--u));margin:calc(1*var(--u)) 0 calc(2*var(--u))}
+#duel .ct h1{margin:0;font-size:calc(26*var(--u));font-weight:700;letter-spacing:.16em;line-height:1.1}
+#duel .sd{display:flex;align-items:center;gap:calc(8*var(--u));flex:1;min-width:0}#duel .sd.r{flex-direction:row-reverse}
+#duel .fw{position:relative;flex:0 0 calc(66*var(--u));width:calc(66*var(--u));aspect-ratio:290/281}
+#duel .fw .fc{position:absolute;left:50%;top:50%;width:72%;height:74%;transform:translate(-50%,-50%);border-radius:50%;object-fit:cover}
+#duel .fw .fc.foe{background:#c9b68a 50% 8%/220% no-repeat}
+#duel .fw .rg{position:absolute;inset:0;background:url(assets/ui2/ring.webp) center/100% 100% no-repeat;pointer-events:none}
+#duel .hb{flex:1;min-width:0;padding-bottom:calc(6*var(--u))}#duel .sd.r .hb{text-align:right}
+#duel .nm{font-size:calc(14.5*var(--u));letter-spacing:.08em;margin-bottom:calc(5*var(--u));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#duel .hp{height:calc(10*var(--u));padding:1px;background:#2a1e12;border:1px solid #8c6c34;box-shadow:0 0 0 1px #e9dcbcaa;position:relative}
+#duel .hp b{position:absolute;top:1px;bottom:1px;left:1px;max-width:calc(100% - 2px);background:linear-gradient(#5aa59a,#2c6a64 60%,#24564f);transition:width .45s cubic-bezier(.3,.8,.3,1)}
+#duel .sd.r .hp b{left:auto;right:1px;background:linear-gradient(#d4705c,#a3362b 60%,#86281f)}
+#duel .stage{position:relative;flex:1;min-height:0;background:#222 center 66%/cover no-repeat;overflow:hidden;box-shadow:inset 0 calc(8*var(--u)) calc(10*var(--u)) calc(-6*var(--u)) #0005}
+#duel .stage::after{content:'';position:absolute;inset:0;background:linear-gradient(transparent 70%,#0003);pointer-events:none}
+#duel .f{position:absolute;bottom:15%;height:34%;transition:transform .18s ease-out,filter .08s;z-index:2}
 #duel .f .sp{background-repeat:no-repeat;pointer-events:none}#duel .f img{height:100%;filter:drop-shadow(0 6px 8px #000)}
-#duel .L{left:10%}#duel .R{right:10%}
-#duel .say{position:absolute;top:13%;max-width:44%;padding:.9vh 3%;background:#f8f0dcf2;border:2px solid #6a5028;border-radius:8px;font-size:min(4vw,17px);font-weight:700;line-height:1.4;opacity:0;transform:translateY(6px);transition:opacity .2s,transform .2s;pointer-events:none;z-index:3}
-#duel .say.on{opacity:1;transform:none}#duel .say small{display:block;font-size:.7em;color:#8a5a20;font-weight:400}
-#duel .say.l{left:3%}#duel .say.r{right:3%;text-align:right}
-#duel .num{position:absolute;font:900 min(9vw,40px) serif;font-style:italic;color:#fff0c0;text-shadow:0 0 8px #f40,0 2px 2px #000;animation:dnum .9s ease-out forwards;pointer-events:none;z-index:4}
-@keyframes dnum{from{transform:translateY(0) scale(1.4);opacity:1}to{transform:translateY(-50px);opacity:0}}
-#duel .slash{position:absolute;width:44%;height:6px;top:50%;background:linear-gradient(90deg,#fff0,#fff,#fff0);box-shadow:0 0 18px #ffd060;transform:rotate(-18deg) scaleX(0);animation:dsl .25s ease-out forwards;z-index:4}
-@keyframes dsl{to{transform:rotate(-18deg) scaleX(1);opacity:0}}
-#duel .cut{position:absolute;left:0;right:0;top:26%;height:26%;display:flex;align-items:center;gap:12px;padding:0 6%;background:linear-gradient(90deg,#000e,#3a0806e8 60%,#0000);transform:translateX(-100%);transition:transform .3s cubic-bezier(.2,.9,.3,1);z-index:5;color:#fff}
-#duel .cut.on{transform:none}#duel .cut img{height:80%;border-radius:50%}#duel .cut div{font:900 min(8vw,34px)/1.3 serif;text-shadow:0 0 10px #f60}#duel .cut small{display:block;font-size:13px;color:#ffd8b0;font-weight:400}
-#duel .ft{position:relative;z-index:2;flex:0 0 24.5%;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:1.2vh 4% 2vh}
-#duel .ft h3{margin:0;font-size:min(5.6vw,24px);letter-spacing:.25em;font-weight:700}
-#duel .bl{display:flex;align-items:center;gap:2%;width:100%;font-size:min(4.2vw,18px)}
-#duel .bal{flex:1;height:15px;border:2px solid #5a4222;background:#a63a30;position:relative}
-#duel .bal b{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(#52a79c,#2c6b66);transition:width .4s}
-#duel .bal u{position:absolute;top:50%;width:17px;height:17px;background:#e8c870;border:2px solid #5a4222;transform:translate(-50%,-50%) rotate(45deg);transition:left .4s}
-#duel .stt{font-size:min(4.4vw,19px);letter-spacing:.2em}
-#duel .cn{position:absolute;width:min(16vw,70px);aspect-ratio:220/153;background:url(assets/ui2/corner.webp) center/contain no-repeat;pointer-events:none;z-index:1}#duel .cn.tl{left:0;top:0}#duel .cn.tr{right:0;top:0;transform:scaleX(-1)}#duel .cn.bl{left:0;bottom:0;transform:scaleY(-1)}#duel .cn.br{right:0;bottom:0;transform:scale(-1,-1)}
-#duel .ft::before{content:'';position:absolute;left:0;right:0;top:-2.8vh;height:5.4vh;background:url(assets/ui2/vine.webp) center/100% 100% no-repeat;pointer-events:none}
-#duel .pips{position:absolute;left:0;right:0;bottom:7%;display:flex;justify-content:center;gap:3.4vw;z-index:3;pointer-events:none}
-#duel .tgw{position:absolute;left:0;right:0;top:1.5%;display:flex;flex-direction:column;align-items:center;gap:4px;z-index:3;pointer-events:none}
-#duel .tgw .tg{padding:.4vh 4vw;background:#f8f0dcdd;border:1.5px solid #6a5028;border-radius:14px}#duel .tgw .tg:empty{display:none}
-#duel .pips i{position:relative;width:min(7.6vw,33px);height:min(7.6vw,33px);display:flex;align-items:center;justify-content:center;border:2px solid #8a7648;background:#e6d8b4;font-style:normal;font-weight:700;font-size:min(3.8vw,16px);transform:rotate(45deg)}
-#duel .pips i span{transform:rotate(-45deg)}
-#duel .pips i.h::after{content:'❗';position:absolute;right:-6px;top:-10px;font-size:15px;transform:rotate(-45deg)}
-#duel .pips i.w{background:#2f6f6c;color:#fff;border-color:#1d4a4a}#duel .pips i.l{background:#a63a30;color:#fff;border-color:#6a1d18}
-#duel .pips i.cur{border-color:#d8a020;box-shadow:0 0 10px #f0b030;animation:dcur .8s infinite alternate}
-@keyframes dcur{to{box-shadow:0 0 18px #ffd060}}
-#duel .tg{font-size:min(3.9vw,16px);text-align:center}
-#duel .tm{width:46%;height:5px;background:#0004}#duel .tm b{display:block;height:100%;width:0;background:#b8372a}
-#duel .bt{display:flex;gap:2%;width:100%;align-items:stretch}
-#duel .bt button{border:0;background:url(assets/ui2/btn_cream.webp) center/100% 100% no-repeat;color:#2a1a0c;font-size:min(3.6vw,15px);padding:0 2%;white-space:nowrap;line-height:1.2}
-#duel .bt .sp2,#duel .bt .sk{flex:0 0 25%}
-#duel .bt .go2{flex:1;position:relative;display:flex;align-items:center;gap:3%;padding:1vh 7%;justify-content:center;background:url(assets/ui2/btn_teal.webp) center/100% 100% no-repeat;color:#f4ead0;text-align:left}
-#duel .go2 .fl{display:none}#duel .go2 span{white-space:nowrap}#duel .go2{text-align:center!important}#duel .go2 b{display:block;font-size:min(6.6vw,28px);letter-spacing:.2em}#duel .go2 small{display:block;font-size:min(3vw,12px);line-height:1.25}
-#duel .go2 em{position:absolute;right:3%;top:6%;font-style:normal;font-size:min(3.2vw,13px);border:1px solid #d8b86a99;border-radius:10px;padding:0 6px;background:#0003}
-#duel .go2.ready{animation:dgo .7s infinite alternate}@keyframes dgo{to{filter:drop-shadow(0 0 8px #ffd060) brightness(1.15)}}
-#duel .go2.used{filter:grayscale(.9) brightness(.8);animation:none}
-#duel .res{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;background:#000a;z-index:9;text-align:center;color:#fff;font:900 min(10vw,44px) serif;text-shadow:0 0 12px #f60}
-#duel .res.on{display:flex}#duel .res small{display:block;margin-top:1.4vh;font-size:min(4vw,16px);font-weight:400;color:#e8d8b0;text-shadow:none}
-#duel.shake .stage{animation:dsh .25s}@keyframes dsh{25%{transform:translate(-6px,3px)}75%{transform:translate(6px,-3px)}}`;
+#duel .L{left:7%}#duel .R{right:5%}
+#duel .say{position:absolute;bottom:57%;max-width:52%;min-width:28%;padding:calc(14*var(--u)) calc(14*var(--u)) calc(10*var(--u));background:#fbf6e9;border:1.5px solid #3b2a16;border-radius:calc(12*var(--u));box-shadow:0 calc(3*var(--u)) 0 #3b2a1622,0 calc(4*var(--u)) calc(12*var(--u)) #0004;
+  font-size:calc(15.5*var(--u));line-height:1.45;letter-spacing:.03em;opacity:0;transform:scale(.6);transition:opacity .12s,transform .22s cubic-bezier(.2,1.5,.4,1);pointer-events:none;z-index:4}
+#duel .say::after{content:'';position:absolute;bottom:calc(-9*var(--u));width:calc(14*var(--u));height:calc(14*var(--u));background:#fbf6e9;border:1.5px solid #3b2a16;border-top:0;border-left:0;transform:rotate(45deg)}
+#duel .say.l{left:4%;transform-origin:22% 110%}#duel .say.l::after{left:22%}#duel .say.r{right:4%;transform-origin:78% 110%}#duel .say.r::after{right:22%}
+#duel .say.on{opacity:1;transform:none}
+#duel .say small{position:absolute;top:calc(-10*var(--u));left:calc(10*var(--u));padding:calc(1*var(--u)) calc(8*var(--u));background:#3b2a16;color:#f3e7c8;border-radius:calc(3*var(--u));font-size:calc(10*var(--u));letter-spacing:.1em;line-height:1.6}
+#duel .say.r small{left:auto;right:calc(10*var(--u))}#duel .say.foe{border-color:#6e1f17}#duel .say.foe small{background:#6e1f17}
+#duel .say.big{font-size:calc(18*var(--u));color:#7a1d14;max-width:66%}
+#duel .num{position:absolute;font:italic 700 calc(34*var(--u)) Georgia,'DMincho',serif;color:#fff3d2;-webkit-text-stroke:calc(1.2*var(--u)) #4a1c08;text-shadow:0 calc(2*var(--u)) 0 #4a1c08,0 0 calc(10*var(--u)) #ff9a3c;animation:dnum .9s cubic-bezier(.2,.8,.3,1) forwards;pointer-events:none;z-index:5}
+@keyframes dnum{0%{transform:translateY(0) scale(1.6);opacity:1}25%{transform:translateY(-6px) scale(1)}100%{transform:translateY(-44px);opacity:0}}
+#duel .slash{position:absolute;width:42%;height:calc(5*var(--u));top:52%;background:linear-gradient(90deg,#fff0,#fff,#ffe9a8,#fff0);box-shadow:0 0 calc(14*var(--u)) #ffd060;transform:rotate(-20deg) scaleX(0);animation:dsl .24s ease-out forwards;z-index:5}
+@keyframes dsl{to{transform:rotate(-20deg) scaleX(1);opacity:0}}
+#duel .cut{position:absolute;left:0;right:0;top:30%;height:22%;display:flex;align-items:center;gap:calc(14*var(--u));padding:0 7%;background:linear-gradient(90deg,#163f3bf2,#1f5650e6 60%,#1f565000);border-top:1px solid #d8b86a;border-bottom:1px solid #d8b86a;transform:translateX(-105%);transition:transform .3s cubic-bezier(.2,.9,.3,1);z-index:6;color:#f6ecd0}
+#duel .cut.on{transform:none}#duel .cut img{height:78%;border-radius:50%;box-shadow:0 0 0 2px #d8b86a}#duel .cut div{font-size:calc(30*var(--u));letter-spacing:.2em}#duel .cut small{display:block;font-size:calc(12*var(--u));letter-spacing:.08em;color:#e6d6aa}
+#duel .ft{position:relative;z-index:2;flex:0 0 25%;display:flex;flex-direction:column;align-items:center;justify-content:space-evenly;padding:calc(14*var(--u)) calc(18*var(--u)) calc(14*var(--u))}
+#duel .ft::before{content:'';position:absolute;left:0;right:0;top:calc(-20*var(--u));height:calc(40*var(--u));background:url(assets/ui2/vine.webp) center/100% 100% no-repeat;pointer-events:none}
+#duel .ft h3{margin:0;font-size:calc(18*var(--u));font-weight:700;letter-spacing:.3em;padding-left:.3em}
+#duel .blr{display:flex;align-items:center;gap:calc(10*var(--u));width:100%;font-size:calc(12.5*var(--u));letter-spacing:.06em}
+#duel .bal{flex:1;height:calc(12*var(--u));padding:1px;background:#2a1e12;border:1px solid #8c6c34;box-shadow:0 0 0 1px #e9dcbcaa;position:relative}
+#duel .bal::before{content:'';position:absolute;inset:1px;background:linear-gradient(#d4705c,#a3362b 60%,#86281f)}
+#duel .bal b{position:absolute;left:1px;top:1px;bottom:1px;background:linear-gradient(#5aa59a,#2c6a64 60%,#24564f);transition:width .45s cubic-bezier(.3,.8,.3,1)}
+#duel .bal u{position:absolute;top:50%;width:calc(14*var(--u));height:calc(14*var(--u));background:linear-gradient(135deg,#f6e2a0,#c99a3c);border:1px solid #5e4320;transform:translate(-50%,-50%) rotate(45deg);transition:left .45s cubic-bezier(.3,.8,.3,1)}
+#duel .row{display:flex;align-items:center;justify-content:center;gap:calc(12*var(--u));width:100%}
+#duel .stt{font-size:calc(14*var(--u));letter-spacing:.08em;min-width:calc(120*var(--u));text-align:center;white-space:nowrap}#duel .stt em{font-style:normal;color:var(--ink2);font-size:.85em;margin-right:.6em}#duel .stt.hv{color:var(--red)}
+#duel .pips{display:flex;gap:calc(7*var(--u))}
+#duel .pips i{position:relative;width:calc(12*var(--u));height:calc(12*var(--u));border:1px solid #7d6438;background:#efe5cb;transform:rotate(45deg);transition:background .2s}
+#duel .pips i.h{border-color:var(--red);box-shadow:0 0 0 1px #a3362b55}
+#duel .pips i.w{background:var(--teal);border-color:#173d39}#duel .pips i.l{background:var(--red);border-color:#5e1a13}
+#duel .pips i.cur{background:#f2cf6a;border-color:#7a5418;box-shadow:0 0 calc(6*var(--u)) #e8b030}
+#duel .bt{display:flex;gap:calc(8*var(--u));width:100%;align-items:center}
+#duel .bt .sp2,#duel .bt .sk{flex:0 0 26%;height:calc(48*var(--u));background:url(assets/ui2/btn_cream.webp) center/100% 100% no-repeat;font-size:calc(14*var(--u));letter-spacing:.08em;white-space:nowrap}
+#duel .go2{flex:1;position:relative;height:calc(70*var(--u));background:url(assets/ui2/btn_teal.webp) center/100% 100% no-repeat;color:#f3ead2;text-shadow:0 1px 2px #0006;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden}
+#duel .go2 b{font-size:calc(22*var(--u));font-weight:700;letter-spacing:.3em;padding-left:.3em;line-height:1.2}#duel .go2 small{font-size:calc(10.5*var(--u));letter-spacing:.06em;color:#e3d7b4}
+#duel .go2 em{position:absolute;right:calc(20*var(--u));top:calc(4*var(--u));font-style:normal;font-size:calc(9.5*var(--u));border:1px solid #d8b86acc;border-radius:calc(8*var(--u));padding:0 calc(6*var(--u));background:#173f3b;color:#f3e2b0;letter-spacing:.04em;line-height:1.6;text-shadow:none}
+#duel .go2 .tm{position:absolute;left:14%;right:14%;bottom:calc(9*var(--u));height:calc(2*var(--u));background:#0003}#duel .go2 .tm b{display:block;height:100%;width:0;padding:0;background:#f0cd70;letter-spacing:0}
+#duel .go2.ready{animation:dgo .7s infinite alternate}@keyframes dgo{to{filter:drop-shadow(0 0 calc(7*var(--u)) #ffd060) brightness(1.12)}}
+#duel .go2.used{filter:grayscale(.85) brightness(.82);animation:none}
+#duel .res{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:#0006;z-index:9;cursor:pointer}
+#duel .res.on{display:flex}
+#duel .res .bd{width:100%;padding:calc(22*var(--u)) 0 calc(18*var(--u));display:flex;flex-direction:column;align-items:center;background:#efe3c8 url(assets/ui2/parch.jpg) 0 0/calc(760*var(--u)) auto;border-top:1px solid var(--gold);border-bottom:1px solid var(--gold);box-shadow:0 0 calc(30*var(--u)) #0008;animation:dres .35s cubic-bezier(.2,1.3,.4,1)}
+@keyframes dres{from{transform:scaleY(0);opacity:0}}
+#duel .res .k{font-size:calc(12*var(--u));letter-spacing:.3em;color:var(--ink2)}
+#duel .res h2{margin:calc(2*var(--u)) 0;font-size:calc(40*var(--u));font-weight:700;letter-spacing:.3em;padding-left:.3em}
+#duel .res h2.w{color:var(--teal)}#duel .res h2.l{color:var(--red)}
+#duel .res img{width:calc(200*var(--u))}#duel .res p{margin:calc(6*var(--u)) 0 0;font-size:calc(13*var(--u));letter-spacing:.08em}#duel .res p small{display:block;margin-top:calc(8*var(--u));font-size:calc(11*var(--u));color:var(--ink2)}
+#duel.shake .stage{animation:dsh .25s}@keyframes dsh{25%{transform:translate(-5px,3px)}75%{transform:translate(5px,-3px)}}`;
 document.head.appendChild(dCss);
 const duelEl = document.createElement('div'); duelEl.id = 'duel'; document.body.appendChild(duelEl);
 const foeURL = FOE_IMG[3] ? 'assets/npc/foe_4.webp' : foeTex.image.toDataURL();
@@ -898,29 +925,31 @@ const pickOf = a => a[Math.floor(Math.random() * a.length)];
 function playDuel(k, done) { // 画面いっぱいの一騎打ち。五合の勝負（先に3合）。号令は1回だけ：大技の合に使えば見切り、通常の合なら強化
   const R = G.raid, A = GM.ALLY[k], F = GM.foeGeneral(G), look = foeLook(), plan = GM.duelPlan(G, k), AL = GM.DUEL_LINES[k] || GM.DUEL_LINES.mina, FL = GM.DUEL_LINES[duelRank()];
   duelEl.style.display = 'flex';
-  const pipsHtml = [0, 1, 2, 3, 4].map(i => `<i class="${plan.heavy.includes(i) ? 'h' : ''}"><span>${'一二三四五'[i]}</span></i>`).join('');
+  const pipsHtml = [0, 1, 2, 3, 4].map(i => `<i class="${plan.heavy.includes(i) ? 'h' : ''}"></i>`).join('');
   duelEl.innerHTML = `<div class="hd"><i class="cn tl"></i><i class="cn tr"></i><div class="sd"><div class="fw"><img class="fc" src="${faceRaw[k]}"><i class="rg"></i></div><div class="hb"><div class="nm">${A.n}</div><div class="hp"><b style="width:100%"></b></div></div></div>
-    <div class="ct"><small>第${R.w || G.week}週</small><h1>一騎打ち</h1></div>
+    <div class="ct"><small>第${R.w || G.week}週</small><img src="assets/ui2/divider2.webp"><h1>一騎打ち</h1></div>
     <div class="sd r"><div class="fw"><div class="fc foe" style="background-image:url(assets/npc/foe_${look}.webp)"></div><i class="rg"></i></div><div class="hb"><div class="nm">${F.n}</div><div class="hp"><b style="width:100%"></b></div></div></div></div>
-    <div class="stage" style="background-image:url(assets/field/${R.dir || 'pass'}.jpg)"><div class="tgw"><div class="tg"></div><div class="tm"><b></b></div></div><div class="pips">${pipsHtml}</div><div class="say l"></div><div class="say r"></div>
-      <div class="f L">${(DUEL_CLIP[k] || []).length ? `<div class="sp"></div>` : `<img src="../ally/${k}.png">`}</div><div class="f R" style="height:${R.boss ? 47 : 43}%">${(FOEDUEL[look] || []).length ? `<div class="sp" data-filter="drop-shadow(0 0 10px #f30) drop-shadow(0 6px 8px #000)"></div>` : `<img src="assets/npc/foe_${look}.webp" style="filter:drop-shadow(0 0 10px #f30) drop-shadow(0 6px 8px #000)">`}</div>
+    <div class="stage" style="background-image:url(assets/field/${R.dir || 'pass'}.jpg)"><div class="say l"></div><div class="say r foe"></div>
+      <div class="f L">${(DUEL_CLIP[k] || []).length ? `<div class="sp"></div>` : `<img src="../ally/${k}.png">`}</div><div class="f R" style="height:${R.boss ? 40 : 36}%">${(FOEDUEL[look] || []).length ? `<div class="sp" data-filter="drop-shadow(0 0 10px #f30) drop-shadow(0 6px 8px #000)"></div>` : `<img src="assets/npc/foe_${look}.webp" style="filter:drop-shadow(0 0 10px #f30) drop-shadow(0 6px 8px #000)">`}</div>
       <div class="cut"><img src="${faceURL[k]}"><div></div></div></div>
-    <div class="ft"><i class="cn bl"></i><i class="cn br"></i><h3>戦 況</h3><div class="bl"><span>自軍</span><div class="bal"><b style="width:50%"></b><u style="left:50%"></u></div><span>敵軍</span></div><div class="stt">拮抗</div>
-      <div class="bt"><button class="sp2">▶▶ ×1</button><button class="go2"><span class="fl">⚑</span><span><b>号令</b><small>次の一合を強化<br>大技には見切り</small></span><em>残り1回</em></button><button class="sk">スキップ ›</button></div></div>
+    <div class="ft"><i class="cn bl"></i><i class="cn br"></i><h3>戦況</h3><div class="blr"><span>自軍</span><div class="bal"><b style="width:50%"></b><u style="left:50%"></u></div><span>敵軍</span></div>
+      <div class="row"><div class="pips">${pipsHtml}</div><div class="stt">間合いを測る</div></div>
+      <div class="bt"><button class="sp2">▶▶ 速度 ×1</button><button class="go2"><b>号令</b><small>次の一合を強化</small><em>残り1回</em><i class="tm"><b></b></i></button><button class="sk">スキップ ›</button></div></div>
     <div class="res"></div>`;
-  const $ = q => duelEl.querySelector(q), L = $('.L'), Rf = $('.R'), hl = $('.sd:not(.r) .hp b'), hr = $('.sd.r .hp b'), pips = [...duelEl.querySelectorAll('.pips i')], tg = $('.tg'), tm = $('.tm b'), gb = $('.go2'), stt = $('.stt'), bal = $('.bal b'), balu = $('.bal u'), stage = $('.stage');
+  const $ = q => duelEl.querySelector(q), L = $('.L'), Rf = $('.R'), hl = $('.sd:not(.r) .hp b'), hr = $('.sd.r .hp b'), pips = [...duelEl.querySelectorAll('.pips i')], tm = $('.tm b'), gb = $('.go2'), stt = $('.stt'), bal = $('.bal b'), balu = $('.bal u'), stage = $('.stage');
   let timers = [], spd = 1, hpL = 100, hpR = 100, aw = 0, fw = 0, nextI = 0, used = false, armed = false, inWin = false, over = false, winT = null, cur = -1;
   const T = (f, ms) => { const t = setTimeout(f, ms); timers.push(t); return t; }, D = ms => ms / spd;
   const actL = clipActor(L, L.querySelector('.sp') || document.createElement('div'), DUEL_CLIP[k] || [], '../ally/', T);
   const actR = clipActor(Rf, Rf.querySelector('.sp') || document.createElement('div'), FOEDUEL[look] || [], 'assets/npc/', T);
-  const sayT = {}; const say = (side, text, ms = 1700) => { const e = $('.say.' + side); clearTimeout(sayT[side]); e.innerHTML = `<small>${side === 'l' ? A.n : F.n}</small>${text}`; e.classList.add('on'); sayT[side] = setTimeout(() => e.classList.remove('on'), ms); timers.push(sayT[side]); };
-  const upd = () => { hl.style.width = hpL + '%'; hr.style.width = hpR + '%'; const b = Math.max(6, Math.min(94, 50 + (hpL - hpR) / 2)); bal.style.width = b + '%'; balu.style.left = b + '%'; stt.textContent = b > 62 ? '優勢' : b < 38 ? '劣勢' : '拮抗'; };
+  const sayT = {}; const say = (side, text, ms = 1700, big = false) => { const e = $('.say.' + side); clearTimeout(sayT[side]); e.classList.remove('on'); void e.offsetWidth; e.classList.toggle('big', big); e.innerHTML = `<small>${side === 'l' ? A.n : F.n}</small>${text}`; e.classList.add('on'); sayT[side] = setTimeout(() => e.classList.remove('on'), ms); timers.push(sayT[side]); };
+  const upd = () => { hl.style.width = hpL + '%'; hr.style.width = hpR + '%'; const b = Math.max(6, Math.min(94, 50 + (hpL - hpR) / 2)); bal.style.width = b + '%'; balu.style.left = b + '%'; word = b > 62 ? '優勢' : b < 38 ? '劣勢' : '拮抗'; };
+  let word = '拮抗'; const msg = (html, hv = false) => { stt.innerHTML = html; stt.classList.toggle('hv', hv); };
   const apply = (i, r) => { if (r.ally) { aw++; hpR = Math.max(0, hpR - r.dmg); } else { fw++; hpL = Math.max(0, hpL - r.dmg); } nextI = i + 1; pips[i].classList.remove('cur'); pips[i].classList.add(r.ally ? 'w' : 'l'); };
-  const finish = () => { if (over) return; over = true; const win = aw >= 3; GM.duelSet(G, k, win); if (win) hpR = 0; else hpL = 0; upd(); gb.classList.remove('ready'); tg.textContent = ''; tm.style.width = '0%';
+  const finish = () => { if (over) return; over = true; if (window.__duelLog) console.log('DUEL finish aw=' + aw + ' fw=' + fw + ' pips=' + pips.map(p => p.className).join('|') + ' dom=' + pips[0].isConnected); const win = aw >= 3; GM.duelSet(G, k, win); if (win) hpR = 0; else hpL = 0; upd(); gb.classList.remove('ready'); msg(win ? '勝負あり' : '勝負あり'); tm.style.width = '0%';
     say(win ? 'l' : 'r', pickOf((win ? AL : FL).win), 2600); say(win ? 'r' : 'l', pickOf((win ? FL : AL).lose), 2600);
-    T(() => { const r = $('.res'); r.innerHTML = `<span style="color:${win ? '#ffd770' : '#ff7a6a'}">${win ? '一騎打ちに勝利' : '一騎打ちに敗北'}</span><small>${win ? '戦況が有利になった' : '戦況が不利になった'}・タップで続ける</small>`; r.classList.add('on');
-      r.onclick = e => { e.stopPropagation(); timers.forEach(clearTimeout); if (actL) actL.reset(); if (actR) actR.reset(); duelEl.style.display = 'none'; done(); }; }, 1900); };
-  const runRound = i => { inWin = false; gb.classList.remove('ready'); tg.textContent = '';
+    T(() => { const r = $('.res'); r.innerHTML = `<div class="bd"><div class="k">一騎打ち</div><h2 class="${win ? 'w' : 'l'}">${win ? '勝利' : '敗北'}</h2><img src="assets/ui2/divider2.webp"><p>${win ? `${A.n}が${F.n}を討ち取った。戦況が有利になる` : `${A.n}が敗れた。戦況が不利になる`}<small>タップで続ける</small></p></div>`; r.classList.add('on');
+      r.onclick = e => { e.stopPropagation(); if (!r.classList.contains('on')) return; timers.forEach(clearTimeout); if (actL) actL.reset(); if (actR) actR.reset(); duelEl.style.display = 'none'; done(); }; }, 1900); };
+  const runRound = i => { inWin = false; gb.classList.remove('ready');
     const r = GM.duelRound(plan, i, armed), at = r.ally ? L : Rf, df = r.ally ? Rf : L, dir = r.ally ? 1 : -1, act = r.ally ? actL : actR, t0 = 750; armed = false; const clip = act ? act.play(t0) : null;
     if (r.kind === 'counter') { const c = $('.cut'); c.querySelector('div').innerHTML = `見切り！<small>${A.n}が大技を受け流す</small>`; T(() => c.classList.add('on'), 100); T(() => c.classList.remove('on'), t0 + 700); }
     T(() => { at.style.transform = `translateX(${dir * (clip ? 10 : 34)}vw)`; }, t0);
@@ -931,11 +960,11 @@ function playDuel(k, done) { // 画面いっぱいの一騎打ち。五合の勝
     T(() => { if (aw >= 3 || fw >= 3) finish(); else roundStart(i + 1); }, t0 + D(1250)); };
   const goRound = i => { gb.classList.remove('ready'); runRound(i); };
   const roundStart = i => { if (over) return; cur = i; const heavy = plan.heavy.includes(i); pips[i].classList.add('cur'); inWin = true;
-    tg.innerHTML = heavy ? `<b style="color:#a63a30">第${i + 1}合　敵将が大きく振りかぶる！</b>` : `第${i + 1}合　両者、間合いを測る`; if (heavy) say('r', pickOf(FL.heavy), D(1600));
-    const w = D(2600); tm.style.transition = 'none'; tm.style.width = '100%'; void tm.offsetWidth; tm.style.transition = `width ${w}ms linear`; tm.style.width = '0%'; if (!used) gb.classList.add('ready'); winT = T(() => goRound(i), w); };
+    msg(heavy ? `<em>第${i + 1}合</em>大技の構え${used ? '' : '　─　号令で見切れる'}` : `<em>第${i + 1}合</em>${word}`, heavy); if (heavy) say('r', pickOf(FL.heavy), D(1600), true);
+    const w = D(used ? 700 : 2600); tm.style.transition = 'none'; tm.style.width = '100%'; void tm.offsetWidth; tm.style.transition = `width ${w}ms linear`; tm.style.width = '0%'; if (!used) gb.classList.add('ready'); winT = T(() => goRound(i), w); };
   gb.onclick = e => { e.stopPropagation(); if (used || over || !inWin) return; used = true; armed = true; gb.classList.remove('ready'); gb.classList.add('used'); gb.querySelector('em').textContent = '使用済み';
-    const heavy = plan.heavy.includes(cur); tg.innerHTML = `<b style="color:#1f5d58">号令！　${heavy ? '見切りの構え' : '次の一合を強化'}</b>`; clearTimeout(winT); winT = T(() => goRound(cur), D(650)); };
-  $('.sp2').onclick = e => { e.stopPropagation(); spd = spd === 1 ? 2 : 1; e.currentTarget.textContent = `▶▶ ×${spd}`; };
+    const heavy = plan.heavy.includes(cur); msg(`<em>号令</em>${heavy ? '見切りの構え' : '次の一合を強化'}`); say('l', pickOf(AL.hit), D(900)); clearTimeout(winT); winT = T(() => goRound(cur), D(650)); };
+  $('.sp2').onclick = e => { e.stopPropagation(); spd = spd === 1 ? 2 : 1; e.currentTarget.textContent = `▶▶ 速度 ×${spd}`; };
   $('.sk').onclick = e => { e.stopPropagation(); if (over) return; timers.forEach(clearTimeout); if (actL) actL.reset(); if (actR) actR.reset(); [L, Rf].forEach(x => { x.style.transform = ''; x.style.filter = ''; }); duelEl.classList.remove('shake'); $('.cut').classList.remove('on'); pips.forEach(p => p.classList.remove('cur'));
     while (aw < 3 && fw < 3 && nextI < 5) { apply(nextI, GM.duelRound(plan, nextI, armed)); armed = false; } upd(); finish(); };
   duelEl.onclick = null;
@@ -944,9 +973,9 @@ function playDuel(k, done) { // 画面いっぱいの一騎打ち。五合の勝
 function openSelect(cs, F, onPick, onDecline) { // 一騎打ちに送り出す仲間を選ぶ（モック準拠：上に敵将、下に仲間のカード）
   const R = G.raid, look = foeLook(), FLo = GM.DUEL_LINES[duelRank()]; let sel = cs[0];
   const por = {}; cs.forEach(k => { por[k] = POR[k] ? pickOf(POR[k]) : `../ally/${k}.png`; });
-  duelSel.innerHTML = `<div class="hero" style="background-image:url(assets/npc/bust_${look}.webp),url(assets/field/${R.dir || 'pass'}.jpg);background-size:124% auto,cover;background-position:0 0,center"><div class="tt"><small>第${R.w || G.week}週</small><h1>一騎打ち</h1></div><div class="qt">「${FLo.open[0]}」<small>── ${F.n}</small></div></div>
-    <div class="pn"><i class="cn tl"></i><i class="cn tr"></i><h2>誰を送り出す？</h2><img class="dv" src="assets/ui2/divider2.webp"><div class="grid">${cs.map(k => { const p = Math.round(GM.duelP(G, k) * 100); return `<div class="cd" data-k="${k}"><img src="${por[k]}"><div class="tx"><div class="nm">${GM.ALLY[k].n}</div><div class="pw">勝率 約${p}%<i class="pb"><b style="width:${p}%"></b></i></div></div><div class="ck">✓</div></div>`; }).join('')}</div>
-      <div class="hint">勝てば有利に、負ければ不利になる</div>${cs.length ? '<button class="go"></button>' : ''}<div class="no">挑戦に応じない</div></div>`;
+  duelSel.innerHTML = `<div class="hero" style="background-image:url(assets/npc/bust_${look}.webp),url(assets/field/${R.dir || 'pass'}.jpg);background-size:124% auto,cover;background-position:0 0,center"><div class="tt"><small>第${R.w || G.week}週</small><img class="dv0" src="assets/ui2/divider2.webp"><h1>一騎打ち</h1></div><div class="qt">${FLo.open[0]}<small>${F.n}</small></div></div>
+    <div class="pn"><i class="cn tl"></i><i class="cn tr"></i><h2>誰を送り出す？</h2><img class="dv" src="assets/ui2/divider2.webp"><div class="grid">${cs.map(k => { const p = Math.round(GM.duelP(G, k) * 100); return `<div class="cd" data-k="${k}"><img src="${por[k]}"><div class="tx"><div class="nm">${GM.ALLY[k].n}</div><div class="ln"></div><div class="pw">勝率 約<b>${p}</b>%</div></div><div class="ck">✓</div></div>`; }).join('')}</div>
+      <div class="hint dline">勝てば有利に、負ければ不利になる</div>${cs.length ? '<button class="go"></button>' : ''}<div class="no">挑戦に応じない</div></div>`;
   const go = duelSel.querySelector('.go'), mark = () => { duelSel.querySelectorAll('.cd').forEach(c => c.classList.toggle('on', c.dataset.k === sel)); if (go) go.textContent = `${GM.ALLY[sel].n}を送り出す`; }; mark();
   duelSel.querySelectorAll('.cd').forEach(c => { c.onclick = e => { e.stopPropagation(); sel = c.dataset.k; mark(); }; });
   if (go) go.onclick = e => { e.stopPropagation(); duelSel.style.display = 'none'; onPick(sel); };
