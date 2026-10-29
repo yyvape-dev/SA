@@ -1,10 +1,10 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793289358';
-import { createUI } from './ui.js?v=1793289358';
-import { createMorning } from './morning.js?v=1793289358';
-import { slashFX } from './fx_slash.js?v=1793289358';
+import * as GM from './game.js?v=1793289657';
+import { createUI } from './ui.js?v=1793289657';
+import { createMorning } from './morning.js?v=1793289657';
+import { slashFX } from './fx_slash.js?v=1793289657';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）

@@ -1,8 +1,8 @@
 // 朝の報告：空の部屋に、歩いて入ってくるラナと、報告役（セラ／ミナ）。タップで「今朝の変化」へ、もう一度タップで領地へ。
 // 基準は背景画像 941×1672。位置と大きさは、その画素で持つ（画面の高さに合わせて --u で拡縮）。
 const REF_W = 941, REF_H = 1672;
-const LANA = { dir: '../sprites/', frames: 24, fps: 12, w: 536, h: 388, ax: 336, ay: 379, scale: 1.13, footX: 350, footY: 1215, fromX: -200 }; // 大きさは、頭の大きさが報告役（ミナ・セラ）とそろうように（2026-10-29。旧 1.38・足元y1190）;
-const SPK = { sera: { ax: 174, w: 291, h: 640, scale: .76, footX: 630, footY: 1215, flip: true }, mina: { ax: 126, w: 280, h: 640, scale: .74, footX: 630, footY: 1215, flip: true } };
+const LANA = { dir: '../sprites/', frames: 24, fps: 12, w: 536, h: 388, ax: 336, ay: 379, scale: 1.28, footX: 350, footY: 1215, fromX: -200 }; // 背の高さはゲーム全体の表（ラナ205：ミナ・セラ210）に合わせる（2026-10-30。旧 1.13）;
+const SPK = { sera: { ax: 174, w: 291, h: 640, scale: .75, footX: 630, footY: 1215, flip: true }, mina: { ax: 126, w: 280, h: 640, scale: .75, footX: 630, footY: 1215, flip: true } };
 const SERIF = '"Hiragino Mincho ProN","Yu Mincho",serif';
 const CSS = `
 #morn{position:fixed;inset:0;z-index:12;background:#000;display:none;overflow:hidden;font-family:${SERIF};-webkit-tap-highlight-color:transparent;user-select:none}
