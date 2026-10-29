@@ -44,7 +44,7 @@ function spawn(q) {
     kind: q.elite ? 2 : foeKindPick(), atk: null,
     size: q.elite ? 1.12 : rnd(0.94, 1.06), elite: q.elite,
     max: (22 + n * 5) * (q.elite ? 10 : 1), hp: 0, sp: (135 + rnd(0, 45) + n * 4) * (q.elite ? 0.8 : 1), /* 2026-10-30 速く（以前 78+0〜40+3n） */
-    state: 'walk', t: rnd(0, 6), atkCD: rnd(0.05, 0.35), stun: 0, kx: 0, flash: 0, dt: 0, dmg: 7 + n * (q.elite ? 2 : 1)
+    state: 'walk', t: rnd(0, 6), atkCD: rnd(0.05, 0.35), bind: 0, /* bind を 0 で持たないと「拘束でない」の判定が外れ、歩きの絵が出なかった */ stun: 0, kx: 0, flash: 0, dt: 0, dmg: 7 + n * (q.elite ? 2 : 1)
   };
   e.hp = e.max; G.enemies.push(e);
 }
@@ -185,7 +185,7 @@ function doHitC(n) { // 1：前方への斬り下ろし 2：背面への払い�
     if (dx > -50 && dx < R && dy < lane) { hurt(e, dmg * (0.9 + Math.random() * 0.2), e.x >= h.x ? 1 : -1, false); hits++; }
   }
   fxArc(h, h.face * side, R, 0.2, false, n === 2);
-  if (hits) { G.freeze = Math.max(G.freeze, 0.05 + Math.min(hits, 10) * 0.008); G.shake = Math.max(G.shake, 5 + Math.min(hits, 12) * 1.1); }
+  if (hits) { G.freeze = Math.max(G.freeze, 0.028 + Math.min(hits, 10) * 0.003); G.shake = Math.max(G.shake, 5 + Math.min(hits, 12) * 1.1); } /* 通常攻撃のヒットストップは短く（2026-10-30、以前 0.05+0.008/体） */
   else G.shake = Math.max(G.shake, 1.5);
 }
 // 貫通の突き：動画の24コマ。溜め(コマ1〜11)は0.35倍に詰め、突き(12〜20)は等倍、戻り(21〜24)は0.7倍
@@ -212,7 +212,7 @@ function doHitB(n) {
     if (dx > -50 && dx < R && dy < lane) { hurt(e, dmg * (0.9 + Math.random() * 0.2), e.x >= h.x ? 1 : -1, n === 3); hits++; }
   }
   fxArc(h, h.face * side, R, 0.22, n === 3, n === 2);
-  if (hits) { G.freeze = Math.max(G.freeze, 0.05 + Math.min(hits, 10) * 0.008); G.shake = Math.max(G.shake, 5 + Math.min(hits, 12) * 1.1); }
+  if (hits) { G.freeze = Math.max(G.freeze, 0.028 + Math.min(hits, 10) * 0.003); G.shake = Math.max(G.shake, 5 + Math.min(hits, 12) * 1.1); } /* 通常攻撃のヒットストップは短く（2026-10-30、以前 0.05+0.008/体） */
   else G.shake = Math.max(G.shake, 1.5);
 }
 function thrTick(h, dt) {
@@ -266,7 +266,7 @@ function doHit(n) {
   }
   if (sk) fxRing(h.x, h.y, R * 1.1, 0.55);
   fxArc(h, h.face, R, sk ? 0.28 : 0.2, sk, n === 2, sk ? VFX_RANA : null);
-  if (hits) { G.freeze = Math.max(G.freeze, 0.05 + Math.min(hits, 10) * 0.008); G.shake = Math.max(G.shake, 5 + Math.min(hits, 12) * (sk ? 1.8 : 1.1)); }
+  if (hits) { G.freeze = Math.max(G.freeze, sk ? 0.05 + Math.min(hits, 10) * 0.008 : 0.028 + Math.min(hits, 10) * 0.003); G.shake = Math.max(G.shake, 5 + Math.min(hits, 12) * (sk ? 1.8 : 1.1)); }
   else G.shake = Math.max(G.shake, sk ? 6 : 1.5);
 }
 
@@ -298,7 +298,7 @@ function doPull(c) {
 
 function hurt(e, d, dir, strong) {
   var bound = e.bind > 0; // 拘束中は、吹き飛ばず、その場に固まったまま
-  e.hp -= d; e.flash = 0.1; e.stun = bound ? 0 : (strong ? 0.5 : 0.28); e.kx = dir * (strong ? 460 : 280) * (e.elite ? 0.3 : 1) * (bound ? 0.12 : 1);
+  e.hp -= d; e.flash = 0.1; e.stun = bound ? 0 : (strong ? 0.5 : 0.13) * (e.elite ? 0.5 : 1); e.kx = dir * (strong ? 460 : 190) /* 通常の当たりのひるみを短く（以前0.28秒・280）：連打だけで封じられないように */ * (e.elite ? 0.3 : 1) * (bound ? 0.12 : 1);
   addText(e.x + rnd(-14, 14), e.y - eh(e) - 10, String(Math.round(d)), strong ? 30 : 22, strong ? '#ffe28a' : '#ffffff', 0.7);
   e.atk = null;
   fxHit(e, dir, strong); // 当たりの衝撃（battle/fx.js）
