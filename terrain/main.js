@@ -1,9 +1,9 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793234032';
-import { createUI } from './ui.js?v=1793234032';
-import { createMorning } from './morning.js?v=1793234032';
+import * as GM from './game.js?v=1793236011';
+import { createUI } from './ui.js?v=1793236011';
+import { createMorning } from './morning.js?v=1793236011';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -794,11 +794,11 @@ const dCss = document.createElement('style'); dCss.textContent = `
 #dsel,#duel{position:fixed;inset:0;display:none;flex-direction:column;overflow:hidden;font-family:"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif;color:#2a1a0c;background:#efe3c8 radial-gradient(120% 70% at 50% 0,#f8f0da,#e9dcbb 65%,#dccba3)}
 #dsel{z-index:10}#duel{z-index:11}
 #dsel button,#duel button{font-family:inherit;cursor:pointer}
-#dsel .hero{position:relative;flex:0 0 41%;background:#222 center 62%/cover no-repeat;-webkit-mask-image:linear-gradient(#000 90%,transparent);mask-image:linear-gradient(#000 90%,transparent)}
+#dsel .hero{position:relative;flex:0 0 41%;background:#222 0 0/124% auto no-repeat;-webkit-mask-image:linear-gradient(#000 90%,transparent);mask-image:linear-gradient(#000 90%,transparent)}
 #dsel .tt,#dsel .qt{z-index:2}#dsel .tt{position:absolute;left:0;top:4%;padding:1.2vh 7vw 1vh 6vw;background:linear-gradient(90deg,#f6edd6ee 70%,#f6edd600)}
 #dsel .tt small{display:block;font-size:min(3.8vw,16px);letter-spacing:.1em}
 #dsel .tt h1{margin:0;font-size:min(13vw,56px);letter-spacing:.06em;line-height:1.1;border-bottom:2px solid #6a5028;padding-bottom:.6vh}
-#dsel .qt{position:absolute;left:6%;top:36%;max-width:52%;font-size:min(6vw,26px);font-weight:700;line-height:1.5;text-shadow:0 0 8px #f6edd6,0 0 4px #f6edd6,0 0 2px #f6edd6}
+#dsel .qt{position:absolute;left:5%;top:40%;max-width:42%;font-size:min(5.4vw,24px);font-weight:700;line-height:1.5;text-shadow:0 0 8px #f6edd6,0 0 4px #f6edd6,0 0 2px #f6edd6}
 #dsel .qt small{display:block;margin-top:.8vh;font-size:.58em;font-weight:400;padding-left:6%}
 #dsel .bust{position:absolute;right:-9%;bottom:-3%;height:112%;max-width:70%;object-fit:contain;object-position:right bottom;filter:drop-shadow(0 4px 12px #000a)}
 #dsel .bust.fb{height:150%;bottom:-48%;right:-16%;max-width:none;width:auto}
@@ -939,8 +939,7 @@ function playDuel(k, done) { // 画面いっぱいの一騎打ち。五合の勝
 function openSelect(cs, F, onPick, onDecline) { // 一騎打ちに送り出す仲間を選ぶ（モック準拠：上に敵将、下に仲間のカード）
   const R = G.raid, look = foeLook(), FLo = GM.DUEL_LINES[duelRank()]; let sel = cs[0];
   const por = {}; cs.forEach(k => { por[k] = POR[k] ? pickOf(POR[k]) : `../ally/${k}.png`; });
-  duelSel.innerHTML = `<div class="hero" style="background-image:url(assets/field/${R.dir || 'pass'}.jpg)"><div class="tt"><small>第${R.w || G.week}週</small><h1>一騎打ち</h1></div><div class="qt">「${FLo.open[0]}」<small>── ${F.n}</small></div>
-      <img class="bust" src="assets/npc/bust_${look}.webp" onerror="this.onerror=null;this.src='assets/npc/foe_${look}.webp';this.classList.add('fb')"></div>
+  duelSel.innerHTML = `<div class="hero" style="background-image:url(assets/npc/bust_${look}.webp),url(assets/field/${R.dir || 'pass'}.jpg);background-size:124% auto,cover;background-position:0 0,center"><div class="tt"><small>第${R.w || G.week}週</small><h1>一騎打ち</h1></div><div class="qt">「${FLo.open[0]}」<small>── ${F.n}</small></div></div>
     <div class="pn"><h2>誰を送り出す？</h2><div class="grid">${cs.map(k => { const p = Math.round(GM.duelP(G, k) * 100); return `<div class="cd" data-k="${k}"><img src="${por[k]}"><div class="tx"><div class="nm">${GM.ALLY[k].n}</div><div class="pw">勝率 約${p}%<i class="pb"><b style="width:${p}%"></b></i></div></div><div class="ck">✓</div></div>`; }).join('')}</div>
       <div class="hint">勝てば有利に、負ければ不利になる</div>${cs.length ? '<button class="go"></button>' : ''}<div class="no">挑戦に応じない</div></div>`;
   const go = duelSel.querySelector('.go'), mark = () => { duelSel.querySelectorAll('.cd').forEach(c => c.classList.toggle('on', c.dataset.k === sel)); if (go) go.textContent = `${GM.ALLY[sel].n}を送り出す`; }; mark();
