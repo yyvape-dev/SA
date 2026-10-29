@@ -24,28 +24,36 @@
 * { box-sizing: border-box; }
 html, body { height: 100%; touch-action: none; -webkit-text-size-adjust: 100%; }
 body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--fg); font-family: var(--font); font-size: 14px; line-height: 1.6; overscroll-behavior: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
-/* 画面いっぱいに表示。16:9の絵は、余った所を黒帯にして収める（横画面前提） */
-.wrap { position: fixed; inset: 0; }
+/* 縦画面：上12%＝顔とHP、中58%＝戦場、下30%＝操作パネル（一騎打ちと同じ配置）。横版は index_land.html に残してある */
+.wrap { position: fixed; inset: 0; background: #000; }
 .head { display: none; }
-#stage { position: absolute; inset: 0; background: #000; overflow: hidden; touch-action: none; }
+#stage { position: absolute; top: 0; bottom: 0; left: 50%; transform: translateX(-50%); width: min(100vw, 60dvh); background: #000; overflow: hidden; touch-action: none; display: flex; flex-direction: column; }
+#top { flex: 0 0 12%; position: relative; padding-top: env(safe-area-inset-top, 0px); background: #17131f; border-bottom: 1px solid var(--line); }
+#field { flex: 0 0 58%; position: relative; overflow: hidden; }
+#ctl { flex: 1 1 auto; position: relative; background: #17131f; border-top: 1px solid var(--line); }
 #game { display: block; width: 100%; height: 100%; outline: none; object-fit: contain; }
+#hud { position: absolute; left: 0; right: 0; bottom: 0; top: env(safe-area-inset-top, 0px); display: flex; flex-direction: column; justify-content: center; gap: 4px; padding: 0 4%; }
+#hud .hpw { position: relative; height: 18px; border-radius: 9px; background: rgba(8,6,12,.8); overflow: hidden; }
+#hud .hpw i { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; background: #c9344a; }
+#hud .hpw i.low { background: #ff5a3c; }
+#hud .hpw span { position: absolute; left: 10px; top: 0; line-height: 18px; font-size: 12px; font-weight: 900; text-shadow: 0 1px 2px #000; }
+#hud .info { display: flex; justify-content: space-between; font-size: 14px; font-weight: 900; color: #ffd27a; }
+#hud .info b { color: #fff2b8; font-weight: 900; }
 #fs { position: absolute; top: max(6px, env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); z-index: 3; font: inherit; font-size: 12px; font-weight: 700; padding: 3px 12px; border-radius: 6px; border: 1px solid var(--line); background: rgba(12,10,17,.55); color: var(--fg); cursor: pointer; opacity: .75; }
 .keys { transition: opacity 1.2s; position: absolute; left: 10px; bottom: 8px; z-index: 2; display: flex; flex-direction: column; gap: 1px; padding: 6px 8px; border-radius: 6px; background: rgba(8,6,12,.5); color: var(--muted); font-size: 11.5px; line-height: 1.5; pointer-events: none; }
 .keys b { color: var(--fg); font-weight: 700; margin-right: 6px; }
 .note { position: absolute; left: 50%; bottom: 4px; transform: translateX(-50%); z-index: 2; margin: 0; color: var(--muted); font-size: 12px; pointer-events: none; text-shadow: 0 1px 3px #000; }
 /* タッチ操作：左下に移動パッド、右下に大きな攻撃ボタン。その周りに、一回り小さいスキルが弧を描いて並ぶ */
-.touch { display: none; position: absolute; inset: 0; z-index: 2; pointer-events: none; touch-action: none; user-select: none; -webkit-user-select: none; }
-@media (pointer: coarse) { .touch { display: block; } .keys { display: none; } }
-#stage.t .touch { display: block; }
-.wrap.t .keys { display: none; }
-#pad { position: absolute; left: calc(max(14px, env(safe-area-inset-left, 0px)) + 1.5vw); bottom: calc(env(safe-area-inset-bottom, 0px) + 6px); width: clamp(110px, 34vh, 190px); aspect-ratio: 1; border-radius: 50%; background: rgba(23,19,31,.45); border: 2px solid rgba(255,255,255,.25); pointer-events: auto; opacity: var(--ui-op); transition: opacity .08s; }
+.touch { display: block; position: absolute; left: 0; right: 0; top: 0; bottom: env(safe-area-inset-bottom, 0px); z-index: 2; pointer-events: none; touch-action: none; user-select: none; -webkit-user-select: none; container-type: size; }
+.keys { display: none !important; } /* 縦画面ではボタンを常に出す。キーの説明はタイトル画面に出る */
+#pad { --P: min(38cqw, 72cqh); position: absolute; left: 5cqw; top: calc(50% - var(--P) / 2); width: var(--P); aspect-ratio: 1; border-radius: 50%; background: rgba(23,19,31,.45); border: 2px solid rgba(255,255,255,.25); pointer-events: auto; opacity: var(--ui-op); transition: opacity .08s; }
 #pad.pressed { opacity: 1; }
 #pad.has-img { background: none; border-color: transparent; }
 #knob.has-img { background: none; }
 #pad img, .btn img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; pointer-events: none; -webkit-user-drag: none; }
 #knob { position: absolute; width: 38%; height: 38%; border-radius: 50%; background: var(--accent); opacity: .8; left: 31%; top: 31%; pointer-events: none; }
-.btns { --A: clamp(96px, 30vh, 150px); --s: calc(var(--A) * .58); --r: calc((var(--A) + var(--s)) / 2 + 8px);
-  position: absolute; right: calc(max(14px, env(safe-area-inset-right, 0px)) + 2.5vw); bottom: calc(env(safe-area-inset-bottom, 0px) + 6px); width: var(--A); height: var(--A); pointer-events: none; }
+.btns { --A: min(28cqw, 50cqh); --s: calc(var(--A) * .58); --r: calc((var(--A) + var(--s)) / 2 + 6px);
+  position: absolute; right: 10cqw; bottom: 8cqh; width: var(--A); height: var(--A); pointer-events: none; }
 .btn { position: absolute; font: inherit; font-weight: 900; border-radius: 50%; border: 2px solid rgba(255,255,255,.32); background: rgba(23,19,31,.62); color: var(--fg); touch-action: none; pointer-events: auto; padding: 0; line-height: 1.15; opacity: var(--ui-op); transition: opacity .08s; }
 .btn .lbl { position: relative; z-index: 1; }
 .btn.has-img { background: none !important; border-color: transparent !important; }
@@ -58,16 +66,19 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
 .btn.l { border-color: #b7a6ff; } .btn.k { border-color: #ffcd6e; } .btn.i { border-color: #8fd0ff; } .btn.u { border-color: #ff8a8a; background: rgba(70,24,30,.78); }
 .btn { -webkit-tap-highlight-color: transparent; }
 .btn.pressed { opacity: 1; filter: brightness(1.35); }
-#rot { display: none; position: absolute; inset: 0; z-index: 10; background: #0c0a11; flex-direction: column; align-items: center; justify-content: center; gap: 10px; font-size: 20px; font-weight: 900; text-align: center; }
-@media (pointer: coarse) and (orientation: portrait) { #rot { display: flex; } }
+
 </style>
 
 <div class="wrap" id="wrap">
   <div class="head"><h1>月夜の回廊 試作</h1></div>
   <div id="stage">
-    <canvas id="game" tabindex="0" aria-label="ゲーム画面"></canvas>
-    <button id="fs" type="button">全画面</button>
-    <div class="touch">
+    <div id="top"><div id="hud">
+      <div class="hpw"><i id="hpI"></i><span id="hpT">HP</span></div>
+      <div class="info"><span id="hWave">WAVE 1</span><span id="hKill">撃破 <b>0</b></span><span id="hGold">素材 <b>0</b></span></div>
+    </div></div>
+    <div id="field"><canvas id="game" tabindex="0" aria-label="ゲーム画面"></canvas></div>
+    <button id="fs" type="button" hidden>全画面</button>
+    <div id="ctl"><div class="touch">
       <div id="pad" aria-label="移動パッド"><div id="knob"></div></div>
       <div class="btns">
         <button class="btn s l" id="btnP" type="button" style="--cx:-0.985;--cy:0.174" data-icon="ui/btn_pull.png"><span class="lbl">吸引</span></button>
@@ -76,8 +87,7 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
         <button class="btn s u" id="btnU" type="button" style="--cx:0.53;--cy:-0.848" data-icon="ui/btn_ult.png"><span class="lbl">必殺</span></button>
         <button class="btn a" id="btnA" type="button" data-icon="ui/btn_attack.png"><span class="lbl">攻撃</span></button>
       </div>
-    </div>
-    <div id="rot"><div>画面を横向きにしてください</div></div>
+    </div></div>
   </div>
   <div class="keys" id="keys">
     <span><b>← ↑ ↓ →</b>移動（WASDも可）</span>
@@ -96,25 +106,29 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
 <script>
 (function () {
   'use strict';
-  var W = 1280, H = 720, BW = 1280; // BW=絵の基準の幅。Wは画面の縦横比に合わせて 1280〜1680 に広がる（黒帯を出さない）
+  /* 縦画面の座標：世界の床の基準は従来どおり H=720（下端＝y720）。キャンバスの論理サイズは W×VH。
+     VH≧720 のときは、世界の y<0（上の空き）まで見せて、カメラを引いた状態にする。TOPY＝画面の上端に来る世界の y。
+     PW＝横に見せたい世界の幅の目安（大きくすると引きになり、敵が多く見えるがキャラは小さくなる）。 */
+  var PW = 760, W = 760, H = 720, VH = 955, TOPY = 720 - 955, BW = 1280; // BW=絵の基準の幅（部屋の長さは W/BW の比で縮める）
   var cv = document.getElementById('game'), ctx = cv.getContext('2d');
-  cv.width = W; cv.height = H;
+  cv.width = W; cv.height = VH;
   function fitW() {
-    var st = document.getElementById('stage'), r = st ? st.getBoundingClientRect() : null;
+    var fd = document.getElementById('field'), r = fd ? fd.getBoundingClientRect() : null;
     if (!r || !(r.width > 0) || !(r.height > 0)) return false;
-    var nw = Math.max(BW, Math.min(1680, Math.round(H * r.width / r.height)));
-    if (Math.abs(nw - W) < 2) return false;
-    W = nw; return true;
+    var a = r.width / r.height, nvh = Math.max(720, Math.min(1000, Math.round(PW / a))), nw = Math.round(nvh * a);
+    if (Math.abs(nw - W) < 2 && Math.abs(nvh - VH) < 2) return false;
+    W = nw; VH = nvh; TOPY = 720 - VH; return true;
   }
+  function RW() { return Math.round(ROOM.w * W / BW); } // 部屋の長さ（戦場 segs 個が隙間なく並ぶよう、見える幅に合わせて縮める）
   var TOUCH = !!((window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || (window.location && /[?&]touch=1/.test(window.location.search || '')));
   (function () { var w = document.getElementById('wrap'), st = document.getElementById('stage'); if (TOUCH && w && w.classList) { w.classList.add('t'); st.classList.add('t'); } })();
   var RES = 1, resTick = 0;
   function fitRes() { // 画面に映る実際の大きさに合わせて内部解像度を上げる（最大2倍）。論理座標は1280×720のまま
     fitW();
     var r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
-    var want = Math.max(1, Math.min(2, Math.round((Math.min(r.width / W, r.height / H) * dpr) * 4) / 4));
+    var want = Math.max(1, Math.min(2, Math.round((Math.min(r.width / W, r.height / VH) * dpr) * 4) / 4));
     if (!(r.width > 0)) want = RES;
-    if (want !== RES || cv.width !== Math.round(W * want)) { RES = want; cv.width = Math.round(W * RES); cv.height = Math.round(H * RES); }
+    if (want !== RES || cv.width !== Math.round(W * want) || cv.height !== Math.round(VH * want)) { RES = want; cv.width = Math.round(W * RES); cv.height = Math.round(VH * RES); }
     ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
   }
 
@@ -152,7 +166,7 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
   ];
   var ROOM = ROOMS[0], LANE_Y0 = ROOM.y0, LANE_Y1 = ROOM.y1, ZK = ROOM.zk || 1, camX = 0, camY = 0;
   function setRoomVars() { LANE_Y0 = ROOM.y0; LANE_Y1 = ROOM.y1; ZK = ROOM.zk || 1; }
-  function LK(k) { return ROOM.segs < 2 ? 0 : Math.round(k * (ROOM.w - W) / (ROOM.segs - 1)); } // k番目の戦場のカメラ位置（画面の左端）
+  function LK(k) { return ROOM.segs < 2 ? 0 : Math.round(k * (RW() - W) / (ROOM.segs - 1)); } // k番目の戦場のカメラ位置（画面の左端）
   function depthScale(y) { var a = ROOM.ds0 || 0.9, b = ROOM.ds1 || 1.06; return a + (b - a) * ((y - LANE_Y0) / (LANE_Y1 - LANE_Y0)); }
   function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
   function rnd(a, b) { return a + Math.random() * (b - a); }
@@ -217,8 +231,8 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
   }
 
   function canvasPoint(ev) {
-    var r = cv.getBoundingClientRect(), k = Math.min(r.width / W, r.height / H);
-    var ox = (r.width - W * k) / 2, oy = (r.height - H * k) / 2;
+    var r = cv.getBoundingClientRect(), k = Math.min(r.width / W, r.height / VH);
+    var ox = (r.width - W * k) / 2, oy = (r.height - VH * k) / 2;
     return { x: (ev.clientX - r.left - ox) / k, y: (ev.clientY - r.top - oy) / k };
   }
   cv.addEventListener('pointerdown', function (ev) {
@@ -230,8 +244,8 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
     if (G.state === 'dead') { newGame(); startRun(); return; }
     if (G.state === 'pick') {
       for (var i = 0; i < 3; i++) {
-        var cx = (W - BW) / 2 + 190 + i * 290;
-        if (p.x >= cx && p.x <= cx + 270 && p.y >= 210 && p.y <= 520) { choose(i); return; }
+        var pr = pickRect(i), py = p.y - (VH - 720) / 2;
+        if (p.x >= pr.x && p.x <= pr.x + pr.w && py >= pr.y && py <= pr.y + pr.h) { choose(i); return; }
       }
     }
   });
@@ -294,7 +308,7 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
   var fsTried = false;
   function tryFs() { // 最初の操作で全画面と横向き固定を試す（対応していない端末では何も起きない）
     if (fsTried || !TOUCH) return; fsTried = true;
-    try { var st = document.getElementById('stage'); if (!document.fullscreenElement && st.requestFullscreen) st.requestFullscreen().then(function () { try { if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(function () {}); } catch (e) {} }).catch(function () {}); } catch (e) {}
+    try { var st = document.getElementById('stage'); if (!document.fullscreenElement && st.requestFullscreen) st.requestFullscreen().then(function () { try { if (screen.orientation && screen.orientation.lock) screen.orientation.lock('portrait').catch(function () {}); } catch (e) {} }).catch(function () {}); } catch (e) {}
   }
   function startRun() {
     tryFs(); G.state = 'play'; G.t = 0;
@@ -687,7 +701,7 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
     // 画面送り：GOの間にカメラが次の戦場へ着いたら固定して次の波。最後の戦場は、右端の出口へ着いたら次の部屋
     if (G.phase === 'go') {
       if (G.seg < ROOM.segs - 1) { if (camX >= LK(G.seg + 1) - 1) { G.seg++; G.phase = 'fight'; startWave(G.wave + 1); } }
-      else if (h.x >= ROOM.w - 150) beginTrans();
+      else if (h.x >= RW() - 150) beginTrans();
     }
     updateCam(dt);
 
@@ -922,31 +936,35 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
 
   function txt(s, x, y, size, col, align, w) {
     ctx.font = '900 ' + size + 'px "Zen Kaku Gothic New","Hiragino Sans","Noto Sans JP",sans-serif';
+    var mw = ctx.measureText(s).width; // 縦画面は幅が狭いので、はみ出す文字は小さくする
+    if (mw > W - 24) { size = size * (W - 24) / mw; ctx.font = '900 ' + size + 'px "Zen Kaku Gothic New","Hiragino Sans","Noto Sans JP",sans-serif'; if (w) w = Math.max(2, w * (W - 24) / mw); }
     ctx.textAlign = align || 'left'; ctx.textBaseline = 'alphabetic';
     ctx.lineJoin = 'round'; ctx.lineWidth = w || Math.max(3, size / 6); ctx.strokeStyle = 'rgba(8,6,12,0.9)';
     ctx.strokeText(s, x, y); ctx.fillStyle = col; ctx.fillText(s, x, y);
   }
 
   function drawHud() {
-    var h = G.hero, i;
-    // HP
-    ctx.fillStyle = 'rgba(8,6,12,0.7)'; ctx.fillRect(24, 22, 330, 20);
-    ctx.fillStyle = h.hp / h.max > 0.3 ? '#c9344a' : '#ff5a3c'; ctx.fillRect(26, 24, 326 * h.hp / h.max, 16);
-    txt('HP ' + Math.ceil(h.hp) + ' / ' + h.max, 30, 38, 15, '#fff', 'left', 3);
-    var left = G.enemies.filter(function (e) { return e.state === 'walk'; }).length + G.queue.length;
-    txt('ROOM ' + (G.roomNo + 1) + '-' + (G.seg + 1) + '　WAVE ' + G.wave + '　残り ' + left, 24, 70, 22, '#ffd27a');
-    if (G.phase === 'go' && G.state === 'play' && !G.trans && Math.floor(G.t * 2.5) % 2 === 0) txt('GO →', W - 130, H / 2, 58, '#ffd27a', 'center'); // 全滅したら、進む先を点滅で示す
-    txt('素材 ' + G.gold + '　レア ' + G.rare, W - 28, 40, 22, '#fff2b8', 'right');
+    if (G.phase === 'go' && G.state === 'play' && !G.trans && Math.floor(G.t * 2.5) % 2 === 0) txt('GO →', W - 90, VH / 2, 58, '#ffd27a', 'center'); // 全滅したら、進む先を点滅で示す
     if (G.combo >= 2) {
       var s = 34 + Math.min(G.combo, 40) * 0.9;
-      txt(G.combo + ' COMBO', W - 28, 96 + (s - 34) * 0.4, s, '#ff9a5a', 'right');
-      ctx.fillStyle = 'rgba(255,154,90,0.85)'; ctx.fillRect(W - 28 - 180 * (G.comboT / 2.4), 108 + (s - 34) * 0.4, 180 * (G.comboT / 2.4), 5);
+      txt(G.combo + ' COMBO', W - 24, 60 + (s - 34) * 0.4, s, '#ff9a5a', 'right');
+      ctx.fillStyle = 'rgba(255,154,90,0.85)'; ctx.fillRect(W - 24 - 180 * (G.comboT / 2.4), 72 + (s - 34) * 0.4, 180 * (G.comboT / 2.4), 5);
     }
-    // スキル（左：吸引 / 右：衝撃波）
-    if (!TOUCH) skillIcon(W / 2 - 138, H - 64, 'L', '吸引', G.pullCD, G.pullMax * S.pcd, '#b7a6ff', '#e6deff');
-    if (!TOUCH) skillIcon(W / 2 - 46, H - 64, 'K', '衝撃波', G.skCD, G.skMax * S.cd, '#ffcd6e', '#ffe9b8');
-    if (!TOUCH) skillIcon(W / 2 + 46, H - 64, 'I', '貫通突き', G.thrCD, G.thrMax, '#8fd0ff', '#d6efff');
-    if (!TOUCH) skillIcon(W / 2 + 138, H - 64, 'U', '必殺', G.ultCD, G.ultMax, '#ff8a8a', '#ffd6d6');
+    // スキルの残り時間は、下の段のボタンに出す（updateTouchCd）
+  }
+  var DH = null, DHlast = '';
+  function updateDomHud() { // 上の段：HP・WAVE・撃破・素材（変わったときだけ書き換える）
+    if (!DH) DH = { i: document.getElementById('hpI'), t: document.getElementById('hpT'), w: document.getElementById('hWave'), k: document.getElementById('hKill'), g: document.getElementById('hGold') };
+    var h = G.hero, left = G.enemies.filter(function (e) { return e.state === 'walk'; }).length + G.queue.length;
+    var wv = BAT.on ? 'WAVE ' + Math.max(1, G.wave) + ' / ' + BAT.waves : 'ROOM ' + (G.roomNo + 1) + '-' + (G.seg + 1) + '　WAVE ' + Math.max(1, G.wave);
+    var key = Math.ceil(h.hp) + '|' + h.max + '|' + wv + '|' + left + '|' + G.kills + '|' + G.gold + '|' + G.rare;
+    if (key === DHlast || !DH.i) return; DHlast = key;
+    DH.i.style.width = Math.max(0, Math.min(100, 100 * h.hp / h.max)) + '%';
+    DH.i.className = h.hp / h.max > 0.3 ? '' : 'low';
+    DH.t.textContent = 'HP ' + Math.ceil(h.hp) + ' / ' + h.max;
+    DH.w.textContent = wv + '　残り ' + left;
+    DH.k.innerHTML = '撃破 <b>' + G.kills + '</b>';
+    DH.g.innerHTML = '素材 <b>' + G.gold + '</b>　レア <b>' + G.rare + '</b>';
   }
   function skillIcon(cx, cy, key, label, cd, max, ring, keyCol) {
     var r = 36, ready = cd <= 0;
@@ -957,17 +975,19 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
     txt(label, cx, cy + r + 20, 14, '#cfc6dc', 'center', 3);
   }
 
-  function drawOverlay() {
+  function pickRect(i) { return { x: 24, y: 200 + i * 165, w: W - 48, h: 150 }; } // 強化のカード（720の枠の中の座標）
+  function drawOverlay() { var oy = (VH - 720) / 2; ctx.save(); ctx.translate(0, oy); drawOverlay0(oy); ctx.restore(); }
+  function drawOverlay0(oy) {
     var i;
     if (G.state === 'result') {
-      ctx.fillStyle = G.result ? 'rgba(10,8,4,0.72)' : 'rgba(30,4,8,0.72)'; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = G.result ? 'rgba(10,8,4,0.72)' : 'rgba(30,4,8,0.72)'; ctx.fillRect(0, -oy, W, VH);
       txt(G.result ? '勝利' : '敗北', W / 2, 250, 72, G.result ? '#ffd27a' : '#ff6b6b', 'center');
       txt(BAT.name + '　到達 WAVE ' + G.wave + '／' + BAT.waves + '　撃破 ' + G.kills + '　最大コンボ ' + G.bestCombo, W / 2, 330, 26, '#fff', 'center');
       if (G.resT > 0.8) txt('タップ、またはキーで領地へ戻る', W / 2, 470, 30, '#ffd27a', 'center');
       return;
     }
     if (G.state === 'title' && BAT.on) {
-      ctx.fillStyle = 'rgba(6,4,10,0.66)'; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = 'rgba(6,4,10,0.66)'; ctx.fillRect(0, -oy, W, VH);
       txt('出撃：' + BAT.name, W / 2, 230, 56, '#ffd27a', 'center');
       txt('WAVE ' + BAT.waves + ' まで生き残れば勝利', W / 2, 300, 32, '#ece6f2', 'center');
       var mods = []; if (BAT.dmg > 1) mods.push('ダメージ+' + Math.round((BAT.dmg - 1) * 100) + '%'); if (BAT.bind) mods.push('拘束+' + BAT.bind + '秒'); if (BAT.hp) mods.push('最大HP+' + BAT.hp);
@@ -977,34 +997,34 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
       return;
     }
     if (G.state === 'title') {
-      ctx.fillStyle = 'rgba(6,4,10,0.62)'; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = 'rgba(6,4,10,0.62)'; ctx.fillRect(0, -oy, W, VH);
       txt('月夜の回廊（試作）', W / 2, 250, 64, '#ffd27a', 'center');
       txt('群れを、一振りで薙ぎ払え。', W / 2, 310, 28, '#ece6f2', 'center');
       txt('移動  ←↑↓→ / WASD　　走る  Shift　　攻撃  J / Space', W / 2, 390, 22, '#cfc6dc', 'center');
       txt('吸引（集めて拘束）  L　　衝撃波（一掃）  K　　→  L のあとに K', W / 2, 426, 22, '#c9bcff', 'center');
       txt('必殺  U（回転斬り・周囲一掃）　　吸引 → 必殺 でほぼ全滅', W / 2, 462, 22, '#ffb3b3', 'center');
-      txt('スマホは、左の丸いパッドと右のボタン', W / 2, 498, 20, '#9d93ab', 'center');
+      txt('下の段：左の丸いパッドと、右のボタン', W / 2, 498, 20, '#9d93ab', 'center');
       txt('クリック、またはキーを押して開始', W / 2, 560, 30, '#fff', 'center');
       return;
     }
     if (G.state === 'pick') {
-      ctx.fillStyle = 'rgba(6,4,10,0.7)'; ctx.fillRect(0, 0, W, H);
-      txt('WAVE ' + G.wave + ' クリア！ 強化を1つ選ぶ', W / 2, 150, 40, '#ffd27a', 'center');
+      ctx.fillStyle = 'rgba(6,4,10,0.7)'; ctx.fillRect(0, -oy, W, VH);
+      txt('WAVE ' + G.wave + ' クリア！ 強化を1つ選ぶ', W / 2, 120, 40, '#ffd27a', 'center');
+      txt('1 / 2 / 3 キー、またはタップで選ぶ', W / 2, 165, 20, '#9d93ab', 'center');
       for (i = 0; i < 3; i++) {
-        var u = UPG[G.pickOpts[i]], cx = (W - BW) / 2 + 190 + i * 290;
-        ctx.fillStyle = 'rgba(30,22,42,0.96)'; ctx.fillRect(cx, 210, 270, 310);
-        ctx.strokeStyle = '#ffb347'; ctx.lineWidth = 3; ctx.strokeRect(cx, 210, 270, 310);
-        txt(String(i + 1), cx + 22, 262, 40, '#ffb347');
-        wrapText(u.name, cx + 135, 320, 236, 26, '#fff', 'center', 3);
-        wrapText(u.desc, cx + 135, 440, 230, 17, '#b9b0c8', 'center', 2);
+        var u = UPG[G.pickOpts[i]], pr = pickRect(i), mx = pr.x + 70 + (pr.w - 70) / 2;
+        ctx.fillStyle = 'rgba(30,22,42,0.96)'; ctx.fillRect(pr.x, pr.y, pr.w, pr.h);
+        ctx.strokeStyle = '#ffb347'; ctx.lineWidth = 3; ctx.strokeRect(pr.x, pr.y, pr.w, pr.h);
+        txt(String(i + 1), pr.x + 34, pr.y + 90, 48, '#ffb347', 'center');
+        wrapText(u.name, mx, pr.y + 52, pr.w - 100, 28, '#fff', 'center', 2);
+        wrapText(u.desc, mx, pr.y + 100, pr.w - 100, 19, '#b9b0c8', 'center', 1);
       }
-      txt('1 / 2 / 3 キー、またはタップで選ぶ', W / 2, 580, 20, '#9d93ab', 'center');
     }
     if (G.state === 'dead') {
-      ctx.fillStyle = 'rgba(30,4,8,0.72)'; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = 'rgba(30,4,8,0.72)'; ctx.fillRect(0, -oy, W, VH);
       txt('やられた…', W / 2, 250, 66, '#ff6b6b', 'center');
       txt('到達 WAVE ' + G.wave + '　撃破 ' + G.kills + '　最大コンボ ' + G.bestCombo + '　素材 ' + G.gold, W / 2, 330, 28, '#fff', 'center');
-      if (G.upgraded.length) wrapText('強化：' + G.upgraded.join(' / '), W / 2, 390, 900, 18, '#cfc6dc', 'center', 2);
+      if (G.upgraded.length) wrapText('強化：' + G.upgraded.join(' / '), W / 2, 390, W - 60, 18, '#cfc6dc', 'center', 2);
       txt('R キー、またはタップでやり直す', W / 2, 500, 28, '#ffd27a', 'center');
     }
   }
@@ -1022,7 +1042,6 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
 
   var CDB = null;
   function updateTouchCd() { // スキルボタンの円グラフ（残り時間の割合）と、使えない間の暗さ
-    if (!TOUCH) return;
     if (!CDB) CDB = [['btnP', 'pullCD', function () { return G.pullMax * S.pcd; }], ['btnS', 'skCD', function () { return G.skMax * S.cd; }], ['btnT', 'thrCD', function () { return G.thrMax; }], ['btnU', 'ultCD', function () { return G.ultMax; }]].map(function (d) { return { el: document.getElementById(d[0]), key: d[1], max: d[2], last: -1 }; });
     for (var i = 0; i < CDB.length; i++) {
       var b = CDB[i], v = Math.round(Math.max(0, Math.min(1, G[b.key] / b.max())) * 50) / 50;
@@ -1034,13 +1053,13 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
   var FLC = null; // 床の上端を溶かした画像（読み込み後に一度だけ作る）
   function drawStage() { // 奥の背景（視差つき・鏡写しで繰り返し）＋ 床（1:1・横に繰り返せる）
     var bk = IMG.s1_back, fl = IMG.s1_floor, hz = ROOM.hz, m = G.shake > 0.5 ? 12 : 0;
-    var bw = BW, bh = hz + 8; // 背景は地平線の少し下まで描き、床の溶けた上端の下に敷く
-    ctx.fillStyle = '#16171f'; ctx.fillRect(camX - m, camY - m, W + 2 * m, H + 2 * m);
+    var bk0 = Math.min(0, TOPY), bw = BW * (hz - bk0) / hz, bh = hz + 8; // 背景は地平線の少し下まで描き、床の溶けた上端の下に敷く。縦画面で上に空きが出るときは、縦横比を保ったまま拡大して上端まで覆う
+    ctx.fillStyle = '#16171f'; ctx.fillRect(camX - m, camY + TOPY - m, W + 2 * m, VH + 2 * m);
     var off = camX * ROOM.par, i0 = Math.floor((off - m) / bw), i1 = Math.floor((off + W + m - 0.01) / bw);
     for (var i = i0; i <= i1; i++) {
       ctx.save(); ctx.translate(i * bw - off + camX, 0);
       if (((i % 2) + 2) % 2) { ctx.translate(bw, 0); ctx.scale(-1, 1); }
-      ctx.drawImage(bk, 0, 0, bk.naturalWidth, bk.naturalHeight, 0, 0, bw + 1, hz + 1); ctx.restore();
+      ctx.drawImage(bk, 0, 0, bk.naturalWidth, bk.naturalHeight, 0, bk0, bw + 1, hz - bk0 + 1); ctx.restore();
     }
     ctx.fillStyle = '#1b1c26'; ctx.fillRect(camX - m, hz, W + 2 * m, H - hz + m);
     if (!FLC) {
@@ -1064,7 +1083,7 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
     var im = IMG.bg; if (!im || !im.naturalWidth) return;
     var m = G.shake > 0.5 ? 12 : 0; // 画面の揺れで端が見えないよう、揺れている間だけ余白を描く
     var i0 = Math.floor((camX - m) / BW), i1 = Math.floor((camX + W + m - 0.01) / BW);
-    var j0 = Math.floor((camY - m) / H), j1 = Math.floor((camY + H + m - 0.01) / H);
+    var j0 = Math.floor((camY + TOPY - m) / H), j1 = Math.floor((camY + H + m - 0.01) / H);
     for (var j = j0; j <= j1; j++) for (var i = i0; i <= i1; i++) {
       ctx.save(); ctx.translate(i * BW, j * H);
       if (((i % 2) + 2) % 2) { ctx.translate(BW, 0); ctx.scale(-1, 1); }
@@ -1077,14 +1096,14 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
     updateTouchCd();
     ctx.setTransform(RES, 0, 0, RES, 0, 0);
     ctx.save();
-    ctx.clearRect(0, 0, W, H);
+    ctx.clearRect(0, 0, W, VH);
     var sx = G.shake ? (Math.random() - 0.5) * G.shake : 0, sy = G.shake ? (Math.random() - 0.5) * G.shake : 0;
     ctx.translate(sx, sy);
-    ctx.save(); ctx.translate(-camX, -camY); // ここから世界座標（カメラ追従）。HUDと暗転は、あとで画面座標に戻して描く
+    ctx.save(); ctx.translate(-camX, -camY - TOPY); // ここから世界座標（カメラ追従）。HUDと暗転は、あとで画面座標に戻して描く
     drawBg();
     var h0 = G.hero; // 必殺技の溜め中は、背景を暗くして、主人公と敵を目立たせる
     if (G.state === 'play' && h0.state === 'atk' && h0.kind === 'ult' && h0.t < ULT.hit + 0.02) {
-      ctx.fillStyle = 'rgba(6,4,14,' + (0.5 * Math.min(1, h0.t / 0.5)) + ')'; ctx.fillRect(camX - 10, camY - 10, W + 20, H + 20);
+      ctx.fillStyle = 'rgba(6,4,14,' + (0.5 * Math.min(1, h0.t / 0.5)) + ')'; ctx.fillRect(camX - 10, camY + TOPY - 10, W + 20, VH + 20);
     }
     var list = [];
     G.enemies.forEach(function (e) { list.push({ y: e.y, f: function () { drawSkeleton(e); } }); });
@@ -1100,13 +1119,14 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
     });
     ctx.restore(); // 世界座標ここまで
     ctx.restore();
-    if (G.flash > 0) { ctx.fillStyle = 'rgba(255,255,255,' + Math.min(1, G.flash) + ')'; ctx.fillRect(0, 0, W, H); }
+    if (G.flash > 0) { ctx.fillStyle = 'rgba(255,255,255,' + Math.min(1, G.flash) + ')'; ctx.fillRect(0, 0, W, VH); }
     if (G.state !== 'title') drawHud();
+    updateDomHud();
     drawOverlay();
     if (G.trans) { // 部屋の移動：暗転→部屋名→明転
       var tk = G.trans.t, ta = tk < 0.5 ? tk / 0.5 : Math.max(0, (1 - tk) / 0.5);
-      ctx.fillStyle = 'rgba(0,0,0,' + Math.min(1, ta) + ')'; ctx.fillRect(0, 0, W, H);
-      if (tk > 0.3 && tk < 0.85) { ctx.globalAlpha = Math.min(1, ta * 1.5); txt(ROOMS[(G.roomNo + (G.trans.sw ? 0 : 1)) % ROOMS.length].name, W / 2, H / 2 + 10, 44, '#ffd27a', 'center'); ctx.globalAlpha = 1; }
+      ctx.fillStyle = 'rgba(0,0,0,' + Math.min(1, ta) + ')'; ctx.fillRect(0, 0, W, VH);
+      if (tk > 0.3 && tk < 0.85) { ctx.globalAlpha = Math.min(1, ta * 1.5); txt(ROOMS[(G.roomNo + (G.trans.sw ? 0 : 1)) % ROOMS.length].name, W / 2, VH / 2 + 10, 44, '#ffd27a', 'center'); ctx.globalAlpha = 1; }
     }
   }
 
@@ -1114,7 +1134,7 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
   var last = 0;
   function frame(ts) {
     var dt = Math.min(0.05, (ts - last) / 1000 || 0.016); last = ts;
-    if (!(TOUCH && window.innerHeight > window.innerWidth)) update(dt); draw();
+    update(dt); draw();
     requestAnimationFrame(frame);
   }
   function boot() {
@@ -1141,7 +1161,7 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
 
   // テスト用（遊びには影響しない）
   window.__game = { get: function () { return G; }, stats: function () { return S; }, press: onPress,
-    cam: function () { return { x: camX, y: camY, W: W, room: ROOM, LK: LK }; }, setRoom: function (r) { ROOMS[0] = r; enterRoom(0); } };
+    cam: function () { return { x: camX, y: camY, W: W, VH: VH, RW: RW(), room: ROOM, LK: LK }; }, setRoom: function (r) { ROOMS[0] = r; enterRoom(0); } };
 })();
 </script>
 
