@@ -1,9 +1,9 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793268074';
-import { createUI } from './ui.js?v=1793268074';
-import { createMorning } from './morning.js?v=1793268074';
+import * as GM from './game.js?v=1793268820';
+import { createUI } from './ui.js?v=1793268820';
+import { createMorning } from './morning.js?v=1793268820';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -306,6 +306,7 @@ let castleHit = null;
 
 // ---------- 区画（コードのデータ）と選択表示 ----------
 const plots = layout.plots.map(p => ({ id: p.id, poly: p.poly, home: p.poly, state: 'empty' }));
+for (const p of layout.plots) GM.PLOT_AREA[p.id] = p.area; // 城壁の「区域ごとに1つ」
 const selMat = new THREE.MeshBasicMaterial({ color: 0xffe08a, transparent: true, opacity: .95, depthTest: false, side: THREE.DoubleSide });
 const selGlow = new THREE.MeshBasicMaterial({ color: 0xffc040, transparent: true, opacity: .3, depthTest: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending });
 let selGroup = null, selected = null, selSign = null;
@@ -324,6 +325,8 @@ function select(p) {
 
 // ---------- 施設（区画の状態：0=空き地 1=建築中 2=完成 3=発展後）----------
 const FAC = GM.FAC, STAGE = GM.STAGE, ART = ['smithy', 'tavern', 'farm']; // 絵のある施設。畑はコードで描く
+// 絵がまだ無い施設は、既存の絵を色づけして仮置き（本番の絵は assets/bld/<施設>_1〜3.png を置き、ART に足して ARTALIAS から外す）
+const ARTALIAS = { war: ['tavern', [.5, .66, 1]], drill: ['smithy', [1, .82, .45]], wall: ['smithy', [.55, .56, .62]] };
 const BS = .38; // 素材シートの画素 → 基準画像の画素
 for (const f of ART) for (let k = 1; k <= 3; k++) bldTex[`${f}_${k}`] = await loadBld(`assets/bld/${f}_${k}.png`);
 plots.forEach(pl => { pl.fac = null; pl.stage = 0; pl.mesh = null; pl.base = pl.poly.reduce((a, q) => q[1] > a[1] ? q : a, pl.poly[0]); pl.cx = pl.poly.reduce((a, q) => a + q[0], 0) / 4; });
@@ -450,7 +453,7 @@ function refreshPlot(pl) {
   if (pl.pav) { scene.remove(pl.pav); pl.pav.geometry.dispose(); pl.pav = null; }
   if (pl.mesh) { scene.remove(pl.mesh); pl.mesh.material.dispose(); pl.mesh = null; }
   pl.hit = null; pl.poly = pl.home;
-  const key = `${pl.fac}_${pl.stage}`, t = pl.fac && pl.stage >= 1 ? bldTex[key] : null;
+  const alias = ARTALIAS[pl.fac], key = `${alias ? alias[0] : pl.fac}_${pl.stage}`, t = pl.fac && pl.stage >= 1 ? bldTex[key] : null;
   if (pl.fac === 'farm' && pl.stage >= 1) { // 畑の絵は地面に貼る（真上からの正射影なので、地面の板でも絵どおりに見え、上に立つ仲間を隠さない）
     if (t) { const meta = bld[`assets/bld/${key}.png`], S = FARM_S, w = meta.w * S, h = meta.h * S, left = pl.cx - meta.ax * w, bot = pl.base[1] + 6, top = bot - meta.ay * h;
       pl.pav = groundRect(t, left, top, w, h); scene.add(pl.pav); pl.hit = { key, left, top, w, h }; }
@@ -461,6 +464,7 @@ function refreshPlot(pl) {
     pl.pav = pavingMesh(grow(pl.home, 1.0)); scene.add(pl.pav);
     const bottom = pl.base[1] - 4, w = meta.w * BS, h = meta.h * BS;
     pl.hit = { key, left: pl.cx - meta.ax * w, top: bottom - meta.ay * h, w, h };
+    if (alias) pl.mesh.material.color.setRGB(...alias[1], THREE.SRGBColorSpace);
   }
   pl.stakes.visible = !(pl.fac && pl.stage >= 1);
   if (pl.fire) { scene.remove(pl.fire); pl.fire = null; }
@@ -926,7 +930,7 @@ const HUMAN = { mina: 163, sera: 157, ranka: 166, garou: 212, sol: 197, f1: 197,
 const duelSel = document.createElement('div'); duelSel.id = 'dsel'; document.body.appendChild(duelSel);
 const duelRank = () => G.raid && G.raid.boss ? 'boss' : G.raid && G.raid.E >= 30 ? 'vice' : 'cap';
 const pickOf = a => a[Math.floor(Math.random() * a.length)];
-function playDuel(k, done) { // 画面いっぱいの一騎打ち。五合の勝負（先に3合）。鬨の声は1回だけ：大技の合に使えば見切り、通常の合なら強化
+function playDuel(k, done) { // 画面いっぱいの一騎打ち。五合の勝負（先に3合）。鬨の声は1回（作戦室で増える）：大技の合に使えば見切り、通常の合なら強化
   const R = G.raid, A = GM.ALLY[k], F = GM.foeGeneral(G), look = foeLook(), plan = GM.duelPlan(G, k), AL = GM.DUEL_LINES[k] || GM.DUEL_LINES.mina, FL = GM.DUEL_LINES[duelRank()];
   duelEl.style.display = 'flex';
   const pipsHtml = [0, 1, 2, 3, 4].map(i => `<i class="${plan.heavy.includes(i) ? 'h' : ''}"></i>`).join('');
@@ -938,10 +942,10 @@ function playDuel(k, done) { // 画面いっぱいの一騎打ち。五合の勝
       <div class="cut"><img src="${faceURL[k]}"><div></div></div></div>
     <div class="ft"><i class="cn bl"></i><i class="cn br"></i><h3>戦況</h3><div class="blr"><span>自軍</span><div class="bal"><b style="width:50%"></b><u style="left:50%"></u></div><span>敵軍</span></div>
       <div class="row"><div class="pips">${pipsHtml}</div><div class="stt">間合いを測る</div></div>
-      <div class="bt"><button class="sp2">▶▶ 速度 ×1</button><button class="go2"><b>鬨の声</b><small>次の一合を強化</small><em>残り1回</em><i class="tm"><b></b></i></button><button class="sk">スキップ ›</button></div></div>
+      <div class="bt"><button class="sp2">▶▶ 速度 ×1</button><button class="go2"><b>鬨の声</b><small>次の一合を強化</small><em>残り${GM.orders(G)}回</em><i class="tm"><b></b></i></button><button class="sk">スキップ ›</button></div></div>
     <div class="res"></div>`;
   const $ = q => duelEl.querySelector(q), L = $('.L'), Rf = $('.R'), hl = $('.sd:not(.r) .hp b'), hr = $('.sd.r .hp b'), pips = [...duelEl.querySelectorAll('.pips i')], tm = $('.tm b'), gb = $('.go2'), stt = $('.stt'), bal = $('.bal b'), balu = $('.bal u'), stage = $('.stage');
-  let timers = [], spd = 1, hpL = 100, hpR = 100, aw = 0, fw = 0, nextI = 0, used = false, armed = false, inWin = false, over = false, winT = null, cur = -1;
+  let timers = [], spd = 1, hpL = 100, hpR = 100, aw = 0, fw = 0, nextI = 0, left = GM.orders(G), used = left <= 0, armed = false, inWin = false, over = false, winT = null, cur = -1;
   const T = (f, ms) => { const t = setTimeout(f, ms); timers.push(t); return t; }, D = ms => ms / spd;
   const actL = clipActor(L, L.querySelector('.sp') || document.createElement('div'), DUEL_CLIP[k] || [], '../ally/', T);
   const actR = clipActor(Rf, Rf.querySelector('.sp') || document.createElement('div'), FOEDUEL[look] || [], 'assets/npc/', T);
@@ -966,7 +970,7 @@ function playDuel(k, done) { // 画面いっぱいの一騎打ち。五合の勝
   const roundStart = i => { if (over) return; cur = i; const heavy = plan.heavy.includes(i); pips[i].classList.add('cur'); inWin = true;
     msg(heavy ? `<em>第${i + 1}合</em>大技の構え${used ? '' : '　─　鬨の声で見切れる'}` : `<em>第${i + 1}合</em>${word}`, heavy); if (heavy) say('r', pickOf(FL.heavy), D(1600), true);
     const w = D(used ? 700 : 2600); tm.style.transition = 'none'; tm.style.width = '100%'; void tm.offsetWidth; tm.style.transition = `width ${w}ms linear`; tm.style.width = '0%'; if (!used) gb.classList.add('ready'); winT = T(() => goRound(i), w); };
-  gb.onclick = e => { e.stopPropagation(); if (used || over || !inWin) return; used = true; armed = true; gb.classList.remove('ready'); gb.classList.add('used'); gb.querySelector('em').textContent = '使用済み';
+  gb.onclick = e => { e.stopPropagation(); if (used || over || !inWin) return; left--; used = left <= 0; armed = true; gb.classList.remove('ready'); if (used) gb.classList.add('used'); gb.querySelector('em').textContent = used ? '使用済み' : `残り${left}回`;
     const heavy = plan.heavy.includes(cur); msg(`<em>鬨の声</em>${heavy ? '見切りの構え' : '次の一合を強化'}`); say('l', pickOf(AL.hit), D(900)); clearTimeout(winT); winT = T(() => goRound(cur), D(650)); };
   $('.sp2').onclick = e => { e.stopPropagation(); spd = spd === 1 ? 2 : 1; e.currentTarget.textContent = `▶▶ 速度 ×${spd}`; };
   $('.sk').onclick = e => { e.stopPropagation(); if (over) return; timers.forEach(clearTimeout); if (actL) actL.reset(); if (actR) actR.reset(); [L, Rf].forEach(x => { x.style.transform = ''; x.style.filter = ''; }); duelEl.classList.remove('shake'); $('.cut').classList.remove('on'); pips.forEach(p => p.classList.remove('cur'));
@@ -1286,12 +1290,12 @@ function renderActions() {
     for (const [id, c] of Object.entries(GM.CASTLE)) L.push({ label: c.t, act: c.t, sup: id === 'levy' ? 5 : -c.cost, ap: 1, eff: c.d, verb: c.t, can: GM.canCastle(G, id), why: GM.castleWhy(G, id) || why(c.cost), fn: () => act(() => { const ok = GM.doCastle(G, id); if (ok && G.raid) setTimeout(raidModal, 0); return ok; }, c.t + 'を行った') }); }
   else if (selected) { const id = selected.id, p = G.plots[id], here = p && GM.allyAt(G, id); key = 'plot' + id + (p ? p.fac + p.stage + (here || '') : '');
     if (here && lineKey !== here) newLine(here); por = P(here || defaultAlly()); if (here) { bubble = curLine; mode = 'talk'; }
-    if (!p) { title = '建設予定地'; for (const [f, d] of Object.entries(FAC)) L.push({ label: d.n, act: f === 'farm' ? '畑を整備' : `${d.n}を建てる`, sup: -d.cost, ap: 1, eff: (d.d.startsWith('毎週の') ? `毎週 ${d.d.replace('毎週の', '')}` : d.d) + (GM.dimNote(G, f) ? `（${GM.dimNote(G, f)}）` : ''), verb: '建設する', can: GM.canBuild(G, f), why: GM.buildWhy(G, f) || why(d.cost), fn: () => act(() => GM.build(G, id, f), `${d.n}の建築を始めた（週末に完成）`) }); }
+    if (!p) { title = '建設予定地'; for (const [f, d] of Object.entries(FAC)) L.push({ label: d.n, act: f === 'farm' ? '畑を整備' : `${d.n}を建てる`, sup: -d.cost, ap: 1, eff: (d.d.startsWith('毎週の') ? `毎週 ${d.d.replace('毎週の', '')}` : d.d) + (GM.dimNote(G, f) ? `（${GM.dimNote(G, f)}）` : ''), verb: '建設する', can: GM.canBuild(G, f, id), why: GM.buildWhy(G, f, id) || why(d.cost), fn: () => act(() => GM.build(G, id, f), `${d.n}の建築を始めた（週末に完成）`) }); }
     else { const d = FAC[p.fac]; title = `${d.n}（${p.burnt ? '焼かれた' : STAGE[p.stage]}）${here ? '・' + GM.ALLY[here].n : ''}`;
       if (p.burnt) L.push({ label: '修理', act: `${d.n}を修理する`, sup: -GM.REPAIR, ap: 1, eff: '効果が戻る', verb: '修理する', can: GM.canRepair(G, id), why: why(GM.REPAIR), fn: () => act(() => GM.repair(G, id), `${d.n}を修理した`) });
       if (p.stage === 1 && !here) title += '・週末に完成';
-      if (p.stage === 2) L.push({ label: '発展', act: `${d.n}を発展させる`, sup: -d.up, ap: 1, eff: '効果が2倍になる', verb: '発展させる', can: GM.canUpgrade(G, id), why: why(d.up), fn: () => act(() => GM.upgrade(G, id), `${d.n}を発展させた`) });
-      if (p.stage >= 2) {
+      if (p.stage === 2) L.push({ label: '発展', act: `${d.n}を発展させる`, sup: -d.up, ap: 1, eff: d.ud || '効果が2倍になる', verb: '発展させる', can: GM.canUpgrade(G, id), why: why(d.up), fn: () => act(() => GM.upgrade(G, id), `${d.n}を発展させた`) });
+      if (p.stage >= 2 && !d.noStaff) {
         for (const k of Object.keys(GM.ALLY)) { if (!GM.joined(G, k) || k === here) continue; const A = GM.ALLY[k], bon = GM.assignBonus(p.fac, k), fit = GM.AFFINITY[p.fac].includes(k);
           L.push({ label: `${A.n}を配置`, act: `${A.n}を配置する${fit ? '（得意）' : ''}`, eff: `${p.fac === 'smithy' ? '兵1人の強さ' : '効果'} +${bon}${G.assign[k] ? '・今の配置から移る' : ''}`, verb: '配置する', can: GM.canAssign(G, k, id), why: why(), fn: () => act(() => GM.assign(G, k, id), `${A.n}を${d.n}に配置した`) }); }
         if (here) L.push({ label: `${GM.ALLY[here].n}を外す`, act: `${GM.ALLY[here].n}を外す`, eff: '広場へ戻る', verb: '外す', fn: () => act(() => GM.unassign(G, here), `${GM.ALLY[here].n}を広場へ戻した`) }); }

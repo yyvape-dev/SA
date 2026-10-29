@@ -5,11 +5,16 @@ export const FAC = { // 施設。stage 1=建築中（効果なし、週末に完
   farm:   { n: '畑',     cost: 3, up: 4, eff: { sup: 2 }, d: '毎週の物資+2' },
   tavern: { n: '酒場',   cost: 4, up: 5, eff: { mor: 3 }, d: '毎週の民心+3' },
   smithy: { n: '鍛冶場', cost: 5, up: 6, eff: { arm: .5 }, d: '兵の装備：兵1人の強さ+0.5', one: true }, // 1つまで。防衛力ではなく「兵1人の強さ」を上げる（守りにも出撃にも効く）
+  war:    { n: '作戦室', cost: 5, up: 6, eff: { order: 1 }, d: '一騎打ちの鬨の声+1回', ud: '鬨の声が+2回になる', one: true, noStaff: true },   // 発展で+2回
+  drill:  { n: '訓練場', cost: 5, up: 6, eff: { duel: .08 }, d: '仲間の一騎打ちの勝率+8%', ud: '勝率が+16%になる', one: true, noStaff: true }, // 発展で+16%
+  wall:   { n: '城壁',   cost: 6, up: 7, eff: { def: 6 }, d: '防衛力+6', perArea: true },                            // 区域ごとに1つ
 };
+export const PLOT_AREA = {}; // 区画→区域（main.js が layout.json から入れる）。城壁の「区域ごとに1つ」に使う
+const wallIn = (s, area) => Object.entries(s.plots).some(([id, p]) => p.fac === 'wall' && PLOT_AREA[id] === area);
 // 同じ種類の施設は、2つ目から効きが落ちる（大きい順に並べて掛ける）。並べるだけでは伸びない。上位の施設（劇場など、次の段階）はこの外
 export const DIM = [1, .7, .5, .35, .25];
 export const facCount = (s, f) => Object.values(s.plots).filter(p => p.fac === f).length;
-export const dimNote = (s, f) => { const n = facCount(s, f); return FAC[f].one ? '' : n ? `${n + 1}つ目は効き${Math.round((DIM[n] ?? .2) * 100)}%` : ''; };
+export const dimNote = (s, f) => { const n = facCount(s, f); return FAC[f].one ? '1つまで' : n ? `${n + 1}つ目は効き${Math.round((DIM[n] ?? .2) * 100)}%` : ''; };
 export const STAGE = ['空き地', '建築中', '完成', '発展後'];
 export const WEEKS = 12;
 export const SCHED = [ // 襲撃の予定（E=敵の規模）。後半ほど強く、家の街だけでは守り切れない強さにする
@@ -27,11 +32,11 @@ export const ALLY = {
   ranka: { n: 'ランカ', r: '火力役・将軍', join: 'forest', lv: ['', '', '出撃時の効果がさらに強くなる（防衛力+4・ダメージ+10%）', '出撃時の効果がさらに強くなる（防衛力+8・ダメージ+20%）'] },
 };
 // 施設への配置：仲間1人につき施設1つ。完成・発展後の施設だけ。得意な施設なら効果+基本値ぶん、そうでなければ半分（切り上げ）
-export const AFFINITY = { farm: ['sera'], tavern: ['sera', 'garou', 'ranka'], smithy: ['garou', 'mina', 'ranka'] };
+export const AFFINITY = { farm: ['sera'], tavern: ['sera', 'garou', 'ranka'], smithy: ['garou', 'mina', 'ranka'], war: [], drill: [], wall: ['garou', 'ranka'] };
 export function assignBonus(fac, k) { const e = Object.values(FAC[fac].eff)[0]; if (fac === 'smithy') return k === 'ranka' ? .5 : AFFINITY.smithy.includes(k) ? .25 : .1; // 鍛冶場は兵の強さ（小数）
   if (k === 'ranka' && fac !== 'farm') return e * 2; return AFFINITY[fac].includes(k) ? e : Math.ceil(e / 2); } // ランカは酒場（民心）か鍛冶場で2倍
 export const allyAt = (s, id) => Object.keys(s.assign || {}).find(k => s.assign[k] === id) || null;
-export function canAssign(s, k, id) { const p = s.plots[id]; return joined(s, k) && !!p && p.stage >= 2 && !s.over && !s.raid && s.assign[k] !== id; }
+export function canAssign(s, k, id) { const p = s.plots[id]; return joined(s, k) && !!p && p.stage >= 2 && !FAC[p.fac].noStaff && !s.over && !s.raid && s.assign[k] !== id; }
 export function assign(s, k, id) { if (!canAssign(s, k, id)) return false; const other = allyAt(s, id); if (other) delete s.assign[other]; s.assign[k] = id; s.log.push(`${ALLY[k].n}を${FAC[s.plots[id].fac].n}に配置した`); return true; }
 export function unassign(s, k) { if (!s.assign[k]) return false; delete s.assign[k]; return true; }
 function cleanAssign(s) { for (const k of Object.keys(s.assign || {})) { const p = s.plots[s.assign[k]]; if (!p || p.stage < 2) delete s.assign[k]; } }
@@ -43,6 +48,8 @@ export function talk(s, k) { if (!canTalk(s, k)) return false; s.ap -= 1; s.bond
 export const rankaReady = s => joined(s, 'ranka') && !s.rankaRest && !s.rankaAway;
 export const rankaD = s => 10 + (bond(s, 'ranka') >= 3 ? 8 : bond(s, 'ranka') >= 2 ? 4 : 0);
 export const rankaDmg = s => .4 + (bond(s, 'ranka') >= 3 ? .2 : bond(s, 'ranka') >= 2 ? .1 : 0);
+export const orders = s => 1 + Math.round(effSum(s, 'order')); // 一騎打ちで使える鬨の声の回数
+export const drillP = s => effSum(s, 'duel');                       // 訓練場：仲間の一騎打ちの勝率の上乗せ
 export const sortieD = (s, n) => Math.round((n * troopStr(s) + 2 + garouD(s)) * 10) / 10; // 出撃の戦力：送った兵だけ
 export const raidD = s => (s.raid && s.raid.kind === 'sortie' ? sortieD(s, s.raid.sent || 0) : D(s)) + (s.raid && s.raid.ranka ? rankaD(s) : 0);
 export function setRanka(s, on) { if (s.raid) s.raid.ranka = !!on && rankaReady(s); }
@@ -65,7 +72,7 @@ function effSum(s, key) { // 種類ごとに大きい順に並べ、DIM を掛�
   const by = {};
   for (const [id, p] of Object.entries(s.plots)) { const v = facVal(s, id, p, key); if (v != null) (by[p.fac] = by[p.fac] || []).push(v); }
   let t = 0; for (const vals of Object.values(by)) { vals.sort((a, b) => b - a); t += vals.reduce((a, v, i) => a + v * (DIM[i] ?? .2), 0); }
-  return key === 'arm' ? t : Math.round(t); // 物資・民心・防衛は整数
+  return key === 'sup' || key === 'mor' || key === 'def' ? Math.round(t) : t; // 物資・民心・防衛は整数
 }
 // 兵1人の強さ：素1.5＋鍛冶場（一番良いもの1つだけ。完成+0.5・発展+1.0・配置で上乗せ）
 export const troopStr = s => { let a = 0; for (const [id, p] of Object.entries(s.plots)) { const v = facVal(s, id, p, 'arm'); if (v != null) a = Math.max(a, v); } return 1.5 + Math.round(a * 100) / 100; };
@@ -83,9 +90,10 @@ export const wavesOf = E => clamp(Math.round(E / 7), 2, 7);
 
 // ---------- 行動 ----------
 const spend = (s, c) => { s.ap -= 1; s.sup -= c; };
-export function canBuild(s, fac) { return !s.over && !s.raid && s.ap >= 1 && s.sup >= FAC[fac].cost && !(FAC[fac].one && facCount(s, fac)); }
-export const buildWhy = (s, fac) => (FAC[fac].one && facCount(s, fac) ? `${FAC[fac].n}は1つまで` : '');
-export function build(s, id, fac) { if (!canBuild(s, fac) || s.plots[id]) return false; spend(s, FAC[fac].cost); s.plots[id] = { fac, stage: 1 }; s.log.push(`${FAC[fac].n}の建築を始めた`); return true; }
+const blocked = (s, fac, id) => (FAC[fac].one && facCount(s, fac)) || (FAC[fac].perArea && id && wallIn(s, PLOT_AREA[id]));
+export function canBuild(s, fac, id) { return !s.over && !s.raid && s.ap >= 1 && s.sup >= FAC[fac].cost && !blocked(s, fac, id); }
+export const buildWhy = (s, fac, id) => (FAC[fac].one && facCount(s, fac) ? `${FAC[fac].n}は1つまで` : FAC[fac].perArea && id && wallIn(s, PLOT_AREA[id]) ? 'この区域には城壁がある' : '');
+export function build(s, id, fac) { if (!canBuild(s, fac, id) || s.plots[id]) return false; spend(s, FAC[fac].cost); s.plots[id] = { fac, stage: 1 }; s.log.push(`${FAC[fac].n}の建築を始めた`); return true; }
 export function canUpgrade(s, id) { const p = s.plots[id]; return !!p && p.stage === 2 && !p.burnt && !s.over && !s.raid && s.ap >= 1 && s.sup >= FAC[p.fac].up; }
 export function upgrade(s, id) { if (!canUpgrade(s, id)) return false; const p = s.plots[id]; spend(s, FAC[p.fac].up); p.stage = 3; s.log.push(`${FAC[p.fac].n}を発展させた`); return true; }
 export function demolish(s, id) { if (!s.plots[id] || s.raid || s.over) return false; s.log.push(`${FAC[s.plots[id].fac].n}を取り壊した`); delete s.plots[id]; cleanAssign(s); return true; }
@@ -192,7 +200,7 @@ export const LINES = {
 export function lineOf(s, k, rnd = Math.random) {
   const L = LINES[k], at = s.assign && s.assign[k], fac = at && s.plots[at] ? s.plots[at].fac : null;
   if (k === 'ranka' && s.rankaRest && L.rest) return L.rest[0];
-  const pool = [...L.idle, ...(fac ? L[fac] : []), ...(fac ? L[fac] : []), ...(bond(s, k) >= 3 ? L.b3 : [])];
+  const pool = [...L.idle, ...((fac && L[fac]) || []), ...((fac && L[fac]) || []), ...(bond(s, k) >= 3 ? L.b3 : [])];
   return pool[Math.floor(rnd() * pool.length)];
 }
 
@@ -240,7 +248,7 @@ export function morningLines(s, who, rnd = Math.random) {
   const r = nextRaid(s), lack = r ? r.E - D(s) : -99, wk = r ? r.w - s.week : 99;
   let enemy, plan;
   if (r && wk <= 2) { enemy = `${FRONT[r.dir].from}に、敵の陣が見えます。${wk ? `あと${wk}週ほどで攻めてくるでしょう。` : '今週末にも攻めてくるでしょう。'}`;
-    plan = lack > 3 ? '防衛力が足りません。兵を募るか、鍛冶場で兵の装備を整えて、守りを固めましょう。' : lack > -4 ? '今週は守りを固めましょう。' : '守りは十分です。民の暮らしも整えましょう。'; }
+    plan = lack > 3 ? '防衛力が足りません。兵を募るか、城壁を築いて、守りを固めましょう。' : lack > -4 ? '今週は守りを固めましょう。' : '守りは十分です。民の暮らしも整えましょう。'; }
   else { enemy = r ? '今のところ、敵に目立った動きはありません。' : '敵の動きは、今のところありません。';
     const bt = Object.values(s.plots).filter(p => p.burnt).length;
     plan = bt ? `焼かれた施設が${bt}つあります。修理を急ぎましょう。` : s.morale < 40 ? '民の心が沈んでいます。酒場か炊き出しで、元気づけましょう。' : '今のうちに、施設を育てておきましょう。'; }
@@ -256,6 +264,7 @@ export const duelPow = (s, k) => DUEL_POW[k] + bond(s, k) * 1.5;
 export const duelP = (s, k) => { // ミナは絆2・3で勝率が上がる。ランカは相手が誰でも7割は勝つ（最強の将）
   let p = clamp(.5 + (duelPow(s, k) - foeGeneral(s).pow) / 16, .1, .9);
   if (k === 'mina') p += (bond(s, 'mina') >= 2 ? .12 : 0) + (bond(s, 'mina') >= 3 ? .08 : 0);
+  p += drillP(s); // 訓練場
   if (k === 'ranka') p = Math.max(.7, p);
   return clamp(p, .1, k === 'ranka' ? .95 : .9); };
 export function duelSet(s, k, win) { s.raid.duel = win; s.raid.champ = k; s.log.push(`一騎打ち：${ALLY[k].n}が${win ? '勝った' : '敗れた'}`); return win; }
