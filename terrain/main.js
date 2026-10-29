@@ -1,9 +1,9 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793273129';
-import { createUI } from './ui.js?v=1793273129';
-import { createMorning } from './morning.js?v=1793273129';
+import * as GM from './game.js?v=1793273377';
+import { createUI } from './ui.js?v=1793273377';
+import { createMorning } from './morning.js?v=1793273377';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -856,10 +856,14 @@ const dCss = document.createElement('style'); dCss.textContent = `
 #duel .stage{position:relative;flex:1;min-height:0;background:#222;overflow:hidden;box-shadow:inset 0 calc(8*var(--u)) calc(10*var(--u)) calc(-6*var(--u)) #0005}
 #duel .stage::after{content:'';position:absolute;inset:0;background:linear-gradient(transparent 70%,#0003);pointer-events:none}
 #duel .f{position:absolute;bottom:15%;height:34%;transition:transform .18s ease-out,filter .08s;z-index:2}
-#duel .f .sp{background-repeat:no-repeat;pointer-events:none}#duel .f img{height:100%;filter:drop-shadow(0 6px 8px #000)}
+#duel .f .sp{background-repeat:no-repeat;pointer-events:none;clip-path:inset(1px)}#duel .f img{height:100%}
+#duel .f .gs{position:absolute;left:50%;bottom:-3%;width:120%;height:9%;transform:translateX(-50%);border-radius:50%;background:radial-gradient(closest-side,#0008,#0004 55%,#0000);pointer-events:none}
+#duel .f .sp .sh{position:absolute;inset:0;pointer-events:none;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;background:linear-gradient(100deg,#fff2 0%,#0000 38%,#0000 52%,#0a0e2a66 100%),linear-gradient(180deg,#0000 55%,#1a0f0a55 100%)}
+#duel .R .sp .sh{background:linear-gradient(260deg,#fff2 0%,#0000 38%,#0000 52%,#0a0e2a66 100%),linear-gradient(180deg,#0000 55%,#1a0f0a55 100%)}
+#duel .cam,#duel .f{will-change:transform}
 #duel .L{left:9%}#duel .R{right:8%}
 #duel .cam{position:absolute;inset:0;transform-origin:50% 72%;transition:transform .26s cubic-bezier(.2,.7,.3,1)}#duel .cam .bg{position:absolute;inset:-2%;background:#222 center 66%/cover no-repeat}
-#duel .f.hit{animation:fhit .32s linear}#duel .f.hit .sp,#duel .f.hit img{filter:sepia(.35) saturate(2.2) hue-rotate(-25deg) brightness(1.06) drop-shadow(0 0 3px #ff3a2088)!important}
+#duel .f.hit{animation:fhit .32s linear}#duel .f.hit .sp,#duel .f.hit img{filter:sepia(.35) saturate(2.2) hue-rotate(-25deg) brightness(1.06)!important}
 @keyframes fhit{0%,100%{translate:0 0}20%{translate:-4px 0}45%{translate:4px 0}70%{translate:-2px 0}}
 #duel .say{position:absolute;bottom:57%;max-width:52%;min-width:28%;padding:calc(14*var(--u)) calc(14*var(--u)) calc(10*var(--u));background:#fbf6e9;border:1.5px solid #3b2a16;border-radius:calc(12*var(--u));box-shadow:0 calc(3*var(--u)) 0 #3b2a1622,0 calc(4*var(--u)) calc(12*var(--u)) #0004;
   font-size:calc(15.5*var(--u));line-height:1.45;letter-spacing:.03em;opacity:0;transform:scale(.6);transition:opacity .12s,transform .22s cubic-bezier(.2,1.5,.4,1);pointer-events:none;z-index:4}
@@ -920,13 +924,17 @@ const FOEDUEL = await fetch('assets/npc/foeduel_meta.json').then(r => r.json()).
 const foeLook = () => G.raid && G.raid.boss ? 4 : G.raid && G.raid.E >= 30 ? 2 : (G.raid && G.raid.w % 2 ? 3 : 1); // 隊長＝槍兵かフードの山賊（週で入れ替え）、副官＝羽飾りの兵、将軍＝斧の山賊
 function clipActor(el, sp, clips, base, T, run, runBase) { // 動画由来の連番を、枠(el)の中の div(sp) に出す。立ち姿の中心を揃え、足元は枠の下端。run＝横向きの走り（あれば）
   const c0 = clips[0]; if (!c0) return null; let order = [], cur = c0, sc = el.clientHeight / c0.idle.h, setFrame = () => {};
-  el.style.width = c0.idle.w * sc + 'px'; Object.assign(sp.style, { position: 'absolute', filter: sp.dataset.filter || 'drop-shadow(0 6px 8px #000)' });
+  el.style.width = c0.idle.w * sc + 'px'; Object.assign(sp.style, { position: 'absolute' });
+  const sh = document.createElement('i'); sh.className = 'sh'; sp.appendChild(sh); const gs = document.createElement('i'); gs.className = 'gs'; el.insertBefore(gs, sp); // 陰影（絵の形に切り抜いたグラデーション）と足元の影
+  const shade = (url, size, pos) => { sh.style.webkitMaskImage = sh.style.maskImage = url; sh.style.webkitMaskSize = sh.style.maskSize = size; sh.style.webkitMaskPosition = sh.style.maskPosition = pos; };
   const use = c => { cur = c; const cw = c.cw * sc, ch = c.ch * sc, cx = (c.idle.x + c.idle.w / 2) * sc;
     Object.assign(sp.style, { left: el.clientWidth / 2 - cx + 'px', bottom: -(c.pad ?? 2.8) * sc + 'px', width: cw + 'px', height: ch + 'px', backgroundImage: `url(${base}${c.f})`, backgroundSize: `${c.cols * cw}px ${4 * ch}px` });
-    setFrame = i => { sp.style.backgroundPosition = `${-(i % c.cols) * cw}px ${-Math.floor(i / c.cols) * ch}px`; }; setFrame(0); };
+    shade(`url(${base}${c.f})`, `${c.cols * cw}px ${4 * ch}px`, '0 0');
+    setFrame = i => { const ps = `${-(i % c.cols) * cw}px ${-Math.floor(i / c.cols) * ch}px`; sp.style.backgroundPosition = ps; sh.style.webkitMaskPosition = sh.style.maskPosition = ps; }; setFrame(0); };
   const useRun = () => { const k = el.clientHeight * .97 / run.ph, cw = run.cw * k, ch = run.ch * k; // 走りの絵：人物の高さを立ち姿にそろえ、足元を枠の下端に
     Object.assign(sp.style, { left: el.clientWidth / 2 - run.ax * k + 'px', bottom: -(run.ch - run.ay) * k + 'px', width: cw + 'px', height: ch + 'px', backgroundImage: `url(${runBase}${run.f})`, backgroundSize: `${run.cols * cw}px ${Math.ceil(run.n / run.cols) * ch}px` });
-    setFrame = i => { sp.style.backgroundPosition = `${-(i % run.cols) * cw}px ${-Math.floor(i / run.cols) * ch}px`; }; setFrame(0); };
+    shade(`url(${runBase}${run.f})`, `${run.cols * cw}px ${Math.ceil(run.n / run.cols) * ch}px`, '0 0');
+    setFrame = i => { const ps = `${-(i % run.cols) * cw}px ${-Math.floor(i / run.cols) * ch}px`; sp.style.backgroundPosition = ps; sh.style.webkitMaskPosition = sh.style.maskPosition = ps; }; setFrame(0); };
   use(c0);
   return { reset: () => use(c0),
     run(ms, rate = 1) { if (!run) return false; useRun(); const step = Math.max(28, run.durs[0] / rate); for (let t = 0, i = 0; t < ms; t += step, i++) T(() => setFrame(i % run.n), t); return true; }, // 走りのコマを ms の間まわす
@@ -948,7 +956,7 @@ function playDuel(k, done) { // 画面いっぱいの一騎打ち。五合の勝
     <div class="ct"><small>第${R.w || G.week}週</small><img src="assets/ui2/divider2.webp"><h1>一騎打ち</h1></div>
     <div class="sd r"><div class="fw"><div class="fc foe" style="background-image:url(assets/npc/foe_${look}.webp)"></div><i class="rg"></i></div><div class="hb"><div class="nm">${F.n}</div><div class="hp"><b style="width:100%"></b></div></div></div></div>
     <div class="stage"><div class="cam"><div class="bg" style="background-image:url(assets/field/duel.jpg),url(assets/field/${R.dir || 'pass'}.jpg)"></div>
-      <div class="f L" style="height:${27 * (HUMAN[k] || 165) / 170}%">${(DUEL_CLIP[k] || []).length ? `<div class="sp"></div>` : `<img src="../ally/${k}.png">`}</div><div class="f R" style="height:${27 * (HUMAN['f' + look] || 178) / 170}%">${(FOEDUEL[look] || []).length ? `<div class="sp" data-filter="drop-shadow(0 6px 8px #000)"></div>` : `<img src="assets/npc/foe_${look}.webp" style="filter:drop-shadow(0 6px 8px #000)">`}</div>
+      <div class="f L" style="height:${27 * (HUMAN[k] || 165) / 170}%">${(DUEL_CLIP[k] || []).length ? `<div class="sp"></div>` : `<img src="../ally/${k}.png">`}</div><div class="f R" style="height:${27 * (HUMAN['f' + look] || 178) / 170}%">${(FOEDUEL[look] || []).length ? `<div class="sp"></div>` : `<img src="assets/npc/foe_${look}.webp">`}</div>
       </div><div class="say l"></div><div class="say r foe"></div><div class="cut"><img src="${faceURL[k]}"><div></div></div></div>
     <div class="ft"><i class="cn bl"></i><i class="cn br"></i><h3>戦況</h3><div class="blr"><span>自軍</span><div class="bal"><b style="width:50%"></b><u style="left:50%"></u></div><span>敵軍</span></div>
       <div class="row"><div class="pips">${pipsHtml}</div><div class="stt">間合いを測る</div></div>
