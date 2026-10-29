@@ -1,9 +1,9 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793278887';
-import { createUI } from './ui.js?v=1793278887';
-import { createMorning } from './morning.js?v=1793278887';
+import * as GM from './game.js?v=1793279326';
+import { createUI } from './ui.js?v=1793279326';
+import { createMorning } from './morning.js?v=1793279326';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -929,6 +929,7 @@ const SIDE_FOE = await fetch('assets/npc/side_meta.json').then(r => r.json()).ca
 const runClipOf = k => SIDE_ALLY['run_' + k] || SIDE_ALLY['walk_' + k] || null, foeRunOf = look => SIDE_FOE['walk_' + look] || null;
 const FOEDUEL = await fetch('assets/npc/foeduel_meta.json').then(r => r.json()).catch(() => ({})); // 敵将の攻撃モーション（見た目の番号ごと）
 const foeLook = () => G.raid && G.raid.boss ? 4 : G.raid && G.raid.E >= 30 ? 2 : (G.raid && G.raid.w % 2 ? 3 : 1); // 隊長＝槍兵かフードの山賊（週で入れ替え）、副官＝羽飾りの兵、将軍＝斧の山賊
+const FOLLOW = 380; // 当たりのあと、振り抜きを見せる長さ（ミリ秒）
 function clipActor(el, sp, clips, base, T, run, runBase) { // 動画由来の連番を、枠(el)の中の div(sp) に出す。立ち姿の中心を揃え、足元は枠の下端。run＝横向きの走り（あれば）
   const c0 = clips[0]; if (!c0) return null; let order = [], cur = c0, sc = el.clientHeight / c0.idle.h, setFrame = () => {};
   el.style.width = c0.idle.w * sc + 'px'; Object.assign(sp.style, { position: 'absolute' });
@@ -946,10 +947,11 @@ function clipActor(el, sp, clips, base, T, run, runBase) { // 動画由来の連
   return { reset: () => use(c0),
     run(ms, rate = 1) { if (!run) return false; useRun(); const step = Math.max(28, run.durs[0] / rate); for (let t = 0, i = 0; t < ms; t += step, i++) T(() => setFrame(i % run.n), t); return true; }, // 走りのコマを ms の間まわす
     play(at, tame = 0) { // at から振りかぶりを始める。当たりの直前のコマで tame ミリ秒止める（溜め）。返り値：使った動きと、当たりの時刻
-      // 振りかぶりは詰める：最初の構えのコマ（動画の静止、100〜360ms）は飛ばし、当たりまでの各コマは最大90msを3倍速。溜めは tame だけで作る
+      // 振りかぶりは詰める：最初の構えのコマ（動画の静止、100〜360ms）は飛ばし、当たりまでの各コマは最大90msを3倍速。溜めは hold のコマで tame だけ止めて作る
       if (!order.length) order = clips.map((_, i) => i).sort(() => Math.random() - .5); const c = clips[order.pop()], SPD = 2.2, PRE = 3;
-      const ts = []; let t = 0; c.durs.forEach((d, fi) => { ts.push(t); t += fi === 0 ? 0 : fi < c.hit ? Math.min(d, 90) / PRE : d / SPD; if (fi === c.hit - 1) t += tame; });
-      T(() => use(c), Math.max(0, at - 5)); ts.forEach((tt, fi) => { if (fi || c.hit === 0) T(() => setFrame(fi), at + tt); }); T(() => use(c0), at + t + 30);
+      const ts = []; let t = 0; c.durs.forEach((d, fi) => { ts.push(t); t += fi === 0 ? 0 : fi < c.hit ? Math.min(d, 90) / PRE : d / SPD; if (fi === (c.hold ?? c.hit - 1)) t += tame; }); // hold＝振りかぶりの頂点（目で選んだコマ）で止める
+      const end = Math.min(t, ts[c.hit] + FOLLOW); // 振り抜きは FOLLOW ミリ秒で打ち切って構えへ戻す（長い残心で、下がる動きと重ならないように）
+      T(() => use(c), Math.max(0, at - 5)); ts.forEach((tt, fi) => { if ((fi || c.hit === 0) && tt <= end) T(() => setFrame(fi), at + tt); }); T(() => use(c0), at + end + 30);
       return { c, hitAt: at + ts[c.hit] }; } };
 }
 const HUMAN = { mina: 163, sera: 157, ranka: 166, garou: 212, sol: 197, f1: 197, f2: 205, f3: 180, f4: 204 }; // 見た目の背の高さ：一騎打ちと戦場の大きさをこれで揃える。槍の穂先・兜の飾りが測った高さに入る絵は大きめの値（並べて目で合わせた値）
@@ -1009,13 +1011,13 @@ function playDuel(k, done) { // 画面いっぱいの一騎打ち。五合の勝
       const n = document.createElement('div'); n.className = 'num'; n.textContent = r.dmg * 7 + Math.round(Math.random() * 9); n.style.left = (clashX / sw * 100 + (r.ally ? 6 : -14)) + '%'; n.style.top = '30%'; cam.appendChild(n); setTimeout(() => { sl.remove(); n.remove(); }, 900);
       apply(i, r); upd(); say(r.ally ? 'l' : 'r', pickOf((r.ally ? AL : FL).hit), 1500); T(() => say(r.ally ? 'r' : 'l', pickOf((r.ally ? FL : AL).hurt), 1400), D(350)); }, P.hitAt);
     T(() => { df.classList.remove('hit'); duelEl.classList.remove('shake'); df.style.transform = ''; }, P.hitAt + 260);
-    const back = D(big ? 520 : 380), backMs = D(520);
+    const back = D(FOLLOW + (big ? 140 : 40)), backMs = D(420);
     T(() => { camTo(1, sw / 2, backMs, 'ease-in-out'); at.style.transition = `transform ${backMs}ms ease-in-out`; at.style.transform = ''; }, P.hitAt + back); // 元の位置へ戻りながら、引きへ
     T(() => { if (aw >= 3 || fw >= 3) finish(); else roundStart(i + 1); }, P.hitAt + back + backMs + D(250)); };
   const goRound = i => { gb.classList.remove('ready'); runRound(i); };
   const roundStart = i => { if (over) return; cur = i; const heavy = plan.heavy.includes(i); pips[i].classList.add('cur'); inWin = true;
     msg(heavy ? `<em>第${i + 1}合</em>大技の構え${used ? '' : '　─　鬨の声で見切れる'}` : `<em>第${i + 1}合</em>${word}`, heavy); if (heavy) say('r', pickOf(FL.heavy), D(1600), true);
-    const w = D(used ? 700 : 2600); tm.style.transition = 'none'; tm.style.width = '100%'; void tm.offsetWidth; tm.style.transition = `width ${w}ms linear`; tm.style.width = '0%'; if (!used) gb.classList.add('ready'); winT = T(() => goRound(i), w); };
+    const w = D(used ? 700 : 1800); /* 鬨の声を押せる時間（2.6秒→1.8秒、2026-10-29） */ tm.style.transition = 'none'; tm.style.width = '100%'; void tm.offsetWidth; tm.style.transition = `width ${w}ms linear`; tm.style.width = '0%'; if (!used) gb.classList.add('ready'); winT = T(() => goRound(i), w); };
   gb.onclick = e => { e.stopPropagation(); if (used || over || !inWin) return; left--; used = left <= 0; armed = true; gb.classList.remove('ready'); if (used) gb.classList.add('used'); gb.querySelector('em').textContent = used ? '使用済み' : `残り${left}回`;
     const heavy = plan.heavy.includes(cur); msg(`<em>鬨の声</em>${heavy ? '見切りの構え' : '次の一合を強化'}`); say('l', pickOf(AL.hit), D(900)); clearTimeout(winT); winT = T(() => goRound(cur), D(650)); };
   $('.sp2').onclick = e => { e.stopPropagation(); spd = spd === 1 ? 2 : 1; e.currentTarget.textContent = `▶▶ 速度 ×${spd}`; };
