@@ -19,8 +19,8 @@ function startRun() {
 function startWave(n) {
   G.wave = n; G.queue = []; G.qT = 0;
   var count = Math.min(70, 10 + n * 6);
-  count = Math.min(40, 8 + n * 5); // 横が狭いので、横版より少なめ
-  for (var i = 0; i < count; i++) G.queue.push({ at: rnd(0, 5.5), elite: false });
+  count = Math.min(28, 6 + n * 4); // 2026-10-30 敵を速くしたぶん、数は約3割減（以前 min(40, 8+5n)）
+  for (var i = 0; i < count; i++) G.queue.push({ at: rnd(0, 4.5), elite: false });
   if (n % 3 === 0) G.queue.push({ at: 4, elite: true });
   G.fieldTotal = Math.max(1, G.queue.length); G.queue.sort(function (a, b) { return a.at - b.at; }); // 波の表示は出さない（倒しきったら、戦場が右へ進む）
 }
@@ -33,14 +33,18 @@ function enterRoom(i) {
 }
 function beginTrans() { if (!G.trans) G.trans = { t: 0, sw: false }; } // 暗転→次の部屋→明転
 
+function foeKindPick() { // 横向きの歩きの絵がある種類だけ出す（槍兵は歩きの絵が無いので外す。絵が届けば自動で戻る）
+  var ks = [1, 3, 4].filter(function (k) { return FOE_SW[k]; }); if (!ks.length) ks = [1, 3, 4];
+  return ks[Math.floor(Math.random() * ks.length)];
+}
 function spawn(q) {
   var n = G.wave, cl = LK(G.seg); // 敵は右の外からだけ来る
   var e = {
     x: cl + W + rnd(50, 170), y: rnd(LANE_Y0, LANE_Y1), yo: rnd(-1, 1) * (ROOM.spread || 20), face: -1,
-    kind: q.elite ? 2 : [1, 3, 4][Math.floor(Math.random() * 3)], atk: null,
+    kind: q.elite ? 2 : foeKindPick(), atk: null,
     size: q.elite ? 1.12 : rnd(0.94, 1.06), elite: q.elite,
-    max: (22 + n * 5) * (q.elite ? 10 : 1), hp: 0, sp: (78 + rnd(0, 40) + n * 3) * (q.elite ? 0.8 : 1),
-    state: 'walk', t: rnd(0, 6), atkCD: rnd(0.2, 0.8), stun: 0, kx: 0, flash: 0, dt: 0, dmg: 6 + n * (q.elite ? 2 : 1)
+    max: (22 + n * 5) * (q.elite ? 10 : 1), hp: 0, sp: (135 + rnd(0, 45) + n * 4) * (q.elite ? 0.8 : 1), /* 2026-10-30 速く（以前 78+0〜40+3n） */
+    state: 'walk', t: rnd(0, 6), atkCD: rnd(0.05, 0.35), stun: 0, kx: 0, flash: 0, dt: 0, dmg: 7 + n * (q.elite ? 2 : 1)
   };
   e.hp = e.max; G.enemies.push(e);
 }
@@ -189,7 +193,7 @@ var THR_MS = [220, 280, 120, 100, 110, 150, 190, 200, 230, 270, 180, 70, 30, 30,
 var THR_T = [], THR = {};
 (function () {
   var t = 0;
-  for (var i = 0; i < 24; i++) { THR_T.push(t); t += THR_MS[i] * (i < 11 ? 0.35 : i >= 20 ? 0.7 : 1) / 1000; }
+  for (var i = 0; i < 24; i++) { THR_T.push(t); t += THR_MS[i] * (i < 11 ? 0.15 : i >= 20 ? 0.7 : 1) / 1000; /* 溜めは0.15倍（2026-10-30、0.35倍では長い） */ }
   THR.total = t; THR.move0 = THR_T[11]; THR.move1 = THR_T[17]; THR.hit = THR_T[15]; THR.safe = THR_T[20]; THR.cancel = t - 0.2;
 })();
 function tIdx(T, t) { var i = 0; while (i + 1 < T.length && T[i + 1] <= t) i++; return i; }

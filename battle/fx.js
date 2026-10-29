@@ -107,9 +107,9 @@ function drawBindBand(e) {
 }
 
 // ===== 攻撃：剣の軌跡（三日月×3層）と、当たった敵ごとの衝撃 =====
-var VFX_ATK = { glow: '90,160,255', main: '150,205,255', core: '255,255,255', spark: '200,230,255', dark: '10,20,50', dk: 0.28, dw: 1.25 };
+var VFX_ATK = { glow: '70,145,255', main: '135,195,255', core: '255,255,255', spark: '200,230,255', dark: '8,16,48', dk: 0.4, dw: 1.3 };
 // ラナの技の色：剣（黒・金）とトレードカラー（赤黒）。黒い煙の層（通常の合成・濃い）→紅の光→金の縁→白金の芯。剣の振りがそのまま伸びたように見せる
-var VFX_RANA = { glow: '210,25,35', main: '255,90,40', core: '255,232,160', spark: '255,200,110', dark: '16,3,6', dk: 0.6, dw: 1.75 };
+var VFX_RANA = { glow: '225,15,30', main: '255,80,30', core: '255,226,140', spark: '255,195,90', dark: '12,2,4', dk: 0.82, dw: 1.9 }; /* 2026-10-30 色を強く */
 // 楕円の弧に沿った三日月のリボン（ローカル座標）。a0→a1 へ刃が走る。u0〜u1 は描く区間（0〜1）
 function vArcRibbon(rx, ry, a0, a1, u0, u1, w, style) {
   if (u1 - u0 < 0.01) return;
@@ -139,7 +139,7 @@ function drawVArc(f) {
   var W = (f.big ? 70 : 50), ox = 30, oy = -95 * depthScale(f.y) + (f.second ? 30 : 0);
   if (f.geo) { rx = f.geo.rx; ry = f.geo.ry; a0 = f.geo.a0; a1 = f.geo.a1; W = f.geo.w; ox = f.geo.ox; oy = f.geo.oy; }
   var fade = ms > SW ? Math.max(0, 1 - (ms - SW) / FD) : 1;
-  var LY = [{ c: C.glow, lag: 40, tail: 0.6, w: C === VFX_RANA ? 1.45 : 2.2, a: C === VFX_RANA ? 0.75 : 0.5 }, { c: C.main, lag: 15, tail: 0.45, w: 1.0, a: 0.95 }, { c: C.core, lag: 0, tail: 0.32, w: 0.38, a: 1 }];
+  var LY = [{ c: C.glow, lag: 40, tail: 0.6, w: C === VFX_RANA ? 1.55 : 2.2, a: C === VFX_RANA ? 1 : 0.68 }, { c: C.main, lag: 15, tail: 0.45, w: 1.0, a: 0.95 }, { c: C.core, lag: 0, tail: 0.32, w: 0.38, a: 1 }];
   ctx.save(); ctx.translate(f.x + f.face * ox, f.y + oy); ctx.scale(f.face, 1);
   // 暗い下地（明るい床でも形が残る）：本体と同じ形を、通常の合成で薄く
   var hd = vEase((ms - 15) / SW), tl = vEase((ms - 15 - SW * 0.45) / (SW * 1.4));
@@ -204,7 +204,7 @@ function fxRing(x, y, R, life) {
 }
 function drawVRing(f) {
   var C = VFX_RANA, t = f.t, fade = 1 - t / f.life;
-  var L = [{ c: C.dark, lag: 0, w: 26, a: 0.5, dk: 1 }, { c: C.glow, lag: 0, w: 30, a: 0.55 }, { c: C.main, lag: 0.025, w: 10, a: 0.9 }, { c: C.core, lag: 0.045, w: 3.5, a: 1 }];
+  var L = [{ c: C.dark, lag: 0, w: 30, a: 0.75, dk: 1 }, { c: C.glow, lag: 0, w: 34, a: 0.8 }, { c: C.main, lag: 0.025, w: 12, a: 1 }, { c: C.core, lag: 0.045, w: 3.5, a: 1 }];
   for (var l = 0; l < L.length; l++) {
     var Ly = L[l], k = vEase((t - Ly.lag) / (f.life * 0.75)); if (k <= 0) continue;
     var r = f.R * k + 70, inn = Math.min(1, k * 4); // 出始めは細く（小さいうちに太いと、塗りつぶしの円に見える）
@@ -232,7 +232,7 @@ function vSpear(x0, L, w, style) { // 根本 x0 から長さ L の槍の形（�
 function drawVLance(f) {
   var C = VFX_RANA, ms = f.t * 1000, SW = 90, fade = ms > SW ? Math.max(0, 1 - (ms - SW) / (f.life * 1000 - SW)) : 1, R = f.R * 1.15;
   ctx.save(); ctx.translate(f.x, f.y - 95 * depthScale(f.y)); ctx.scale(f.face, 1);
-  var LY = [{ c: C.dark, lag: 10, w: 46, a: C.dk, dk: 1 }, { c: C.glow, lag: 25, w: 40, a: 0.7 }, { c: C.main, lag: 10, w: 18, a: 0.95 }, { c: C.core, lag: 0, w: 6, a: 1 }];
+  var LY = [{ c: C.dark, lag: 10, w: 52, a: C.dk, dk: 1 }, { c: C.glow, lag: 25, w: 44, a: 0.95 }, { c: C.main, lag: 10, w: 18, a: 0.95 }, { c: C.core, lag: 0, w: 6, a: 1 }];
   for (var l = 0; l < LY.length; l++) {
     var Ly = LY[l], k = vEase((ms - Ly.lag) / SW); if (k <= 0) continue;
     var L = R * k, tail = vEase((ms - Ly.lag - SW * 0.5) / (SW * 2)), x0 = 30 + L * tail * 0.8;

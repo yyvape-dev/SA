@@ -162,7 +162,7 @@ function update(dt) {
 
 function startFoeAtk(e) {
   var cl = FOE_CLIP[e.kind] || [], ci = Math.floor(Math.random() * cl.length), c = cl[ci];
-  e.atkCD = 1.6;
+  e.atkCD = 1.0; /* 2026-10-30 攻撃の間隔を短く（以前1.6） */
   if (!c) { e.atk = { t: 0, hitT: 0.35, endT: 0.6, ci: -1, done: false }; return; } // 攻撃の絵が無いときは、少し止まってから当たる
   var acc = 0, hitT = 0, starts = [];
   for (var i = 0; i < c.n; i++) { starts.push(acc / 1000 / FOE_SPD); if (i === c.hit) hitT = acc / 1000 / FOE_SPD; acc += c.durs[i]; }
