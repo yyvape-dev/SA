@@ -1,9 +1,9 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793270395';
-import { createUI } from './ui.js?v=1793270395';
-import { createMorning } from './morning.js?v=1793270395';
+import * as GM from './game.js?v=1793272601';
+import { createUI } from './ui.js?v=1793272601';
+import { createMorning } from './morning.js?v=1793272601';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -853,11 +853,12 @@ const dCss = document.createElement('style'); dCss.textContent = `
 #duel .hp{height:calc(10*var(--u));padding:1px;background:#2a1e12;border:1px solid #8c6c34;box-shadow:0 0 0 1px #e9dcbcaa;position:relative}
 #duel .hp b{position:absolute;top:1px;bottom:1px;left:1px;max-width:calc(100% - 2px);background:linear-gradient(#5aa59a,#2c6a64 60%,#24564f);transition:width .45s cubic-bezier(.3,.8,.3,1)}
 #duel .sd.r .hp b{left:auto;right:1px;background:linear-gradient(#d4705c,#a3362b 60%,#86281f)}
-#duel .stage{position:relative;flex:1;min-height:0;background:#222 center 66%/cover no-repeat;overflow:hidden;box-shadow:inset 0 calc(8*var(--u)) calc(10*var(--u)) calc(-6*var(--u)) #0005}
+#duel .stage{position:relative;flex:1;min-height:0;background:#222;overflow:hidden;box-shadow:inset 0 calc(8*var(--u)) calc(10*var(--u)) calc(-6*var(--u)) #0005}
 #duel .stage::after{content:'';position:absolute;inset:0;background:linear-gradient(transparent 70%,#0003);pointer-events:none}
 #duel .f{position:absolute;bottom:15%;height:34%;transition:transform .18s ease-out,filter .08s;z-index:2}
 #duel .f .sp{background-repeat:no-repeat;pointer-events:none}#duel .f img{height:100%;filter:drop-shadow(0 6px 8px #000)}
-#duel .L{left:7%}#duel .R{right:5%}
+#duel .L{left:9%}#duel .R{right:8%}
+#duel .cam{position:absolute;inset:0;transform-origin:50% 72%;transition:transform .26s cubic-bezier(.2,.7,.3,1)}#duel .cam .bg{position:absolute;inset:-2%;background:#222 center 66%/cover no-repeat}
 #duel .f.hit{animation:fhit .32s linear}#duel .f.hit .sp,#duel .f.hit img{filter:sepia(.35) saturate(2.2) hue-rotate(-25deg) brightness(1.06) drop-shadow(0 0 3px #ff3a2088)!important}
 @keyframes fhit{0%,100%{translate:0 0}20%{translate:-4px 0}45%{translate:4px 0}70%{translate:-2px 0}}
 #duel .say{position:absolute;bottom:57%;max-width:52%;min-width:28%;padding:calc(14*var(--u)) calc(14*var(--u)) calc(10*var(--u));background:#fbf6e9;border:1.5px solid #3b2a16;border-radius:calc(12*var(--u));box-shadow:0 calc(3*var(--u)) 0 #3b2a1622,0 calc(4*var(--u)) calc(12*var(--u)) #0004;
@@ -912,19 +913,28 @@ const foeURL = FOE_IMG[3] ? 'assets/npc/foe_4.webp' : foeTex.image.toDataURL();
 // 大将戦の攻撃モーション（動画由来の24コマ）。ある仲間だけ。ない仲間は立ち絵のまま
 const DUEL_CLIP = await fetch('../ally/duel_meta.json').then(r => r.json()).catch(() => ({})); // 仲間ごとの攻撃モーション一覧
 const duelWarm = k => (DUEL_CLIP[k] || []).forEach(c => { new Image().src = `../ally/${c.f}`; }); // 一騎打ちの前に絵を先読み
+const SIDE_ALLY = await fetch('../ally/side_meta.json').then(r => r.json()).catch(() => ({})); // 仲間の横向きの走り（右向き）
+const SIDE_FOE = await fetch('assets/npc/side_meta.json').then(r => r.json()).catch(() => ({}));  // 敵の横向きの歩き（左向き）
+const runClipOf = k => SIDE_ALLY['run_' + k] || SIDE_ALLY['walk_' + k] || null, foeRunOf = look => SIDE_FOE['walk_' + look] || null;
 const FOEDUEL = await fetch('assets/npc/foeduel_meta.json').then(r => r.json()).catch(() => ({})); // 敵将の攻撃モーション（見た目の番号ごと）
 const foeLook = () => G.raid && G.raid.boss ? 4 : G.raid && G.raid.E >= 30 ? 2 : (G.raid && G.raid.w % 2 ? 3 : 1); // 隊長＝槍兵かフードの山賊（週で入れ替え）、副官＝羽飾りの兵、将軍＝斧の山賊
-function clipActor(el, sp, clips, base, T) { // 動画由来の連番を、枠(el)の中の div(sp) に出す。立ち姿の中心を揃え、足元は枠の下端
+function clipActor(el, sp, clips, base, T, run, runBase) { // 動画由来の連番を、枠(el)の中の div(sp) に出す。立ち姿の中心を揃え、足元は枠の下端。run＝横向きの走り（あれば）
   const c0 = clips[0]; if (!c0) return null; let order = [], cur = c0, sc = el.clientHeight / c0.idle.h, setFrame = () => {};
   el.style.width = c0.idle.w * sc + 'px'; Object.assign(sp.style, { position: 'absolute', filter: sp.dataset.filter || 'drop-shadow(0 6px 8px #000)' });
   const use = c => { cur = c; const cw = c.cw * sc, ch = c.ch * sc, cx = (c.idle.x + c.idle.w / 2) * sc;
     Object.assign(sp.style, { left: el.clientWidth / 2 - cx + 'px', bottom: -(c.pad ?? 2.8) * sc + 'px', width: cw + 'px', height: ch + 'px', backgroundImage: `url(${base}${c.f})`, backgroundSize: `${c.cols * cw}px ${4 * ch}px` });
     setFrame = i => { sp.style.backgroundPosition = `${-(i % c.cols) * cw}px ${-Math.floor(i / c.cols) * ch}px`; }; setFrame(0); };
+  const useRun = () => { const k = el.clientHeight * .97 / run.ph, cw = run.cw * k, ch = run.ch * k; // 走りの絵：人物の高さを立ち姿にそろえ、足元を枠の下端に
+    Object.assign(sp.style, { left: el.clientWidth / 2 - run.ax * k + 'px', bottom: -(run.ch - run.ay) * k + 'px', width: cw + 'px', height: ch + 'px', backgroundImage: `url(${runBase}${run.f})`, backgroundSize: `${run.cols * cw}px ${Math.ceil(run.n / run.cols) * ch}px` });
+    setFrame = i => { sp.style.backgroundPosition = `${-(i % run.cols) * cw}px ${-Math.floor(i / run.cols) * ch}px`; }; setFrame(0); };
   use(c0);
-  return { reset: () => use(c0), play(t0) { // 当たりの山場が t0+180 に来るように再生。使った動きを返す（全部を一巡してから繰り返す）
-    if (!order.length) order = clips.map((_, i) => i).sort(() => Math.random() - .5); const c = clips[order.pop()], SPD = 2.2;
-    const start = Math.max(0, t0 + 180 - c.durs.slice(0, c.hit).reduce((x, y) => x + y, 0) / SPD); let acc = 0; T(() => use(c), Math.max(0, start - 5));
-    c.durs.forEach((d, fi) => { T(() => setFrame(fi), start + acc / SPD); acc += d; }); T(() => use(c0), start + acc / SPD + 30); return c; } };
+  return { reset: () => use(c0),
+    run(ms, rate = 1) { if (!run) return false; useRun(); const step = Math.max(28, run.durs[0] / rate); for (let t = 0, i = 0; t < ms; t += step, i++) T(() => setFrame(i % run.n), t); return true; }, // 走りのコマを ms の間まわす
+    play(at, tame = 0) { // at から振りかぶり（溜め）を始める。当たりの直前のコマで tame ミリ秒止める。返り値：使った動きと、当たりの時刻
+      if (!order.length) order = clips.map((_, i) => i).sort(() => Math.random() - .5); const c = clips[order.pop()], SPD = 2.2;
+      const pre = c.durs.slice(0, c.hit).reduce((x, y) => x + y, 0) / SPD; let acc = 0; T(() => use(c), Math.max(0, at - 5));
+      c.durs.forEach((d, fi) => { T(() => setFrame(fi), at + acc / SPD + (fi >= c.hit ? tame : 0)); acc += d; }); T(() => use(c0), at + acc / SPD + tame + 30);
+      return { c, hitAt: at + pre + tame }; } };
 }
 const HUMAN = { mina: 163, sera: 157, ranka: 166, garou: 212, sol: 197, f1: 197, f2: 205, f3: 180, f4: 204 }; // 見た目の背の高さ：一騎打ちと戦場の大きさをこれで揃える。槍の穂先・兜の飾りが測った高さに入る絵は大きめの値（並べて目で合わせた値）
 const duelSel = document.createElement('div'); duelSel.id = 'dsel'; document.body.appendChild(duelSel);
@@ -937,18 +947,18 @@ function playDuel(k, done) { // 画面いっぱいの一騎打ち。五合の勝
   duelEl.innerHTML = `<div class="hd"><i class="cn tl"></i><i class="cn tr"></i><div class="sd"><div class="fw"><img class="fc" src="${faceRaw[k]}"><i class="rg"></i></div><div class="hb"><div class="nm">${A.n}</div><div class="hp"><b style="width:100%"></b></div></div></div>
     <div class="ct"><small>第${R.w || G.week}週</small><img src="assets/ui2/divider2.webp"><h1>一騎打ち</h1></div>
     <div class="sd r"><div class="fw"><div class="fc foe" style="background-image:url(assets/npc/foe_${look}.webp)"></div><i class="rg"></i></div><div class="hb"><div class="nm">${F.n}</div><div class="hp"><b style="width:100%"></b></div></div></div></div>
-    <div class="stage" style="background-image:url(assets/field/duel.jpg),url(assets/field/${R.dir || 'pass'}.jpg)"><div class="say l"></div><div class="say r foe"></div>
-      <div class="f L" style="height:${34 * (HUMAN[k] || 165) / 170}%">${(DUEL_CLIP[k] || []).length ? `<div class="sp"></div>` : `<img src="../ally/${k}.png">`}</div><div class="f R" style="height:${34 * (HUMAN['f' + look] || 178) / 170}%">${(FOEDUEL[look] || []).length ? `<div class="sp" data-filter="drop-shadow(0 0 10px #f30) drop-shadow(0 6px 8px #000)"></div>` : `<img src="assets/npc/foe_${look}.webp" style="filter:drop-shadow(0 0 10px #f30) drop-shadow(0 6px 8px #000)">`}</div>
-      <div class="cut"><img src="${faceURL[k]}"><div></div></div></div>
+    <div class="stage"><div class="cam"><div class="bg" style="background-image:url(assets/field/duel.jpg),url(assets/field/${R.dir || 'pass'}.jpg)"></div>
+      <div class="f L" style="height:${27 * (HUMAN[k] || 165) / 170}%">${(DUEL_CLIP[k] || []).length ? `<div class="sp"></div>` : `<img src="../ally/${k}.png">`}</div><div class="f R" style="height:${27 * (HUMAN['f' + look] || 178) / 170}%">${(FOEDUEL[look] || []).length ? `<div class="sp" data-filter="drop-shadow(0 0 10px #f30) drop-shadow(0 6px 8px #000)"></div>` : `<img src="assets/npc/foe_${look}.webp" style="filter:drop-shadow(0 0 10px #f30) drop-shadow(0 6px 8px #000)">`}</div>
+      </div><div class="say l"></div><div class="say r foe"></div><div class="cut"><img src="${faceURL[k]}"><div></div></div></div>
     <div class="ft"><i class="cn bl"></i><i class="cn br"></i><h3>戦況</h3><div class="blr"><span>自軍</span><div class="bal"><b style="width:50%"></b><u style="left:50%"></u></div><span>敵軍</span></div>
       <div class="row"><div class="pips">${pipsHtml}</div><div class="stt">間合いを測る</div></div>
       <div class="bt"><button class="sp2">▶▶ 速度 ×1</button><button class="go2"><b>鬨の声</b><small>次の一合を強化</small><em>残り${GM.orders(G)}回</em><i class="tm"><b></b></i></button><button class="sk">スキップ ›</button></div></div>
     <div class="res"></div>`;
-  const $ = q => duelEl.querySelector(q), L = $('.L'), Rf = $('.R'), hl = $('.sd:not(.r) .hp b'), hr = $('.sd.r .hp b'), pips = [...duelEl.querySelectorAll('.pips i')], tm = $('.tm b'), gb = $('.go2'), stt = $('.stt'), bal = $('.bal b'), balu = $('.bal u'), stage = $('.stage');
+  const $ = q => duelEl.querySelector(q), L = $('.L'), Rf = $('.R'), hl = $('.sd:not(.r) .hp b'), hr = $('.sd.r .hp b'), pips = [...duelEl.querySelectorAll('.pips i')], tm = $('.tm b'), gb = $('.go2'), stt = $('.stt'), bal = $('.bal b'), balu = $('.bal u'), stage = $('.stage'), cam = $('.cam');
   let timers = [], spd = 1, hpL = 100, hpR = 100, aw = 0, fw = 0, nextI = 0, left = GM.orders(G), used = left <= 0, armed = false, inWin = false, over = false, winT = null, cur = -1;
   const T = (f, ms) => { const t = setTimeout(f, ms); timers.push(t); return t; }, D = ms => ms / spd;
-  const actL = clipActor(L, L.querySelector('.sp') || document.createElement('div'), DUEL_CLIP[k] || [], '../ally/', T);
-  const actR = clipActor(Rf, Rf.querySelector('.sp') || document.createElement('div'), FOEDUEL[look] || [], 'assets/npc/', T);
+  const actL = clipActor(L, L.querySelector('.sp') || document.createElement('div'), DUEL_CLIP[k] || [], '../ally/', T, runClipOf(k), '../ally/');
+  const actR = clipActor(Rf, Rf.querySelector('.sp') || document.createElement('div'), FOEDUEL[look] || [], 'assets/npc/', T, foeRunOf(look), 'assets/npc/');
   const sayT = {}; const say = (side, text, ms = 1700, big = false) => { const e = $('.say.' + side); clearTimeout(sayT[side]); e.classList.remove('on'); void e.offsetWidth; e.classList.toggle('big', big); e.innerHTML = `<small>${side === 'l' ? A.n : F.n}</small>${text}`; e.classList.add('on'); sayT[side] = setTimeout(() => e.classList.remove('on'), ms); timers.push(sayT[side]); };
   const upd = () => { hl.style.width = hpL + '%'; hr.style.width = hpR + '%'; const b = Math.max(6, Math.min(94, 50 + (hpL - hpR) / 2)); bal.style.width = b + '%'; balu.style.left = b + '%'; word = b > 62 ? '優勢' : b < 38 ? '劣勢' : '拮抗'; };
   let word = '拮抗'; const msg = (html, hv = false) => { stt.innerHTML = html; stt.classList.toggle('hv', hv); };
@@ -957,15 +967,25 @@ function playDuel(k, done) { // 画面いっぱいの一騎打ち。五合の勝
     say(win ? 'l' : 'r', pickOf((win ? AL : FL).win), 2600); say(win ? 'r' : 'l', pickOf((win ? FL : AL).lose), 2600);
     T(() => { const r = $('.res'); r.innerHTML = `<div class="bd"><div class="k">一騎打ち</div><h2 class="${win ? 'w' : 'l'}">${win ? '勝利' : '敗北'}</h2><img src="assets/ui2/divider2.webp"><p>${win ? `${A.n}が${F.n}を討ち取った。戦況が有利になる` : `${A.n}が敗れた。戦況が不利になる`}<small>タップで続ける</small></p></div>`; r.classList.add('on');
       r.onclick = e => { e.stopPropagation(); if (!r.classList.contains('on')) return; timers.forEach(clearTimeout); if (actL) actL.reset(); if (actR) actR.reset(); duelEl.style.display = 'none'; done(); }; }, 1900); };
+  // カメラ：引き（scale 1）→ 取った側が走って間合いを詰める → ズームイン → 溜め（当たりの直前で止める）→ 斬る → ズームアウトして元の位置へ
+  const zoom = (z, ox, ms = 260) => { cam.style.transition = `transform ${ms}ms cubic-bezier(.2,.7,.3,1)`; cam.style.transformOrigin = `${ox}px 72%`; cam.style.transform = z === 1 ? '' : `scale(${z})`; };
   const runRound = i => { inWin = false; gb.classList.remove('ready');
-    const r = GM.duelRound(plan, i, armed), at = r.ally ? L : Rf, df = r.ally ? Rf : L, dir = r.ally ? 1 : -1, act = r.ally ? actL : actR, t0 = 750; armed = false; const clip = act ? act.play(t0) : null;
-    if (r.kind === 'counter') { const c = $('.cut'); c.querySelector('div').innerHTML = `見切り！<small>${A.n}が大技を受け流す</small>`; T(() => c.classList.add('on'), 100); T(() => c.classList.remove('on'), t0 + 700); }
-    T(() => { at.style.transform = `translateX(${dir * (clip ? 10 : 34)}vw)`; }, t0);
-    T(() => { const sl = document.createElement('div'); sl.className = 'slash'; sl.style.left = r.ally ? '38%' : '18%'; stage.appendChild(sl); df.classList.remove('hit'); void df.offsetWidth; df.classList.add('hit'); df.style.transform = `translateX(${dir * 4}vw)`; duelEl.classList.add('shake');
-      const n = document.createElement('div'); n.className = 'num'; n.textContent = r.dmg * 7 + Math.round(Math.random() * 9); n.style.left = r.ally ? '66%' : '20%'; n.style.top = '34%'; stage.appendChild(n); setTimeout(() => { sl.remove(); n.remove(); }, 900);
-      apply(i, r); upd(); say(r.ally ? 'l' : 'r', pickOf((r.ally ? AL : FL).hit), 1500); T(() => say(r.ally ? 'r' : 'l', pickOf((r.ally ? FL : AL).hurt), 1400), D(350)); }, t0 + 180);
-    T(() => { df.classList.remove('hit'); duelEl.classList.remove('shake'); at.style.transform = ''; df.style.transform = ''; }, t0 + 420);
-    T(() => { if (aw >= 3 || fw >= 3) finish(); else roundStart(i + 1); }, t0 + D(1250)); };
+    const r = GM.duelRound(plan, i, armed), at = r.ally ? L : Rf, df = r.ally ? Rf : L, dir = r.ally ? 1 : -1, act = r.ally ? actL : actR; armed = false;
+    const big = r.kind === 'counter' || r.kind === 'heavy', sw = stage.clientWidth, ra = at.getBoundingClientRect(), rd = df.getBoundingClientRect(), rs = stage.getBoundingClientRect();
+    const gap = r.ally ? rd.left - ra.right : ra.left - rd.right, dx = dir * Math.max(0, gap - sw * .04); // 相手の手前まで詰める
+    const runMs = D(dx ? 430 : 120), ran = act && dx ? act.run(runMs, r.ally ? 1 : 2.2) : false;
+    at.style.transition = `transform ${runMs}ms ${ran ? 'linear' : 'ease-in'}`; at.style.transform = `translateX(${dx}px)`;
+    const clashX = (r.ally ? ra.right + dx : ra.left + dx) - rs.left + dir * sw * .02, tame = D(big ? 300 : 170);
+    const P = act ? act.play(runMs, tame) : { c: null, hitAt: runMs + 240 };
+    T(() => zoom(big ? 1.75 : 1.5, clashX, big ? 320 : 260), runMs); // 詰めたところでズームイン（溜めの間に寄り切る）
+    if (r.kind === 'counter') { const c = $('.cut'); c.querySelector('div').innerHTML = `見切り！<small>${A.n}が大技を受け流す</small>`; T(() => c.classList.add('on'), runMs); T(() => c.classList.remove('on'), P.hitAt + 500); }
+    T(() => { const sl = document.createElement('div'); sl.className = 'slash'; sl.style.left = (clashX / sw * 100 - (r.ally ? 4 : 12)) + '%'; cam.appendChild(sl); df.classList.remove('hit'); void df.offsetWidth; df.classList.add('hit'); df.style.transition = 'transform .18s ease-out'; df.style.transform = `translateX(${dir * sw * .04}px)`; duelEl.classList.add('shake');
+      zoom(big ? 1.85 : 1.58, clashX, 90); // 当たりの瞬間、もう一段寄る
+      const n = document.createElement('div'); n.className = 'num'; n.textContent = r.dmg * 7 + Math.round(Math.random() * 9); n.style.left = (clashX / sw * 100 + (r.ally ? 6 : -14)) + '%'; n.style.top = '30%'; cam.appendChild(n); setTimeout(() => { sl.remove(); n.remove(); }, 900);
+      apply(i, r); upd(); say(r.ally ? 'l' : 'r', pickOf((r.ally ? AL : FL).hit), 1500); T(() => say(r.ally ? 'r' : 'l', pickOf((r.ally ? FL : AL).hurt), 1400), D(350)); }, P.hitAt);
+    T(() => { df.classList.remove('hit'); duelEl.classList.remove('shake'); df.style.transform = ''; }, P.hitAt + 260);
+    T(() => { zoom(1, clashX, 420); at.style.transition = 'transform .42s ease-in-out'; at.style.transform = ''; }, P.hitAt + D(big ? 520 : 380)); // 引きへ戻り、元の位置へ下がる
+    T(() => { if (aw >= 3 || fw >= 3) finish(); else roundStart(i + 1); }, P.hitAt + D(big ? 1250 : 1050)); };
   const goRound = i => { gb.classList.remove('ready'); runRound(i); };
   const roundStart = i => { if (over) return; cur = i; const heavy = plan.heavy.includes(i); pips[i].classList.add('cur'); inWin = true;
     msg(heavy ? `<em>第${i + 1}合</em>大技の構え${used ? '' : '　─　鬨の声で見切れる'}` : `<em>第${i + 1}合</em>${word}`, heavy); if (heavy) say('r', pickOf(FL.heavy), D(1600), true);
@@ -973,7 +993,7 @@ function playDuel(k, done) { // 画面いっぱいの一騎打ち。五合の勝
   gb.onclick = e => { e.stopPropagation(); if (used || over || !inWin) return; left--; used = left <= 0; armed = true; gb.classList.remove('ready'); if (used) gb.classList.add('used'); gb.querySelector('em').textContent = used ? '使用済み' : `残り${left}回`;
     const heavy = plan.heavy.includes(cur); msg(`<em>鬨の声</em>${heavy ? '見切りの構え' : '次の一合を強化'}`); say('l', pickOf(AL.hit), D(900)); clearTimeout(winT); winT = T(() => goRound(cur), D(650)); };
   $('.sp2').onclick = e => { e.stopPropagation(); spd = spd === 1 ? 2 : 1; e.currentTarget.textContent = `▶▶ 速度 ×${spd}`; };
-  $('.sk').onclick = e => { e.stopPropagation(); if (over) return; timers.forEach(clearTimeout); if (actL) actL.reset(); if (actR) actR.reset(); [L, Rf].forEach(x => { x.style.transform = ''; x.style.filter = ''; }); duelEl.classList.remove('shake'); $('.cut').classList.remove('on'); pips.forEach(p => p.classList.remove('cur'));
+  $('.sk').onclick = e => { e.stopPropagation(); if (over) return; timers.forEach(clearTimeout); if (actL) actL.reset(); if (actR) actR.reset(); [L, Rf].forEach(x => { x.style.transform = ''; x.style.filter = ''; }); zoom(1, stage.clientWidth / 2, 0); duelEl.classList.remove('shake'); $('.cut').classList.remove('on'); pips.forEach(p => p.classList.remove('cur'));
     while (aw < 3 && fw < 3 && nextI < 5) { apply(nextI, GM.duelRound(plan, nextI, armed)); armed = false; } upd(); finish(); };
   duelEl.onclick = null;
   say('l', pickOf(AL.open), 2200); say('r', pickOf(FL.open), 2200); T(() => roundStart(0), 2300);
@@ -1367,6 +1387,7 @@ window.addEventListener('resize', resize);
 let last = performance.now(), frames = 0, acc = 0, fx = [];
 function frame(now) {
   const dt = now - last; last = now; acc += dt; frames++;
+  if (duelEl.style.display === 'flex' || duelSel.style.display === 'flex') { requestAnimationFrame(frame); return; } // 一騎打ちの全画面の間は、裏の地図を描かない（重さ対策）
   groundMat.uniforms.time.value = now / 1000; selGlow.opacity = .38 + .2 * Math.sin(now / 260);
   walkAllies(Math.min(.05, dt / 1000)); badges.forEach((b, i) => { b.position.y = b.userData.y0 + Math.sin(now / 400 + i) * 2; }); fireMeshes.forEach(f => { if (!f.parent) { fireMeshes.delete(f); return; } if (!f.userData.s) f.userData.s = f.scale.clone(); const k = 1 + Math.sin(now / 90 + f.id) * .06, g = f.userData.ign ? Math.min(1, (now - f.userData.ign) / 1200) : 1, ge = Math.max(.1, g * (2 - g)); f.scale.set(f.userData.s.x * (2 - k) * (.5 + .5 * ge), f.userData.s.y * k * ge, 1); }); burnUpdate(now);
   waterMats.forEach(mt => { if (mt.userData.sh) mt.userData.sh.uniforms.time.value = now / 1000; }); fx.forEach(f => f(now)); fx = fx.filter(f => !f.done);
