@@ -1,9 +1,9 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793272601';
-import { createUI } from './ui.js?v=1793272601';
-import { createMorning } from './morning.js?v=1793272601';
+import * as GM from './game.js?v=1793273129';
+import { createUI } from './ui.js?v=1793273129';
+import { createMorning } from './morning.js?v=1793273129';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -948,7 +948,7 @@ function playDuel(k, done) { // 画面いっぱいの一騎打ち。五合の勝
     <div class="ct"><small>第${R.w || G.week}週</small><img src="assets/ui2/divider2.webp"><h1>一騎打ち</h1></div>
     <div class="sd r"><div class="fw"><div class="fc foe" style="background-image:url(assets/npc/foe_${look}.webp)"></div><i class="rg"></i></div><div class="hb"><div class="nm">${F.n}</div><div class="hp"><b style="width:100%"></b></div></div></div></div>
     <div class="stage"><div class="cam"><div class="bg" style="background-image:url(assets/field/duel.jpg),url(assets/field/${R.dir || 'pass'}.jpg)"></div>
-      <div class="f L" style="height:${27 * (HUMAN[k] || 165) / 170}%">${(DUEL_CLIP[k] || []).length ? `<div class="sp"></div>` : `<img src="../ally/${k}.png">`}</div><div class="f R" style="height:${27 * (HUMAN['f' + look] || 178) / 170}%">${(FOEDUEL[look] || []).length ? `<div class="sp" data-filter="drop-shadow(0 0 10px #f30) drop-shadow(0 6px 8px #000)"></div>` : `<img src="assets/npc/foe_${look}.webp" style="filter:drop-shadow(0 0 10px #f30) drop-shadow(0 6px 8px #000)">`}</div>
+      <div class="f L" style="height:${27 * (HUMAN[k] || 165) / 170}%">${(DUEL_CLIP[k] || []).length ? `<div class="sp"></div>` : `<img src="../ally/${k}.png">`}</div><div class="f R" style="height:${27 * (HUMAN['f' + look] || 178) / 170}%">${(FOEDUEL[look] || []).length ? `<div class="sp" data-filter="drop-shadow(0 6px 8px #000)"></div>` : `<img src="assets/npc/foe_${look}.webp" style="filter:drop-shadow(0 6px 8px #000)">`}</div>
       </div><div class="say l"></div><div class="say r foe"></div><div class="cut"><img src="${faceURL[k]}"><div></div></div></div>
     <div class="ft"><i class="cn bl"></i><i class="cn br"></i><h3>戦況</h3><div class="blr"><span>自軍</span><div class="bal"><b style="width:50%"></b><u style="left:50%"></u></div><span>敵軍</span></div>
       <div class="row"><div class="pips">${pipsHtml}</div><div class="stt">間合いを測る</div></div>
@@ -967,25 +967,33 @@ function playDuel(k, done) { // 画面いっぱいの一騎打ち。五合の勝
     say(win ? 'l' : 'r', pickOf((win ? AL : FL).win), 2600); say(win ? 'r' : 'l', pickOf((win ? FL : AL).lose), 2600);
     T(() => { const r = $('.res'); r.innerHTML = `<div class="bd"><div class="k">一騎打ち</div><h2 class="${win ? 'w' : 'l'}">${win ? '勝利' : '敗北'}</h2><img src="assets/ui2/divider2.webp"><p>${win ? `${A.n}が${F.n}を討ち取った。戦況が有利になる` : `${A.n}が敗れた。戦況が不利になる`}<small>タップで続ける</small></p></div>`; r.classList.add('on');
       r.onclick = e => { e.stopPropagation(); if (!r.classList.contains('on')) return; timers.forEach(clearTimeout); if (actL) actL.reset(); if (actR) actR.reset(); duelEl.style.display = 'none'; done(); }; }, 1900); };
-  // カメラ：引き（scale 1）→ 取った側が走って間合いを詰める → ズームイン → 溜め（当たりの直前で止める）→ 斬る → ズームアウトして元の位置へ
-  const zoom = (z, ox, ms = 260) => { cam.style.transition = `transform ${ms}ms cubic-bezier(.2,.7,.3,1)`; cam.style.transformOrigin = `${ox}px 72%`; cam.style.transform = z === 1 ? '' : `scale(${z})`; };
+  // カメラ：走り出した側に寄って追いかける → 攻撃で二人がぎりぎり収まる大きさまで引く → 元の位置へ戻りながら引きへ
+  const camTo = (z, wx, ms, ease = 'cubic-bezier(.2,.7,.3,1)') => { // 世界の x＝wx を画面の中央に、足元（舞台の85%）が画面の92%に来るよう、z倍に寄る（背景の外が見えないように抑える）
+    const sw = stage.clientWidth, sh = stage.clientHeight; z = Math.max(1, z);
+    const tx = Math.min(0, Math.max(sw - z * sw, sw / 2 - z * wx)), ty = Math.min(0, Math.max(sh - z * sh, sh * (.92 - z * .85)));
+    cam.style.transition = `transform ${ms}ms ${ease}`; cam.style.transformOrigin = '0 0'; cam.style.transform = z === 1 ? '' : `translate(${tx}px,${ty}px) scale(${z})`; };
   const runRound = i => { inWin = false; gb.classList.remove('ready');
     const r = GM.duelRound(plan, i, armed), at = r.ally ? L : Rf, df = r.ally ? Rf : L, dir = r.ally ? 1 : -1, act = r.ally ? actL : actR; armed = false;
-    const big = r.kind === 'counter' || r.kind === 'heavy', sw = stage.clientWidth, ra = at.getBoundingClientRect(), rd = df.getBoundingClientRect(), rs = stage.getBoundingClientRect();
+    const big = r.kind === 'counter' || r.kind === 'heavy', sw = stage.clientWidth, rs = stage.getBoundingClientRect(), ra = at.getBoundingClientRect(), rd = df.getBoundingClientRect();
     const gap = r.ally ? rd.left - ra.right : ra.left - rd.right, dx = dir * Math.max(0, gap - sw * .04); // 相手の手前まで詰める
-    const runMs = D(dx ? 430 : 120), ran = act && dx ? act.run(runMs, r.ally ? 1 : 2.2) : false;
+    const cx0 = (ra.left + ra.right) / 2 - rs.left, cx1 = cx0 + dx; // 走る側の中心（世界の座標。カメラは毎合 引きから始まる）
+    const span = Math.max(ra.right + dx, rd.right) - Math.min(ra.left + dx, rd.left), mid = (Math.max(ra.right + dx, rd.right) + Math.min(ra.left + dx, rd.left)) / 2 - rs.left;
+    const zFit = Math.min(2.2, sw / (span + sw * .1)), zRun = Math.max(zFit + .5, 2.1); // 攻撃＝二人がぎりぎり収まる／走り＝その人を大きく
+    const runMs = D(dx ? 470 : 160), ran = act && dx ? act.run(runMs, r.ally ? 1 : 2.2) : false, lead = D(140);
     at.style.transition = `transform ${runMs}ms ${ran ? 'linear' : 'ease-in'}`; at.style.transform = `translateX(${dx}px)`;
+    camTo(zRun, cx0 + dx * .25, lead); T(() => camTo(zRun, cx1, runMs - lead, 'linear'), lead); // 寄ってから、走りに合わせて追う
     const clashX = (r.ally ? ra.right + dx : ra.left + dx) - rs.left + dir * sw * .02, tame = D(big ? 300 : 170);
     const P = act ? act.play(runMs, tame) : { c: null, hitAt: runMs + 240 };
-    T(() => zoom(big ? 1.75 : 1.5, clashX, big ? 320 : 260), runMs); // 詰めたところでズームイン（溜めの間に寄り切る）
+    T(() => camTo(big ? zFit * 1.06 : zFit, mid, D(big ? 320 : 240)), runMs); // 溜めの間に、二人が収まるところまで引く
     if (r.kind === 'counter') { const c = $('.cut'); c.querySelector('div').innerHTML = `見切り！<small>${A.n}が大技を受け流す</small>`; T(() => c.classList.add('on'), runMs); T(() => c.classList.remove('on'), P.hitAt + 500); }
     T(() => { const sl = document.createElement('div'); sl.className = 'slash'; sl.style.left = (clashX / sw * 100 - (r.ally ? 4 : 12)) + '%'; cam.appendChild(sl); df.classList.remove('hit'); void df.offsetWidth; df.classList.add('hit'); df.style.transition = 'transform .18s ease-out'; df.style.transform = `translateX(${dir * sw * .04}px)`; duelEl.classList.add('shake');
-      zoom(big ? 1.85 : 1.58, clashX, 90); // 当たりの瞬間、もう一段寄る
+      camTo((big ? zFit * 1.06 : zFit) * 1.05, mid, 90); // 当たりの瞬間、少しだけ寄る
       const n = document.createElement('div'); n.className = 'num'; n.textContent = r.dmg * 7 + Math.round(Math.random() * 9); n.style.left = (clashX / sw * 100 + (r.ally ? 6 : -14)) + '%'; n.style.top = '30%'; cam.appendChild(n); setTimeout(() => { sl.remove(); n.remove(); }, 900);
       apply(i, r); upd(); say(r.ally ? 'l' : 'r', pickOf((r.ally ? AL : FL).hit), 1500); T(() => say(r.ally ? 'r' : 'l', pickOf((r.ally ? FL : AL).hurt), 1400), D(350)); }, P.hitAt);
     T(() => { df.classList.remove('hit'); duelEl.classList.remove('shake'); df.style.transform = ''; }, P.hitAt + 260);
-    T(() => { zoom(1, clashX, 420); at.style.transition = 'transform .42s ease-in-out'; at.style.transform = ''; }, P.hitAt + D(big ? 520 : 380)); // 引きへ戻り、元の位置へ下がる
-    T(() => { if (aw >= 3 || fw >= 3) finish(); else roundStart(i + 1); }, P.hitAt + D(big ? 1250 : 1050)); };
+    const back = D(big ? 520 : 380), backMs = D(520);
+    T(() => { camTo(1, sw / 2, backMs, 'ease-in-out'); at.style.transition = `transform ${backMs}ms ease-in-out`; at.style.transform = ''; }, P.hitAt + back); // 元の位置へ戻りながら、引きへ
+    T(() => { if (aw >= 3 || fw >= 3) finish(); else roundStart(i + 1); }, P.hitAt + back + backMs + D(250)); };
   const goRound = i => { gb.classList.remove('ready'); runRound(i); };
   const roundStart = i => { if (over) return; cur = i; const heavy = plan.heavy.includes(i); pips[i].classList.add('cur'); inWin = true;
     msg(heavy ? `<em>第${i + 1}合</em>大技の構え${used ? '' : '　─　鬨の声で見切れる'}` : `<em>第${i + 1}合</em>${word}`, heavy); if (heavy) say('r', pickOf(FL.heavy), D(1600), true);
@@ -993,7 +1001,7 @@ function playDuel(k, done) { // 画面いっぱいの一騎打ち。五合の勝
   gb.onclick = e => { e.stopPropagation(); if (used || over || !inWin) return; left--; used = left <= 0; armed = true; gb.classList.remove('ready'); if (used) gb.classList.add('used'); gb.querySelector('em').textContent = used ? '使用済み' : `残り${left}回`;
     const heavy = plan.heavy.includes(cur); msg(`<em>鬨の声</em>${heavy ? '見切りの構え' : '次の一合を強化'}`); say('l', pickOf(AL.hit), D(900)); clearTimeout(winT); winT = T(() => goRound(cur), D(650)); };
   $('.sp2').onclick = e => { e.stopPropagation(); spd = spd === 1 ? 2 : 1; e.currentTarget.textContent = `▶▶ 速度 ×${spd}`; };
-  $('.sk').onclick = e => { e.stopPropagation(); if (over) return; timers.forEach(clearTimeout); if (actL) actL.reset(); if (actR) actR.reset(); [L, Rf].forEach(x => { x.style.transform = ''; x.style.filter = ''; }); zoom(1, stage.clientWidth / 2, 0); duelEl.classList.remove('shake'); $('.cut').classList.remove('on'); pips.forEach(p => p.classList.remove('cur'));
+  $('.sk').onclick = e => { e.stopPropagation(); if (over) return; timers.forEach(clearTimeout); if (actL) actL.reset(); if (actR) actR.reset(); [L, Rf].forEach(x => { x.style.transform = ''; x.style.filter = ''; }); camTo(1, stage.clientWidth / 2, 0); duelEl.classList.remove('shake'); $('.cut').classList.remove('on'); pips.forEach(p => p.classList.remove('cur'));
     while (aw < 3 && fw < 3 && nextI < 5) { apply(nextI, GM.duelRound(plan, nextI, armed)); armed = false; } upd(); finish(); };
   duelEl.onclick = null;
   say('l', pickOf(AL.open), 2200); say('r', pickOf(FL.open), 2200); T(() => roundStart(0), 2300);
@@ -1399,7 +1407,8 @@ function frame(now) {
 canvas.addEventListener('webglcontextlost', e => { e.preventDefault(); status.ok = false; status.reason = 'WebGLが失われた'; });
 G = loadSave() || GM.newState(layout.areas); syncMap(true); refreshUI(); takeBattleResult();
 if (params.has('field')) { const sv = JSON.stringify(G); for (const a of Object.values(GM.ALLY)) if (a.join && !G.open.includes(a.join)) G.open.push(a.join); G.raid = { kind: 'raid', E: 46, name: '将軍の侵攻（試し）', boss: true, w: 12, dir: 'pass', ranka: false }; G.troops = Math.max(G.troops || 0, 6); fieldBattle('auto', () => { G = JSON.parse(sv); writeSave(); refreshUI(); ui.toast('試しの戦闘を終えた（記録は残らない）'); }); } // ?field で任せた戦闘だけ見る
-if (params.has('duel')) { const sv = JSON.stringify(G); G.raid = { kind: 'raid', E: 46, name: '将軍の侵攻（試し）', boss: true, w: 12, dir: 'pass', ranka: GM.joined(G, 'ranka') }; maybeDuel(() => { G = JSON.parse(sv); writeSave(); refreshUI(); ui.toast('試しの一騎打ちを終えた（記録は残らない）'); }); } // ?duel で一騎打ちだけ見る
+if (params.has('duel')) { const sv = JSON.stringify(G); for (const a of Object.values(GM.ALLY)) if (a.join && !G.open.includes(a.join)) G.open.push(a.join); G.rankaAway = false; G.rankaRest = false; // 試しは仲間4人とも選べる（ランカも）
+  G.raid = { kind: 'raid', E: 46, name: '将軍の侵攻（試し）', boss: true, w: 12, dir: 'pass', ranka: true }; maybeDuel(() => { G = JSON.parse(sv); writeSave(); refreshUI(); ui.toast('試しの一騎打ちを終えた（記録は残らない）'); }); } // ?duel で一騎打ちだけ見る
 resize(); apply(); renderer.render(scene, camera); status.ok = true; if (window.__bootDone) window.__bootDone();
 window.__t.castle = () => { select(null); selCastle = true; refreshUI(); }; // 試験：城を選ぶ
 window.__t.setView = (zoom, sx, sy) => { view.zoom = zoom; view.cx = sx; view.cz = zOf(sy); clampView(); apply(); renderer.render(scene, camera); };
