@@ -4,8 +4,12 @@
 export const FAC = { // 施設。stage 1=建築中（効果なし、週末に完成） 2=完成（効果×1） 3=発展後（効果×2）
   farm:   { n: '畑',     cost: 3, up: 4, eff: { sup: 2 }, d: '毎週の物資+2' },
   tavern: { n: '酒場',   cost: 4, up: 5, eff: { mor: 3 }, d: '毎週の民心+3' },
-  smithy: { n: '鍛冶場', cost: 5, up: 6, eff: { def: 4 }, d: '防衛力+4' },
+  smithy: { n: '鍛冶場', cost: 5, up: 6, eff: { arm: .5 }, d: '兵の装備：兵1人の強さ+0.5', one: true }, // 1つまで。防衛力ではなく「兵1人の強さ」を上げる（守りにも出撃にも効く）
 };
+// 同じ種類の施設は、2つ目から効きが落ちる（大きい順に並べて掛ける）。並べるだけでは伸びない。上位の施設（劇場など、次の段階）はこの外
+export const DIM = [1, .7, .5, .35, .25];
+export const facCount = (s, f) => Object.values(s.plots).filter(p => p.fac === f).length;
+export const dimNote = (s, f) => { const n = facCount(s, f); return FAC[f].one ? '' : n ? `${n + 1}つ目は効き${Math.round((DIM[n] ?? .2) * 100)}%` : ''; };
 export const STAGE = ['空き地', '建築中', '完成', '発展後'];
 export const WEEKS = 12;
 export const SCHED = [ // 襲撃の予定（E=敵の規模）。後半ほど強く、家の街だけでは守り切れない強さにする
@@ -24,7 +28,8 @@ export const ALLY = {
 };
 // 施設への配置：仲間1人につき施設1つ。完成・発展後の施設だけ。得意な施設なら効果+基本値ぶん、そうでなければ半分（切り上げ）
 export const AFFINITY = { farm: ['sera'], tavern: ['sera', 'garou', 'ranka'], smithy: ['garou', 'mina', 'ranka'] };
-export function assignBonus(fac, k) { const e = Object.values(FAC[fac].eff)[0]; if (k === 'ranka' && fac !== 'farm') return e * 2; return AFFINITY[fac].includes(k) ? e : Math.ceil(e / 2); } // ランカは酒場（民心）か鍛冶場（防衛）で2倍
+export function assignBonus(fac, k) { const e = Object.values(FAC[fac].eff)[0]; if (fac === 'smithy') return k === 'ranka' ? .5 : AFFINITY.smithy.includes(k) ? .25 : .1; // 鍛冶場は兵の強さ（小数）
+  if (k === 'ranka' && fac !== 'farm') return e * 2; return AFFINITY[fac].includes(k) ? e : Math.ceil(e / 2); } // ランカは酒場（民心）か鍛冶場で2倍
 export const allyAt = (s, id) => Object.keys(s.assign || {}).find(k => s.assign[k] === id) || null;
 export function canAssign(s, k, id) { const p = s.plots[id]; return joined(s, k) && !!p && p.stage >= 2 && !s.over && !s.raid && s.assign[k] !== id; }
 export function assign(s, k, id) { if (!canAssign(s, k, id)) return false; const other = allyAt(s, id); if (other) delete s.assign[other]; s.assign[k] = id; s.log.push(`${ALLY[k].n}を${FAC[s.plots[id].fac].n}に配置した`); return true; }
@@ -38,7 +43,8 @@ export function talk(s, k) { if (!canTalk(s, k)) return false; s.ap -= 1; s.bond
 export const rankaReady = s => joined(s, 'ranka') && !s.rankaRest && !s.rankaAway;
 export const rankaD = s => 10 + (bond(s, 'ranka') >= 3 ? 8 : bond(s, 'ranka') >= 2 ? 4 : 0);
 export const rankaDmg = s => .4 + (bond(s, 'ranka') >= 3 ? .2 : bond(s, 'ranka') >= 2 ? .1 : 0);
-export const raidD = s => D(s) + (s.raid && s.raid.ranka ? rankaD(s) : 0);
+export const sortieD = (s, n) => Math.round((n * troopStr(s) + 2 + garouD(s)) * 10) / 10; // 出撃の戦力：送った兵だけ
+export const raidD = s => (s.raid && s.raid.kind === 'sortie' ? sortieD(s, s.raid.sent || 0) : D(s)) + (s.raid && s.raid.ranka ? rankaD(s) : 0);
 export function setRanka(s, on) { if (s.raid) s.raid.ranka = !!on && rankaReady(s); }
 export function battleMods(s) { // アクション戦闘へ渡す補正
   const m = bond(s, 'mina'), g = bond(s, 'garou'), r = bond(s, 'sera'), k = bond(s, 'ranka');
@@ -52,16 +58,20 @@ export function newState(areaDefs) {
 }
 
 // ---------- 指標（全部ここから計算） ----------
-const DIM = [1, .7, .5, .35, .25]; // 鍛冶場は2つ目から効きが落ちる（大きい順に並べて掛ける）。積むだけでは勝てないように
-function effSum(s, key) {
-  const vals = [];
-  for (const [id, p] of Object.entries(s.plots)) { const f = FAC[p.fac]; if (!f || !f.eff[key] || p.burnt) continue;
-    let v = (f.eff[key] + (key === 'sup' && bond(s, 'sera') >= 2 ? 1 : 0)) * mult(p.stage);
-    const k = allyAt(s, id); if (k && p.stage >= 2 && !(k === 'ranka' && s.rankaAway)) v += assignBonus(p.fac, k); vals.push(v); }
-  if (key !== 'def') return vals.reduce((t, v) => t + v, 0); // 物資・民心は足し算のまま
-  vals.sort((a, b) => b - a); return Math.round(vals.reduce((t, v, i) => t + v * (DIM[i] ?? .2), 0));
+function facVal(s, id, p, key) { const f = FAC[p.fac]; if (!f || !f.eff[key] || p.burnt) return null;
+  let v = (f.eff[key] + (key === 'sup' && bond(s, 'sera') >= 2 ? 1 : 0)) * mult(p.stage);
+  const k = allyAt(s, id); if (k && p.stage >= 2 && !(k === 'ranka' && s.rankaAway)) v += assignBonus(p.fac, k); return v; }
+function effSum(s, key) { // 種類ごとに大きい順に並べ、DIM を掛けて足す
+  const by = {};
+  for (const [id, p] of Object.entries(s.plots)) { const v = facVal(s, id, p, key); if (v != null) (by[p.fac] = by[p.fac] || []).push(v); }
+  let t = 0; for (const vals of Object.values(by)) { vals.sort((a, b) => b - a); t += vals.reduce((a, v, i) => a + v * (DIM[i] ?? .2), 0); }
+  return key === 'arm' ? t : Math.round(t); // 物資・民心・防衛は整数
 }
-export const D = s => s.troops * 1.5 + effSum(s, 'def') + 2 + (bond(s, 'garou') >= 3 ? 7 : bond(s, 'garou') >= 2 ? 4 : 0); // ランカ（将軍）は兵を強くする                       // 防衛力
+// 兵1人の強さ：素1.5＋鍛冶場（一番良いもの1つだけ。完成+0.5・発展+1.0・配置で上乗せ）
+export const troopStr = s => { let a = 0; for (const [id, p] of Object.entries(s.plots)) { const v = facVal(s, id, p, 'arm'); if (v != null) a = Math.max(a, v); } return 1.5 + Math.round(a * 100) / 100; };
+export const troopsHome = s => Math.max(0, s.troops - (s.away || 0)); // 出撃した兵は、その週の守りにいない
+const garouD = s => (bond(s, 'garou') >= 3 ? 7 : bond(s, 'garou') >= 2 ? 4 : 0);
+export const D = s => Math.round((troopsHome(s) * troopStr(s) + effSum(s, 'def') + 2 + garouD(s)) * 10) / 10; // 防衛力
 export const landInc = s => s.areaDefs.filter(a => s.open.includes(a.id)).reduce((t, a) => t + a.income, 0);
 export const income = s => 4 + effSum(s, 'sup') + landInc(s) - Math.floor(s.troops / 2); // 毎週の物資
 export const moraleD = s => -2 + effSum(s, 'mor');                                   // 毎週の民心
@@ -73,7 +83,8 @@ export const wavesOf = E => clamp(Math.round(E / 7), 2, 7);
 
 // ---------- 行動 ----------
 const spend = (s, c) => { s.ap -= 1; s.sup -= c; };
-export function canBuild(s, fac) { return !s.over && !s.raid && s.ap >= 1 && s.sup >= FAC[fac].cost; }
+export function canBuild(s, fac) { return !s.over && !s.raid && s.ap >= 1 && s.sup >= FAC[fac].cost && !(FAC[fac].one && facCount(s, fac)); }
+export const buildWhy = (s, fac) => (FAC[fac].one && facCount(s, fac) ? `${FAC[fac].n}は1つまで` : '');
 export function build(s, id, fac) { if (!canBuild(s, fac) || s.plots[id]) return false; spend(s, FAC[fac].cost); s.plots[id] = { fac, stage: 1 }; s.log.push(`${FAC[fac].n}の建築を始めた`); return true; }
 export function canUpgrade(s, id) { const p = s.plots[id]; return !!p && p.stage === 2 && !p.burnt && !s.over && !s.raid && s.ap >= 1 && s.sup >= FAC[p.fac].up; }
 export function upgrade(s, id) { if (!canUpgrade(s, id)) return false; const p = s.plots[id]; spend(s, FAC[p.fac].up); p.stage = 3; s.log.push(`${FAC[p.fac].n}を発展させた`); return true; }
@@ -86,8 +97,14 @@ export const CASTLE = { // 城でできること
   levy:   { t: '徴発',     cost: 0, d: '物資+5 民心-8', can: () => true, ap: s => { s.sup += 5; s.morale = clamp(s.morale - 8, 0, 100); } },
   feast:  { t: '炊き出し', cost: 3, d: '民心+10', can: () => true, ap: s => { s.morale = clamp(s.morale + (bond(s, 'sera') >= 3 ? 15 : 10), 0, 100); } },
   scout:  { t: '偵察',     cost: 0, d: '次の襲撃の規模が確定', can: s => { const r = nextRaid(s); return !!r && !s.scouted[r.w]; }, ap: s => { s.scouted[nextRaid(s).w] = true; } },
-  sortie: { t: '出撃',     cost: 0, d: '敵の前哨（規模14）を攻める。勝てば物資+8', can: s => s.troops >= 2, ap: s => { s.raid = { kind: 'sortie', E: 14, name: '敵の前哨' }; } },
+  sortie2: sortieAct(2), sortie4: sortieAct(4), sortie6: sortieAct(6),
 };
+// 出撃：送る兵の数を選ぶ。送った兵は、その週末の守りにいない（襲撃の週は守りが薄くなる）。週に1回。勝てば物資＋兵2人につき4
+export const sortieE = s => 2 + s.week; // 敵の前哨の規模（週ごとに強くなる）
+export const sortieGain = n => 2 * n;
+function sortieAct(n) { return { t: `出撃（兵${n}）`, cost: 0, sortie: n, get d() { return `兵${n}で敵の前哨を攻める。勝てば物資+${sortieGain(n)}。その週は兵${n}が守りから抜ける`; },
+  can: s => s.troops >= n && !s.sortied, ap: s => { s.sortied = true; s.raid = { kind: 'sortie', E: sortieE(s), name: '敵の前哨', sent: n }; } }; }
+export const castleWhy = (s, id) => { const c = CASTLE[id]; if (c.sortie) { if (s.sortied) return '出撃は週に1回'; if (s.troops < c.sortie) return `兵が足りない（兵${s.troops}）`; } if (id === 'troops' && s.troops >= CAP_TROOPS) return '兵の上限'; return ''; };
 export function canCastle(s, id) { const a = CASTLE[id]; return !s.over && !s.raid && s.ap >= 1 && s.sup >= a.cost && a.can(s); }
 export function doCastle(s, id) { if (!canCastle(s, id)) return false; const a = CASTLE[id]; spend(s, a.cost); a.ap(s); s.log.push(`${a.t}を行った`); return true; }
 
@@ -110,7 +127,7 @@ export function endWeek(s) {
 function afterWeek(s) {
   checkLose(s); if (s.over) return;
   s.week++; if (s.week > WEEKS) { s.over = 'win'; s.why = `${WEEKS}週を生き延びた`; return; }
-  s.ap = Math.max(1, apOf(s.morale) - (s.tired ? 1 : 0)); s.tired = false;
+  s.ap = Math.max(1, apOf(s.morale) - (s.tired ? 1 : 0)); s.tired = false; s.away = 0; s.sortied = false; // 出撃した兵が戻る
   // ランカは、たまにその週の街にいない（4分の1。2週続けてはいない）。配置の効果も出撃もなし
   s.rankaAway = joined(s, 'ranka') && !s.rankaAway && Math.random() < .25;
   if (s.rankaAway) s.log.push('ランカは今週、街にいない');
@@ -130,10 +147,11 @@ export function resolve(s, mode, rnd = Math.random, forced) { // forced: アク�
   if (mode === 'auto') { tier = at; ok = tier === 0; } else { ok = forced === undefined ? rnd() < handP(s, E) : !!forced; tier = ok ? 0 : clamp(at + 1, 1, 3); if (R.kind === 'sortie') s.ap = Math.max(0, s.ap - 1); else s.tired = true; }
   s.raid = null;
   if (R.boss) { s.over = ok ? 'win' : 'lose'; s.why = ok ? '将軍の侵攻を退けた' : '将軍に城を落とされた'; s.log.push(t + (ok ? '勝利' : '敗北')); return t + (ok ? '勝利' : '敗北'); }
-  if (R.kind === 'sortie') {
-    if (ok) { const g = mode === 'hand' ? 10 : 8; s.sup += g; s.morale += 3; t += `勝利 物資+${g}`; }
-    else if (tier === 1) { s.morale -= 5; s.sup -= 2; t += '苦戦 民心-5 物資-2'; }
-    else { s.troops -= 1; s.morale -= 8; t += '敗走 兵力-1 民心-8'; }
+  if (R.kind === 'sortie') { const n = R.sent || 0; let lost = 0;
+    if (ok) { const g = sortieGain(n) + (mode === 'hand' ? 2 : 0); s.sup += g; s.morale += 3; t += `勝利 物資+${g}`; }
+    else if (tier === 1) { lost = 1; s.morale -= 5; t += '苦戦 兵力-1 民心-5'; }
+    else { lost = Math.ceil(n / 2); s.morale -= 8; t += `敗走 兵力-${lost} 民心-8`; }
+    s.troops -= lost; s.away = Math.max(0, n - lost); // 生き残った兵は、週末まで戻らない
   } else if (tier === 0) { if (mode === 'hand') { s.sup += 4; s.morale += 5; t += '完勝 物資+4 民心+5'; } else t += '被害なし'; }
   else if (tier === 1) { s.sup -= 3; s.morale -= 5; t += '小被害 物資-3 民心-5'; }
   else if (tier === 2) { s.sup -= 5; s.morale -= 12; s.troops -= 1; t += '中被害 物資-5 民心-12 兵力-1' + burn(s, 1, rnd); }
@@ -147,8 +165,9 @@ export function resolve(s, mode, rnd = Math.random, forced) { // forced: アク�
 const TIER_N = ['被害なし', '小被害', '中被害', '大被害'], TIER_FX = ['', '物資-3 民心-5', '物資-5 民心-12 兵-1 焼失1', '耐久-1 民心-15 兵-2 焼失2'];
 export function raidPlan(s) {
   const R = s.raid; if (!R) return null; const m = raidD(s) - R.E, at = m >= 4 ? 0 : m >= 0 ? 1 : m >= -4 ? 2 : 3, bad = clamp(at + 1, 1, 3);
-  const fx = t => R.boss ? (t === 0 ? '将軍を退け、国を取り戻す' : '城を落とされる（敗北）') : R.kind === 'sortie' ? (t === 0 ? '勝利 物資+8 民心+3' : t === 1 ? '苦戦 民心-5 物資-2' : '敗走 兵力-1 民心-8') : (t === 0 ? '被害なし' : TIER_N[t] + ' ' + TIER_FX[t]);
-  const win = R.boss ? '将軍を退け、国を取り戻す' : R.kind === 'sortie' ? '勝利 物資+10 民心+3' : '完勝 物資+4 民心+5', cost = R.kind === 'sortie' ? '行動点-1' : '来週の行動点-1';
+  const n = R.sent || 0, g = sortieGain(n);
+  const fx = t => R.boss ? (t === 0 ? '将軍を退け、国を取り戻す' : '城を落とされる（敗北）') : R.kind === 'sortie' ? (t === 0 ? `勝利 物資+${g} 民心+3` : t === 1 ? '苦戦 兵力-1 民心-5' : `敗走 兵力-${Math.ceil(n / 2)} 民心-8`) : (t === 0 ? '被害なし' : TIER_N[t] + ' ' + TIER_FX[t]);
+  const win = R.boss ? '将軍を退け、国を取り戻す' : R.kind === 'sortie' ? `勝利 物資+${g + 2} 民心+3` : '完勝 物資+4 民心+5', cost = R.kind === 'sortie' ? '行動点-1' : '来週の行動点-1';
   return { at, tier: R.boss ? (at === 0 ? '優勢' : '劣勢') : TIER_N[at], duel: duelDue(s), auto: { ok: at === 0, res: fx(at) }, act: { waves: wavesOf(R.E), win, lose: fx(bad), cost } };
 }
 // 結果の見込み（任せた場合の被害の段階）
@@ -195,6 +214,7 @@ export function weekReport(prev, s) {
   const r = nextRaid(s);
   if (r) { const lack = r.E - D(s), wk = r.w - s.week; if (lack > -4) wr.push(`${wk ? wk + '週後' : '今週末'}に${r.name}（規模${s.scouted[r.w] ? r.E : '約' + r.E}）。防衛力${Math.round(D(s))}では${lack > 0 ? '足りない' : 'ぎりぎり'}。`); else if (wk <= 1) wr.push(`${wk ? '来週末' : '今週末'}に${r.name}。防衛力は足りている。`); }
   if (income(s) < 0) wr.push(`毎週の物資が${income(s)}。兵の維持費が重い。`);
+  if (s.away && r && r.w === s.week) wr.push(`兵${s.away}が出撃から戻っていない。今週末の防衛力は${D(s)}。`);
   if (s.morale < 35) wr.push(`民心${Math.round(s.morale)}。30を切ると行動点が2に減る。`);
   else if (moraleD(s) < 0 && s.morale < 55) wr.push(`民心が毎週${moraleD(s)}ずつ下がっている。酒場か炊き出しを。`);
   const bt = Object.values(s.plots).filter(p => p.burnt).length; if (bt) wr.push(`焼かれた施設が${bt}つ。修理するまで効果がない。`);
@@ -220,7 +240,7 @@ export function morningLines(s, who, rnd = Math.random) {
   const r = nextRaid(s), lack = r ? r.E - D(s) : -99, wk = r ? r.w - s.week : 99;
   let enemy, plan;
   if (r && wk <= 2) { enemy = `${FRONT[r.dir].from}に、敵の陣が見えます。${wk ? `あと${wk}週ほどで攻めてくるでしょう。` : '今週末にも攻めてくるでしょう。'}`;
-    plan = lack > 3 ? '防衛力が足りません。鍛冶場を作るか、兵を募って、守りを固めましょう。' : lack > -4 ? '今週は守りを固めましょう。' : '守りは十分です。民の暮らしも整えましょう。'; }
+    plan = lack > 3 ? '防衛力が足りません。兵を募るか、鍛冶場で兵の装備を整えて、守りを固めましょう。' : lack > -4 ? '今週は守りを固めましょう。' : '守りは十分です。民の暮らしも整えましょう。'; }
   else { enemy = r ? '今のところ、敵に目立った動きはありません。' : '敵の動きは、今のところありません。';
     const bt = Object.values(s.plots).filter(p => p.burnt).length;
     plan = bt ? `焼かれた施設が${bt}つあります。修理を急ぎましょう。` : s.morale < 40 ? '民の心が沈んでいます。酒場か炊き出しで、元気づけましょう。' : '今のうちに、施設を育てておきましょう。'; }
@@ -242,14 +262,14 @@ export function duelSet(s, k, win) { s.raid.duel = win; s.raid.champ = k; s.log.
 export function duel(s, k, rnd = Math.random) { return duelSet(s, k, rnd() < duelP(s, k)); } // 演出なしで決めるとき
 
 // 五合の勝負（先に3合取った方が勝ち）。基本勝率＝duelP になるよう、1合ごとの勝率を逆算する。
-// 大技の合（予告つき）：負けると大きく削られる。号令を使うと、その合は「見切り」で必ず取る。号令は一騎打ちで1回だけ。
+// 大技の合（予告つき）：負けると大きく削られる。鬨の声を使うと、その合は「見切り」で必ず取る。鬨の声は一騎打ちで1回だけ。
 const pBest3 = p => { const q = 1 - p; return p ** 3 * (1 + 3 * q + 6 * q * q); }; // 5戦3勝の確率
 export function duelPlan(s, k, rnd = Math.random) {
   const target = duelP(s, k); let lo = 0, hi = 1; for (let i = 0; i < 30; i++) { const m = (lo + hi) / 2; if (pBest3(m) < target) lo = m; else hi = m; }
   const idx = [1, 2, 3, 4].sort(() => rnd() - .5).slice(0, 2).sort(); // 大技の合（2つ。最初の合は通常）
   return { pr: (lo + hi) / 2, heavy: idx, target };
 }
-export function duelRound(plan, i, order, rnd = Math.random) { // order: 号令を使ったか。返り値：味方がこの合を取ったか／種別／削り（%）
+export function duelRound(plan, i, order, rnd = Math.random) { // order: 鬨の声を使ったか。返り値：味方がこの合を取ったか／種別／削り（%）
   const heavy = plan.heavy.includes(i); let p = plan.pr, kind = heavy ? 'heavy' : 'normal';
   if (order) { if (heavy) { p = 1; kind = 'counter'; } else { p = Math.min(.95, p + .35); kind = 'boost'; } }
   const ally = rnd() < p; const dmg = kind === 'counter' ? 46 : heavy ? 44 : kind === 'boost' ? 40 : 34;

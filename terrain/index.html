@@ -31,7 +31,7 @@ html,body{margin:0;height:100%;background:#0d1a10;overflow:hidden;touch-action:n
 <script>
 (function () { // 読み込み中の画面。main.js が画像を読むたびに __bootTick、準備ができたら __bootDone を呼ぶ
   var el = document.getElementById('boot'), bar = el.querySelector('.bar b'), tip = el.querySelector('.tip'), n = 0, EXPECT = 77, shown = 4;
-  var TIPS = ['副官と将軍は、必ず一騎打ちを挑んでくる。', '号令は一騎打ちで一度だけ。大技の合に使えば、見切れる。', '襲撃の二週前から、敵の陣が街の外に見える。', 'ランカは強いが、二回続けては戦えない。', '鍛冶場は、二つ目から効きが落ちる。', '仲間を施設に置くと、その施設がよく働く。', '一騎打ちに勝てば、戦況が一段よくなる。'];
+  var TIPS = ['副官と将軍は、必ず一騎打ちを挑んでくる。', '鬨の声は一騎打ちで一度だけ。大技の合に使えば、見切れる。', '襲撃の二週前から、敵の陣が街の外に見える。', 'ランカは強いが、二回続けては戦えない。', '同じ施設は、二つ目から効きが落ちる。', '鍛冶場は兵の装備。兵が多いほどよく効く。', '出撃した兵は、その週末の守りにいない。', '仲間を施設に置くと、その施設がよく働く。', '一騎打ちに勝てば、戦況が一段よくなる。'];
   var ti = Math.floor(Math.random() * TIPS.length); function showTip() { tip.style.opacity = 0; setTimeout(function () { tip.innerHTML = '<small>心得</small>' + TIPS[ti++ % TIPS.length]; tip.style.opacity = 1; }, 300); }
   showTip(); var iv = setInterval(showTip, 3600);
   var K = ['mina', 'sera', 'ranka', 'garou']; el.querySelector('.em').style.backgroundImage = 'url(assets/ui2/boot_' + K[Math.floor(Math.random() * K.length)] + '.webp)';
@@ -42,5 +42,5 @@ html,body{margin:0;height:100%;background:#0d1a10;overflow:hidden;touch-action:n
 </script>
 <canvas id="gl"></canvas>
 <div id="hud" style="display:none"></div><div id="st"></div>
-<script type="module" src="main.js?v=1793255618"></script>
+<script type="module" src="main.js?v=1793268074"></script>
 </body></html>
