@@ -380,6 +380,7 @@ function draw() {
   if (G.state === 'play' && h0.state === 'atk' && h0.kind === 'ult' && h0.t < ULT.hit + 0.02) {
     ctx.fillStyle = 'rgba(6,4,14,' + (0.5 * Math.min(1, h0.t / 0.5)) + ')'; ctx.fillRect(camX - 10, camY + TOPY - 10, W + 20, CVH() + 20);
   }
+  drawStarDim(); // 星震の夜空（battle/fx2.js）
   drawFoeAura(); // 敵将・強敵の足元の気配（battle/fx2.js）
   drawBindFloor(); // 拘束の床の印（敵より先＝足元の下）
   var list = [];
@@ -389,7 +390,7 @@ function draw() {
   else list.push({ y: G.hero.y, f: function () { G.hero.anim += 0.016; drawHero(); } });
   list.sort(function (a, b) { return a.y - b.y; });
   list.forEach(function (o) { o.f(); });
-  drawDrops(); drawFx();
+  drawDrops(); drawFx(); drawStarfall();
   G.texts.forEach(function (t) {
     ctx.globalAlpha = Math.min(1, (t.life - t.t) / 0.3);
     txt(t.s, t.x, t.y, t.size, t.col, 'center');

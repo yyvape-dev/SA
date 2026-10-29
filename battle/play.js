@@ -32,7 +32,7 @@ function startWave(n) {
 // 部屋に入る：戦場0に立ち、カメラをその位置へ合わせて、最初の波を始める
 function enterRoom(i) {
   G.roomNo = i; ROOM = ROOMS[i % ROOMS.length]; setRoomVars();
-  G.seg = 0; G.phase = 'fight'; G.enemies = []; G.drops = []; G.parts = []; G.fx = []; G.texts = []; G.booms = []; G.queue = [];
+  G.seg = 0; G.phase = 'fight'; G.enemies = []; G.drops = []; G.parts = []; G.fx = []; G.texts = []; G.booms = []; G.queue = []; G.starfall = null;
   var h = G.hero; h.x = LK(0) + Math.round(W * 0.28); h.face = 1; h.y = Math.round((LANE_Y0 + LANE_Y1) / 2); h.state = 'idle'; h.t = 0; h.buf = 0; h.inv = 0;
   updateCam(0, true); startWave(G.wave + 1);
 }

@@ -48,6 +48,7 @@ function allyTick(dt) {
   var d = ALLY_DEF[a.k], h = G.hero;
   a.t += dt; a.anim += dt;
   if (G.cutin) { G.cutin.t += dt; if (G.cutin.t >= G.cutin.life) G.cutin = null; }
+  starfallTick(dt); // 星震の進行（battle/fx2.js）
   if (G.coCD > 0) G.coCD = Math.max(0, G.coCD - dt);
   if (a.cd > 0) a.cd -= dt;
   var minX = LK(G.seg) + 50, maxX = heroMaxX() + 20;
@@ -146,16 +147,8 @@ function allySkill(a) {
     }
     fxHeal(h); // 癒しの頁（battle/fx2.js）
     addText(h.x, h.y - 260, 'HP +' + heal, 34, d.col, 1.1); if (n) addText(h.x, h.y - 305, n + '体 足止め', 22, '#e8f6d8', 0.9);
-  } else { // 星震：画面の敵すべてに大ダメージ（拘束中は1.5倍）
-    for (i = 0; i < G.enemies.length; i++) {
-      e = G.enemies[i]; if (e.state !== 'walk' || e.x < camX - 40 || e.x > camX + W + 40) continue;
-      hurt(e, 150 * (0.9 + Math.random() * 0.2) * (e.bind > 0 ? 1.5 : 1), e.x >= a.x ? 1 : -1, true); n++;
-      fxStar(e, n - 1); // 星の筋（battle/fx2.js）
-    }
-    fxRing(a.x, a.y, W * 0.9, 0.8, VFX_STAR);
-    G.flash = 0.3; G.flashRGB = '190,220,255';
-    G.freeze = Math.max(G.freeze, 0.14 + Math.min(n, 14) * 0.006); G.shake = Math.max(G.shake, 26);
-    addText(a.x, a.y - 290, '星震！', 56, d.col, 1.1); if (n) addText(a.x, a.y - 345, n + '体', 28, '#e6f4ff', 0.9);
+  } else { // 星震：画面の敵に、星が1体ずつ落ちる（当たりごとに大ダメージ、拘束中は1.5倍）。演出と進行は battle/fx2.js の startStarfall
+    startStarfall(a);
   }
 }
 
@@ -198,10 +191,10 @@ function drawCutin() { // 参入のカットイン（画面座標）：青い帯
     var ph = bh * 2.0, pw = im.naturalWidth * ph / im.naturalHeight, px = W - pw * 0.85 + (1 - inK) * 120;
     ctx.drawImage(im, px, y0 - bh * 0.08, pw, ph); ctx.restore();
   }
-  txt('援軍', 28, y0 + 64, 24, '#9fd8ff', 'left', 4);
-  txt(d.n + '　参上！', 28, y0 + 120, 52, '#f3f8ff', 'left', 6);
+  txt(ci.sk ? d.n : '援軍', 28, y0 + 64, 24, '#9fd8ff', 'left', 4);
+  txt(ci.sk ? '星震' : d.n + '　参上！', 28, y0 + 120, ci.sk ? 64 : 52, ci.sk ? '#e6f2ff' : '#f3f8ff', 'left', 6); // ci.sk＝技のカットイン（星震）
   ctx.font = '700 21px "DMincho","Hiragino Mincho ProN","Yu Mincho",serif';
-  var line = d.join, mw = W * 0.6, ls = [], cur = '';
+  var line = ci.sk ? d.use : d.join, mw = W * 0.6, ls = [], cur = '';
   for (var i = 0; i < line.length; i++) { var tt = cur + line[i]; if (ctx.measureText(tt).width > mw && cur) { ls.push(cur); cur = line[i]; } else cur = tt; }
   ls.push(cur);
   for (var j = 0; j < Math.min(2, ls.length); j++) txt(ls[j], 30, y0 + 158 + j * 28, 21, '#dbeaff', 'left', 4);

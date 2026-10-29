@@ -5,7 +5,7 @@
 var VFX_FOE = { glow: '255,40,25', main: '255,110,70', core: '255,236,215', spark: '255,170,110', dark: '40,0,0' };   // 敵の攻撃（赤）
 var VFX_GOLD = { glow: '255,160,30', main: '255,210,110', core: '255,250,228', spark: '255,226,150', dark: '40,22,0' }; // 物資・決着（金）
 var VFX_HEAL = { glow: '70,210,130', main: '170,250,180', core: '250,255,236', spark: '226,255,190', dark: '0,30,12' };  // セラ（緑）
-var VFX_STAR = { glow: '80,150,255', main: '170,215,255', core: '255,255,255', spark: '255,233,168', dark: '4,10,40' };  // ランカ（青白・金）
+var VFX_STAR = { glow: '80,150,255', main: '170,215,255', core: '255,255,255', spark: '255,233,168', dark: '4,10,40', dk: 0.5 };  // ランカ（青白・金）
 var FX2 = {};
 function vR(a, b) { return a + Math.random() * (b - a); }
 function vStreak(x, y, vx, vy, len, w, col, a) { // 速度の向きへ引き延ばした光の筋（先が明るい）
@@ -222,7 +222,7 @@ FX2.vbossdown = function (f) {
 
 /* ===== 地を走る衝撃波（ラナ、赤黒・金）：立ち上がる三日月の刃が床を進み、跡に裂け目と土ぼこり ===== */
 FX2.vshock = function (f) {
-  var C = VFX_RANA, p = f.t / f.life, k = vEase(p), sx = f.x + f.dir * (60 + 760 * k), fade = p < 0.6 ? 1 : 1 - (p - 0.6) / 0.4, H = 150 * (1 - 0.45 * k), y = f.y;
+  var C = f.pal || VFX_RANA, p = f.t / f.life, k = vEase(p), sx = f.x + f.dir * (60 + 760 * k), fade = p < 0.6 ? 1 : 1 - (p - 0.6) / 0.4, H = 150 * (1 - 0.45 * k), y = f.y;
   // 跡の裂け目（暗い下地→紅→金）
   var g0 = ctx.createLinearGradient(f.x, 0, sx, 0); g0.addColorStop(0, vrgba(C.dark, 0)); g0.addColorStop(1, vrgba(C.dark, 0.6 * fade));
   ctx.globalCompositeOperation = 'source-over'; ctx.strokeStyle = g0; ctx.lineWidth = 9; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(f.x + f.dir * 40, y); ctx.lineTo(sx, y); ctx.stroke();
@@ -278,3 +278,70 @@ FX2.vstar = function (f) {
   if (a >= fall && f.full) { var b = a - fall; if (b < 0.14) { vGlow(f.x, f.y, f.h * (0.4 + b * 3), C, 1 - b / 0.14); vStar4(f.x, f.y, f.h * 0.6 * (1 - b / 0.14), 0.3, C.core, 1 - b / 0.14); }
     var ff = { t: b, sp: f.sp }; drawSparks(ff, f.x, f.y, C, 5, 800); }
 };
+
+/* ===== ランカの星震（2026-10-30 作り直し）：夜空へ暗転 → 星が灯り星座の線で敵を結ぶ → 星が1体ずつ落ちる（当たりごとにダメージ）→ 地面が割れる大きな一撃 → 明転 ===== */
+var SF = { dim: 0.25, sky: 0.55, fall: 0.85, quake: 1.4, end: 1.65, dur: 0.1 }; // カットイン（〜0.7秒）が引いてから星が灯る
+function startStarfall(a) {
+  var list = G.enemies.filter(function (e) { return e.state === 'walk' && e.x > camX - 40 && e.x < camX + W + 40; }).sort(function (p, q) { return p.x - q.x; });
+  var n = list.length, step = n ? Math.min(0.07, 0.5 / n) : 0, top = camY + TOPY + VH * 0.16, stars = [];
+  for (var i = 0; i < n; i++) stars.push({ e: list[i], x: clamp(list[i].x + rnd(-50, 50), camX + 30, camX + W - 30), y: top + rnd(0, VH * 0.14), at: SF.fall + i * step, r: rnd(10, 14), hit: false });
+  G.starfall = { t: 0, a: a, stars: stars, quaked: false };
+  G.cutin = { t: 0, life: 0.75, k: a.k, sk: true };
+}
+function starfallTick(dt) {
+  var sf = G.starfall; if (!sf) return;
+  sf.t += dt;
+  for (var i = 0; i < sf.stars.length; i++) {
+    var s = sf.stars[i]; if (s.hit || sf.t < s.at + SF.dur) continue;
+    s.hit = true; var e = s.e;
+    if (e && e.state === 'walk') { hurt(e, 150 * (0.9 + Math.random() * 0.2) * (e.bind > 0 ? 1.5 : 1), e.x >= sf.a.x ? 1 : -1, true); }
+    var tx = e ? e.x : s.x, ty = e ? e.y - eh(e) * 0.55 : s.y;
+    G.fx.push({ type: 'vstar', x: tx, y: ty, h: e ? eh(e) : 200, d: -0.11, full: i < 10, t: 0, life: 0.4, sp: i < 10 ? vSparks(8, 0, 200, 600, 1.2) : [] });
+    G.shake = Math.max(G.shake, 6);
+  }
+  if (!sf.quaked && sf.t >= SF.quake) { // 大きな一撃：星の輪＋地を走る裂け目（青白・金）＋揺れ
+    sf.quaked = true; var a = sf.a, n = sf.stars.length;
+    fxRing(a.x, a.y, W * 0.9, 0.8, VFX_STAR); fxRing(a.x, a.y, W * 0.55, 0.6, VFX_STAR);
+    G.fx.push({ type: 'vshock', x: a.x, y: a.y, dir: 1, t: 0, life: 0.6, pal: VFX_STAR }); G.fx.push({ type: 'vshock', x: a.x, y: a.y, dir: -1, t: 0, life: 0.6, pal: VFX_STAR });
+    G.flash = 0.3; G.flashRGB = '190,220,255'; G.freeze = Math.max(G.freeze, 0.12); G.shake = Math.max(G.shake, 26);
+    addText(a.x, a.y - 290, '星震！', 56, ALLY_DEF[a.k].col, 1.1); if (n) addText(a.x, a.y - 345, n + '体', 28, '#e6f4ff', 0.9);
+  }
+  if (sf.t >= SF.end) G.starfall = null;
+}
+function sfDimA(sf) { var t = sf.t; return t < SF.dim ? t / SF.dim : t < SF.quake ? 1 : Math.max(0, 1 - (t - SF.quake) / (SF.end - SF.quake)); }
+// 夜空の暗転（世界座標。背景の後・人物の前に描く）
+function drawStarDim() {
+  var sf = G.starfall; if (!sf) return; var k = sfDimA(sf), x0 = camX - 20, y0 = camY + TOPY - 20, w = W + 40, h = CVH() + 40;
+  var g = ctx.createLinearGradient(0, y0, 0, y0 + h); g.addColorStop(0, 'rgba(4,8,30,' + 0.78 * k + ')'); g.addColorStop(0.6, 'rgba(8,14,44,' + 0.55 * k + ')'); g.addColorStop(1, 'rgba(10,16,40,' + 0.4 * k + ')');
+  ctx.fillStyle = g; ctx.fillRect(x0, y0, w, h);
+  ctx.save(); ctx.globalCompositeOperation = 'lighter'; // 遠くの小さな星（またたき。t から）
+  for (var i = 0; i < 40; i++) { var px = x0 + ((i * 97.3) % 1) * 0 + (i * 137.5 % w), py = y0 + (i * 61.7 % (h * 0.45)), tw = 0.5 + 0.5 * Math.sin(G.t * 5 + i * 1.7); ctx.fillStyle = 'rgba(220,235,255,' + 0.7 * k * tw + ')'; ctx.fillRect(px, py, 2, 2); }
+  ctx.restore();
+}
+// 星・星座の線・落ちる星（人物の後に描く）
+function drawStarfall() {
+  var sf = G.starfall; if (!sf) return; var C = VFX_STAR, t = sf.t, k = sfDimA(sf), S = sf.stars, i;
+  ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round';
+  var lk = vEase((t - SF.sky) / (SF.fall - SF.sky + 0.05)); // 星座の線：左から順に結ばれる
+  for (i = 0; i + 1 < S.length; i++) {
+    var seg = Math.max(0, Math.min(1, lk * (S.length - 1) - i)); if (seg <= 0) break;
+    var p = S[i], q = S[i + 1], ex = p.x + (q.x - p.x) * seg, ey = p.y + (q.y - p.y) * seg;
+    var lf = k * Math.max(0, 1 - Math.max(0, t - p.at) / 0.15); if (lf <= 0) continue; // 星が落ちたら、その線は消える
+    ctx.strokeStyle = vrgba(C.glow, 0.45 * lf); ctx.lineWidth = 8; ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(ex, ey); ctx.stroke();
+    ctx.strokeStyle = vrgba(C.core, 0.9 * lf); ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(ex, ey); ctx.stroke();
+  }
+  for (i = 0; i < S.length; i++) {
+    var s = S[i], ap = vEase((t - SF.sky - i * 0.012) / 0.15); if (ap <= 0) continue;
+    var e = s.e, tx = e ? e.x : s.x, ty = e ? e.y - eh(e) * 0.55 : s.y + 300;
+    if (t < s.at) { // 空で灯る星（照準の細い線を足元へ）
+      var tw = 0.8 + 0.2 * Math.sin(G.t * 14 + i);
+      vGlow(s.x, s.y, s.r * 3.2 * ap, C, ap * k); vStar4(s.x, s.y, s.r * 2.2 * ap * tw, 0, C.core, ap * k); vStar4(s.x, s.y, s.r * 1.2 * ap, 0.785, C.spark, 0.8 * ap * k);
+      if (e && i < 10) { var g = ctx.createLinearGradient(s.x, s.y, tx, ty); g.addColorStop(0, vrgba(C.main, 0.35 * ap * k)); g.addColorStop(1, vrgba(C.main, 0)); ctx.strokeStyle = g; ctx.lineWidth = 1.2; ctx.setLineDash([4, 8]); ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(tx, ty); ctx.stroke(); ctx.setLineDash([]); }
+    } else if (!s.hit) { // 落ちる星：3層の筋
+      var f = vEaseIn((t - s.at) / SF.dur), x = s.x + (tx - s.x) * f, y = s.y + (ty - s.y) * f, vx = tx - s.x, vy = ty - s.y, L = Math.min(260, Math.hypot(vx, vy) * (0.25 + 0.5 * f));
+      vStreak(x, y, vx, vy, L, 16, C.glow, 0.7); vStreak(x, y, vx, vy, L * 0.8, 6, C.main, 1); vStreak(x, y, vx, vy, L * 0.55, 2.2, C.core, 1);
+      vStar4(x, y, s.r * 2.4, 0, C.core, 1);
+    }
+  }
+  ctx.restore();
+}
