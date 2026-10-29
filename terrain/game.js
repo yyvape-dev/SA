@@ -226,4 +226,29 @@ export const champions = s => Object.keys(ALLY).filter(k => joined(s, k) && !(k 
 export const foeGeneral = s => ({ n: s.raid.boss ? '謀反の将軍' : s.raid.E >= 30 ? '将軍の副官' : '敵の隊長', pow: s.raid.E / 3 + (s.raid.boss ? 6 : s.raid.E >= 30 ? 2 : 0) });
 export const duelPow = (s, k) => DUEL_POW[k] + bond(s, k) * 1.5;
 export const duelP = (s, k) => clamp(.5 + (duelPow(s, k) - foeGeneral(s).pow) / 16, .1, .9);
-export function duel(s, k, rnd = Math.random) { const win = rnd() < duelP(s, k); s.raid.duel = win; s.raid.champ = k; s.log.push(`一騎打ち：${ALLY[k].n}が${win ? '勝った' : '敗れた'}`); return win; }
+export function duelSet(s, k, win) { s.raid.duel = win; s.raid.champ = k; s.log.push(`一騎打ち：${ALLY[k].n}が${win ? '勝った' : '敗れた'}`); return win; }
+export function duel(s, k, rnd = Math.random) { return duelSet(s, k, rnd() < duelP(s, k)); } // 演出なしで決めるとき
+
+// 五合の勝負（先に3合取った方が勝ち）。基本勝率＝duelP になるよう、1合ごとの勝率を逆算する。
+// 大技の合（予告つき）：負けると大きく削られる。号令を使うと、その合は「見切り」で必ず取る。号令は一騎打ちで1回だけ。
+const pBest3 = p => { const q = 1 - p; return p ** 3 * (1 + 3 * q + 6 * q * q); }; // 5戦3勝の確率
+export function duelPlan(s, k, rnd = Math.random) {
+  const target = duelP(s, k); let lo = 0, hi = 1; for (let i = 0; i < 30; i++) { const m = (lo + hi) / 2; if (pBest3(m) < target) lo = m; else hi = m; }
+  const idx = [1, 2, 3, 4].sort(() => rnd() - .5).slice(0, 2).sort(); // 大技の合（2つ。最初の合は通常）
+  return { pr: (lo + hi) / 2, heavy: idx, target };
+}
+export function duelRound(plan, i, order, rnd = Math.random) { // order: 号令を使ったか。返り値：味方がこの合を取ったか／種別／削り（%）
+  const heavy = plan.heavy.includes(i); let p = plan.pr, kind = heavy ? 'heavy' : 'normal';
+  if (order) { if (heavy) { p = 1; kind = 'counter'; } else { p = Math.min(.95, p + .35); kind = 'boost'; } }
+  const ally = rnd() < p; const dmg = kind === 'counter' ? 46 : heavy ? 44 : kind === 'boost' ? 40 : 34;
+  return { ally, kind, dmg };
+}
+export const DUEL_LINES = {
+  mina: { open: ['姫のために……負けない。', '……本気で、やるから。'], hit: ['そこっ！', '当たれ！', 'これでどう！'], hurt: ['くっ……まだ！', 'いったぁ……！'], win: ['姫……見てた？ やったよ。'], lose: ['ごめん、姫……。'] },
+  garou: { open: ['ガハハ！ 姫の前で、斧を振るいますぜ！', 'いざ、尋常に！'], hit: ['おらァ！', 'でさぁ！', 'まだまだァ！'], hurt: ['ぐぅ……効いたぜ！', 'やりますな！'], win: ['見てくだせえ、姫！'], lose: ['面目ねえ……姫……。'] },
+  sera: { open: ['く、来るなら来てください……！', '本で読んだ通りなら……！'], hit: ['えいっ！', 'ここです！', 'ええいっ！'], hurt: ['きゃっ！？', 'うう……痛い……。'], win: ['や、やりました、姫さま……！'], lose: ['す、すみません、姫さま……。'] },
+  ranka: { open: ['お嬢の前だし、ちょっと本気出そっか。', 'いいね、楽しませてよ。'], hit: ['はい、一丁上がり。', 'ほいっと！', 'どう？'], hurt: ['へえ、やるじゃん。', 'おっと、危ない危ない。'], win: ['お嬢、片付いたよ〜。'], lose: ['あちゃー……油断した。'] },
+  boss: { open: ['我と戦う者はいるか。'], hit: ['砕けろ！', '跪け！', 'この程度か！'], hurt: ['ぬう……！', '小癪な！'], win: ['他愛もない。'], lose: ['バカな……この俺が……！'], heavy: ['この一撃で終わらせる！'] },
+  vice: { open: ['貴様の相手は俺だ。'], hit: ['ふんッ！', '受けてみろ！'], hurt: ['ぐっ……！', 'やるな！'], win: ['……ここまでだ。'], lose: ['無念……！'], heavy: ['避けられるか！'] },
+  cap: { open: ['来い、小娘ども。'], hit: ['おらァ！', 'そこだ！'], hurt: ['くそっ……！', 'なめるな！'], win: ['弱い弱い！'], lose: ['ちくしょう……！'], heavy: ['これでもくらえ！'] }
+};
