@@ -1,9 +1,9 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793252188';
-import { createUI } from './ui.js?v=1793252188';
-import { createMorning } from './morning.js?v=1793252188';
+import * as GM from './game.js?v=1793252505';
+import { createUI } from './ui.js?v=1793252505';
+import { createMorning } from './morning.js?v=1793252505';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -933,7 +933,7 @@ function playDuel(k, done) { // 画面いっぱいの一騎打ち。五合の勝
   duelEl.innerHTML = `<div class="hd"><i class="cn tl"></i><i class="cn tr"></i><div class="sd"><div class="fw"><img class="fc" src="${faceRaw[k]}"><i class="rg"></i></div><div class="hb"><div class="nm">${A.n}</div><div class="hp"><b style="width:100%"></b></div></div></div>
     <div class="ct"><small>第${R.w || G.week}週</small><img src="assets/ui2/divider2.webp"><h1>一騎打ち</h1></div>
     <div class="sd r"><div class="fw"><div class="fc foe" style="background-image:url(assets/npc/foe_${look}.webp)"></div><i class="rg"></i></div><div class="hb"><div class="nm">${F.n}</div><div class="hp"><b style="width:100%"></b></div></div></div></div>
-    <div class="stage" style="background-image:url(assets/field/${R.dir || 'pass'}.jpg)"><div class="say l"></div><div class="say r foe"></div>
+    <div class="stage" style="background-image:url(assets/field/duel.jpg),url(assets/field/${R.dir || 'pass'}.jpg)"><div class="say l"></div><div class="say r foe"></div>
       <div class="f L" style="height:${34 * (HUMAN[k] || 165) / 170}%">${(DUEL_CLIP[k] || []).length ? `<div class="sp"></div>` : `<img src="../ally/${k}.png">`}</div><div class="f R" style="height:${34 * (HUMAN['f' + look] || 178) / 170}%">${(FOEDUEL[look] || []).length ? `<div class="sp" data-filter="drop-shadow(0 0 10px #f30) drop-shadow(0 6px 8px #000)"></div>` : `<img src="assets/npc/foe_${look}.webp" style="filter:drop-shadow(0 0 10px #f30) drop-shadow(0 6px 8px #000)">`}</div>
       <div class="cut"><img src="${faceURL[k]}"><div></div></div></div>
     <div class="ft"><i class="cn bl"></i><i class="cn br"></i><h3>戦況</h3><div class="blr"><span>自軍</span><div class="bal"><b style="width:50%"></b><u style="left:50%"></u></div><span>敵軍</span></div>
@@ -1076,7 +1076,7 @@ function fbUnit(stage, kind, K, side, x, y, H) { // x,y＝足元（舞台の％�
   u.die = () => { u.alive = false; el.classList.add('dead'); el.style.transform = `translate(${-face * 12}px,6px) rotate(${-face * 14}deg)`; };
   return u;
 }
-function fieldBattle(mode, onEnd) { // onEnd：試しのとき、結果を記録せずに呼ぶ // mode：'auto'（任せる）／'hand'（確率で決める）
+function fieldBattle(mode, onEnd) { // onEnd：試しのとき、結果を記録せずに呼ぶ // mode：'auto'（任せる）。'hand' は旧「確率で決める」（画面からは外した）
   if (!G.raid) { ui.modal(null); return; }
   const R = G.raid, usD = Math.round(GM.raidD(G)), E = R.E, fr = GM.FRONT[R.dir], K = fbKinds(), rank = duelRank(), FL = GM.DUEL_LINES[rank], F = GM.foeGeneral(G), look = foeLook();
   const team = Object.keys(GM.ALLY).filter(k => GM.joined(G, k) && !(k === 'ranka' && (G.rankaAway || !R.ranka))).slice(0, 4);
@@ -1194,14 +1194,14 @@ const rdCss = document.createElement('style'); rdCss.textContent = `
 #rdec .pr{margin-top:calc(5*var(--u));font-size:calc(12.5*var(--u));letter-spacing:.08em;color:var(--ink2)}#rdec .pr b{color:var(--ink);font-size:1.15em}#rdec .pr b.ng{color:var(--red)}#rdec .pr b.ok{color:var(--teal)}
 #rdec h2{margin:calc(10*var(--u)) 0 0;font-size:calc(23*var(--u));font-weight:700;letter-spacing:.12em}
 #rdec .dv{width:calc(220*var(--u));margin:calc(2*var(--u)) 0 calc(10*var(--u))}
-#rdec .ops{width:100%;display:flex;flex-direction:column;gap:calc(8*var(--u))}
-#rdec .oc{position:relative;height:calc(94*var(--u));overflow:hidden;cursor:pointer;background:#ece2c8;border:1px solid #bba57a;box-shadow:inset 0 0 0 calc(3*var(--u)) #ece2c8,inset 0 0 0 calc(4*var(--u)) #cdb98e;transition:box-shadow .15s,background .15s}
+#rdec .ops{width:100%;display:flex;flex-direction:column;gap:calc(12*var(--u))}
+#rdec .oc{position:relative;height:calc(118*var(--u));overflow:hidden;cursor:pointer;background:#ece2c8;border:1px solid #bba57a;box-shadow:inset 0 0 0 calc(3*var(--u)) #ece2c8,inset 0 0 0 calc(4*var(--u)) #cdb98e;transition:box-shadow .15s,background .15s}
 #rdec .oc .im{position:absolute;left:0;top:0;bottom:0;width:30%;background-repeat:no-repeat;-webkit-mask-image:linear-gradient(90deg,#000 60%,transparent);mask-image:linear-gradient(90deg,#000 60%,transparent)}
-#rdec .oc .tx{position:absolute;left:27%;right:calc(12*var(--u));top:0;bottom:0;display:flex;flex-direction:column;justify-content:center;gap:calc(2*var(--u))}
-#rdec .oc .t{font-size:calc(18*var(--u));letter-spacing:.1em;white-space:nowrap}#rdec .oc .t em{font-style:normal;font-size:calc(11*var(--u));color:var(--ink2);letter-spacing:.04em;margin-left:.7em}
-#rdec .oc .l{font-size:calc(12.5*var(--u));letter-spacing:.02em;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#rdec .oc .tx{position:absolute;left:27%;right:calc(10*var(--u));top:0;bottom:0;display:flex;flex-direction:column;justify-content:center;gap:calc(4*var(--u))}
+#rdec .oc .t{font-size:calc(20*var(--u));letter-spacing:.1em;white-space:nowrap}#rdec .oc .t em{font-style:normal;font-size:calc(11*var(--u));color:var(--ink2);letter-spacing:.04em;margin-left:.7em}
+#rdec .oc .l{font-size:calc(13.5*var(--u));letter-spacing:.02em;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #rdec .oc .l i{font-style:normal;display:inline-block;min-width:3.4em;color:var(--ink2)}#rdec .oc .l b{font-size:1.25em}#rdec .oc .ok{color:var(--teal)}#rdec .oc .ng{color:var(--red)}
-#rdec .oc .c{font-size:calc(11*var(--u));color:var(--ink2);letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#rdec .oc .c{font-size:calc(11.5*var(--u));color:var(--ink2);letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #rdec .oc.on{background:#dfe5cc;border-color:#58775a;box-shadow:inset 0 0 0 calc(3*var(--u)) #dfe5cc,inset 0 0 0 calc(4*var(--u)) #8aa483,0 0 calc(10*var(--u)) #5a8a5f66}
 #rdec .oc .ck{display:none;position:absolute;right:calc(7*var(--u));top:calc(7*var(--u));width:calc(24*var(--u));height:calc(24*var(--u));border-radius:50%;background:#2f4a3c;border:1px solid #c9d6bb;color:#f2f0e0;align-items:center;justify-content:center;font-size:calc(14*var(--u))}
 #rdec .oc.on .ck{display:flex}
@@ -1227,9 +1227,7 @@ function raidModal() { // 襲撃・出撃の決断。選んでから大ボタン
     { k: 'auto', t: '任せる', em: '仲間と兵が戦う', im: 'assets/npc/sol_1.webp', ip: '50% 12%/150% auto',
       l: [`<i>見込み</i><b class="${P.auto.ok ? 'ok' : 'ng'}">${P.auto.res}</b>`], c: [duel, '行動点は減らない'].filter(Boolean).join('・'), go: '仲間に任せる' },
     { k: 'act', t: '自分で戦う', em: `アクション・WAVE ${P.act.waves}`, im: '../sprites/idle_00.png', ip: '62% 30%/190% auto',
-      l: [`<i>勝てば</i><span class="ok">${P.act.win}</span>`, `<i>負ければ</i><span class="ng">${P.act.lose}</span>`], c: [P.act.cost, mods.replace('最大HP', 'HP')].filter(Boolean).join('・'), go: '自ら剣を取る' },
-    { k: 'hand', t: '確率で決める', em: `成功率 約${Math.round(P.hand.p * 100)}%`, im: porOf('mina'), ip: '50% 10%/cover',
-      l: [`<i>成功</i><span class="ok">${P.hand.win}</span>`, `<i>失敗</i><span class="ng">${P.hand.lose}</span>`], c: [duel, P.hand.cost].filter(Boolean).join('・'), go: '運に賭ける' }];
+      l: [`<i>勝てば</i><span class="ok">${P.act.win}</span>`, `<i>負ければ</i><span class="ng">${P.act.lose}</span>`], c: [P.act.cost, mods.replace('最大HP', 'HP')].filter(Boolean).join('・'), go: '自ら剣を取る' }];
   if (!ops.some(o => o.k === rdSel)) rdSel = 'auto';
   let rk = '';
   if (GM.joined(G, 'ranka')) { const ready = GM.rankaReady(G), why = G.rankaAway ? '今週は街にいない' : G.rankaRest ? '前の戦闘に出たので休み' : '';
