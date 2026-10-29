@@ -50,6 +50,7 @@ function tryAttack(kind) {
   if (G.state !== 'play' || G.trans) return;
   var h = G.hero;
   if (h.state === 'atk' && h.kind === 'ult') return; // 必殺技の最中は、入力を受けない
+  if (kind === 'dodge') { tryDodge(); return; }
   if (kind === 'ult' && G.ultCD > 0) { addText(h.x, h.y - 250, '必殺 再使用まで ' + G.ultCD.toFixed(1) + '秒', 20, '#ffb3b3', 0.7); return; }
   if (kind === 'thr' && G.thrCD > 0) { addText(h.x, h.y - 250, '突き 再使用まで ' + G.thrCD.toFixed(1) + '秒', 20, '#a8dcff', 0.7); return; }
   if (kind === 'sk' && G.skCD > 0) { addText(h.x, h.y - 250, '再使用まで ' + G.skCD.toFixed(1) + '秒', 20, '#9aa0ff', 0.7); return; }
@@ -72,6 +73,28 @@ function beginAttack(kind) {
   if (kind === 'sk') G.skCD = G.skMax * S.cd;
   if (kind === 'pull') G.pullCD = G.pullMax * S.pcd;
   if (kind === 'ult') { h.cancelT = ULT.total; h.total = ULT.total; h.fxT = 0; h.ringT = 0; G.ultCD = G.ultMax; }
+}
+/* 回避：入力の向き（なければ向いている方）へ短く踏み込む。最中は無敵。攻撃の途中・のけぞりの途中でも出せる（必殺技の最中は除く）
+   絵は走りのコマ＋残像（専用の絵は無い）。DODGE.dist＝進む距離、dur＝長さ、inv＝無敵の長さ（踏み込みより少し長い） */
+var DODGE = { dist: 250, dur: 0.24, inv: 0.32 };
+function tryDodge() {
+  var h = G.hero;
+  if (G.dodgeCD > 0) { addText(h.x, h.y - 250, '回避 再使用まで ' + G.dodgeCD.toFixed(1) + '秒', 20, '#a8dcff', 0.7); return; }
+  var ax = (keys.ArrowRight || keys.KeyD ? 1 : 0) - (keys.ArrowLeft || keys.KeyA ? 1 : 0) + pad.x;
+  var ay = (keys.ArrowDown || keys.KeyS ? 1 : 0) - (keys.ArrowUp || keys.KeyW ? 1 : 0) + pad.y, m = Math.hypot(ax, ay);
+  if (m < 0.25) { ax = h.face; ay = 0; m = 1; }
+  h.dx = ax / m; h.dy = ay / m * 0.7; // 奥行きは短め（帯が浅いので）
+  if (Math.abs(h.dx) > 0.2) h.face = h.dx > 0 ? 1 : -1;
+  h.state = 'dodge'; h.t = 0; h.buf = 0; h.kb = 0; h.dsx = h.x; h.dsy = h.y; h.trail = []; h.trT = 0; h.anim = 0;
+  G.dodgeCD = G.dodgeMax;
+  for (var i = 0; i < 8; i++) G.parts.push({ x: h.x + rnd(-30, 30), y: h.y - rnd(0, 20), vx: -h.dx * rnd(80, 220), vy: -rnd(20, 90), g: 300, life: rnd(0.25, 0.45), t: 0, c: '#d8c9a3', s: rnd(3, 6) }); // 足元の土ぼこり
+}
+function dodgeTick(h, dt) {
+  h.t += dt; h.anim += dt * 40;
+  var k = clamp(h.t / DODGE.dur, 0, 1), e = 1 - Math.pow(1 - k, 3);
+  h.x = clamp(h.dsx + h.dx * DODGE.dist * e, heroMinX(), heroMaxX()); h.y = clamp(h.dsy + h.dy * DODGE.dist * e, LANE_Y0, LANE_Y1);
+  h.trT -= dt; if (h.trT <= 0 && h.t < DODGE.dur) { h.trT = 0.035; h.trail.push({ x: h.x, y: h.y, f: Math.floor(h.anim) % 10, face: h.face, t: 0 }); }
+  if (h.t >= DODGE.dur) { h.state = 'idle'; h.anim = 0; h.inv = Math.max(h.inv, DODGE.inv - DODGE.dur); }
 }
 // 被弾：のけぞり(0.08秒)→大きくのけぞる(0.10)→踏ん張る(0.10)→立ち直る(0.08)。攻撃中は、のけぞらない（一掃の流れを止めない）。のけぞり中の入力は、先行入力として受け、終わったら出す
 var HURT = { cut: [0, 0.08, 0.18, 0.28], total: 0.36 };

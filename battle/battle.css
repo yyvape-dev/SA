@@ -1,59 +1,76 @@
 /* 縦画面のアクション戦闘。見た目の基準は battle/tools/mock_target.png（ユーザーのモック）。
-   上の帯（941×178）と下の操作盤（941×582）はモックから切り出した絵で、位置は絵の上の％で決める。 */
+   部品の絵は battle/ui/p/（ユーザー作成のシート2枚から battle/tools/slice_ui.py で切り出し）。
+   寸法は --k（横941の座標の1単位）。上の帯は 941×214、操作盤は 941×600 の座標で置く。 */
 @font-face { font-family: 'DMincho'; src: url(../terrain/assets/font/mincho-b.woff2) format('woff2'); font-weight: 700; font-display: block; }
 :root { --gold: #d9b878; --gold2: #f3dfae; --ink: #0b0a0f; --teal: #4fb6bd; --red: #c23a33; --font: 'DMincho', 'Hiragino Mincho ProN', 'Yu Mincho', serif; color-scheme: dark; }
 * { box-sizing: border-box; }
 html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; touch-action: none; overscroll-behavior: none; -webkit-text-size-adjust: 100%; background: #000; color: #eee; font-family: var(--font); font-weight: 700; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .wrap { position: fixed; inset: 0; background: #000; }
-#stage { position: absolute; top: 0; bottom: 0; left: 50%; transform: translateX(-50%); width: min(100vw, 60dvh); background: var(--ink); overflow: hidden; touch-action: none; display: flex; flex-direction: column; }
+#stage { --k: calc(min(100vw, 60dvh) / 941); position: absolute; top: 0; bottom: 0; left: 50%; transform: translateX(-50%); width: min(100vw, 60dvh); background: var(--ink); overflow: hidden; touch-action: none; display: flex; flex-direction: column; }
 
-/* 上の帯：顔・HP・必殺の溜まり・戦場／残り／物資・一時停止 */
-#top { flex: 0 0 auto; padding-top: env(safe-area-inset-top, 0px); background: #0c0b10; }
-#hud { position: relative; width: 100%; aspect-ratio: 941 / 178; background: url(ui/hud_top.webp) 0 0 / 100% 100% no-repeat; container-type: size; }
-#hud .hp { position: absolute; left: 18.7%; top: 27.5%; width: 51.65%; height: 16.9%; overflow: hidden; }
+/* 上の帯：顔・HP・必殺の溜まり・戦場／残り／物資・一時停止。枠の絵の下に、中身（HP・溜まり）を描く */
+#top { flex: 0 0 auto; position: relative; z-index: 4; padding-top: env(safe-area-inset-top, 0px); background: linear-gradient(#0d0c11, #15121a); }
+#hud { position: relative; width: 100%; height: calc(var(--k) * 214); }
+#hud > * { position: absolute; }
+#hud .frame { left: calc(var(--k) * 8); top: calc(var(--k) * 6); width: calc(var(--k) * 572); pointer-events: none; }
+#hud .face { left: calc(var(--k) * 43); top: calc(var(--k) * 60); width: calc(var(--k) * 110); height: calc(var(--k) * 110); border-radius: 50%; background: #1a1620; }
+#hud .hp { left: calc(var(--k) * 172); top: calc(var(--k) * 74); width: calc(var(--k) * 368); height: calc(var(--k) * 26); background: #23101099; overflow: hidden; }
 #hud .hp i { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; background: linear-gradient(#e0574c, #b3302a 55%, #7d1d1a); box-shadow: inset 0 0 0 1px #0004; transition: width .15s; }
 #hud .hp i.low { animation: hplow .6s ease-in-out infinite alternate; }
 @keyframes hplow { to { filter: brightness(1.45); } }
-#hud .hp span { position: absolute; left: 3.5%; top: 50%; transform: translateY(-50%); font-size: 2.55cqw; line-height: 1; color: #fff4e0; text-shadow: 0 1px 2px #000, 0 0 3px #000; letter-spacing: .04em; white-space: nowrap; }
-#hud .ul { position: absolute; left: 18.7%; top: 47.8%; width: 36.1%; height: 10.7%; overflow: hidden; }
+#hud .hp span { position: absolute; left: 4%; top: 50%; transform: translateY(-50%); font-size: calc(var(--k) * 21); line-height: 1; color: #fff4e0; text-shadow: 0 1px 2px #000, 0 0 3px #000; letter-spacing: .04em; white-space: nowrap; }
+#hud .ul { left: calc(var(--k) * 179); top: calc(var(--k) * 121); width: calc(var(--k) * 265); height: calc(var(--k) * 23); background: #0a1a1c99; overflow: hidden; }
 #hud .ul i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: linear-gradient(#8fe3e6, #3aa6ae 60%, #23707a); }
 #hud .ul.full i { animation: ulfull 1s ease-in-out infinite alternate; }
 @keyframes ulfull { to { filter: brightness(1.5); } }
-#hud .info { position: absolute; left: 19%; right: 2%; top: 68.5%; height: 27%; display: flex; align-items: center; justify-content: space-between; padding: 0 1.5%; font-size: 2.45cqw; color: var(--gold); text-shadow: 0 1px 2px #000; white-space: nowrap; }
-#hud .info span { display: flex; align-items: center; gap: .35em; }
-#hud .info img { height: 1.45em; width: auto; }
+#hud .info { left: calc(var(--k) * 200); right: calc(var(--k) * 16); top: calc(var(--k) * 150); height: calc(var(--k) * 42); display: flex; align-items: center; justify-content: space-between; font-size: calc(var(--k) * 23); color: var(--gold); text-shadow: 0 1px 2px #000; white-space: nowrap; }
+#hud .info span { display: flex; align-items: center; gap: .3em; }
+#hud .info img { height: 1.6em; width: auto; }
 #hud .info b { color: var(--gold2); font-weight: 700; }
-#hud .info .sep { width: 1px; height: 55%; background: linear-gradient(transparent, #a88b52, transparent); }
-#pz { position: absolute; left: 89.8%; top: 5.6%; width: 8.8%; height: 47.8%; border-radius: 6px; }
-#pz:active { background: radial-gradient(#fff3, transparent 70%); }
+#hud .info .sep { width: 1px; height: 60%; background: linear-gradient(transparent, #a88b52, transparent); }
+#pz { left: calc(var(--k) * 862); top: calc(var(--k) * 16); width: calc(var(--k) * 66); height: calc(var(--k) * 66); border-radius: 50%; }
+#pz img { width: 100%; height: 100%; display: block; }
+#pz:active { filter: brightness(1.3); }
+#hud .rule { left: calc(var(--k) * 66); top: calc(var(--k) * 190); width: calc(var(--k) * 809); pointer-events: none; }
 
 #field { flex: 1 1 auto; position: relative; overflow: hidden; min-height: 0; }
 #game { display: block; width: 100%; height: 100%; outline: none; object-fit: contain; }
 
-/* 下の操作盤：戦況のバー・パッド・攻撃と4つの技 */
-#ctl { flex: 0 0 auto; padding-bottom: env(safe-area-inset-bottom, 0px); background: #0b0a0e; }
-.touch { position: relative; width: 100%; aspect-ratio: 941 / 582; background: url(ui/panel.webp) 0 0 / 100% 100% no-repeat; container-type: size; touch-action: none; }
-#gauge { position: absolute; left: 26.78%; top: 8.59%; width: 46.55%; height: 3.44%; background: linear-gradient(#a0332c, #6e1e1b); }
+/* 下の操作盤：戦場の床の上に重ねる（背景は透明）。戦況のバー・パッド・攻撃と5つの技 */
+#ctl { position: absolute; left: 0; right: 0; bottom: 0; z-index: 3; padding-bottom: env(safe-area-inset-bottom, 0px); pointer-events: none; }
+.touch { position: relative; width: 100%; height: calc(var(--k) * 600); touch-action: none; }
+.touch > * { position: absolute; pointer-events: auto; }
+.touch .shade { left: 0; right: 0; top: calc(var(--k) * -40); bottom: calc(-1 * env(safe-area-inset-bottom, 0px)); background: linear-gradient(rgba(10,9,13,0), rgba(10,9,13,.5) 14%, rgba(10,9,13,.62)); pointer-events: none; }
+.touch .ground { left: 0; bottom: calc(-1 * env(safe-area-inset-bottom, 0px)); width: 100%; pointer-events: none; }
+#war { left: calc(var(--k) * 64); top: calc(var(--k) * 10); width: calc(var(--k) * 813); height: calc(var(--k) * 70); pointer-events: none; }
+#war .gf { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
+#war span { position: absolute; top: 50%; transform: translateY(-50%); font-size: calc(var(--k) * 23); text-shadow: 0 1px 2px #000; white-space: nowrap; }
+#war .l { left: calc(var(--k) * 58); color: #8fdde2; } #war .r { right: calc(var(--k) * 58); color: #ff7d70; }
+#gauge { position: absolute; left: calc(var(--k) * 198); top: calc(var(--k) * 27); width: calc(var(--k) * 418); height: calc(var(--k) * 16); background: linear-gradient(#a0332c, #6e1e1b); box-shadow: 0 0 0 1px #000a; }
 #gauge i { position: absolute; left: 0; top: 0; bottom: 0; width: 50%; background: linear-gradient(#7fd6da, #3a9ea6 60%, #226670); transition: width .3s; }
-#gdia { position: absolute; top: 3.1%; width: 6.38%; height: 13.75%; margin-left: -3.19%; background: url(ui/gauge_dia.webp) center / 100% 100% no-repeat; left: 50%; transition: left .3s; pointer-events: none; }
-#pad { position: absolute; left: 7.55%; top: 19.9%; width: 36.56%; height: 59.1%; border-radius: 50%; touch-action: none; }
-#knob { position: absolute; left: 31.4%; top: 31.4%; width: 37.2%; height: 37.2%; border-radius: 50%; background: url(ui/knob.webp) center / 100% 100% no-repeat; pointer-events: none; filter: drop-shadow(0 2px 3px #000a); }
-#pad.pressed #knob { filter: drop-shadow(0 2px 3px #000a) brightness(1.15); }
-.btn { position: absolute; border-radius: 50%; touch-action: none; overflow: visible; }
-.btn::before { content: ""; position: absolute; inset: 9%; border-radius: 50%; background: radial-gradient(#fff6, transparent 65%); opacity: 0; transition: opacity .08s; mix-blend-mode: screen; pointer-events: none; }
+#gdia { position: absolute; top: calc(var(--k) * 2); width: calc(var(--k) * 58); height: calc(var(--k) * 67); left: calc(var(--k) * (198 + 418 * var(--s, .5) - 29)); transition: left .3s; filter: drop-shadow(0 1px 2px #000a); }
+#pad { left: calc(var(--k) * 34); top: calc(var(--k) * 118); width: calc(var(--k) * 389); height: calc(var(--k) * 384); border-radius: 50%; touch-action: none; }
+#pad .ring { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+#knob { position: absolute; left: 28.4%; top: 28.1%; width: 43.2%; height: 43.8%; border-radius: 50%; background: url(ui/p/knob.webp) center / 100% 100% no-repeat; pointer-events: none; filter: drop-shadow(0 3px 4px #000b); }
+#pad.pressed #knob { filter: drop-shadow(0 3px 4px #000b) brightness(1.15); }
+.btn { border-radius: 50%; touch-action: none; overflow: visible; }
+.btn img { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; filter: drop-shadow(0 3px 4px #000b); }
+.btn::before { content: ""; position: absolute; inset: 12%; z-index: 1; border-radius: 50%; background: radial-gradient(#fff6, transparent 65%); opacity: 0; transition: opacity .08s; mix-blend-mode: screen; pointer-events: none; }
 .btn.pressed::before { opacity: 1; }
-.btn.s::after { content: ""; position: absolute; inset: 11%; border-radius: 50%; background: conic-gradient(rgba(6,5,10,.78) calc(var(--cd, 0) * 1turn), transparent 0); pointer-events: none; }
-.btn .lbl { display: none; }
-#btnA { left: 67.27%; top: 43.47%; width: 23.8%; height: 38.49%; }
-#btnS { left: 54.41%; top: 30.24%; width: 12.75%; height: 20.62%; }
-#btnP { left: 50.27%; top: 55.15%; width: 13.18%; height: 21.3%; }
-#btnU { left: 82.68%; top: 20.45%; width: 12.96%; height: 20.96%; }
-#btnT { left: 67.69%; top: 17.53%; width: 12.75%; height: 20.62%; }
-/* 突き：モックの「回避」の円を使い、中の絵と文字は差し替え（本番のアイコンは外部AIで作る） */
-#btnT .ic { position: absolute; inset: 13%; border-radius: 50%; background: radial-gradient(circle at 50% 45%, #2c5a86, #142a44 62%, #0b1626); box-shadow: inset 0 0 6px #6fb6ff55; pointer-events: none; }
-#btnT svg { position: absolute; inset: 20%; width: 60%; height: 60%; pointer-events: none; filter: drop-shadow(0 0 3px #8fd0ff); }
-#btnT .lb { position: absolute; left: 50%; top: 100%; transform: translate(-50%, -8%); font-size: 3.1cqw; color: #f1e6cc; text-shadow: 0 1px 2px #000, 0 0 4px #000; white-space: nowrap; pointer-events: none; padding: .05em .5em; background: linear-gradient(90deg, transparent, #000a 25%, #000a 75%, transparent); }
+.btn.pressed img { transform: scale(.95); }
+.btn.s::after { content: ""; position: absolute; inset: 13%; z-index: 1; border-radius: 50%; background: conic-gradient(rgba(6,5,10,.74) calc(var(--cd, 0) * 1turn), transparent 0); pointer-events: none; }
+.btn.cool img { filter: drop-shadow(0 3px 4px #000b) saturate(.6) brightness(.8); }
+.btn .lbl { position: absolute; z-index: 2; left: 50%; top: 100%; transform: translate(-50%, -30%); font-size: calc(var(--k) * 23); color: #f1e6cc; text-shadow: 0 1px 2px #000, 0 0 4px #000; white-space: nowrap; pointer-events: none; padding: .05em .7em; background: linear-gradient(90deg, transparent, #000b 25%, #000b 75%, transparent); }
+#btnA .lbl { top: auto; bottom: 9%; transform: translateX(-50%); font-size: calc(var(--k) * 32); letter-spacing: .15em; }
+/* 攻撃（大）の中心 (700,420)、技は半径215の弧に36°おき（左下から 吸引・衝撃波・突き・回避・必殺） */
+#btnA { left: calc(var(--k) * 585); top: calc(var(--k) * 305); width: calc(var(--k) * 230); height: calc(var(--k) * 230); }
+.btn.s { width: calc(var(--k) * 112); height: calc(var(--k) * 112); }
+#btnP { left: calc(var(--k) * 429); top: calc(var(--k) * 364); }
+#btnS { left: calc(var(--k) * 470); top: calc(var(--k) * 238); }
+#btnT { left: calc(var(--k) * 578); top: calc(var(--k) * 160); }
+#btnD { left: calc(var(--k) * 710); top: calc(var(--k) * 160); }
+#btnU { left: calc(var(--k) * 818); top: calc(var(--k) * 238); }
 
 /* 重ね表示：出撃の前・結果・やられ・一時停止 */
 #ov { position: absolute; inset: 0; z-index: 5; display: none; align-items: center; justify-content: center; background: radial-gradient(#0008, #000c); }

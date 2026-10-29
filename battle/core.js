@@ -4,15 +4,18 @@
 /* 縦画面の座標：世界の床の基準は従来どおり H=720（下端＝y720）。キャンバスの論理サイズは W×VH。
    VH≧720 のときは、世界の y<0（上の空き）まで見せて、カメラを引いた状態にする。TOPY＝画面の上端に来る世界の y。
    PW＝横に見せたい世界の幅の目安（大きくすると引きになり、敵が多く見えるがキャラは小さくなる）。 */
-var PW = 760, W = 760, H = 720, VH = 955, TOPY = 720 - 955, BW = 1280; // BW=絵の基準の幅（部屋の長さは W/BW の比で縮める）
+/* キャンバスは操作盤の後ろまで伸びる（操作盤の背景＝戦場の床の続き）。VH＝操作盤より上の見える高さ、EXT＝操作盤の後ろの高さ。CVH()＝キャンバス全体の高さ */
+var PW = 760, W = 760, H = 720, VH = 955, EXT = 0, TOPY = 720 - 955, BW = 1280; // BW=絵の基準の幅（部屋の長さは W/BW の比で縮める）
 var cv = document.getElementById('game'), ctx = cv.getContext('2d');
 cv.width = W; cv.height = VH;
+function CVH() { return VH + EXT; }
 function fitW() {
-  var fd = document.getElementById('field'), r = fd ? fd.getBoundingClientRect() : null;
+  var fd = document.getElementById('field'), r = fd ? fd.getBoundingClientRect() : null, ce = document.getElementById('ctl'), rc = ce ? ce.getBoundingClientRect() : null;
   if (!r || !(r.width > 0) || !(r.height > 0)) return false;
-  var a = r.width / r.height, nvh = Math.max(720, Math.min(1000, Math.round(PW / a))), nw = Math.round(nvh * a);
-  if (Math.abs(nw - W) < 2 && Math.abs(nvh - VH) < 2) return false;
-  W = nw; VH = nvh; TOPY = 720 - VH; return true;
+  var ch = rc && rc.height > 0 ? Math.min(r.height * 0.7, rc.height) : 0, vh = r.height - ch;
+  var a = r.width / vh, nvh = Math.max(720, Math.min(1000, Math.round(PW / a))), nw = Math.round(nvh * a), next = Math.round(ch * nw / r.width);
+  if (Math.abs(nw - W) < 2 && Math.abs(nvh - VH) < 2 && Math.abs(next - EXT) < 2) return false;
+  W = nw; VH = nvh; EXT = next; TOPY = 720 - VH; return true;
 }
 function RW() { return Math.round(ROOM.w * W / BW); } // 部屋の長さ（戦場 segs 個が隙間なく並ぶよう、見える幅に合わせて縮める）
 var TOUCH = !!((window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || (window.location && /[?&]touch=1/.test(window.location.search || '')));
@@ -21,9 +24,9 @@ var RES = 1, resTick = 0;
 function fitRes() { // 画面に映る実際の大きさに合わせて内部解像度を上げる（最大2倍）。論理座標は1280×720のまま
   fitW();
   var r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
-  var want = Math.max(1, Math.min(2, Math.round((Math.min(r.width / W, r.height / VH) * dpr) * 4) / 4));
+  var want = Math.max(1, Math.min(2, Math.round((Math.min(r.width / W, r.height / CVH()) * dpr) * 4) / 4));
   if (!(r.width > 0)) want = RES;
-  if (want !== RES || cv.width !== Math.round(W * want) || cv.height !== Math.round(VH * want)) { RES = want; cv.width = Math.round(W * RES); cv.height = Math.round(VH * RES); }
+  if (want !== RES || cv.width !== Math.round(W * want) || cv.height !== Math.round(CVH() * want)) { RES = want; cv.width = Math.round(W * RES); cv.height = Math.round(CVH() * RES); }
   ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
 }
 
@@ -104,7 +107,7 @@ function newGame() {
     roomNo: 0, seg: 0, phase: 'fight', trans: null,
     state: 'title', t: 0, wave: 0, enemies: [], drops: [], parts: [], fx: [], texts: [], booms: [],
     queue: [], qT: 0, shake: 0, freeze: 0, combo: 0, comboT: 0, bestCombo: 0, kills: 0, gold: 0, rare: 0, sup: 0, paused: false, fieldTotal: 1,
-    skCD: 0, skMax: 3.2, pullCD: 0, pullMax: 6, thrCD: 0, thrMax: 8, ultCD: 0, ultMax: 14, flash: 0, picks: [], pickOpts: [], upgraded: [],
-    hero: { x: 340, y: 560, face: 1, hp: 120, max: 120, state: 'idle', t: 0, anim: 0, sk: false, kind: 'atk', fxT: 0, ringT: 0, h1: false, h2: false, h3: false, v: 0, lastAtkEnd: -9, lastAtkKind: '', x0: 0, buf: 0, cancelT: 0, total: 0, inv: 0, flash: 0, kb: 0 }
+    skCD: 0, skMax: 3.2, pullCD: 0, pullMax: 6, thrCD: 0, thrMax: 8, ultCD: 0, ultMax: 14, dodgeCD: 0, dodgeMax: 1.1, flash: 0, picks: [], pickOpts: [], upgraded: [],
+    hero: { x: 340, y: 560, face: 1, hp: 120, max: 120, state: 'idle', t: 0, anim: 0, sk: false, kind: 'atk', fxT: 0, ringT: 0, h1: false, h2: false, h3: false, v: 0, lastAtkEnd: -9, lastAtkKind: '', x0: 0, buf: 0, cancelT: 0, total: 0, inv: 0, flash: 0, kb: 0, dx: 0, dy: 0, dsx: 0, dsy: 0, trail: [], trT: 0 }
   };
 }

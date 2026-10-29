@@ -28,9 +28,9 @@ function uiTick() { // 毎フレーム。変わったときだけ書き換える
     u.hp.style.width = Math.max(0, Math.min(100, 100 * h.hp / h.max)) + '%'; u.hp.className = h.hp / h.max > 0.3 ? '' : 'low';
     u.hpT.textContent = 'HP ' + Math.ceil(h.hp) + ' / ' + h.max;
     u.ul.style.width = (ulv * 100) + '%'; u.ulW.classList.toggle('full', ulv >= 1);
-    u.wave.innerHTML = '戦場 <b>' + Math.min(ROOM.segs, G.seg + 1) + ' / ' + ROOM.segs + '</b>';
+    u.wave.innerHTML = '<img src="battle/ui/p/sq_sword.webp" alt="">戦場 <b>' + Math.min(ROOM.segs, G.seg + 1) + ' / ' + ROOM.segs + '</b>';
     u.left.textContent = alive; u.sup.textContent = G.sup;
-    u.g.style.width = (share * 100) + '%'; u.dia.style.left = (26.78 + 46.55 * share) + '%';
+    u.g.style.width = (share * 100) + '%'; u.dia.style.setProperty('--s', share.toFixed(3));
   }
   var st = G.state + (G.paused ? '+p' : '') + (G.state === 'result' && G.resT > 0.8 ? '+r' : '') + (started ? '' : '-');
   if (st !== UIstate) { UIstate = st; uiShow(); }

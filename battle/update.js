@@ -22,6 +22,8 @@ function update(dt) {
   if (G.pullCD > 0) G.pullCD = Math.max(0, G.pullCD - dt);
   if (G.thrCD > 0) G.thrCD = Math.max(0, G.thrCD - dt);
   if (G.ultCD > 0) G.ultCD = Math.max(0, G.ultCD - dt);
+  if (G.dodgeCD > 0) G.dodgeCD = Math.max(0, G.dodgeCD - dt);
+  for (var ti = h.trail.length - 1; ti >= 0; ti--) { h.trail[ti].t += dt; if (h.trail[ti].t > 0.22) h.trail.splice(ti, 1); } // 回避の残像
   if (G.comboT > 0) { G.comboT -= dt; if (G.comboT <= 0) G.combo = 0; }
   if (h.inv > 0) h.inv -= dt;
   if (h.flash > 0) h.flash -= dt;
@@ -35,7 +37,8 @@ function update(dt) {
   var mag = Math.min(1, Math.hypot(ax, ay));
   var run = !!(keys.ShiftLeft || keys.ShiftRight) || pad.mag > 0.8;
 
-  if (h.state === 'atk' && h.kind === 'ult') {
+  if (h.state === 'dodge') dodgeTick(h, dt);
+  else if (h.state === 'atk' && h.kind === 'ult') {
     h.t += dt; ultTick(h, dt);
   } else if (h.state === 'atk') {
     h.t += dt;
@@ -62,7 +65,7 @@ function update(dt) {
     h.t += dt; h.x += h.kb * dt; h.kb *= Math.pow(0.02, dt);
     if (h.t >= HURT.total) { h.state = 'idle'; h.anim = 0; if (h.buf) { var hb = h.buf; h.buf = 0; if (!((hb === 'sk' && G.skCD > 0) || (hb === 'pull' && G.pullCD > 0) || (hb === 'ult' && G.ultCD > 0) || (hb === 'thr' && G.thrCD > 0))) beginAttack(hb); } }
   }
-  if (h.state !== 'atk' && h.state !== 'hurt') {
+  if (h.state !== 'atk' && h.state !== 'hurt' && h.state !== 'dodge') {
     if (mag > 0.2) {
       var sp = run ? 440 : 240; // 縦画面：横版（190・380）より速く、縦の動きも速く（0.6→0.85）
       h.x += ax / Math.max(1, Math.hypot(ax, ay)) * sp * dt * (mag > 1 ? 1 : 1);
@@ -109,7 +112,7 @@ function update(dt) {
       var ak = e.atk; ak.t += dt;
       if (!ak.done && ak.t >= ak.hitT) { ak.done = true;
         var adx = h.x - e.x, ady = h.y - e.y;
-        if (Math.abs(adx) < 105 * e.size && Math.abs(ady) < 36 && h.inv <= 0 && G.state === 'play' && !(h.state === 'atk' && (h.kind === 'ult' || (h.kind === 'thr' && h.t < THR.safe)))) hitHero(e);
+        if (Math.abs(adx) < 105 * e.size && Math.abs(ady) < 36 && h.inv <= 0 && h.state !== 'dodge' && G.state === 'play' && !(h.state === 'atk' && (h.kind === 'ult' || (h.kind === 'thr' && h.t < THR.safe)))) hitHero(e);
       }
       if (ak.t >= ak.endT) e.atk = null;
     }

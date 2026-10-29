@@ -21,6 +21,7 @@ function drawHero() {
   if (h.state === 'idle') sy = 1 + 0.012 * Math.sin(h.anim * 2 * Math.PI / 1.7);
   else if (h.state === 'walk') name = 'walk_' + pad2(Math.floor(h.anim) % 24);
   else if (h.state === 'run') name = 'run_' + pad2(Math.floor(h.anim) % 10);
+  else if (h.state === 'dodge') name = 'run_' + pad2(Math.floor(h.anim) % 10);
   else if (h.state === 'hurt') { name = 'dmg_' + pad2(hurtFrame(h.t)); anch = DMG_A; }
   else if (h.state === 'atk' && h.kind === 'ult') {
     name = 'ult_' + pad2(ultFrame(h.t)); anch = ULT_A;
@@ -35,8 +36,12 @@ function drawHero() {
     name = 'dmg_01'; anch = DMG_A; sy = 1; var dk = Math.min(1, (G.deadT || 0) / 0.7); rot = -h.face * 1.4 * (1 - Math.pow(1 - dk, 3));
   }
   var blink = h.inv > 0 && Math.floor(G.t * 24) % 2 === 0 && G.state !== 'dead';
+  for (var ti = 0; ti < h.trail.length; ti++) { // 回避の残像：古いほど薄く
+    var tr = h.trail[ti]; ctx.globalAlpha = 0.38 * (1 - tr.t / 0.22) * (ti + 1) / h.trail.length;
+    drawSprite('run_' + pad2(tr.f), tr.x, tr.y, tr.face, depthScale(tr.y) * RUN_K, 1, null, 0);
+  }
   ctx.globalAlpha = blink ? 0.55 : 1;
-  drawSprite(name, h.x + jit, h.y, h.face, sc * (h.state === 'run' ? RUN_K : 1), sy, anch, rot);
+  drawSprite(name, h.x + jit, h.y, h.face, sc * (h.state === 'run' || h.state === 'dodge' ? RUN_K : 1), sy, anch, rot);
   ctx.globalAlpha = 1;
 }
 
@@ -281,7 +286,7 @@ function wrapText(s, x, y, maxW, size, col, align, lh) {
 
 var CDB = null;
 function updateTouchCd() { // スキルボタンの円グラフ（残り時間の割合）と、使えない間の暗さ
-  if (!CDB) CDB = [['btnP', 'pullCD', function () { return G.pullMax * S.pcd; }], ['btnS', 'skCD', function () { return G.skMax * S.cd; }], ['btnT', 'thrCD', function () { return G.thrMax; }], ['btnU', 'ultCD', function () { return G.ultMax; }]].map(function (d) { return { el: document.getElementById(d[0]), key: d[1], max: d[2], last: -1 }; });
+  if (!CDB) CDB = [['btnP', 'pullCD', function () { return G.pullMax * S.pcd; }], ['btnS', 'skCD', function () { return G.skMax * S.cd; }], ['btnT', 'thrCD', function () { return G.thrMax; }], ['btnU', 'ultCD', function () { return G.ultMax; }], ['btnD', 'dodgeCD', function () { return G.dodgeMax; }]].map(function (d) { return { el: document.getElementById(d[0]), key: d[1], max: d[2], last: -1 }; });
   for (var i = 0; i < CDB.length; i++) {
     var b = CDB[i], v = Math.round(Math.max(0, Math.min(1, G[b.key] / b.max())) * 50) / 50;
     if (v === b.last || !b.el.style || !b.el.style.setProperty) continue;
@@ -320,7 +325,7 @@ function drawStage() { // 奥の背景（視差つき・鏡写しで繰り返し
 var FB = { back1: 830, fl0: 835, fl1: 1150 }, FLF = null; // duel.jpg（1086×1448）の切り分け：0〜830＝奥（空・山・城）、835〜1150＝土の帯
 function drawField() {
   var im = IMG.fbk, hz = ROOM.hz, m = G.shake > 0.5 ? 12 : 0, top = camY + TOPY - m;
-  ctx.fillStyle = '#a9c9e8'; ctx.fillRect(camX - m, top, W + 2 * m, VH + 2 * m);
+  ctx.fillStyle = '#a9c9e8'; ctx.fillRect(camX - m, top, W + 2 * m, CVH() + 2 * m);
   if (!im || !im.naturalWidth) return;
   var ks = (hz + 100 - Math.min(0, TOPY)) / FB.back1, bw = im.naturalWidth * ks, bh = FB.back1 * ks, by = hz + 100 - bh; // 床の溶ける幅（90）より下まで描く // 奥：上端まで覆う大きさ。地平線の少し下まで描く
   var off = camX * ROOM.par, i0 = Math.floor((off - m) / bw), i1 = Math.floor((off + W + m - 0.01) / bw);
@@ -331,17 +336,20 @@ function drawField() {
   }
   if (!im.complete) return; // 読み込みの途中で切り出すと、空の床のまま残る
   if (!FLF) { // 床：土の帯を切り出し、上端を溶かす（一度だけ）
-    FLF = document.createElement('canvas'); FLF.width = im.naturalWidth; FLF.height = FB.fl1 - FB.fl0;
+    FLF = document.createElement('canvas'); FLF.width = im.naturalWidth; FLF.height = im.naturalHeight - FB.fl0; // 土の帯から絵の下端まで（1150より下＝手前の草と花は、操作盤の後ろに見える）
     var c = FLF.getContext('2d'); c.drawImage(im, 0, FB.fl0, im.naturalWidth, FLF.height, 0, 0, FLF.width, FLF.height);
     var g = c.createLinearGradient(0, 0, 0, 90); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,1)');
     c.globalCompositeOperation = 'destination-in'; c.fillStyle = g; c.fillRect(0, 0, FLF.width, FLF.height);
   }
-  var fh = H - hz + m, sc = fh / FLF.height, fw = FLF.width * sc;
+  var sc = (H - hz) / (FB.fl1 - FB.fl0), fw = FLF.width * sc, bot = camY + TOPY + CVH() + m; // 縮尺は従来どおり（土の帯 835〜1150 が 地平線〜y720）
+  var fh = Math.max(FLF.height * sc, bot - hz); // 操作盤の後ろ（1150より下＝手前のぼかした草花）が足りない画面では、その部分だけ縦に伸ばす
   var j0 = Math.floor((camX - m) / fw), j1 = Math.floor((camX + W + m - 0.01) / fw);
   for (var j = j0; j <= j1; j++) {
     ctx.save(); ctx.translate(Math.round(j * fw), hz);
     if (((j % 2) + 2) % 2) { ctx.translate(Math.ceil(fw), 0); ctx.scale(-1, 1); } // 鏡写しで継ぎ目を合わせる
-    ctx.drawImage(FLF, 0, 0, FLF.width, FLF.height, 0, 0, Math.ceil(fw) + 1, fh); ctx.restore();
+    var f1 = FB.fl1 - FB.fl0, w1 = Math.ceil(fw) + 1;
+    ctx.drawImage(FLF, 0, 0, FLF.width, f1, 0, 0, w1, H - hz);
+    ctx.drawImage(FLF, 0, f1 - 1, FLF.width, FLF.height - f1 + 1, 0, H - hz - 1, w1, fh - (H - hz) + 1); ctx.restore();
   }
 }
 function drawBg() {
@@ -363,14 +371,14 @@ function draw() {
   updateTouchCd();
   ctx.setTransform(RES, 0, 0, RES, 0, 0);
   ctx.save();
-  ctx.clearRect(0, 0, W, VH);
+  ctx.clearRect(0, 0, W, CVH());
   var sx = G.shake ? (Math.random() - 0.5) * G.shake : 0, sy = G.shake ? (Math.random() - 0.5) * G.shake : 0;
   ctx.translate(sx, sy);
   ctx.save(); ctx.translate(-camX, -camY - TOPY); // ここから世界座標（カメラ追従）。HUDと暗転は、あとで画面座標に戻して描く
   drawBg();
   var h0 = G.hero; // 必殺技の溜め中は、背景を暗くして、主人公と敵を目立たせる
   if (G.state === 'play' && h0.state === 'atk' && h0.kind === 'ult' && h0.t < ULT.hit + 0.02) {
-    ctx.fillStyle = 'rgba(6,4,14,' + (0.5 * Math.min(1, h0.t / 0.5)) + ')'; ctx.fillRect(camX - 10, camY + TOPY - 10, W + 20, VH + 20);
+    ctx.fillStyle = 'rgba(6,4,14,' + (0.5 * Math.min(1, h0.t / 0.5)) + ')'; ctx.fillRect(camX - 10, camY + TOPY - 10, W + 20, CVH() + 20);
   }
   var list = [];
   G.enemies.forEach(function (e) { list.push({ y: e.y, f: function () { drawFoe(e); } }); });
@@ -386,13 +394,13 @@ function draw() {
   });
   ctx.restore(); // 世界座標ここまで
   ctx.restore();
-  if (G.flash > 0) { ctx.fillStyle = 'rgba(255,255,255,' + Math.min(1, G.flash) + ')'; ctx.fillRect(0, 0, W, VH); }
+  if (G.flash > 0) { ctx.fillStyle = 'rgba(255,255,255,' + Math.min(1, G.flash) + ')'; ctx.fillRect(0, 0, W, CVH()); }
   if (G.state !== 'title') drawHud();
   uiTick();
   drawOverlay();
   if (G.trans) { // 部屋の移動：暗転→部屋名→明転
     var tk = G.trans.t, ta = tk < 0.5 ? tk / 0.5 : Math.max(0, (1 - tk) / 0.5);
-    ctx.fillStyle = 'rgba(0,0,0,' + Math.min(1, ta) + ')'; ctx.fillRect(0, 0, W, VH);
+    ctx.fillStyle = 'rgba(0,0,0,' + Math.min(1, ta) + ')'; ctx.fillRect(0, 0, W, CVH());
     if (tk > 0.3 && tk < 0.85) { ctx.globalAlpha = Math.min(1, ta * 1.5); txt(ROOMS[(G.roomNo + (G.trans.sw ? 0 : 1)) % ROOMS.length].name, W / 2, VH / 2 + 10, 44, '#ffd27a', 'center'); ctx.globalAlpha = 1; }
   }
 }

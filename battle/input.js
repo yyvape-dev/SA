@@ -29,11 +29,12 @@ function onPress(code) {
   if (code === 'KeyL' || code === 'KeyC') tryAttack('pull');
   if (code === 'KeyU' || code === 'KeyV') tryAttack('ult');
   if (code === 'KeyI' || code === 'KeyB') tryAttack('thr');
+  if (code === 'KeyO' || code === 'KeyN') tryAttack('dodge');
 }
 
 function canvasPoint(ev) {
-  var r = cv.getBoundingClientRect(), k = Math.min(r.width / W, r.height / VH);
-  var ox = (r.width - W * k) / 2, oy = (r.height - VH * k) / 2;
+  var r = cv.getBoundingClientRect(), k = Math.min(r.width / W, r.height / CVH());
+  var ox = (r.width - W * k) / 2, oy = (r.height - CVH() * k) / 2;
   return { x: (ev.clientX - r.left - ox) / k, y: (ev.clientY - r.top - oy) / k };
 }
 cv.addEventListener('pointerdown', function (ev) {
@@ -88,18 +89,10 @@ function tapBtn(id, fn) {
   });
   ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (n) { el.addEventListener(n, function () { el.classList.remove('pressed'); }); });
 }
-/* 画像アイコンの差し込み口：ui/ に絵があれば、文字の代わりにその絵を出す（なければ今の見た目のまま）。
-   ボタン  ui/btn_attack.png  btn_pull.png  btn_shock.png  btn_thrust.png  btn_ult.png（正方形・透過PNG推奨）
-   パッド  ui/pad_base.png（土台）  ui/pad_knob.png（つまみ） */
-function iconSlot(el, src) {
-  if (!el) return;
-  var im = new Image(); im.alt = ''; im.draggable = false;
-  im.onload = function () { el.insertBefore(im, el.firstChild); el.classList.add('has-img'); };
-  im.src = src;
-}
-// ボタンとパッドの絵は、操作盤の絵（battle/ui/panel.webp）に描いてある。iconSlot は差し込み口として残す
+// ボタンとパッドの絵は battle/ui/p/ の部品（index.html の img）。差し替えは、同じ名前のファイルを置くか slice_ui.py を回し直す
 tapBtn('btnA', function () { tryAttack('atk'); });
 tapBtn('btnS', function () { tryAttack('sk'); });
 tapBtn('btnP', function () { tryAttack('pull'); });
 tapBtn('btnU', function () { tryAttack('ult'); });
 tapBtn('btnT', function () { tryAttack('thr'); });
+tapBtn('btnD', function () { tryAttack('dodge'); });

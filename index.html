@@ -4,42 +4,48 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<link rel="stylesheet" href="battle/battle.css?v=1793256872">
+<link rel="stylesheet" href="battle/battle.css?v=1793257721">
 </head><body>
 <!-- 横画面の旧版は index_land.html。戦闘の中身は battle/*.js（上から順に読み込む） -->
 <div class="wrap" id="wrap">
   <div id="stage">
     <div id="top"><div id="hud">
+      <img class="face" src="battle/ui/p/face_tmp.webp" alt="">
       <div class="hp"><i id="hpI"></i><span id="hpT">HP</span></div>
       <div class="ul" id="ulW"><i id="ulI"></i></div>
-      <div class="info"><span id="hWave">戦場 <b>1 / 3</b></span><i class="sep"></i><span><img src="battle/ui/ic_skull.webp" alt="">残り <b id="hLeft">0</b></span><i class="sep"></i><span><img src="battle/ui/ic_chest.webp" alt="">物資 <b id="hSup">0</b></span></div>
-      <button id="pz" type="button" aria-label="一時停止"></button>
+      <img class="frame" src="battle/ui/p/hudframe.webp" alt="">
+      <div class="info"><span id="hWave"><img src="battle/ui/p/sq_sword.webp" alt="">戦場 <b>1 / 3</b></span><i class="sep"></i><span><img src="battle/ui/p/sq_helm.webp" alt="">残り <b id="hLeft">0</b></span><i class="sep"></i><span><img src="battle/ui/p/sq_bag.webp" alt="">物資 <b id="hSup">0</b></span></div>
+      <button id="pz" type="button" aria-label="一時停止"><img src="battle/ui/p/pause.webp" alt=""></button>
+      <img class="rule" src="battle/ui/p/rule.webp" alt="">
     </div></div>
     <div id="field"><canvas id="game" tabindex="0" aria-label="ゲーム画面"></canvas>
       <div id="ov"><div class="card"><div class="t1"></div><h2></h2><p class="s1"></p><p class="s2"></p><div class="row"></div></div></div>
       <p class="note" id="loadnote">素材を読み込み中です。</p>
     </div>
     <button id="fs" type="button" hidden>全画面</button>
+    <!-- 操作盤：背景は描かない（キャンバスの床が後ろまで続く）。部品は battle/ui/p/（battle/tools/slice_ui.py で切り出し） -->
     <div id="ctl"><div class="touch">
-      <div id="gauge"><i id="gI"></i></div><i id="gdia"></i>
-      <div id="pad" aria-label="移動パッド"><div id="knob"></div></div>
-      <button class="btn s" id="btnS" type="button"><span class="lbl">衝撃波</span></button>
-      <button class="btn s" id="btnP" type="button"><span class="lbl">吸引</span></button>
-      <button class="btn s" id="btnT" type="button"><i class="ic"></i><svg viewBox="0 0 64 64"><path d="M6 46 L44 20 L41 15 L60 8 L53 27 L48 24 L10 50 Z" fill="#cfeaff" stroke="#5fb0ff" stroke-width="2" stroke-linejoin="round"/><path d="M8 34 L24 28 M14 54 L30 44" stroke="#8fd0ff" stroke-width="2.5" stroke-linecap="round" opacity=".8"/></svg><span class="lb">突き</span></button>
-      <button class="btn s" id="btnU" type="button"><span class="lbl">必殺</span></button>
-      <button class="btn a" id="btnA" type="button"><span class="lbl">攻撃</span></button>
+      <i class="shade"></i><img class="ground" src="battle/ui/p/ground.webp" alt="">
+      <div id="war"><img class="gf" src="battle/ui/p/gaugeframe.webp" alt=""><span class="l">自軍優勢</span><span class="r">敵軍優勢</span><div id="gauge"><i id="gI"></i></div><img id="gdia" src="battle/ui/p/gaugedia.webp" alt=""></div>
+      <div id="pad" aria-label="移動パッド"><img class="ring" src="battle/ui/p/padring.webp" alt=""><div id="knob"></div></div>
+      <button class="btn s" id="btnP" type="button"><img src="battle/ui/p/ic_pull.webp" alt=""><span class="lbl">吸引</span></button>
+      <button class="btn s" id="btnS" type="button"><img src="battle/ui/p/ic_shock.webp" alt=""><span class="lbl">衝撃波</span></button>
+      <button class="btn s" id="btnT" type="button"><img src="battle/ui/p/ic_thr.webp" alt=""><span class="lbl">突き</span></button>
+      <button class="btn s" id="btnD" type="button"><img src="battle/ui/p/ic_dodge.webp" alt=""><span class="lbl">回避</span></button>
+      <button class="btn s" id="btnU" type="button"><img src="battle/ui/p/ic_ult.webp" alt=""><span class="lbl">必殺</span></button>
+      <button class="btn a" id="btnA" type="button"><img src="battle/ui/p/ic_atk.webp" alt=""><span class="lbl">攻撃</span></button>
     </div></div>
   </div>
   <div class="keys" id="keys"></div>
 </div>
 
-<script src="battle/core.js?v=1793256872"></script>
-<script src="battle/input.js?v=1793256872"></script>
-<script src="battle/play.js?v=1793256872"></script>
-<script src="battle/update.js?v=1793256872"></script>
-<script src="battle/draw.js?v=1793256872"></script>
-<script src="battle/ui.js?v=1793256872"></script>
-<script src="battle/loop.js?v=1793256872"></script>
+<script src="battle/core.js?v=1793257721"></script>
+<script src="battle/input.js?v=1793257721"></script>
+<script src="battle/play.js?v=1793257721"></script>
+<script src="battle/update.js?v=1793257721"></script>
+<script src="battle/draw.js?v=1793257721"></script>
+<script src="battle/ui.js?v=1793257721"></script>
+<script src="battle/loop.js?v=1793257721"></script>
 
 
 </body></html>
