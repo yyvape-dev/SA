@@ -1,9 +1,9 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793278549';
-import { createUI } from './ui.js?v=1793278549';
-import { createMorning } from './morning.js?v=1793278549';
+import * as GM from './game.js?v=1793278887';
+import { createUI } from './ui.js?v=1793278887';
+import { createMorning } from './morning.js?v=1793278887';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -945,11 +945,12 @@ function clipActor(el, sp, clips, base, T, run, runBase) { // 動画由来の連
   use(c0);
   return { reset: () => use(c0),
     run(ms, rate = 1) { if (!run) return false; useRun(); const step = Math.max(28, run.durs[0] / rate); for (let t = 0, i = 0; t < ms; t += step, i++) T(() => setFrame(i % run.n), t); return true; }, // 走りのコマを ms の間まわす
-    play(at, tame = 0) { // at から振りかぶり（溜め）を始める。当たりの直前のコマで tame ミリ秒止める。返り値：使った動きと、当たりの時刻
-      if (!order.length) order = clips.map((_, i) => i).sort(() => Math.random() - .5); const c = clips[order.pop()], SPD = 2.2;
-      const pre = c.durs.slice(0, c.hit).reduce((x, y) => x + y, 0) / SPD; let acc = 0; T(() => use(c), Math.max(0, at - 5));
-      c.durs.forEach((d, fi) => { T(() => setFrame(fi), at + acc / SPD + (fi >= c.hit ? tame : 0)); acc += d; }); T(() => use(c0), at + acc / SPD + tame + 30);
-      return { c, hitAt: at + pre + tame }; } };
+    play(at, tame = 0) { // at から振りかぶりを始める。当たりの直前のコマで tame ミリ秒止める（溜め）。返り値：使った動きと、当たりの時刻
+      // 振りかぶりは詰める：最初の構えのコマ（動画の静止、100〜360ms）は飛ばし、当たりまでの各コマは最大90msを3倍速。溜めは tame だけで作る
+      if (!order.length) order = clips.map((_, i) => i).sort(() => Math.random() - .5); const c = clips[order.pop()], SPD = 2.2, PRE = 3;
+      const ts = []; let t = 0; c.durs.forEach((d, fi) => { ts.push(t); t += fi === 0 ? 0 : fi < c.hit ? Math.min(d, 90) / PRE : d / SPD; if (fi === c.hit - 1) t += tame; });
+      T(() => use(c), Math.max(0, at - 5)); ts.forEach((tt, fi) => { if (fi || c.hit === 0) T(() => setFrame(fi), at + tt); }); T(() => use(c0), at + t + 30);
+      return { c, hitAt: at + ts[c.hit] }; } };
 }
 const HUMAN = { mina: 163, sera: 157, ranka: 166, garou: 212, sol: 197, f1: 197, f2: 205, f3: 180, f4: 204 }; // 見た目の背の高さ：一騎打ちと戦場の大きさをこれで揃える。槍の穂先・兜の飾りが測った高さに入る絵は大きめの値（並べて目で合わせた値）
 const duelSel = document.createElement('div'); duelSel.id = 'dsel'; document.body.appendChild(duelSel);
@@ -999,7 +1000,7 @@ function playDuel(k, done) { // 画面いっぱいの一騎打ち。五合の勝
     at.style.transition = `transform ${runMs}ms ${ran ? 'linear' : 'ease-in'}`; at.style.transform = `translateX(${dx}px)`;
     camTo(zRun, cx0 + dx * .25, lead); T(() => camTo(zRun, cx1, runMs - lead, 'linear'), lead); // 寄ってから、走りに合わせて追う
     const clashX = (r.ally ? ra.right + dx : ra.left + dx) - rs.left + dir * sw * .02, tame = D(big ? 300 : 170);
-    const P = act ? act.play(runMs, tame) : { c: null, hitAt: runMs + 240 };
+    const P = act ? act.play(Math.max(0, runMs - D(40)), tame) : { c: null, hitAt: runMs + 240 };
     const zAtk = big ? zRun * 1.08 : zRun, fx = cx1 + dir * sw * .06; // 攻撃の間も、走った側に寄ったまま（少しだけ前へ向ける）。二人を収める案は FOCUS_ATK=false
     T(() => FOCUS_ATK ? camTo(zAtk, fx, D(220)) : camTo(big ? zFit * 1.06 : zFit, mid, D(big ? 320 : 240)), runMs);
     if (r.kind === 'counter') { const c = $('.cut'); c.querySelector('div').innerHTML = `見切り！<small>${A.n}が大技を受け流す</small>`; T(() => c.classList.add('on'), runMs); T(() => c.classList.remove('on'), P.hitAt + 500); }
