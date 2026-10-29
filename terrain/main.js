@@ -1,9 +1,9 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793249932';
-import { createUI } from './ui.js?v=1793249932';
-import { createMorning } from './morning.js?v=1793249932';
+import * as GM from './game.js?v=1793252188';
+import { createUI } from './ui.js?v=1793252188';
+import { createMorning } from './morning.js?v=1793252188';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -1169,18 +1169,85 @@ function takeBattleResult() {
   try { localStorage.removeItem('battle_result'); } catch (e) { }
   G.battle = null; const t = GM.resolve(G, 'hand', Math.random, !!r.win); endRaidFx(); commit(`${t}（撃破${r.kills}）`); ui.modal(null); /* 出撃は週の報告がなく、起動時に開いた出撃の窓が残って止まっていた */ showReport();
 }
-function raidModal() {
-  const R = G.raid; if (!R) { ui.modal(null); return; } if (introPlaying || abt.style.display === 'flex' || (duelEl.style.display === 'flex' || duelSel.style.display === 'flex') || /一騎打ち/.test(document.querySelector('#modal h3') ? document.querySelector('#modal h3').textContent : '')) return;
-  raidFx.classList.add('on');
-  if (R.ranka === undefined) R.ranka = GM.rankaReady(G); // 出られるなら出す（窓で切り替えられる）
-  const D = GM.raidD(G), p = Math.round(GM.handP(G, R.E) * 100), m = GM.battleMods(G), wv = GM.wavesOf(R.E);
+// ---------- 襲撃の決断（一騎打ちの選出と同じ見た目：上＝敵将と戦場、下＝3つの迎え撃ち方）----------
+const rdCss = document.createElement('style'); rdCss.textContent = `
+#rdec{--u:min(.2326vw,.1073vh);--ink:#2b1d10;--ink2:#5e4728;--gold:#a8833c;--teal:#2c6a64;--red:#a3362b;position:fixed;inset:0;z-index:9;display:none;flex-direction:column;overflow:hidden;
+  font-family:'DMincho','Hiragino Mincho ProN','Yu Mincho',serif;font-weight:700;color:var(--ink);background:#efe3c8 url(assets/ui2/parch.jpg) 0 0/calc(760*var(--u)) auto repeat;-webkit-font-smoothing:antialiased}
+#rdec.in{animation:rdin .35s ease-out}@keyframes rdin{from{opacity:0}}
+#rdec *{box-sizing:border-box}#rdec button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;padding:0}
+#rdec .cn{position:absolute;width:calc(62*var(--u));aspect-ratio:220/153;background:url(assets/ui2/corner.webp) center/contain no-repeat;pointer-events:none;z-index:1;opacity:.92}
+#rdec .cn.tl{left:calc(4*var(--u));top:calc(4*var(--u))}#rdec .cn.tr{right:calc(4*var(--u));top:calc(4*var(--u));transform:scaleX(-1)}
+#rdec .hero{position:relative;flex:0 0 33%;background-repeat:no-repeat;-webkit-mask-image:linear-gradient(#000 86%,transparent);mask-image:linear-gradient(#000 86%,transparent)}
+#rdec .hero::before{content:'';position:absolute;left:-10%;top:-6%;width:74%;height:84%;background:radial-gradient(closest-side,#f3ead6e6,#f3ead6a0 55%,transparent);pointer-events:none}
+#rdec .tt{position:absolute;left:calc(26*var(--u));top:calc(28*var(--u))}
+#rdec .tt small{display:block;font-size:calc(12*var(--u));letter-spacing:.12em;color:var(--ink2)}
+#rdec .tt img{display:block;width:calc(150*var(--u));margin:calc(3*var(--u)) 0 calc(4*var(--u))}
+#rdec .tt h1{margin:0;font-size:calc(30*var(--u));font-weight:700;letter-spacing:.14em;line-height:1.15}#rdec .tt h1.boss{color:var(--red)}
+#rdec .tt .nm{margin-top:calc(6*var(--u));font-size:calc(14.5*var(--u));letter-spacing:.06em}
+#rdec .pn{position:relative;z-index:1;flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;padding:calc(2*var(--u)) calc(20*var(--u)) calc(44*var(--u))}
+#rdec .vs{width:100%;display:flex;align-items:center;gap:calc(10*var(--u));font-size:calc(12.5*var(--u));letter-spacing:.04em;white-space:nowrap}
+#rdec .vs b{font-size:calc(19*var(--u));margin-left:.2em}#rdec .vs .us b{color:var(--teal)}#rdec .vs .fo b{color:var(--red)}
+#rdec .bal{flex:1;height:calc(12*var(--u));padding:1px;background:#2a1e12;border:1px solid #8c6c34;box-shadow:0 0 0 1px #e9dcbcaa;position:relative}
+#rdec .bal::before{content:'';position:absolute;inset:1px;background:linear-gradient(#d4705c,#a3362b 60%,#86281f)}
+#rdec .bal i{position:absolute;left:1px;top:1px;bottom:1px;background:linear-gradient(#5aa59a,#2c6a64 60%,#24564f)}
+#rdec .bal u{position:absolute;top:50%;width:calc(14*var(--u));height:calc(14*var(--u));background:linear-gradient(135deg,#f6e2a0,#c99a3c);border:1px solid #5e4320;transform:translate(-50%,-50%) rotate(45deg)}
+#rdec .pr{margin-top:calc(5*var(--u));font-size:calc(12.5*var(--u));letter-spacing:.08em;color:var(--ink2)}#rdec .pr b{color:var(--ink);font-size:1.15em}#rdec .pr b.ng{color:var(--red)}#rdec .pr b.ok{color:var(--teal)}
+#rdec h2{margin:calc(10*var(--u)) 0 0;font-size:calc(23*var(--u));font-weight:700;letter-spacing:.12em}
+#rdec .dv{width:calc(220*var(--u));margin:calc(2*var(--u)) 0 calc(10*var(--u))}
+#rdec .ops{width:100%;display:flex;flex-direction:column;gap:calc(8*var(--u))}
+#rdec .oc{position:relative;height:calc(94*var(--u));overflow:hidden;cursor:pointer;background:#ece2c8;border:1px solid #bba57a;box-shadow:inset 0 0 0 calc(3*var(--u)) #ece2c8,inset 0 0 0 calc(4*var(--u)) #cdb98e;transition:box-shadow .15s,background .15s}
+#rdec .oc .im{position:absolute;left:0;top:0;bottom:0;width:30%;background-repeat:no-repeat;-webkit-mask-image:linear-gradient(90deg,#000 60%,transparent);mask-image:linear-gradient(90deg,#000 60%,transparent)}
+#rdec .oc .tx{position:absolute;left:27%;right:calc(12*var(--u));top:0;bottom:0;display:flex;flex-direction:column;justify-content:center;gap:calc(2*var(--u))}
+#rdec .oc .t{font-size:calc(18*var(--u));letter-spacing:.1em;white-space:nowrap}#rdec .oc .t em{font-style:normal;font-size:calc(11*var(--u));color:var(--ink2);letter-spacing:.04em;margin-left:.7em}
+#rdec .oc .l{font-size:calc(12.5*var(--u));letter-spacing:.02em;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#rdec .oc .l i{font-style:normal;display:inline-block;min-width:3.4em;color:var(--ink2)}#rdec .oc .l b{font-size:1.25em}#rdec .oc .ok{color:var(--teal)}#rdec .oc .ng{color:var(--red)}
+#rdec .oc .c{font-size:calc(11*var(--u));color:var(--ink2);letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#rdec .oc.on{background:#dfe5cc;border-color:#58775a;box-shadow:inset 0 0 0 calc(3*var(--u)) #dfe5cc,inset 0 0 0 calc(4*var(--u)) #8aa483,0 0 calc(10*var(--u)) #5a8a5f66}
+#rdec .oc .ck{display:none;position:absolute;right:calc(7*var(--u));top:calc(7*var(--u));width:calc(24*var(--u));height:calc(24*var(--u));border-radius:50%;background:#2f4a3c;border:1px solid #c9d6bb;color:#f2f0e0;align-items:center;justify-content:center;font-size:calc(14*var(--u))}
+#rdec .oc.on .ck{display:flex}
+#rdec .rk{width:100%;margin-top:calc(8*var(--u));display:flex;align-items:center;gap:calc(10*var(--u));padding:calc(4*var(--u)) calc(8*var(--u));border-top:1px solid #bba57a;border-bottom:1px solid #bba57a}
+#rdec .rk img{width:calc(40*var(--u));height:calc(40*var(--u));border-radius:50%;object-fit:cover;object-position:50% 8%;box-shadow:0 0 0 1px #a48a5c}
+#rdec .rk span{flex:1;min-width:0;font-size:calc(14*var(--u));letter-spacing:.06em}#rdec .rk small{display:block;font-size:calc(10.5*var(--u));color:var(--ink2);letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#rdec .rk button{flex:0 0 auto;min-width:calc(92*var(--u));height:calc(40*var(--u));background:url(assets/ui2/btn_cream.webp) center/100% 100% no-repeat;font-size:calc(13.5*var(--u));letter-spacing:.06em}
+#rdec .rk button.on{background-image:url(assets/ui2/btn_teal.webp);color:#f3ead2;text-shadow:0 1px 2px #0006}#rdec .rk.off{opacity:.6}
+#rdec .go{width:88%;height:calc(66*var(--u));margin-top:auto;background:url(assets/ui2/btn_teal.webp) center/100% 100% no-repeat;color:#f3ead2;font-size:calc(20*var(--u));letter-spacing:.16em;text-shadow:0 1px 2px #0006}
+#rdec .go:active{filter:brightness(1.12)}
+#rdec::after{content:'';position:absolute;left:0;right:0;bottom:0;height:calc(40*var(--u));background:url(assets/ui2/vine.webp) center bottom/100% 100% no-repeat;opacity:.85;pointer-events:none}`;
+document.head.appendChild(rdCss);
+const rdec = document.createElement('div'); rdec.id = 'rdec'; document.body.appendChild(rdec);
+let rdSel = 'auto';
+function raidModal() { // 襲撃・出撃の決断。選んでから大ボタンで決める（一騎打ちの選出と同じ2手）
+  const R = G.raid; if (!R) { rdec.style.display = 'none'; ui.modal(null); return; } if (introPlaying || abt.style.display === 'flex' || duelEl.style.display === 'flex' || duelSel.style.display === 'flex') return;
+  raidFx.classList.add('on'); ui.modal(null);
+  if (R.ranka === undefined) R.ranka = GM.rankaReady(G); // 出られるなら出す（ここで切り替えられる）
+  const P = GM.raidPlan(G), D = Math.round(GM.raidD(G)), m = GM.battleMods(G), fr = GM.FRONT[R.dir], look = foeLook(), sortie = R.kind === 'sortie';
   const mods = [m.dmg > 1 ? `ダメージ+${Math.round((m.dmg - 1) * 100)}%` : '', m.bind ? `拘束+${m.bind}秒` : '', m.hp ? `最大HP+${m.hp}` : ''].filter(Boolean).join('・');
-  const rk = GM.joined(G, 'ranka') ? (G.rankaAway ? '<br><span style="color:#c9b48a">ランカは今週、街にいない</span>' : G.rankaRest ? '<br><span style="color:#c9b48a">ランカは前の戦闘に出たので休み（2回続けて出られない）</span>' : `<br>ランカ：<b>${R.ranka ? '出撃する' : '温存する'}</b>（防衛力+${GM.rankaD(G)}・ダメージ+${Math.round(GM.rankaDmg(G) * 100)}%。出ると次の戦闘は休み）`) : '';
-  const btns = [{ label: '任せる', sub: '仲間と兵が戦う', fn: () => { ui.modal(null); fieldBattle('auto'); } },
-     { label: '自分で戦う', sub: `WAVE ${wv}・アクション`, fn: goBattle },
-     { label: '確率で決める', sub: `成功率 約${p}%`, fn: () => { ui.modal(null); fieldBattle('hand'); } }];
-  if (GM.rankaReady(G)) btns.push({ label: R.ranka ? 'ランカを温存する' : 'ランカを出す', sub: R.ranka ? '次の戦闘に回す' : '最強の戦力', fn: () => { GM.setRanka(G, !R.ranka); writeSave(); raidModal(); } });
-  ui.modal(R.kind === 'sortie' ? `出撃：${R.name}` : `襲撃：${R.name}`, `敵の規模 <b>${R.E}</b> ／ こちらの防衛力 <b>${Math.round(D)}</b><br>任せる：見込みは「${GM.autoTier(G, R.E)}」<br>自分で戦う：<b>WAVE ${wv}</b> まで生き残れば勝利。勝てば報酬、負ければ被害が1段重い${mods ? '<br>仲間の補正：' + mods : ''}${rk}`, btns, 'fr low');
+  const duel = P.duel ? '敵将が一騎打ちを挑む' : '';
+  const ops = [
+    { k: 'auto', t: '任せる', em: '仲間と兵が戦う', im: 'assets/npc/sol_1.webp', ip: '50% 12%/150% auto',
+      l: [`<i>見込み</i><b class="${P.auto.ok ? 'ok' : 'ng'}">${P.auto.res}</b>`], c: [duel, '行動点は減らない'].filter(Boolean).join('・'), go: '仲間に任せる' },
+    { k: 'act', t: '自分で戦う', em: `アクション・WAVE ${P.act.waves}`, im: '../sprites/idle_00.png', ip: '62% 30%/190% auto',
+      l: [`<i>勝てば</i><span class="ok">${P.act.win}</span>`, `<i>負ければ</i><span class="ng">${P.act.lose}</span>`], c: [P.act.cost, mods.replace('最大HP', 'HP')].filter(Boolean).join('・'), go: '自ら剣を取る' },
+    { k: 'hand', t: '確率で決める', em: `成功率 約${Math.round(P.hand.p * 100)}%`, im: porOf('mina'), ip: '50% 10%/cover',
+      l: [`<i>成功</i><span class="ok">${P.hand.win}</span>`, `<i>失敗</i><span class="ng">${P.hand.lose}</span>`], c: [duel, P.hand.cost].filter(Boolean).join('・'), go: '運に賭ける' }];
+  if (!ops.some(o => o.k === rdSel)) rdSel = 'auto';
+  let rk = '';
+  if (GM.joined(G, 'ranka')) { const ready = GM.rankaReady(G), why = G.rankaAway ? '今週は街にいない' : G.rankaRest ? '前の戦闘に出たので休み' : '';
+    rk = `<div class="rk${ready ? '' : ' off'}"><img src="${porOf('ranka')}"><span>ランカ<small>${ready ? `防衛力+${GM.rankaD(G)}・ダメージ+${Math.round(GM.rankaDmg(G) * 100)}%／次は休み` : why}</small></span>${ready ? `<button class="${R.ranka ? 'on' : ''}">${R.ranka ? '出撃する' : '温存する'}</button>` : ''}</div>`; }
+  const pct = Math.max(8, Math.min(92, D / (D + R.E) * 100));
+  const shown = rdec.style.display === 'flex';
+  rdec.innerHTML = `<div class="hero" style="background-image:url(assets/npc/bust_${look}.webp),url(assets/field/${R.dir || 'pass'}.jpg);background-size:118% auto,cover;background-position:30% 0,center"><div class="tt"><small>第${R.w || G.week}週${fr ? '・' + fr.n : ''}</small><img src="assets/ui2/divider2.webp"><h1 class="${R.boss ? 'boss' : ''}">${sortie ? '出撃' : R.boss ? '将軍の侵攻' : '敵襲'}</h1>${R.boss || R.name === '敵襲' ? '' : `<div class="nm">${R.name}</div>`}</div></div>
+    <div class="pn">
+      <div class="vs"><span class="us">防衛力<b>${D}</b></span><div class="bal"><i style="width:${pct}%"></i><u style="left:${pct}%"></u></div><span class="fo">敵<b>${R.E}</b></span></div>
+      <h2>どう迎え撃つ？</h2><img class="dv" src="assets/ui2/divider2.webp">
+      <div class="ops">${ops.map(o => `<div class="oc" data-k="${o.k}"><div class="im" style="background:url(${o.im}) ${o.ip} no-repeat"></div><div class="tx"><div class="t">${o.t}<em>${o.em}</em></div>${o.l.map(x => `<div class="l">${x}</div>`).join('')}<div class="c">${o.c}</div></div><div class="ck">✓</div></div>`).join('')}</div>
+      ${rk}<button class="go"></button></div>`;
+  const go = rdec.querySelector('.go'), mark = () => { rdec.querySelectorAll('.oc').forEach(c => c.classList.toggle('on', c.dataset.k === rdSel)); go.textContent = ops.find(o => o.k === rdSel).go; }; mark();
+  rdec.querySelectorAll('.oc').forEach(c => { c.onclick = e => { e.stopPropagation(); rdSel = c.dataset.k; mark(); }; });
+  const tg = rdec.querySelector('.rk button'); if (tg) tg.onclick = e => { e.stopPropagation(); GM.setRanka(G, !R.ranka); writeSave(); raidModal(); };
+  go.onclick = e => { e.stopPropagation(); rdec.style.display = 'none'; const k = rdSel; rdSel = 'auto'; if (k === 'act') goBattle(); else fieldBattle(k); };
+  if (!shown) { rdec.classList.remove('in'); void rdec.offsetWidth; rdec.classList.add('in'); }
+  rdec.style.display = 'flex';
 }
 function overModal() {
   if (!G.over) return;
@@ -1203,7 +1270,7 @@ function refreshUI() {
     res: [{ ic: 'sup', lab: '物資', val: G.sup, sub: `${sg(inc)}/週`, cls: inc >= 0 ? 'd' : 'n' }, { ic: 'mor', lab: '民心', val: Math.round(G.morale), bar: G.morale, col: G.morale < 30 ? '#e05a4a' : '#6ac06a' },
       { ic: 'trp', lab: '兵力', val: G.troops, bar: G.troops / 16 * 100, col: '#7aa8e0' }, { ic: 'def', lab: '防衛', val: Math.round(GM.D(G)) },
       { ic: 'hp', lab: '耐久', val: `${G.hp}/3` }, { ic: 'ap', lab: '行動', val: `${G.ap}/${apMax}`, sub: '●'.repeat(G.ap) + '○'.repeat(Math.max(0, apMax - G.ap)), cls: 'd' }] });
-  renderActions(); if (G.raid) raidModal(); else { const h = document.querySelector('#modal h3'); if (h && /^(出撃|襲撃)：/.test(h.textContent)) ui.modal(null); /* 終わった襲撃の窓を残さない */ if (G.over) overModal(); }
+  renderActions(); if (G.raid) raidModal(); else { rdec.style.display = 'none'; const h = document.querySelector('#modal h3'); if (h && /^(出撃|襲撃)：/.test(h.textContent)) ui.modal(null); /* 終わった襲撃の窓を残さない */ if (G.over) overModal(); }
 }
 function renderActions() {
   if (!G) return; const L = []; let title = '', icon = 'build', por = null, bubble = null, key = 'none', mode = 'act';
@@ -1313,5 +1380,5 @@ if (params.has('duel')) { const sv = JSON.stringify(G); G.raid = { kind: 'raid',
 resize(); apply(); renderer.render(scene, camera); status.ok = true; if (window.__bootDone) window.__bootDone();
 window.__t.setView = (zoom, sx, sy) => { view.zoom = zoom; view.cx = sx; view.cz = zOf(sy); clampView(); apply(); renderer.render(scene, camera); };
 window.__t.playDuel = playDuel; window.__t.fieldBattle = fieldBattle; window.__t.maybeDuel = maybeDuel; window.__t.raidIntro = raidIntro; window.__t.allyMesh = allyMesh; window.__t.select = id => select(plots.find(p => p.id === id) || null);
-window.__t.plots = plots; window.__t.G = () => G; window.__t.playDuel = playDuel; window.__t.fieldBattle = fieldBattle; window.__t.maybeDuel = maybeDuel; window.__t.raidIntro = raidIntro; window.__t.camp = () => camp && camp.map(c => [c.position.x|0, c.position.y|0, c.position.z|0, c.visible]); window.__t.faces = () => faceURL; window.__t.raidIntro = raidIntro; window.__t.showReport = showReport; window.__t.openMorning = openMorning; window.__t.GM = GM; window.__t.commit = () => commit(); window.__t.reset = () => { try { localStorage.removeItem(SAVE_KEY); } catch (e) { } }; window.__t.pickAt = (cx, cy) => pickAt(cx, cy); window.__t.view = view; window.__t.sel = () => selected && selected.id; window.__t.build = (id, fac, stage) => { if (stage) G.plots[id] = { fac, stage }; else delete G.plots[id]; commit(); };
+window.__t.plots = plots; window.__t.G = () => G; window.__t.playDuel = playDuel; window.__t.fieldBattle = fieldBattle; window.__t.maybeDuel = maybeDuel; window.__t.raidIntro = raidIntro; window.__t.camp = () => camp && camp.map(c => [c.position.x|0, c.position.y|0, c.position.z|0, c.visible]); window.__t.faces = () => faceURL; window.__t.raidIntro = raidIntro; window.__t.raidModal = raidModal; window.__t.showReport = showReport; window.__t.openMorning = openMorning; window.__t.GM = GM; window.__t.commit = () => commit(); window.__t.reset = () => { try { localStorage.removeItem(SAVE_KEY); } catch (e) { } }; window.__t.pickAt = (cx, cy) => pickAt(cx, cy); window.__t.view = view; window.__t.sel = () => selected && selected.id; window.__t.build = (id, fac, stage) => { if (stage) G.plots[id] = { fac, stage }; else delete G.plots[id]; commit(); };
 requestAnimationFrame(frame);

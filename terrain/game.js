@@ -143,6 +143,14 @@ export function resolve(s, mode, rnd = Math.random, forced) { // forced: アク�
   if (R.kind === 'raid') afterWeek(s); else checkLose(s);
   return t;
 }
+// 襲撃の決断画面に出す見込み（3つの選び方の結果と代償）。実際は敵の規模が±10%ぶれ、一騎打ちで約1段動く
+const TIER_N = ['被害なし', '小被害', '中被害', '大被害'], TIER_FX = ['', '物資-3 民心-5', '物資-5 民心-12 兵-1 焼失1', '耐久-1 民心-15 兵-2 焼失2'];
+export function raidPlan(s) {
+  const R = s.raid; if (!R) return null; const m = raidD(s) - R.E, at = m >= 4 ? 0 : m >= 0 ? 1 : m >= -4 ? 2 : 3, bad = clamp(at + 1, 1, 3);
+  const fx = t => R.boss ? (t === 0 ? '将軍を退け、国を取り戻す' : '城を落とされる（敗北）') : R.kind === 'sortie' ? (t === 0 ? '勝利 物資+8 民心+3' : t === 1 ? '苦戦 民心-5 物資-2' : '敗走 兵力-1 民心-8') : (t === 0 ? '被害なし' : TIER_N[t] + ' ' + TIER_FX[t]);
+  const win = R.boss ? '将軍を退け、国を取り戻す' : R.kind === 'sortie' ? '勝利 物資+10 民心+3' : '完勝 物資+4 民心+5', cost = R.kind === 'sortie' ? '行動点-1' : '来週の行動点-1';
+  return { at, tier: R.boss ? (at === 0 ? '優勢' : '劣勢') : TIER_N[at], duel: duelDue(s), auto: { ok: at === 0, res: fx(at) }, hand: { p: handP(s, R.E), win, lose: fx(bad), cost }, act: { waves: wavesOf(R.E), win, lose: fx(bad), cost } };
+}
 // 結果の見込み（任せた場合の被害の段階）
 export function autoTier(s, E) { const m = raidD(s) - E; return m >= 4 ? '被害なし' : m >= 0 ? '小被害' : m >= -4 ? '中被害' : '大被害'; }
 
