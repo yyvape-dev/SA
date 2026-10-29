@@ -1,9 +1,9 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793236011';
-import { createUI } from './ui.js?v=1793236011';
-import { createMorning } from './morning.js?v=1793236011';
+import * as GM from './game.js?v=1793236333';
+import { createUI } from './ui.js?v=1793236333';
+import { createMorning } from './morning.js?v=1793236333';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -794,7 +794,7 @@ const dCss = document.createElement('style'); dCss.textContent = `
 #dsel,#duel{position:fixed;inset:0;display:none;flex-direction:column;overflow:hidden;font-family:"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif;color:#2a1a0c;background:#efe3c8 radial-gradient(120% 70% at 50% 0,#f8f0da,#e9dcbb 65%,#dccba3)}
 #dsel{z-index:10}#duel{z-index:11}
 #dsel button,#duel button{font-family:inherit;cursor:pointer}
-#dsel .hero{position:relative;flex:0 0 41%;background:#222 0 0/124% auto no-repeat;-webkit-mask-image:linear-gradient(#000 90%,transparent);mask-image:linear-gradient(#000 90%,transparent)}
+#dsel .hero{position:relative;flex:0 0 38.5%;background:#222 0 0/124% auto no-repeat;-webkit-mask-image:linear-gradient(#000 90%,transparent);mask-image:linear-gradient(#000 90%,transparent)}
 #dsel .tt,#dsel .qt{z-index:2}#dsel .tt{position:absolute;left:0;top:4%;padding:1.2vh 7vw 1vh 6vw;background:linear-gradient(90deg,#f6edd6ee 70%,#f6edd600)}
 #dsel .tt small{display:block;font-size:min(3.8vw,16px);letter-spacing:.1em}
 #dsel .tt h1{margin:0;font-size:min(13vw,56px);letter-spacing:.06em;line-height:1.1;border-bottom:2px solid #6a5028;padding-bottom:.6vh}
@@ -805,7 +805,7 @@ const dCss = document.createElement('style'); dCss.textContent = `
 #dsel .pn{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;gap:1.1vh;padding:0 4% 2.2vh}
 #dsel h2{margin:0;font-size:min(7.6vw,33px);letter-spacing:.06em}
 #dsel .grid{width:100%;display:grid;grid-template-columns:1fr 1fr;gap:2.4vw}
-#dsel .cd{position:relative;aspect-ratio:2.1;border:2px solid #b8a272;border-radius:3px;overflow:hidden;background:#e9dcbb;filter:saturate(.75) brightness(.95);transition:transform .15s,box-shadow .15s,filter .15s}
+#dsel .cd{position:relative;aspect-ratio:1.7;border:2px solid #b8a272;border-radius:3px;overflow:hidden;background:#e9dcbb;filter:saturate(.75) brightness(.95);transition:transform .15s,box-shadow .15s,filter .15s}
 #dsel .cd img{position:absolute;left:0;top:0;height:100%;width:52%;object-fit:cover;object-position:50% 12%}
 #dsel .cd .tx{position:absolute;right:0;top:0;bottom:0;width:48%;display:flex;flex-direction:column;justify-content:center;gap:.7vh;padding-right:3%}
 #dsel .cd .nm{white-space:nowrap;font-size:min(6vw,26px);font-weight:700;letter-spacing:.05em}
@@ -817,20 +817,20 @@ const dCss = document.createElement('style'); dCss.textContent = `
 #dsel .hint{font-size:min(4vw,17px);margin-top:auto}
 #dsel .go{width:92%;padding:1.5vh 0;border:2px solid #d8b86a;box-shadow:inset 0 0 0 4px #1d4a4a,inset 0 0 0 5px #d8b86a88;border-radius:12px;background:linear-gradient(#2f6f6c,#1f4d4d);color:#f4ead0;font-size:min(8vw,34px);letter-spacing:.08em}
 #dsel .no{font-size:min(4.4vw,18px);border-bottom:1px solid #6a5632;padding-bottom:2px;cursor:pointer}
-#duel .hd{position:relative;flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:2%;padding:1.4vh 3% 1vh}
-#duel .sd{display:flex;align-items:center;gap:2.5%;flex:1;min-width:0}#duel .sd.r{flex-direction:row-reverse;text-align:right}
-#duel .fc{flex:0 0 min(12.5vw,54px);width:min(12.5vw,54px);height:min(12.5vw,54px);border-radius:50%;object-fit:cover}
+#duel .hd{position:relative;flex:0 0 14%;display:flex;align-items:flex-end;justify-content:space-between;gap:4%;padding:0 3% 1.1vh}
+#duel .sd{display:flex;align-items:center;gap:3%;flex:1;min-width:0}#duel .sd.r{flex-direction:row-reverse;text-align:right}
+#duel .fc{flex:0 0 min(15.5vw,68px);width:min(15.5vw,68px);height:min(15.5vw,68px);border-radius:50%;object-fit:cover}
 #duel .fc.foe{background:#c9b68a 50% 4%/300% no-repeat;border:3px solid #2a1a0c;box-shadow:0 0 0 2px #e8c060}
-#duel .hb{flex:1;min-width:0}#duel .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:min(3.4vw,15px);font-weight:700;margin-bottom:.4vh}
-#duel .hp{height:12px;border:2px solid #5a4222;background:#3a2a1a;position:relative;overflow:hidden}
+#duel .hb{flex:1;min-width:0}#duel .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:min(4.2vw,18px);font-weight:700;margin-bottom:.4vh}
+#duel .hp{height:14px;border:2px solid #5a4222;background:#3a2a1a;position:relative;overflow:hidden}
 #duel .hp b{position:absolute;top:0;bottom:0;left:0;background:linear-gradient(#52a79c,#2c6b66);transition:width .35s}
 #duel .sd.r .hp b{left:auto;right:0;background:linear-gradient(#e0735f,#a63a30)}
-#duel .ct{flex:0 0 auto;text-align:center;white-space:nowrap}#duel .ct small{display:block;font-size:min(3.6vw,15px);letter-spacing:.1em}#duel .ct h1{margin:0;font-size:min(5.6vw,24px);letter-spacing:.1em}
+#duel .ct{position:absolute;left:0;right:0;top:.6vh;text-align:center;white-space:nowrap;pointer-events:none}#duel .ct small{display:block;font-size:min(3.6vw,15px);letter-spacing:.1em}#duel .ct h1{margin:0;font-size:min(7.4vw,32px);letter-spacing:.1em}
 #duel .stage{position:relative;flex:1;min-height:0;background:#222 center 66%/cover no-repeat;overflow:hidden}
-#duel .f{position:absolute;bottom:9%;height:60%;transition:transform .18s ease-out,filter .08s}
+#duel .f{position:absolute;bottom:17%;height:42%;transition:transform .18s ease-out,filter .08s}
 #duel .f .sp{background-repeat:no-repeat;pointer-events:none}#duel .f img{height:100%;filter:drop-shadow(0 6px 8px #000)}
-#duel .L{left:6%}#duel .R{right:6%}
-#duel .say{position:absolute;top:4%;max-width:44%;padding:.9vh 3%;background:#f8f0dcf2;border:2px solid #6a5028;border-radius:8px;font-size:min(4vw,17px);font-weight:700;line-height:1.4;opacity:0;transform:translateY(6px);transition:opacity .2s,transform .2s;pointer-events:none;z-index:3}
+#duel .L{left:10%}#duel .R{right:10%}
+#duel .say{position:absolute;top:13%;max-width:44%;padding:.9vh 3%;background:#f8f0dcf2;border:2px solid #6a5028;border-radius:8px;font-size:min(4vw,17px);font-weight:700;line-height:1.4;opacity:0;transform:translateY(6px);transition:opacity .2s,transform .2s;pointer-events:none;z-index:3}
 #duel .say.on{opacity:1;transform:none}#duel .say small{display:block;font-size:.7em;color:#8a5a20;font-weight:400}
 #duel .say.l{left:3%}#duel .say.r{right:3%;text-align:right}
 #duel .num{position:absolute;font:900 min(9vw,40px) serif;font-style:italic;color:#fff0c0;text-shadow:0 0 8px #f40,0 2px 2px #000;animation:dnum .9s ease-out forwards;pointer-events:none;z-index:4}
@@ -839,22 +839,24 @@ const dCss = document.createElement('style'); dCss.textContent = `
 @keyframes dsl{to{transform:rotate(-18deg) scaleX(1);opacity:0}}
 #duel .cut{position:absolute;left:0;right:0;top:26%;height:26%;display:flex;align-items:center;gap:12px;padding:0 6%;background:linear-gradient(90deg,#000e,#3a0806e8 60%,#0000);transform:translateX(-100%);transition:transform .3s cubic-bezier(.2,.9,.3,1);z-index:5;color:#fff}
 #duel .cut.on{transform:none}#duel .cut img{height:80%;border-radius:50%}#duel .cut div{font:900 min(8vw,34px)/1.3 serif;text-shadow:0 0 10px #f60}#duel .cut small{display:block;font-size:13px;color:#ffd8b0;font-weight:400}
-#duel .ft{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:.8vh;padding:1.2vh 4% 2.2vh}
+#duel .ft{flex:0 0 24.5%;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:1.2vh 4% 2vh}
 #duel .ft h3{margin:0;font-size:min(5.6vw,24px);letter-spacing:.25em;font-weight:700}
 #duel .bl{display:flex;align-items:center;gap:2%;width:100%;font-size:min(4.2vw,18px)}
 #duel .bal{flex:1;height:15px;border:2px solid #5a4222;background:#a63a30;position:relative}
 #duel .bal b{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(#52a79c,#2c6b66);transition:width .4s}
 #duel .bal u{position:absolute;top:50%;width:17px;height:17px;background:#e8c870;border:2px solid #5a4222;transform:translate(-50%,-50%) rotate(45deg);transition:left .4s}
 #duel .stt{font-size:min(4.4vw,19px);letter-spacing:.2em}
-#duel .pips{display:flex;gap:2.4vw}
-#duel .pips i{position:relative;width:min(10.5vw,44px);height:min(10.5vw,44px);display:flex;align-items:center;justify-content:center;border:2px solid #8a7648;background:#e6d8b4;font-style:normal;font-weight:700;font-size:min(4.6vw,19px);transform:rotate(45deg)}
+#duel .pips{position:absolute;left:0;right:0;bottom:3.5%;display:flex;justify-content:center;gap:3.4vw;z-index:3;pointer-events:none}
+#duel .tgw{position:absolute;left:0;right:0;top:1.5%;display:flex;flex-direction:column;align-items:center;gap:4px;z-index:3;pointer-events:none}
+#duel .tgw .tg{padding:.4vh 4vw;background:#f8f0dcdd;border:1.5px solid #6a5028;border-radius:14px}#duel .tgw .tg:empty{display:none}
+#duel .pips i{position:relative;width:min(7.6vw,33px);height:min(7.6vw,33px);display:flex;align-items:center;justify-content:center;border:2px solid #8a7648;background:#e6d8b4;font-style:normal;font-weight:700;font-size:min(3.8vw,16px);transform:rotate(45deg)}
 #duel .pips i span{transform:rotate(-45deg)}
 #duel .pips i.h::after{content:'❗';position:absolute;right:-6px;top:-10px;font-size:15px;transform:rotate(-45deg)}
 #duel .pips i.w{background:#2f6f6c;color:#fff;border-color:#1d4a4a}#duel .pips i.l{background:#a63a30;color:#fff;border-color:#6a1d18}
 #duel .pips i.cur{border-color:#d8a020;box-shadow:0 0 10px #f0b030;animation:dcur .8s infinite alternate}
 @keyframes dcur{to{box-shadow:0 0 18px #ffd060}}
-#duel .tg{font-size:min(4.2vw,18px);min-height:1.4em;text-align:center}
-#duel .tm{width:60%;height:5px;background:#0003}#duel .tm b{display:block;height:100%;width:0;background:#b8372a}
+#duel .tg{font-size:min(3.9vw,16px);text-align:center}
+#duel .tm{width:46%;height:5px;background:#0004}#duel .tm b{display:block;height:100%;width:0;background:#b8372a}
 #duel .bt{display:flex;gap:2%;width:100%;align-items:stretch}
 #duel .bt button{border:2px solid #8a7648;border-radius:12px;background:#ece0c0;color:#2a1a0c;font-size:min(4vw,17px)}
 #duel .bt .sp2,#duel .bt .sk{flex:0 0 24%}
@@ -896,11 +898,10 @@ function playDuel(k, done) { // 画面いっぱいの一騎打ち。五合の勝
   duelEl.innerHTML = `<div class="hd"><div class="sd"><img class="fc" src="${faceURL[k]}"><div class="hb"><div class="nm">${A.n}</div><div class="hp"><b style="width:100%"></b></div></div></div>
     <div class="ct"><small>第${R.w || G.week}週</small><h1>一騎打ち</h1></div>
     <div class="sd r"><div class="fc foe" style="background-image:url(assets/npc/foe_${look}.webp)"></div><div class="hb"><div class="nm">${F.n}</div><div class="hp"><b style="width:100%"></b></div></div></div></div>
-    <div class="stage" style="background-image:url(assets/field/${R.dir || 'pass'}.jpg)"><div class="say l"></div><div class="say r"></div>
-      <div class="f L">${(DUEL_CLIP[k] || []).length ? `<div class="sp"></div>` : `<img src="../ally/${k}.png">`}</div><div class="f R" style="height:${R.boss ? 68 : 62}%">${(FOEDUEL[look] || []).length ? `<div class="sp" data-filter="drop-shadow(0 0 10px #f30) drop-shadow(0 6px 8px #000)"></div>` : `<img src="assets/npc/foe_${look}.webp" style="filter:drop-shadow(0 0 10px #f30) drop-shadow(0 6px 8px #000)">`}</div>
+    <div class="stage" style="background-image:url(assets/field/${R.dir || 'pass'}.jpg)"><div class="tgw"><div class="tg"></div><div class="tm"><b></b></div></div><div class="pips">${pipsHtml}</div><div class="say l"></div><div class="say r"></div>
+      <div class="f L">${(DUEL_CLIP[k] || []).length ? `<div class="sp"></div>` : `<img src="../ally/${k}.png">`}</div><div class="f R" style="height:${R.boss ? 47 : 43}%">${(FOEDUEL[look] || []).length ? `<div class="sp" data-filter="drop-shadow(0 0 10px #f30) drop-shadow(0 6px 8px #000)"></div>` : `<img src="assets/npc/foe_${look}.webp" style="filter:drop-shadow(0 0 10px #f30) drop-shadow(0 6px 8px #000)">`}</div>
       <div class="cut"><img src="${faceURL[k]}"><div></div></div></div>
     <div class="ft"><h3>戦 況</h3><div class="bl"><span>自軍</span><div class="bal"><b style="width:50%"></b><u style="left:50%"></u></div><span>敵軍</span></div><div class="stt">拮抗</div>
-      <div class="pips">${pipsHtml}</div><div class="tg"></div><div class="tm"><b></b></div>
       <div class="bt"><button class="sp2">▶▶ 速度 ×1</button><button class="go2"><span class="fl">⚑</span><span><b>号令</b><small>次の一合を強化<br>大技には見切り</small></span><em>残り1回</em></button><button class="sk">スキップ ›</button></div></div>
     <div class="res"></div>`;
   const $ = q => duelEl.querySelector(q), L = $('.L'), Rf = $('.R'), hl = $('.sd:not(.r) .hp b'), hr = $('.sd.r .hp b'), pips = [...duelEl.querySelectorAll('.pips i')], tg = $('.tg'), tm = $('.tm b'), gb = $('.go2'), stt = $('.stt'), bal = $('.bal b'), balu = $('.bal u'), stage = $('.stage');
