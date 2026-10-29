@@ -42,12 +42,19 @@ function drawHero() {
 
 function drawFoe(e) { // 赤い兵：歩き（シート）／攻撃（連番）。やられはコードで倒れて消える
   var H0 = eh(e), p = e.state === 'dying' ? e.dt / 0.4 : 0, im, sx, sy, sw, shh, k, ox, oy, flip;
+  e.tilt = 0;
   var c = e.atk && e.atk.ci >= 0 ? (FOE_CLIP[e.kind] || [])[e.atk.ci] : null;
   if (c && IMG['fd' + e.kind + '_' + e.atk.ci] && IMG['fd' + e.kind + '_' + e.atk.ci].naturalWidth) {
     var fi = 0; while (fi + 1 < c.n && e.atk.starts[fi + 1] <= e.atk.t) fi++;
     im = IMG['fd' + e.kind + '_' + e.atk.ci]; k = H0 / c.idle.h; sw = c.cw; shh = c.ch; sx = (fi % c.cols) * c.cw; sy = Math.floor(fi / c.cols) * c.ch;
     flip = e.face > 0; // 攻撃の絵は左向き
     ox = (c.idle.x + c.idle.w / 2); oy = c.ch - (c.pad == null ? 2.8 : c.pad);
+  } else if ((FOE_CLIP[e.kind] || [])[0] && IMG['fd' + e.kind + '_0'] && IMG['fd' + e.kind + '_0'].naturalWidth) {
+    // 歩き：一騎打ちの横向きの絵（攻撃の連番の1コマ目＝構え）を、上下の揺れと傾きで歩かせる（横向きの歩きの絵ができたら差し替える）
+    c = FOE_CLIP[e.kind][0]; im = IMG['fd' + e.kind + '_0']; k = H0 / c.idle.h; sw = c.cw; shh = c.ch; sx = 0; sy = 0;
+    flip = e.face > 0; ox = (c.idle.x + c.idle.w / 2); oy = c.ch - (c.pad == null ? 2.8 : c.pad);
+    var mv = e.state === 'walk' && e.stun <= 0 && e.bind <= 0 ? 1 : 0, ph = e.t * 9 + e.yo;
+    oy += mv * Math.abs(Math.sin(ph)) * 7; e.tilt = mv * Math.sin(ph) * 0.045;
   } else {
     var wm = FOE_WALK[e.kind]; im = IMG['fw' + e.kind];
     if (!im || !im.naturalWidth) { drawSkeleton(e); return; }
@@ -60,7 +67,7 @@ function drawFoe(e) { // 赤い兵：歩き（シート）／攻撃（連番）�
   ctx.globalAlpha = 1 - p;
   shadow(e.x, e.y, 34 * depthScale(e.y) * e.size);
   ctx.translate(e.x, e.y - p * 20);
-  ctx.rotate(p * 1.2 * (e.dir || 1)); // 吹き飛ぶ向きへ倒れる
+  ctx.rotate(p * 1.2 * (e.dir || 1) + (e.tilt || 0)); // 歩きの揺れの傾きも // 吹き飛ぶ向きへ倒れる
   ctx.scale(flip ? -k : k, k);
   ctx.drawImage(im, sx, sy, sw, shh, -ox, -oy, sw, shh);
   if (e.flash > 0 || e.bind > 0) { // 被弾は白く、拘束は紫に光らせる（同じ絵を加算で重ねる）
