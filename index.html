@@ -147,22 +147,33 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
   function loadAll() {
     var names = [];
     Object.keys(M.clips).forEach(function (c) { for (var i = 0; i < M.clips[c]; i++) names.push(c + '_' + pad2(i)); });
-    total = names.length + 3;
-    var bg = new Image(); bg.onload = onDone; bg.onerror = function () { failed++; onDone(); }; bg.src = 'bg.jpg'; IMG.bg = bg;
-    ['s1_back', 's1_floor'].forEach(function (k) { var im = new Image(); im.onload = onDone; im.onerror = function () { failed++; onDone(); }; im.src = 'stage/' + k + '.jpg'; IMG[k] = im; });
+    total = names.length + 2 + FOE_TYPES.length;
+    function one(key, src) { var im = new Image(); im.onload = onDone; im.onerror = function () { failed++; onDone(); }; im.src = src; IMG[key] = im; }
+    one('fbk', 'terrain/assets/field/duel.jpg'); // 昼の草原（上＝奥の背景、土の帯＝床）
+    FOE_TYPES.forEach(function (n) { one('fw' + n, 'terrain/assets/npc/foewalk_' + n + '.webp'); });
+    fetch('terrain/assets/npc/foeduel_meta.json').then(function (r) { return r.json(); }).then(function (meta) { // 攻撃の連番（一騎打ちと同じ絵。左向き）
+      FOE_TYPES.forEach(function (n) { FOE_CLIP[n] = (meta[n] || []).map(function (c, i) { total++; one('fd' + n + '_' + i, 'terrain/assets/npc/' + c.f); return c; }); });
+      onDone();
+    }).catch(function () { failed++; onDone(); });
     names.forEach(function (n) {
       var im = new Image(); im.onload = onDone; im.onerror = function () { failed++; onDone(); };
       im.src = 'sprites/' + n + '.png'; IMG[n] = im;
     });
   }
 
+  /* ---------- 敵（赤い兵）：歩き＝4×2のシート（右向き）、攻撃＝一騎打ちの連番（左向き）を速めて流す ---------- */
+  var FOE_TYPES = [1, 2, 3, 4]; // 1=槍兵 2=赤マントの騎士（強敵） 3=フードの山賊 4=斧の戦士
+  var FOE_WALK = { 1: { cw: 145, ch: 257, h: 240 }, 2: { cw: 146, ch: 220, h: 210 }, 3: { cw: 145, ch: 211, h: 202 }, 4: { cw: 161, ch: 220, h: 209 } }; // terrain/assets/npc/foewalk_meta.json と同じ
+  var FOE_HK = { 1: 1, 2: 1.04, 3: 0.91, 4: 1.04 }; // 背の高さの比（領地の HUMAN 表：f1 197・f2 205・f3 180・f4 204）
+  var FOE_H = 200, FOE_SPD = 2.6, FOE_CLIP = {}; // FOE_H＝槍兵の見た目の背の高さ（世界座標。主人公は約220）。攻撃は一騎打ちの2.6倍速
+  function eh(e) { return FOE_H * FOE_HK[e.kind] * depthScale(e.y) * e.size; } // 敵の見た目の背の高さ
+
   /* ---------- 定数と状態 ---------- */
   /* 部屋＝横に長い一枚。segs 個の「戦場」（画面1つぶんの区画）が並ぶ。
      戦場に入るとカメラが固定され、敵を全滅させるとGOが出て、次の戦場へ進める。最後の戦場は右端の出口から次の部屋へ。
      h が画面の高さ(720)より大きい部屋では、カメラが上下にも追従する（y0〜y1 はその部屋で動ける奥行きの帯。背景の絵ができたら使う）。 */
-  var ROOMS = [
-    { name: '月夜の回廊', w: BW * 3, h: 720, y0: 540, y1: 690, segs: 3, stage: 's1', hz: 437, par: 0.6, zk: 0.8, ds0: 0.92, ds1: 1.2, spread: 60 }, // 手前まで広い床の部屋：帯は広く、判定の奥行きは薄く、敵は奥行きに散る
-    { name: '崩れた回廊', w: BW * 4, h: 720, y0: 528, y1: 590, segs: 4 }
+  var ROOMS = [ // 縦画面：横が狭いぶん、奥行きの帯を広くとる（y0〜y1 が 150→295）。segs と w は newGame で出撃の数に合わせる
+    { name: '前線', w: BW * 4, h: 720, y0: 400, y1: 695, segs: 4, stage: 'field', hz: 330, par: 0.5, zk: 0.9, ds0: 0.82, ds1: 1.12, spread: 120 }
   ];
   var ROOM = ROOMS[0], LANE_Y0 = ROOM.y0, LANE_Y1 = ROOM.y1, ZK = ROOM.zk || 1, camX = 0, camY = 0;
   function setRoomVars() { LANE_Y0 = ROOM.y0; LANE_Y1 = ROOM.y1; ZK = ROOM.zk || 1; }
@@ -191,7 +202,8 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
   function backToMap() { if (G.resT < 0.8) return; location.href = BAT.ret; }
 
   function newGame() {
-    S = { dmg: 1, range: 1, aspd: 1.5, cd: 1, chain: 0, pcd: 1, bind: 0.8 };
+    S = { dmg: 1, range: 1, aspd: 1.75, cd: 1, chain: 0, pcd: 1, bind: 0.8 }; // 強化の選択をやめたぶん、攻撃速度は最初から少し速い（1.5→1.75）
+    ROOMS[0].segs = BAT.on ? BAT.waves : 4; ROOMS[0].w = BW * ROOMS[0].segs;
     ROOM = ROOMS[0]; setRoomVars(); camX = 0; camY = 0;
     G = {
       roomNo: 0, seg: 0, phase: 'fight', trans: null,
@@ -322,26 +334,26 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
   function startWave(n) {
     G.wave = n; G.queue = []; G.qT = 0;
     var count = Math.min(70, 10 + n * 6);
+    count = Math.min(40, 8 + n * 5); // 横が狭いので、横版より少なめ
     for (var i = 0; i < count; i++) G.queue.push({ at: rnd(0, 5.5), elite: false });
     if (n % 3 === 0) G.queue.push({ at: 4, elite: true });
-    G.queue.sort(function (a, b) { return a.at - b.at; });
-    addText(camX + W / 2, 250 + camY, 'WAVE ' + n, 54, '#ffd27a', 1.6);
+    G.queue.sort(function (a, b) { return a.at - b.at; }); // 波の表示は出さない（倒しきったら、戦場が右へ進む）
   }
   // 部屋に入る：戦場0に立ち、カメラをその位置へ合わせて、最初の波を始める
   function enterRoom(i) {
     G.roomNo = i; ROOM = ROOMS[i % ROOMS.length]; setRoomVars();
     G.seg = 0; G.phase = 'fight'; G.enemies = []; G.drops = []; G.parts = []; G.fx = []; G.texts = []; G.booms = []; G.queue = [];
-    var h = G.hero; h.x = LK(0) + 340; h.y = Math.round((LANE_Y0 + LANE_Y1) / 2); h.state = 'idle'; h.t = 0; h.buf = 0; h.inv = 0;
+    var h = G.hero; h.x = LK(0) + Math.round(W * 0.28); h.face = 1; h.y = Math.round((LANE_Y0 + LANE_Y1) / 2); h.state = 'idle'; h.t = 0; h.buf = 0; h.inv = 0;
     updateCam(0, true); startWave(G.wave + 1);
-    addText(camX + W / 2, 190 + camY, ROOM.name, 30, '#ece6f2', 1.8);
   }
   function beginTrans() { if (!G.trans) G.trans = { t: 0, sw: false }; } // 暗転→次の部屋→明転
 
   function spawn(q) {
-    var side = Math.random() < 0.5 ? -1 : 1, n = G.wave, cl = LK(G.seg); // 今の戦場の左右の外から出す
+    var n = G.wave, cl = LK(G.seg); // 敵は右の外からだけ来る
     var e = {
-      x: side < 0 ? cl - 60 : cl + W + 60, y: rnd(LANE_Y0, LANE_Y1), yo: rnd(-1, 1) * (ROOM.spread || 20), face: -side,
-      size: q.elite ? 1.6 : rnd(0.92, 1.08), elite: q.elite,
+      x: cl + W + rnd(50, 170), y: rnd(LANE_Y0, LANE_Y1), yo: rnd(-1, 1) * (ROOM.spread || 20), face: -1,
+      kind: q.elite ? 2 : [1, 3, 4][Math.floor(Math.random() * 3)], atk: null,
+      size: q.elite ? 1.12 : rnd(0.94, 1.06), elite: q.elite,
       max: (22 + n * 5) * (q.elite ? 10 : 1), hp: 0, sp: (78 + rnd(0, 40) + n * 3) * (q.elite ? 0.8 : 1),
       state: 'walk', t: rnd(0, 6), atkCD: rnd(0.2, 0.8), stun: 0, kx: 0, flash: 0, dt: 0, dmg: 6 + n * (q.elite ? 2 : 1)
     };
@@ -577,15 +589,16 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
   function hurt(e, d, dir, strong) {
     var bound = e.bind > 0; // 拘束中は、吹き飛ばず、その場に固まったまま
     e.hp -= d; e.flash = 0.1; e.stun = bound ? 0 : (strong ? 0.5 : 0.28); e.kx = dir * (strong ? 460 : 280) * (e.elite ? 0.3 : 1) * (bound ? 0.12 : 1);
-    addText(e.x + rnd(-14, 14), e.y - 120 * e.size, String(Math.round(d)), strong ? 30 : 22, strong ? '#ffe28a' : '#ffffff', 0.7);
-    for (var i = 0; i < 3; i++) G.parts.push({ x: e.x, y: e.y - 70 * e.size, vx: dir * rnd(60, 260), vy: rnd(-260, -40), g: 700, life: rnd(0.25, 0.5), t: 0, c: '#e8e0cc', s: rnd(3, 6) });
+    addText(e.x + rnd(-14, 14), e.y - eh(e) - 10, String(Math.round(d)), strong ? 30 : 22, strong ? '#ffe28a' : '#ffffff', 0.7);
+    e.atk = null;
+    for (var i = 0; i < 3; i++) G.parts.push({ x: e.x, y: e.y - eh(e) * 0.55, vx: dir * rnd(60, 260), vy: rnd(-260, -40), g: 700, life: rnd(0.25, 0.5), t: 0, c: '#fff1d6', s: rnd(3, 6) });
     if (e.hp <= 0) kill(e, dir);
   }
 
   function kill(e, dir) {
     e.state = 'dying'; e.dt = 0; e.dir = dir;
     G.kills++; G.combo++; G.comboT = 2.4; if (G.combo > G.bestCombo) G.bestCombo = G.combo;
-    for (var i = 0; i < 9; i++) G.parts.push({ x: e.x, y: e.y - 60 * e.size, vx: rnd(-240, 240), vy: rnd(-420, -60), g: 800, life: rnd(0.4, 0.9), t: 0, c: i % 3 ? '#d9d2bd' : '#6d6680', s: rnd(4, 9) });
+    for (var i = 0; i < 9; i++) G.parts.push({ x: e.x, y: e.y - eh(e) * 0.5, vx: rnd(-240, 240), vy: rnd(-420, -60), g: 800, life: rnd(0.4, 0.9), t: 0, c: i % 3 ? '#b8473a' : '#9aa0a8', s: rnd(4, 9) });
     var nd = e.elite ? 8 : (Math.random() < 0.35 ? 2 : 1);
     for (var k = 0; k < nd; k++) {
       var r = Math.random(), type = r < 0.03 || e.elite ? 2 : r < 0.2 ? 1 : 0;
@@ -687,9 +700,9 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
     }
     if (h.state !== 'atk' && h.state !== 'hurt') {
       if (mag > 0.2) {
-        var sp = run ? 380 : 190;
+        var sp = run ? 440 : 240; // 縦画面：横版（190・380）より速く、縦の動きも速く（0.6→0.85）
         h.x += ax / Math.max(1, Math.hypot(ax, ay)) * sp * dt * (mag > 1 ? 1 : 1);
-        h.y += ay / Math.max(1, Math.hypot(ax, ay)) * sp * 0.6 * dt;
+        h.y += ay / Math.max(1, Math.hypot(ax, ay)) * sp * 0.85 * dt;
         if (Math.abs(ax) > 0.2) h.face = ax > 0 ? 1 : -1;
         var mode = run ? 'run' : 'walk';
         if (h.state !== mode) { h.state = mode; h.anim = 0; }
@@ -715,7 +728,7 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
       e.t += dt; if (e.flash > 0) e.flash -= dt;
       if (e.state === 'dying') { e.dt += dt; if (e.dt > 0.4) G.enemies.splice(i, 1); else e.x += e.dir * 160 * dt * (1 - e.dt / 0.4); continue; }
       if (e.bind > 0) { // 拘束：引き寄せの間だけ動き、あとは固まる。攻撃もしない
-        e.bind -= dt;
+        e.bind -= dt; e.atk = null;
         e.face = h.x >= e.x ? 1 : -1;
         if (e.pull) {
           e.pull.t += dt;
@@ -727,33 +740,36 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
         e.y = clamp(e.y, LANE_Y0 - 6, LANE_Y1 + 6);
         continue;
       }
-      if (e.stun > 0) { e.stun -= dt; e.x += e.kx * dt; e.kx *= Math.pow(0.0005, dt); }
+      if (e.stun > 0) { e.atk = null; e.stun -= dt; e.x += e.kx * dt; e.kx *= Math.pow(0.0005, dt); }
+      else if (e.atk) { // 攻撃の連番を流す。山場（hit のコマ）で、まだ間合いにいれば当たる
+        var ak = e.atk; ak.t += dt;
+        if (!ak.done && ak.t >= ak.hitT) { ak.done = true;
+          var adx = h.x - e.x, ady = h.y - e.y;
+          if (Math.abs(adx) < 105 * e.size && Math.abs(ady) < 36 && h.inv <= 0 && G.state === 'play' && !(h.state === 'atk' && (h.kind === 'ult' || (h.kind === 'thr' && h.t < THR.safe)))) hitHero(e);
+        }
+        if (ak.t >= ak.endT) e.atk = null;
+      }
       else {
         var dx = h.x - e.x, dy = h.y - e.y;
         e.face = dx >= 0 ? 1 : -1;
-        if (Math.abs(dx) > 52 * e.size) e.x += Math.sign(dx) * e.sp * dt;
+        if (Math.abs(dx) > 70 * e.size) e.x += Math.sign(dx) * e.sp * dt;
         var fk = clamp((Math.abs(dx) - 60) / 260, 0.25, 1); // 遠いほど奥行きにばらけ、近づくと主人公の奥行きへ寄る
         var tgy = clamp(h.y + e.yo * fk, LANE_Y0, LANE_Y1), ddy2 = tgy - e.y;
         if (Math.abs(ddy2) > 6) e.y += Math.sign(ddy2) * e.sp * 0.55 * dt;
         e.atkCD -= dt;
-        if (Math.abs(dx) < 70 * e.size && Math.abs(dy) < 28 && e.atkCD <= 0 && h.inv <= 0 && !(h.state === 'atk' && (h.kind === 'ult' || (h.kind === 'thr' && h.t < THR.safe)))) { // 必殺技と、突きの溜め〜突きの間は、無敵
-          e.atkCD = 1.1; h.hp -= e.dmg; h.inv = 0.45; h.flash = 0.25; G.shake = Math.max(G.shake, 4);
-          addText(h.x, h.y - 230, '-' + e.dmg, 26, '#ff6b6b', 0.7);
-          if (h.state !== 'atk' && h.hp > 0) { h.state = 'hurt'; h.t = 0; h.buf = 0; h.kb = (h.x >= e.x ? 1 : -1) * 240; }
-          if (h.hp <= 0) { h.hp = 0; G.state = 'dead'; G.deadT = 0; if (BAT.on) finishBattle(false); }
-        }
+        if (Math.abs(dx) < 95 * e.size && Math.abs(dy) < 30 && e.atkCD <= 0) startFoeAtk(e); // 必殺技と、突きの溜め〜突きの間は、当たりの瞬間に無敵で外れる
       }
       e.y = clamp(e.y, LANE_Y0 - 6, LANE_Y1 + 6);
     }
     // 敵どうしが重なりすぎないようにする
     for (var p = 0; p < G.enemies.length; p++) {
-      var A = G.enemies[p]; if (A.state !== 'walk') continue;
+      var A = G.enemies[p]; if (A.state !== 'walk') continue; // 人の大きさの敵なので、横版の骸骨より間を広く
       for (var q = p + 1; q < G.enemies.length; q++) {
         var B = G.enemies[q]; if (B.state !== 'walk') continue;
         var bA = A.bind > 0, bB = B.bind > 0; if (bA && bB) continue; // 拘束どうしは、重なったまま固める
         var ddx = A.x - B.x, ddy = (A.y - B.y) * 2;
         var d2 = ddx * ddx + ddy * ddy;
-        if (d2 < 1400 && d2 > 0.01) { var d = Math.sqrt(d2), push = (37 - d) * 0.5 * Math.min(1, dt * 12); if (!bA) A.x += ddx / d * push; if (!bB) B.x -= ddx / d * push; }
+        if (d2 < 2900 && d2 > 0.01) { var d = Math.sqrt(d2), push = (54 - d) * 0.5 * Math.min(1, dt * 12); if (!bA) A.x += ddx / d * push; if (!bB) B.x -= ddx / d * push; }
       }
     }
     for (var b = G.booms.length - 1; b >= 0; b--) { G.booms[b].t -= dt; if (G.booms[b].t <= 0) { boom(G.booms[b]); G.booms.splice(b, 1); } }
@@ -774,7 +790,25 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
     updateFx(dt);
 
     // ウェーブ終了
-    if (G.state === 'play' && G.phase === 'fight' && !G.queue.length && !G.enemies.length) { if (BAT.on && G.wave >= BAT.waves) finishBattle(true); else offerPick(); }
+    if (G.state === 'play' && G.phase === 'fight' && !G.queue.length && !G.enemies.length) { if (BAT.on && G.wave >= BAT.waves) finishBattle(true); else clearField(); }
+  }
+
+  function startFoeAtk(e) {
+    var cl = FOE_CLIP[e.kind] || [], ci = Math.floor(Math.random() * cl.length), c = cl[ci];
+    e.atkCD = 1.6;
+    if (!c) { e.atk = { t: 0, hitT: 0.35, endT: 0.6, ci: -1, done: false }; return; } // 攻撃の絵が無いときは、少し止まってから当たる
+    var acc = 0, hitT = 0, starts = [];
+    for (var i = 0; i < c.n; i++) { starts.push(acc / 1000 / FOE_SPD); if (i === c.hit) hitT = acc / 1000 / FOE_SPD; acc += c.durs[i]; }
+    e.atk = { t: 0, hitT: hitT, endT: acc / 1000 / FOE_SPD, ci: ci, starts: starts, done: false };
+  }
+  function hitHero(e) {
+    var h = G.hero; h.hp -= e.dmg; h.inv = 0.45; h.flash = 0.25; G.shake = Math.max(G.shake, 4);
+    addText(h.x, h.y - 230, '-' + e.dmg, 26, '#ff6b6b', 0.7);
+    if (h.state !== 'atk' && h.hp > 0) { h.state = 'hurt'; h.t = 0; h.buf = 0; h.kb = (h.x >= e.x ? 1 : -1) * 240; }
+    if (h.hp <= 0) { h.hp = 0; G.state = 'dead'; G.deadT = 0; if (BAT.on) finishBattle(false); }
+  }
+  function clearField() { // 戦場の敵を倒しきった：少し回復して、GO で右の戦場へ（強化の選択はなし）
+    G.hero.hp = Math.min(G.hero.max, G.hero.hp + 25); G.phase = 'go';
   }
 
   function collect(d) {
@@ -830,7 +864,43 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
     ctx.globalAlpha = 1;
   }
 
-  function drawSkeleton(e) {
+  function drawFoe(e) { // 赤い兵：歩き（シート）／攻撃（連番）。やられはコードで倒れて消える
+    var H0 = eh(e), p = e.state === 'dying' ? e.dt / 0.4 : 0, im, sx, sy, sw, shh, k, ox, oy, flip;
+    var c = e.atk && e.atk.ci >= 0 ? (FOE_CLIP[e.kind] || [])[e.atk.ci] : null;
+    if (c && IMG['fd' + e.kind + '_' + e.atk.ci] && IMG['fd' + e.kind + '_' + e.atk.ci].naturalWidth) {
+      var fi = 0; while (fi + 1 < c.n && e.atk.starts[fi + 1] <= e.atk.t) fi++;
+      im = IMG['fd' + e.kind + '_' + e.atk.ci]; k = H0 / c.idle.h; sw = c.cw; shh = c.ch; sx = (fi % c.cols) * c.cw; sy = Math.floor(fi / c.cols) * c.ch;
+      flip = e.face > 0; // 攻撃の絵は左向き
+      ox = (c.idle.x + c.idle.w / 2); oy = c.ch - (c.pad == null ? 2.8 : c.pad);
+    } else {
+      var wm = FOE_WALK[e.kind]; im = IMG['fw' + e.kind];
+      if (!im || !im.naturalWidth) { drawSkeleton(e); return; }
+      var moving = e.state === 'walk' && e.stun <= 0 && e.bind <= 0, wi = moving ? Math.floor(e.t * 11) % 8 : 0;
+      k = H0 / wm.h; sw = wm.cw; shh = wm.ch; sx = (wi % 4) * wm.cw; sy = Math.floor(wi / 4) * wm.ch;
+      flip = e.face < 0; // 歩きの絵は右向き
+      ox = wm.cw / 2; oy = wm.ch * 0.985;
+    }
+    ctx.save();
+    ctx.globalAlpha = 1 - p;
+    shadow(e.x, e.y, 34 * depthScale(e.y) * e.size);
+    ctx.translate(e.x, e.y - p * 20);
+    ctx.rotate(p * 1.2 * (e.dir || 1)); // 吹き飛ぶ向きへ倒れる
+    ctx.scale(flip ? -k : k, k);
+    ctx.drawImage(im, sx, sy, sw, shh, -ox, -oy, sw, shh);
+    if (e.flash > 0 || e.bind > 0) { // 被弾は白く、拘束は紫に光らせる（同じ絵を加算で重ねる）
+      ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = (1 - p) * (e.flash > 0 ? 0.7 : 0.28);
+      ctx.drawImage(im, sx, sy, sw, shh, -ox, -oy, sw, shh);
+    }
+    ctx.restore();
+    if (e.bind > 0 && e.state === 'walk') { // 拘束の輪（足元と腰）。切れる直前は薄くなる
+      var al = Math.min(1, e.bind / 0.25) * 0.9, wob = 1 + 0.06 * Math.sin(e.t * 14), s2 = depthScale(e.y) * e.size;
+      ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = 'rgba(160,130,255,' + al + ')'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.ellipse(e.x, e.y, 40 * s2 * wob, 11 * s2 * wob, 0, 0, 7); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(e.x, e.y - H0 * 0.45, 30 * s2, 8 * s2, 0, 0, 7); ctx.stroke();
+      ctx.restore();
+    }
+  }
+  function drawSkeleton(e) { // 予備（敵の絵が読めなかったとき）
     var sc = depthScale(e.y) * e.size, t = e.t;
     var p = e.state === 'dying' ? e.dt / 0.4 : 0;
     ctx.save();
@@ -956,7 +1026,7 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
   function updateDomHud() { // 上の段：HP・WAVE・撃破・素材（変わったときだけ書き換える）
     if (!DH) DH = { i: document.getElementById('hpI'), t: document.getElementById('hpT'), w: document.getElementById('hWave'), k: document.getElementById('hKill'), g: document.getElementById('hGold') };
     var h = G.hero, left = G.enemies.filter(function (e) { return e.state === 'walk'; }).length + G.queue.length;
-    var wv = BAT.on ? 'WAVE ' + Math.max(1, G.wave) + ' / ' + BAT.waves : 'ROOM ' + (G.roomNo + 1) + '-' + (G.seg + 1) + '　WAVE ' + Math.max(1, G.wave);
+    var wv = '戦場 ' + Math.max(1, G.seg + 1) + ' / ' + ROOM.segs;
     var key = Math.ceil(h.hp) + '|' + h.max + '|' + wv + '|' + left + '|' + G.kills + '|' + G.gold + '|' + G.rare;
     if (key === DHlast || !DH.i) return; DHlast = key;
     DH.i.style.width = Math.max(0, Math.min(100, 100 * h.hp / h.max)) + '%';
@@ -982,14 +1052,14 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
     if (G.state === 'result') {
       ctx.fillStyle = G.result ? 'rgba(10,8,4,0.72)' : 'rgba(30,4,8,0.72)'; ctx.fillRect(0, -oy, W, VH);
       txt(G.result ? '勝利' : '敗北', W / 2, 250, 72, G.result ? '#ffd27a' : '#ff6b6b', 'center');
-      txt(BAT.name + '　到達 WAVE ' + G.wave + '／' + BAT.waves + '　撃破 ' + G.kills + '　最大コンボ ' + G.bestCombo, W / 2, 330, 26, '#fff', 'center');
+      txt(BAT.name + '　突破 ' + (G.result ? BAT.waves : Math.max(0, G.wave - 1)) + '／' + BAT.waves + '　撃破 ' + G.kills + '　最大コンボ ' + G.bestCombo, W / 2, 330, 26, '#fff', 'center');
       if (G.resT > 0.8) txt('タップ、またはキーで領地へ戻る', W / 2, 470, 30, '#ffd27a', 'center');
       return;
     }
     if (G.state === 'title' && BAT.on) {
       ctx.fillStyle = 'rgba(6,4,10,0.66)'; ctx.fillRect(0, -oy, W, VH);
       txt('出撃：' + BAT.name, W / 2, 230, 56, '#ffd27a', 'center');
-      txt('WAVE ' + BAT.waves + ' まで生き残れば勝利', W / 2, 300, 32, '#ece6f2', 'center');
+      txt('戦場 ' + BAT.waves + ' つを突破すれば勝利', W / 2, 300, 32, '#ece6f2', 'center');
       var mods = []; if (BAT.dmg > 1) mods.push('ダメージ+' + Math.round((BAT.dmg - 1) * 100) + '%'); if (BAT.bind) mods.push('拘束+' + BAT.bind + '秒'); if (BAT.hp) mods.push('最大HP+' + BAT.hp);
       if (mods.length) txt('仲間の補正：' + mods.join('・'), W / 2, 352, 24, '#c9bcff', 'center');
       txt('移動 ←↑↓→　攻撃 J　衝撃波 K　吸引 L　必殺 U　（スマホはパッドとボタン）', W / 2, 420, 20, '#cfc6dc', 'center');
@@ -1078,7 +1148,35 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
     var mg = ctx.createLinearGradient(0, hz - 16, 0, hz + 70); mg.addColorStop(0, 'rgba(70,74,96,0)'); mg.addColorStop(0.3, 'rgba(70,74,96,0.42)'); mg.addColorStop(1, 'rgba(70,74,96,0)'); // 地平線に薄い霧
     ctx.fillStyle = mg; ctx.fillRect(camX - m, hz - 16, W + 2 * m, 86);
   }
+  var FB = { back1: 830, fl0: 835, fl1: 1150 }, FLF = null; // duel.jpg（1086×1448）の切り分け：0〜830＝奥（空・山・城）、835〜1150＝土の帯
+  function drawField() {
+    var im = IMG.fbk, hz = ROOM.hz, m = G.shake > 0.5 ? 12 : 0, top = camY + TOPY - m;
+    ctx.fillStyle = '#a9c9e8'; ctx.fillRect(camX - m, top, W + 2 * m, VH + 2 * m);
+    if (!im || !im.naturalWidth) return;
+    var ks = (hz + 100 - Math.min(0, TOPY)) / FB.back1, bw = im.naturalWidth * ks, bh = FB.back1 * ks, by = hz + 100 - bh; // 床の溶ける幅（90）より下まで描く // 奥：上端まで覆う大きさ。地平線の少し下まで描く
+    var off = camX * ROOM.par, i0 = Math.floor((off - m) / bw), i1 = Math.floor((off + W + m - 0.01) / bw);
+    for (var i = i0; i <= i1; i++) {
+      ctx.save(); ctx.translate(i * bw - off + camX, 0);
+      if (((i % 2) + 2) % 2) { ctx.translate(bw, 0); ctx.scale(-1, 1); }
+      ctx.drawImage(im, 0, 0, im.naturalWidth, FB.back1, 0, by, bw + 1, bh); ctx.restore();
+    }
+    if (!im.complete) return; // 読み込みの途中で切り出すと、空の床のまま残る
+    if (!FLF) { // 床：土の帯を切り出し、上端を溶かす（一度だけ）
+      FLF = document.createElement('canvas'); FLF.width = im.naturalWidth; FLF.height = FB.fl1 - FB.fl0;
+      var c = FLF.getContext('2d'); c.drawImage(im, 0, FB.fl0, im.naturalWidth, FLF.height, 0, 0, FLF.width, FLF.height);
+      var g = c.createLinearGradient(0, 0, 0, 90); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,1)');
+      c.globalCompositeOperation = 'destination-in'; c.fillStyle = g; c.fillRect(0, 0, FLF.width, FLF.height);
+    }
+    var fh = H - hz + m, sc = fh / FLF.height, fw = FLF.width * sc;
+    var j0 = Math.floor((camX - m) / fw), j1 = Math.floor((camX + W + m - 0.01) / fw);
+    for (var j = j0; j <= j1; j++) {
+      ctx.save(); ctx.translate(Math.round(j * fw), hz);
+      if (((j % 2) + 2) % 2) { ctx.translate(Math.ceil(fw), 0); ctx.scale(-1, 1); } // 鏡写しで継ぎ目を合わせる
+      ctx.drawImage(FLF, 0, 0, FLF.width, FLF.height, 0, 0, Math.ceil(fw) + 1, fh); ctx.restore();
+    }
+  }
   function drawBg() {
+    if (ROOM.stage === 'field') { drawField(); return; }
     if (ROOM.stage && IMG.s1_back && IMG.s1_back.naturalWidth && IMG.s1_floor && IMG.s1_floor.naturalWidth) { drawStage(); return; }
     var im = IMG.bg; if (!im || !im.naturalWidth) return;
     var m = G.shake > 0.5 ? 12 : 0; // 画面の揺れで端が見えないよう、揺れている間だけ余白を描く
@@ -1106,7 +1204,7 @@ body { margin: 0; padding: 0; overflow: hidden; background: #000; color: var(--f
       ctx.fillStyle = 'rgba(6,4,14,' + (0.5 * Math.min(1, h0.t / 0.5)) + ')'; ctx.fillRect(camX - 10, camY + TOPY - 10, W + 20, VH + 20);
     }
     var list = [];
-    G.enemies.forEach(function (e) { list.push({ y: e.y, f: function () { drawSkeleton(e); } }); });
+    G.enemies.forEach(function (e) { list.push({ y: e.y, f: function () { drawFoe(e); } }); });
     if (G.state !== 'title') list.push({ y: G.hero.y, f: drawHero });
     else list.push({ y: G.hero.y, f: function () { G.hero.anim += 0.016; drawHero(); } });
     list.sort(function (a, b) { return a.y - b.y; });
