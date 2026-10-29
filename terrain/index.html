@@ -11,7 +11,36 @@ html,body{margin:0;height:100%;background:#0d1a10;overflow:hidden;touch-action:n
 #st{display:none;position:fixed;left:8px;bottom:8px;z-index:2;color:#cde;font-size:11px;opacity:.8;text-shadow:0 1px 2px #000;pointer-events:none}
 </style></head><body>
 <img id="bg" src="assets/backdrop.jpg" alt="">
+<style>
+@font-face{font-family:'DMincho';src:url(assets/font/mincho-b.woff2) format('woff2');font-weight:700;font-display:swap}
+#boot{position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;--u:min(.2326vw,.1073vh);
+  background:#efe3c8 url(assets/ui2/parch.jpg) 0 0/calc(760*var(--u)) auto repeat;color:#2b1d10;font-family:'DMincho','Hiragino Mincho ProN','Yu Mincho',serif;font-weight:700;transition:opacity .45s}
+#boot.out{opacity:0;pointer-events:none}
+#boot .cn{position:absolute;width:calc(70*var(--u));aspect-ratio:220/153;background:url(assets/ui2/corner.webp) center/contain no-repeat;opacity:.92}
+#boot .tl{left:6px;top:6px}#boot .tr{right:6px;top:6px;transform:scaleX(-1)}#boot .bl{left:6px;bottom:6px;transform:scaleY(-1)}#boot .br{right:6px;bottom:6px;transform:scale(-1,-1)}
+#boot .em{width:calc(210*var(--u));height:calc(210*var(--u));border-radius:50%;background:#e8dcbe center/cover no-repeat;box-shadow:0 0 0 calc(3*var(--u)) #efe3c8,0 0 0 calc(4.5*var(--u)) #a8833c,0 calc(6*var(--u)) calc(20*var(--u)) #0004}
+#boot h1{margin:calc(26*var(--u)) 0 0;font-size:calc(24*var(--u));font-weight:700;letter-spacing:.3em;padding-left:.3em}
+#boot .dv{width:calc(200*var(--u));margin:calc(6*var(--u)) 0 calc(14*var(--u))}
+#boot .bar{width:calc(230*var(--u));height:calc(8*var(--u));padding:1px;background:#2a1e12;border:1px solid #8c6c34;box-shadow:0 0 0 1px #e9dcbcaa}
+#boot .bar b{display:block;height:100%;width:4%;background:linear-gradient(#5aa59a,#2c6a64 60%,#24564f);transition:width .3s}
+#boot .tip{margin-top:calc(22*var(--u));max-width:80%;min-height:3em;text-align:center;font-size:calc(13*var(--u));line-height:1.7;letter-spacing:.06em;color:#5e4728;transition:opacity .4s}
+#boot .tip small{display:block;font-size:calc(10.5*var(--u));letter-spacing:.3em;color:#a8833c;margin-bottom:calc(2*var(--u))}
+</style>
+<div id="boot"><i class="cn tl"></i><i class="cn tr"></i><i class="cn bl"></i><i class="cn br"></i>
+  <div class="em"></div><h1>読み込み中</h1><img class="dv" src="assets/ui2/divider2.webp" alt=""><div class="bar"><b></b></div><div class="tip"></div></div>
+<script>
+(function () { // 読み込み中の画面。main.js が画像を読むたびに __bootTick、準備ができたら __bootDone を呼ぶ
+  var el = document.getElementById('boot'), bar = el.querySelector('.bar b'), tip = el.querySelector('.tip'), n = 0, EXPECT = 77, shown = 4;
+  var TIPS = ['副官と将軍は、必ず一騎打ちを挑んでくる。', '号令は一騎打ちで一度だけ。大技の合に使えば、見切れる。', '襲撃の二週前から、敵の陣が街の外に見える。', 'ランカは強いが、二回続けては戦えない。', '鍛冶場は、二つ目から効きが落ちる。', '仲間を施設に置くと、その施設がよく働く。', '一騎打ちに勝てば、戦況が一段よくなる。'];
+  var ti = Math.floor(Math.random() * TIPS.length); function showTip() { tip.style.opacity = 0; setTimeout(function () { tip.innerHTML = '<small>心得</small>' + TIPS[ti++ % TIPS.length]; tip.style.opacity = 1; }, 300); }
+  showTip(); var iv = setInterval(showTip, 3600);
+  var K = ['mina', 'sera', 'ranka', 'garou']; el.querySelector('.em').style.backgroundImage = 'url(assets/ui2/boot_' + K[Math.floor(Math.random() * K.length)] + '.webp)';
+  var crawl = setInterval(function () { if (shown < 20) { shown += 1; bar.style.width = shown + '%'; } }, 250); // 部品の読み込み（数えられない間）は少しずつ進める
+  window.__bootTick = function () { n++; var p = Math.min(95, 20 + 75 * n / EXPECT); if (p > shown) { shown = p; bar.style.width = p + '%'; } };
+  window.__bootDone = function () { window.__bootCount = n; clearInterval(crawl); clearInterval(iv); bar.style.width = '100%'; setTimeout(function () { el.classList.add('out'); setTimeout(function () { el.remove(); }, 500); }, 250); };
+})();
+</script>
 <canvas id="gl"></canvas>
 <div id="hud" style="display:none"></div><div id="st"></div>
-<script type="module" src="main.js?v=1793248875"></script>
+<script type="module" src="main.js?v=1793249932"></script>
 </body></html>
