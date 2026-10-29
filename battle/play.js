@@ -179,7 +179,7 @@ function doHitC(n) { // 1：前方への斬り下ろし 2：背面への払い�
     var dx = (e.x - h.x) * h.face * side, dy = Math.abs(e.y - h.y);
     if (dx > -50 && dx < R && dy < lane) { hurt(e, dmg * (0.9 + Math.random() * 0.2), e.x >= h.x ? 1 : -1, false); hits++; }
   }
-  G.fx.push({ type: 'arc', x: h.x, y: h.y, face: h.face * side, R: R, t: 0, life: 0.2, second: n === 2 });
+  fxArc(h, h.face * side, R, 0.2, false, n === 2);
   if (hits) { G.freeze = Math.max(G.freeze, 0.05 + Math.min(hits, 10) * 0.008); G.shake = Math.max(G.shake, 5 + Math.min(hits, 12) * 1.1); }
   else G.shake = Math.max(G.shake, 1.5);
 }
@@ -206,7 +206,7 @@ function doHitB(n) {
     var dx = (e.x - h.x) * h.face * side, dy = Math.abs(e.y - h.y);
     if (dx > -50 && dx < R && dy < lane) { hurt(e, dmg * (0.9 + Math.random() * 0.2), e.x >= h.x ? 1 : -1, n === 3); hits++; }
   }
-  G.fx.push({ type: 'arc', x: h.x, y: h.y, face: h.face * side, R: R, t: 0, life: 0.22, second: n === 2 });
+  fxArc(h, h.face * side, R, 0.22, n === 3, n === 2);
   if (hits) { G.freeze = Math.max(G.freeze, 0.05 + Math.min(hits, 10) * 0.008); G.shake = Math.max(G.shake, 5 + Math.min(hits, 12) * 1.1); }
   else G.shake = Math.max(G.shake, 1.5);
 }
@@ -261,7 +261,7 @@ function doHit(n) {
     if (ok) { hurt(e, dmg * (0.9 + Math.random() * 0.2), (e.x >= h.x ? 1 : -1) * (sk ? 1 : h.face > 0 ? 1 : -1), sk); hits++; }
   }
   if (sk) G.fx.push({ type: 'ring', x: h.x, y: h.y, R: R, t: 0, life: 0.5 });
-  G.fx.push({ type: 'arc', x: h.x, y: h.y, face: h.face, R: R, t: 0, life: sk ? 0.28 : 0.2, big: sk, second: n === 2 });
+  fxArc(h, h.face, R, sk ? 0.28 : 0.2, sk, n === 2);
   if (hits) { G.freeze = Math.max(G.freeze, 0.05 + Math.min(hits, 10) * 0.008); G.shake = Math.max(G.shake, 5 + Math.min(hits, 12) * (sk ? 1.8 : 1.1)); }
   else G.shake = Math.max(G.shake, sk ? 6 : 1.5);
 }
@@ -281,7 +281,7 @@ function doPull(c) {
     got.push(e);
     n++;
   }
-  fxPull(gx, c.y, Math.min(R, 520), got); // コードの吸引エフェクト（battle/fx.js）
+  fxPull(gx, c.y, Math.min(R * 1.25, 680), got); // コードの吸引エフェクト（battle/fx.js）
   if (n) {
     G.freeze = Math.max(G.freeze, 0.04 + Math.min(n, 10) * 0.006);
     G.shake = Math.max(G.shake, 3 + Math.min(n, 12) * 0.8);
@@ -297,7 +297,7 @@ function hurt(e, d, dir, strong) {
   e.hp -= d; e.flash = 0.1; e.stun = bound ? 0 : (strong ? 0.5 : 0.28); e.kx = dir * (strong ? 460 : 280) * (e.elite ? 0.3 : 1) * (bound ? 0.12 : 1);
   addText(e.x + rnd(-14, 14), e.y - eh(e) - 10, String(Math.round(d)), strong ? 30 : 22, strong ? '#ffe28a' : '#ffffff', 0.7);
   e.atk = null;
-  for (var i = 0; i < 3; i++) G.parts.push({ x: e.x, y: e.y - eh(e) * 0.55, vx: dir * rnd(60, 260), vy: rnd(-260, -40), g: 700, life: rnd(0.25, 0.5), t: 0, c: '#fff1d6', s: rnd(3, 6) });
+  fxHit(e, dir, strong); // 当たりの衝撃（battle/fx.js）
   if (e.hp <= 0) kill(e, dir);
 }
 

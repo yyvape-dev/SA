@@ -135,6 +135,8 @@ function drawFx() {
       ctx.fillStyle = 'rgba(255,255,255,' + (0.95 * fl) + ')'; ctx.beginPath(); ctx.moveTo(40, 0); ctx.lineTo(40 + Ll * 0.15, -wl * 0.35); ctx.lineTo(40 + Ll, 0); ctx.lineTo(40 + Ll * 0.15, wl * 0.35); ctx.closePath(); ctx.fill();
       ctx.restore();
     } else if (f.type === 'vpull') { drawVPull(f);
+    } else if (f.type === 'varc') { drawVArc(f);
+    } else if (f.type === 'vhit') { drawVHit(f);
     } else if (f.type === 'ring') {
       ctx.strokeStyle = 'rgba(' + (f.rgb || '255,205,110') + ',' + (1 - p) + ')'; ctx.lineWidth = 16 * (1 - p) + 2;
       ctx.beginPath(); ctx.ellipse(f.x, f.y, f.R * p, f.R * 0.4 * p, 0, 0, 7); ctx.stroke();
