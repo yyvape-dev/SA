@@ -1,9 +1,9 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793246437';
-import { createUI } from './ui.js?v=1793246437';
-import { createMorning } from './morning.js?v=1793246437';
+import * as GM from './game.js?v=1793248344';
+import { createUI } from './ui.js?v=1793248344';
+import { createMorning } from './morning.js?v=1793248344';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -853,6 +853,8 @@ const dCss = document.createElement('style'); dCss.textContent = `
 #duel .f{position:absolute;bottom:15%;height:34%;transition:transform .18s ease-out,filter .08s;z-index:2}
 #duel .f .sp{background-repeat:no-repeat;pointer-events:none}#duel .f img{height:100%;filter:drop-shadow(0 6px 8px #000)}
 #duel .L{left:7%}#duel .R{right:5%}
+#duel .f.hit{animation:fhit .32s linear}#duel .f.hit .sp,#duel .f.hit img{filter:sepia(.35) saturate(2.2) hue-rotate(-25deg) brightness(1.06) drop-shadow(0 0 3px #ff3a2088)!important}
+@keyframes fhit{0%,100%{translate:0 0}20%{translate:-4px 0}45%{translate:4px 0}70%{translate:-2px 0}}
 #duel .say{position:absolute;bottom:57%;max-width:52%;min-width:28%;padding:calc(14*var(--u)) calc(14*var(--u)) calc(10*var(--u));background:#fbf6e9;border:1.5px solid #3b2a16;border-radius:calc(12*var(--u));box-shadow:0 calc(3*var(--u)) 0 #3b2a1622,0 calc(4*var(--u)) calc(12*var(--u)) #0004;
   font-size:calc(15.5*var(--u));line-height:1.45;letter-spacing:.03em;opacity:0;transform:scale(.6);transition:opacity .12s,transform .22s cubic-bezier(.2,1.5,.4,1);pointer-events:none;z-index:4}
 #duel .say::after{content:'';position:absolute;bottom:calc(-9*var(--u));width:calc(14*var(--u));height:calc(14*var(--u));background:#fbf6e9;border:1.5px solid #3b2a16;border-top:0;border-left:0;transform:rotate(45deg)}
@@ -953,10 +955,10 @@ function playDuel(k, done) { // 画面いっぱいの一騎打ち。五合の勝
     const r = GM.duelRound(plan, i, armed), at = r.ally ? L : Rf, df = r.ally ? Rf : L, dir = r.ally ? 1 : -1, act = r.ally ? actL : actR, t0 = 750; armed = false; const clip = act ? act.play(t0) : null;
     if (r.kind === 'counter') { const c = $('.cut'); c.querySelector('div').innerHTML = `見切り！<small>${A.n}が大技を受け流す</small>`; T(() => c.classList.add('on'), 100); T(() => c.classList.remove('on'), t0 + 700); }
     T(() => { at.style.transform = `translateX(${dir * (clip ? 10 : 34)}vw)`; }, t0);
-    T(() => { const sl = document.createElement('div'); sl.className = 'slash'; sl.style.left = r.ally ? '38%' : '18%'; stage.appendChild(sl); df.style.filter = 'brightness(3)'; df.style.transform = `translateX(${dir * 4}vw)`; duelEl.classList.add('shake');
+    T(() => { const sl = document.createElement('div'); sl.className = 'slash'; sl.style.left = r.ally ? '38%' : '18%'; stage.appendChild(sl); df.classList.remove('hit'); void df.offsetWidth; df.classList.add('hit'); df.style.transform = `translateX(${dir * 4}vw)`; duelEl.classList.add('shake');
       const n = document.createElement('div'); n.className = 'num'; n.textContent = r.dmg * 7 + Math.round(Math.random() * 9); n.style.left = r.ally ? '66%' : '20%'; n.style.top = '34%'; stage.appendChild(n); setTimeout(() => { sl.remove(); n.remove(); }, 900);
       apply(i, r); upd(); say(r.ally ? 'l' : 'r', pickOf((r.ally ? AL : FL).hit), 1500); T(() => say(r.ally ? 'r' : 'l', pickOf((r.ally ? FL : AL).hurt), 1400), D(350)); }, t0 + 180);
-    T(() => { df.style.filter = ''; duelEl.classList.remove('shake'); at.style.transform = ''; df.style.transform = ''; }, t0 + 420);
+    T(() => { df.classList.remove('hit'); duelEl.classList.remove('shake'); at.style.transform = ''; df.style.transform = ''; }, t0 + 420);
     T(() => { if (aw >= 3 || fw >= 3) finish(); else roundStart(i + 1); }, t0 + D(1250)); };
   const goRound = i => { gb.classList.remove('ready'); runRound(i); };
   const roundStart = i => { if (over) return; cur = i; const heavy = plan.heavy.includes(i); pips[i].classList.add('cur'); inWin = true;
@@ -1006,7 +1008,8 @@ const fbCss = document.createElement('style'); fbCss.textContent = `
 #abt.fb .un{position:absolute;width:0;height:0}
 #abt.fb .un .s{position:absolute;background-repeat:no-repeat;pointer-events:none;filter:drop-shadow(0 calc(3*var(--u)) calc(3*var(--u)) #0007)}
 #abt.fb .un .sh{position:absolute;left:calc(-14*var(--u));top:calc(-4*var(--u));width:calc(28*var(--u));height:calc(8*var(--u));border-radius:50%;background:#0004}
-#abt.fb .un.hit .s{filter:brightness(2.6) drop-shadow(0 0 4px #fff)}
+#abt.fb .un.hit .s{animation:fhit .32s linear}#abt.fb .un.foe.hit .s,#abt.fb .un.hit .s{filter:sepia(.35) saturate(2.2) hue-rotate(-25deg) brightness(1.06) drop-shadow(0 0 calc(2*var(--u)) #ff3a2088)}
+@keyframes fhit{0%,100%{translate:0 0}20%{translate:calc(-3*var(--u)) 0}45%{translate:calc(3*var(--u)) 0}70%{translate:calc(-2*var(--u)) 0}}
 #abt.fb .un.dead{transition:opacity .9s .2s,transform .6s;opacity:0}
 #abt.fb .un.foe .s{filter:drop-shadow(0 0 calc(2*var(--u)) #c0301c) drop-shadow(0 calc(3*var(--u)) calc(3*var(--u)) #0007)}
 #abt.fb .spk{position:absolute;width:calc(46*var(--u));height:calc(46*var(--u));margin:calc(-23*var(--u)) 0 0 calc(-23*var(--u));background:radial-gradient(circle,#fff 0,#ffe7a0 18%,#ffb04066 40%,transparent 70%);animation:fspk .32s ease-out forwards;pointer-events:none;z-index:1600}
@@ -1057,11 +1060,11 @@ function fbUnit(stage, kind, K, side, x, y, H) { // x,y＝足元（舞台の％�
   const el = document.createElement('div'); el.className = 'un ' + side; el.style.left = x + '%'; el.style.top = y + '%'; el.style.zIndex = Math.round(y * 10);
   el.innerHTML = '<i class="sh"></i><div class="s"></div>'; stage.appendChild(el); const s = el.lastChild, k = K[kind];
   const face = side === 'us' ? 1 : -1; // 味方は右向き、敵は左向き
-  const u = { el, s, kind, side, x, y, H, alive: true, busy: false, f: Math.floor(Math.random() * 16) };
+  const u = { el, s, kind, side, x, y, H, face, alive: true, busy: false, f: Math.floor(Math.random() * 16) };
   u.setWalk = async (frame) => { const sz = await fbSize(k.walk); if (!sz) return; const fw = sz[0] / k.wc, fh = sz[1] / k.wr, sc = H / (fh * k.wp);
-    const i = frame % k.wn, cx = i % k.wc, cy = Math.floor(i / k.wc), flip = (k.wr0 ? 1 : -1) * face < 0;
+    const i = frame % k.wn, cx = i % k.wc, cy = Math.floor(i / k.wc), flip = (k.wr0 ? 1 : -1) * u.face < 0;
     Object.assign(s.style, { width: fw * sc + 'px', height: fh * sc + 'px', left: -fw * sc / 2 + 'px', top: -fh * sc * .985 + 'px', backgroundImage: `url(${k.walk})`, backgroundSize: `${sz[0] * sc}px ${sz[1] * sc}px`, backgroundPosition: `${-cx * fw * sc}px ${-cy * fh * sc}px`, transform: flip ? 'scaleX(-1)' : '' }); };
-  u.clipFrame = (c, i) => { const sc = H / c.idle.h, cw = c.cw * sc, ch = c.ch * sc, cx = (c.idle.x + c.idle.w / 2) * sc, flip = (k.cr ? 1 : -1) * face < 0, rows = Math.ceil(c.n / c.cols);
+  u.clipFrame = (c, i) => { const sc = H / c.idle.h, cw = c.cw * sc, ch = c.ch * sc, cx = (c.idle.x + c.idle.w / 2) * sc, flip = (k.cr ? 1 : -1) * u.face < 0, rows = Math.ceil(c.n / c.cols);
     Object.assign(s.style, { width: cw + 'px', height: ch + 'px', left: (flip ? -(cw - cx) : -cx) + 'px', top: -(ch - (c.pad ?? 2.8) * sc) + 'px', backgroundImage: `url(${c.base}${c.f})`, backgroundSize: `${c.cols * cw}px ${rows * ch}px`, backgroundPosition: `${-(i % c.cols) * cw}px ${-Math.floor(i / c.cols) * ch}px`, transform: flip ? 'scaleX(-1)' : '' }); };
   u.idle = () => { if (k.clips.length) u.clipFrame(k.clips[0], 0); else u.setWalk(0); };
   u.attack = (T, onHit) => { // 一騎打ち用の連番を速めて流す。山場で onHit
@@ -1089,38 +1092,46 @@ function fieldBattle(mode, onEnd) { // onEnd：試しのとき、結果を記録
   let timers = [], spd = 1, phase = 'march', gauge = 50, done = false; const T = (f, ms) => { const t = setTimeout(f, ms / spd); timers.push(t); return t; };
   const setG = v => { gauge = Math.max(5, Math.min(95, v)); balB.style.width = gauge + '%'; balU.style.left = gauge + '%'; if (phase !== 'duel') stt.textContent = gauge > 62 ? '優勢' : gauge < 38 ? '劣勢' : '拮抗'; };
   // 布陣（モック準拠）：味方＝左（仲間は一番左の列）、敵＝右（将は一番右）
-  const us = [], foe = [], nSol = Math.max(4, Math.min(10, 3 + (G.troops || 0))), nFoe = Math.max(6, Math.min(12, Math.round(E / 4.5)));
-  const rowY = (i, n) => 30 + (i + .5) * 58 / n;
-  team.forEach((k, i) => us.push(fbUnit(st, k, K, 'us', 12 + (i % 2) * 3, 34 + i * 52 / Math.max(1, team.length - 1 || 1), unit * K[k].h)));
-  for (let i = 0; i < nSol; i++) { const col = i % 2, row = Math.floor(i / 2), rows = Math.ceil(nSol / 2); us.push(fbUnit(st, 'sol', K, 'us', 25 + col * 12, rowY(row, rows) + col * 4, unit)); }
-  const fk = ['f1', 'f2', 'f3']; for (let i = 0; i < nFoe; i++) { const col = i % 2, row = Math.floor(i / 2), rows = Math.ceil(nFoe / 2); foe.push(fbUnit(st, fk[(i * 7 + row) % 3], K, 'foe', 63 + col * 12, rowY(row, rows) + col * 4, unit)); }
-  const gen = fbUnit(st, 'f' + look, K, 'foe', 86, 58, unit * (R.boss ? 1.4 : 1.2)); gen.gen = true; foe.push(gen);
-  if (rank !== 'boss') { foe.push(fbUnit(st, 'f3', K, 'foe', 87, 36, unit)); foe.push(fbUnit(st, 'f3', K, 'foe', 85, 80, unit)); }
+  const us = [], foe = [], nSol = Math.max(6, Math.min(12, 4 + (G.troops || 0))), nFoe = Math.max(12, Math.min(24, Math.round(E / 2.2)));
+  const rowY = (i, n) => 28 + (i + .5) * 62 / n, jit = () => (Math.random() - .5) * 3;
+  team.forEach((k, i) => us.push(fbUnit(st, k, K, 'us', 10 + (i % 2) * 3, 34 + i * 52 / Math.max(1, team.length - 1 || 1), unit * K[k].h)));
+  for (let i = 0; i < nSol; i++) { const col = i % 2, row = Math.floor(i / 2), rows = Math.ceil(nSol / 2); us.push(fbUnit(st, 'sol', K, 'us', 22 + col * 10 + jit(), rowY(row, rows) + col * 3 + jit(), unit)); }
+  const fk = ['f1', 'f2', 'f3']; for (let i = 0; i < nFoe; i++) { const col = i % 3, row = Math.floor(i / 3), rows = Math.ceil(nFoe / 3); foe.push(fbUnit(st, fk[(i * 7 + row) % 3], K, 'foe', 60 + col * 9 + jit(), rowY(row, rows) + (col % 2) * 3 + jit(), unit)); }
+  const gen = fbUnit(st, 'f' + look, K, 'foe', 89, 58, unit * (R.boss ? 1.4 : 1.2)); gen.gen = true; foe.push(gen);
+  if (rank !== 'boss') { foe.push(fbUnit(st, 'f3', K, 'foe', 90, 36, unit)); foe.push(fbUnit(st, 'f3', K, 'foe', 88, 80, unit)); }
   [...us, ...foe].forEach(u => u.idle());
   // 行進（歩きのコマで少し前へ）
   const march = (ms, dist) => { const t0 = performance.now(); const tick = () => { if (done) return; const k = Math.min(1, (performance.now() - t0) * spd / ms);
       [...us, ...foe].forEach(u => { if (!u.alive || u.gen) return; const dx = (u.side === 'us' ? 1 : -1) * dist * (k * (2 - k)); u.el.style.left = (u.x + dx) + '%'; u.f++; if (k < 1) u.setWalk(Math.floor(u.f / 5)); });
       if (k < 1) requestAnimationFrame(tick); else [...us, ...foe].forEach(u => { if (u.alive && !u.gen) { u.x += (u.side === 'us' ? 1 : -1) * dist; u.idle(); } }); }; tick(); };
+  const moveTo = (u, x, y, ms) => { const x0 = u.x, y0 = u.y, t0 = performance.now(); u.mv = (u.mv || 0) + 1; const id = u.mv; if (Math.abs(x - x0) > 8) u.face = x > x0 ? 1 : -1; // 大きく動くときは進む向きを向く
+    const tick = () => { if (done || !u.alive || u.mv !== id) return; const k = Math.min(1, (performance.now() - t0) * spd / ms), e = k * (2 - k);
+      u.x = x0 + (x - x0) * e; u.y = y0 + (y - y0) * e; u.el.style.left = u.x + '%'; u.el.style.top = u.y + '%'; u.el.style.zIndex = Math.round(u.y * 10);
+      if (k < 1) { if (!u.busy) { u.f++; u.setWalk(Math.floor(u.f / 5)); } requestAnimationFrame(tick); } else if (!u.busy) u.idle(); }; tick(); };
+  const MID = 47, melee = u => { u.eng = true; moveTo(u, MID + (u.side === 'us' ? -2.5 : 2.5) + (Math.random() - .5) * 13, Math.max(26, Math.min(90, u.y + (Math.random() - .5) * 8)), 900 + Math.random() * 600); };
+  const reinforce = side => { const pool = (side === 'us' ? us : foe).filter(u => u.alive && !u.gen && !u.eng && !GM.ALLY[u.kind]); if (pool.length) melee(pool.sort((a, b) => (side === 'us' ? b.x - a.x : a.x - b.x))[0]); };
   const pos = u => [parseFloat(u.el.style.left) / 100 * W(), parseFloat(u.el.style.top) / 100 * Hs()];
   const spark = (u, n, mine) => { const [x, y] = pos(u), s = document.createElement('i'); s.className = 'spk'; s.style.left = x + 'px'; s.style.top = (y - u.H * .55) + 'px'; st.appendChild(s);
     const d = document.createElement('div'); d.className = 'dn' + (mine ? ' us' : ''); d.textContent = n; d.style.left = x + 'px'; d.style.top = (y - u.H * 1.05) + 'px'; st.appendChild(d);
-    u.el.classList.add('hit'); setTimeout(() => { u.el.classList.remove('hit'); s.remove(); d.remove(); }, 820); };
+    u.el.classList.remove('hit'); void u.el.offsetWidth; u.el.classList.add('hit'); clearTimeout(u.ht); u.ht = setTimeout(() => u.el.classList.remove('hit'), 320); setTimeout(() => { s.remove(); d.remove(); }, 820); };
   const say = (u, text, ms = 1800) => { const [x, y] = pos(u), b = document.createElement('div'); b.className = 'say ' + u.side; b.innerHTML = `<small>${u.side === 'us' ? GM.ALLY[u.kind] ? GM.ALLY[u.kind].n : '兵' : F.n}</small>${text}`;
     b.style.left = x + 'px'; b.style.top = (y - u.H * 1.15) + 'px'; st.appendChild(b); requestAnimationFrame(() => b.classList.add('on')); setTimeout(() => { b.classList.remove('on'); setTimeout(() => b.remove(), 300); }, ms / spd); };
   const live = a => a.filter(u => u.alive && !u.gen);
   // 斬り合い：優勢な側ほど多く当てる。lossUs/lossFoe＝この区間で倒れる数
-  const clash = (ms, toward, lossUs, lossFoe) => { const n = Math.round(ms / 330), g0 = gauge; let du = 0, df = 0;
-    for (let j = 0; j < n; j++) T(() => { if (done) return; const ourTurn = Math.random() < gauge / 100, A = live(ourTurn ? us : foe), D = live(ourTurn ? foe : us); if (!A.length || !D.length) return;
-      const a = A.filter(u => !u.busy)[0] ? A.filter(u => !u.busy).sort(() => Math.random() - .5)[0] : null; if (!a) return; const d = D.sort((p, q) => Math.abs(p.y - a.y) - Math.abs(q.y - a.y))[Math.floor(Math.random() * Math.min(2, D.length))];
-      a.attack(T, () => { spark(d, Math.round(8 + Math.random() * E / 2), !ourTurn); const kill = !GM.ALLY[d.kind] && (ourTurn ? (df < lossFoe && Math.random() < .5) : (du < lossUs && Math.random() < .5)); if (kill) { if (ourTurn) df++; else du++; T(() => d.die(), 160); } });
-      setG(g0 + (toward - g0) * (j + 1) / n + (Math.random() - .5) * 6); }, j * 330 + Math.random() * 120); };
+  const clash = (ms, toward, lossUs, lossFoe) => { const n = Math.round(ms / 200), g0 = gauge; let du = 0, df = 0;
+    for (let j = 0; j < n; j++) T(() => { if (j % 2 === 0 && Math.random() < .5) live(Math.random() < .5 ? us : foe).filter(u => u.eng && !u.busy).slice(0, 1).forEach(u => moveTo(u, u.x + (Math.random() - .5) * 4, u.y + (Math.random() - .5) * 4, 500)); // 混戦の中で位置を入れ替える
+      if (done) return; const ourTurn = Math.random() < gauge / 100, A = live(ourTurn ? us : foe), D = live(ourTurn ? foe : us); if (!A.length || !D.length) return;
+      const free = A.filter(u => !u.busy), pick = free.filter(u => u.eng).length ? free.filter(u => u.eng) : free; const a = pick.sort(() => Math.random() - .5)[0]; if (!a) return; const d = D.sort((p, q) => Math.hypot(p.x - a.x, (p.y - a.y) * 1.6) - Math.hypot(q.x - a.x, (q.y - a.y) * 1.6))[Math.floor(Math.random() * Math.min(2, D.length))];
+      a.attack(T, () => { spark(d, Math.round(8 + Math.random() * E / 2), !ourTurn); const kill = !GM.ALLY[d.kind] && (ourTurn ? (df < lossFoe && Math.random() < .5) : (du < lossUs && Math.random() < .5)); if (kill) { if (ourTurn) df++; else du++; T(() => { d.die(); T(() => reinforce(d.side), 500); }, 160); } });
+      setG(g0 + (toward - g0) * (j + 1) / n + (Math.random() - .5) * 6); }, j * 200 + Math.random() * 120); };
   const banner = (h, sub, ms) => { ban.innerHTML = `${h}${sub ? `<small>${sub}</small>` : ''}`; ban.classList.add('on'); T(() => ban.classList.remove('on'), ms); };
   // 1. 行進 → 2. 斬り合い（見込みの方向へ） → 3. 接戦なら敵将の挑戦 → 4. 決着
   const m0 = GM.raidD(G) - E, lean = 50 + Math.max(-16, Math.min(16, m0 * 2));
   banner(R.boss ? '将軍の侵攻' : '開戦', fr ? `${fr.n}で迎え撃つ` : '', 1500 * spd);
-  march(1500, 4); T(() => { phase = 'clash'; clash(3600, lean, 1, 1); }, 1600);
+  march(1300, 3); T(() => { const fr1 = (s, n) => (s === 'us' ? us : foe).filter(u => !u.gen && !GM.ALLY[u.kind]).sort((a, b) => s === 'us' ? b.x - a.x : a.x - b.x).slice(0, n); [...fr1('us', Math.ceil(nSol * .6)), ...fr1('foe', Math.ceil(nFoe * .5))].forEach((u, i) => T(() => melee(u), i * 60)); }, 1300);
+  T(() => { phase = 'clash'; clash(3800, lean, 2, 3); }, 2100);
   const wantDuel = GM.duelDue(G) && R.duel === undefined;
-  T(() => wantDuel ? challenge() : finale(), 5400);
+  T(() => wantDuel ? challenge() : finale(), 6000);
   function challenge() { // 敵将が前に出て、一騎打ちを挑む。押すまで待つ
     phase = 'duel'; stt.textContent = '敵将が前に出た'; gen.el.style.transition = `left ${0.8 / spd}s ease-out`; gen.x -= 8; gen.el.style.left = gen.x + '%';
     T(() => say(gen, FL.open[0], 2600), 700); T(() => dbtn.classList.add('on'), 900); }
@@ -1134,8 +1145,8 @@ function fieldBattle(mode, onEnd) { // onEnd：試しのとき、結果を記録
     T(finale, r === undefined || r === null ? 0 : 1300); }
   function finale() { // ここで結果を決め、演出を合わせる
     phase = 'end'; const t = GM.resolve(G, mode); const good = /被害なし|完勝|勝利/.test(t) && !/敗北/.test(t), mid = /小被害|苦戦/.test(t);
-    const fin = good ? 84 : mid ? 58 : 22; clash(2600, fin, good ? 1 : 3, good ? 4 : mid ? 2 : 1);
-    T(() => { if (good) live(foe).forEach((u, i) => T(() => u.die(), i * 90)); else if (!mid) live(us).filter(u => !GM.ALLY[u.kind]).slice(0, 3).forEach((u, i) => T(() => u.die(), i * 120)); }, 2700);
+    const fin = good ? 84 : mid ? 58 : 22; clash(2600, fin, good ? 2 : mid ? 4 : 6, good ? 8 : mid ? 5 : 2);
+    T(() => { if (good) live(foe).forEach((u, i) => T(() => { u.busy = false; moveTo(u, 112, u.y + (Math.random() - .5) * 10, 1400); }, i * 40)); else if (!mid) live(us).filter(u => !GM.ALLY[u.kind]).forEach((u, i) => T(() => { u.busy = false; moveTo(u, Math.max(18, u.x - 18), u.y, 1200); }, i * 50)); }, 2700);
     T(() => result(t, good, mid), 3400); }
   function result(t, good, mid) { if (done) return; done = true; timers.forEach(clearTimeout); const label = good ? '勝利' : mid ? '辛勝' : '敗北', cls = good ? 'w' : mid ? 'm' : 'l';
     const fr2 = $('.fr'); fr2.innerHTML = `<div class="bd"><div class="k">${R.kind === 'sortie' ? '出撃' : '防衛戦'}</div><h2 class="${cls}">${label}</h2><img src="assets/ui2/divider2.webp"><p>${(t.split('：')[1] || '').replace(/ /g, '　')}<small>タップで続ける</small></p></div>`; fr2.classList.add('on');
