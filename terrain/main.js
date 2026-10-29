@@ -1,9 +1,9 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793279326';
-import { createUI } from './ui.js?v=1793279326';
-import { createMorning } from './morning.js?v=1793279326';
+import * as GM from './game.js?v=1793279801';
+import { createUI } from './ui.js?v=1793279801';
+import { createMorning } from './morning.js?v=1793279801';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -856,7 +856,7 @@ const dCss = document.createElement('style'); dCss.textContent = `
 #duel .stage{position:relative;flex:1;min-height:0;background:#222;overflow:hidden;box-shadow:inset 0 calc(8*var(--u)) calc(10*var(--u)) calc(-6*var(--u)) #0005}
 #duel .stage::after{content:'';position:absolute;inset:0;background:linear-gradient(transparent 70%,#0003);pointer-events:none}
 #duel .f{position:absolute;bottom:15%;height:34%;transition:transform .18s ease-out,filter .08s;z-index:2}
-#duel .f .sp{background-repeat:no-repeat;pointer-events:none;clip-path:inset(1px)}#duel .f img{height:100%}
+#duel .f .sp{pointer-events:none}#duel .f .ly{position:absolute;background-repeat:no-repeat;clip-path:inset(1px);will-change:background-position}#duel .f img{height:100%}
 #duel .f .gs{position:absolute;left:50%;bottom:-3%;width:120%;height:9%;transform:translateX(-50%);border-radius:50%;background:radial-gradient(closest-side,#000b,#0006 55%,#0000);pointer-events:none}
 #duel .f .sp .sh{position:absolute;inset:0;pointer-events:none;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;background:linear-gradient(100deg,#fff3 0%,#0000 34%,#0000 48%,#0a0e2aa6 100%),linear-gradient(180deg,#0000 50%,#1a0f0a8c 100%)}
 #duel .R .sp .sh{background:linear-gradient(260deg,#fff3 0%,#0000 34%,#0000 48%,#0a0e2aa6 100%),linear-gradient(180deg,#0000 50%,#1a0f0a8c 100%)}
@@ -883,6 +883,11 @@ const dCss = document.createElement('style'); dCss.textContent = `
 #duel .cut.on{transform:none}#duel .cut img{height:78%;border-radius:50%;box-shadow:0 0 0 2px #d8b86a}#duel .cut div{font-size:calc(30*var(--u));letter-spacing:.2em}#duel .cut small{display:block;font-size:calc(12*var(--u));letter-spacing:.08em;color:#e6d6aa}
 #duel .ft{position:relative;z-index:2;flex:0 0 25%;display:flex;flex-direction:column;align-items:center;justify-content:space-evenly;padding:calc(14*var(--u)) calc(18*var(--u)) calc(14*var(--u))}
 #duel .ft::before{content:'';position:absolute;left:0;right:0;top:calc(-20*var(--u));height:calc(40*var(--u));background:url(assets/ui2/vine.webp) center/100% 100% no-repeat;pointer-events:none}
+#duel .ln{display:flex;justify-content:space-between;gap:calc(8*var(--u));width:100%;min-height:calc(40*var(--u))}
+#duel .ln p{margin:0;flex:1;max-width:50%;padding:calc(12*var(--u)) calc(10*var(--u)) calc(6*var(--u));position:relative;background:#fbf6e9;border:1.5px solid #3b2a16;border-radius:calc(8*var(--u));font-size:calc(13.5*var(--u));line-height:1.35;color:#2b1d10;opacity:0;transform:translateY(calc(4*var(--u)));transition:opacity .15s,transform .15s}
+#duel .ln p.r{text-align:right;border-color:#6e1f17}#duel .ln p.on{opacity:1;transform:none}#duel .ln p.big{color:#7a1d14;font-size:calc(15*var(--u))}
+#duel .ln p small{position:absolute;top:calc(-9*var(--u));left:calc(8*var(--u));padding:0 calc(7*var(--u));background:#3b2a16;color:#f3e7c8;border-radius:calc(3*var(--u));font-size:calc(10*var(--u));letter-spacing:.1em;line-height:1.6}
+#duel .ln p.r small{left:auto;right:calc(8*var(--u));background:#6e1f17}
 #duel .ft h3{margin:0;font-size:calc(18*var(--u));font-weight:700;letter-spacing:.3em;padding-left:.3em}
 #duel .blr{display:flex;align-items:center;gap:calc(10*var(--u));width:100%;font-size:calc(12.5*var(--u));letter-spacing:.06em}
 #duel .bal{flex:1;height:calc(12*var(--u));padding:1px;background:#2a1e12;border:1px solid #8c6c34;box-shadow:0 0 0 1px #e9dcbcaa;position:relative}
@@ -930,28 +935,37 @@ const runClipOf = k => SIDE_ALLY['run_' + k] || SIDE_ALLY['walk_' + k] || null, 
 const FOEDUEL = await fetch('assets/npc/foeduel_meta.json').then(r => r.json()).catch(() => ({})); // 敵将の攻撃モーション（見た目の番号ごと）
 const foeLook = () => G.raid && G.raid.boss ? 4 : G.raid && G.raid.E >= 30 ? 2 : (G.raid && G.raid.w % 2 ? 3 : 1); // 隊長＝槍兵かフードの山賊（週で入れ替え）、副官＝羽飾りの兵、将軍＝斧の山賊
 const FOLLOW = 380; // 当たりのあと、振り抜きを見せる長さ（ミリ秒）
-function clipActor(el, sp, clips, base, T, run, runBase) { // 動画由来の連番を、枠(el)の中の div(sp) に出す。立ち姿の中心を揃え、足元は枠の下端。run＝横向きの走り（あれば）
-  const c0 = clips[0]; if (!c0) return null; let order = [], cur = c0, sc = el.clientHeight / c0.idle.h, setFrame = () => {};
-  el.style.width = c0.idle.w * sc + 'px'; Object.assign(sp.style, { position: 'absolute' });
-  const sh = document.createElement('i'); sh.className = 'sh'; sp.appendChild(sh); const gs = document.createElement('i'); gs.className = 'gs'; el.insertBefore(gs, sp); // 陰影（絵の形に切り抜いたグラデーション）と足元の影
-  const shade = (url, size, pos) => { sh.style.webkitMaskImage = sh.style.maskImage = url; sh.style.webkitMaskSize = sh.style.maskSize = size; sh.style.webkitMaskPosition = sh.style.maskPosition = pos; };
-  const use = c => { cur = c; const sc = el.clientHeight / c.idle.h, cw = c.cw * sc, ch = c.ch * sc, cx = (c.idle.x + c.idle.w / 2) * sc; // 連番ごとに倍率（拡大AIで作り直した連番は寸法が違う）
-    Object.assign(sp.style, { left: el.clientWidth / 2 - cx + 'px', bottom: -(c.pad ?? 2.8) * sc + 'px', width: cw + 'px', height: ch + 'px', backgroundImage: `url(${base}${c.f})`, backgroundSize: `${c.cols * cw}px ${4 * ch}px` });
-    shade(`url(${base}${c.f})`, `${c.cols * cw}px ${4 * ch}px`, '0 0');
-    setFrame = i => { const ps = `${-(i % c.cols) * cw}px ${-Math.floor(i / c.cols) * ch}px`; sp.style.backgroundPosition = ps; sh.style.webkitMaskPosition = sh.style.maskPosition = ps; }; setFrame(0); };
-  const useRun = () => { const k = el.clientHeight * .97 / run.ph, cw = run.cw * k, ch = run.ch * k; // 走りの絵：人物の高さを立ち姿にそろえ、足元を枠の下端に
-    Object.assign(sp.style, { left: el.clientWidth / 2 - run.ax * k + 'px', bottom: -(run.ch - run.ay) * k + 'px', width: cw + 'px', height: ch + 'px', backgroundImage: `url(${runBase}${run.f})`, backgroundSize: `${run.cols * cw}px ${Math.ceil(run.n / run.cols) * ch}px` });
-    shade(`url(${runBase}${run.f})`, `${run.cols * cw}px ${Math.ceil(run.n / run.cols) * ch}px`, '0 0');
-    setFrame = i => { const ps = `${-(i % run.cols) * cw}px ${-Math.floor(i / run.cols) * ch}px`; sp.style.backgroundPosition = ps; sh.style.webkitMaskPosition = sh.style.maskPosition = ps; }; setFrame(0); };
-  use(c0);
-  return { reset: () => use(c0),
-    run(ms, rate = 1) { if (!run) return false; useRun(); const step = Math.max(28, run.durs[0] / rate); for (let t = 0, i = 0; t < ms; t += step, i++) T(() => setFrame(i % run.n), t); return true; }, // 走りのコマを ms の間まわす
-    play(at, tame = 0) { // at から振りかぶりを始める。当たりの直前のコマで tame ミリ秒止める（溜め）。返り値：使った動きと、当たりの時刻
-      // 振りかぶりは詰める：最初の構えのコマ（動画の静止、100〜360ms）は飛ばし、当たりまでの各コマは最大90msを3倍速。溜めは hold のコマで tame だけ止めて作る
-      if (!order.length) order = clips.map((_, i) => i).sort(() => Math.random() - .5); const c = clips[order.pop()], SPD = 2.2, PRE = 3;
-      const ts = []; let t = 0; c.durs.forEach((d, fi) => { ts.push(t); t += fi === 0 ? 0 : fi < c.hit ? Math.min(d, 90) / PRE : d / SPD; if (fi === (c.hold ?? c.hit - 1)) t += tame; }); // hold＝振りかぶりの頂点（目で選んだコマ）で止める
-      const end = Math.min(t, ts[c.hit] + FOLLOW); // 振り抜きは FOLLOW ミリ秒で打ち切って構えへ戻す（長い残心で、下がる動きと重ならないように）
-      T(() => use(c), Math.max(0, at - 5)); ts.forEach((tt, fi) => { if ((fi || c.hit === 0) && tt <= end) T(() => setFrame(fi), at + tt); }); T(() => use(c0), at + end + 30);
+function clipActor(el, sp, clips, base, T, run, runBase) { // 動画由来の連番を、枠(el)の中に出す。立ち姿の中心を揃え、足元は枠の下端。run＝横向きの走り（あれば）
+  // 連番ごとに層（div）を最初に全部作り、切り替えは表示/非表示だけ（絵の差し替えで GPU への載せ直しが起きて、つなぎで止まるのを防ぐ）
+  // コマ送りは画面の描画（requestAnimationFrame）に合わせる。タイマーを大量に積まない
+  const c0 = clips[0]; if (!c0) return null; let order = [];
+  el.style.width = c0.idle.w * (el.clientHeight / c0.idle.h) + 'px'; Object.assign(sp.style, { position: 'absolute', inset: '0', background: 'none' });
+  const gs = document.createElement('i'); gs.className = 'gs'; el.insertBefore(gs, sp); // 足元の影
+  const mk = (url, cols, rows, cw, ch, left, bottom) => { const L = document.createElement('div'); L.className = 'ly'; const sh = document.createElement('i'); sh.className = 'sh'; L.appendChild(sh);
+    const size = `${cols * cw}px ${rows * ch}px`; Object.assign(L.style, { left: left + 'px', bottom: bottom + 'px', width: cw + 'px', height: ch + 'px', backgroundImage: url, backgroundSize: size });
+    sh.style.webkitMaskImage = sh.style.maskImage = url; sh.style.webkitMaskSize = sh.style.maskSize = size; sp.appendChild(L);
+    return { L, set(i) { const ps = `${-(i % cols) * cw}px ${-Math.floor(i / cols) * ch}px`; L.style.backgroundPosition = ps; sh.style.webkitMaskPosition = sh.style.maskPosition = ps; } }; };
+  const H = el.clientHeight, W2 = el.clientWidth / 2;
+  const lay = clips.map(c => { const k = H / c.idle.h; return mk(`url(${base}${c.f})`, c.cols, 4, c.cw * k, c.ch * k, W2 - (c.idle.x + c.idle.w / 2) * k, -(c.pad ?? 2.8) * k); });
+  const runLay = run ? (() => { const k = H * .97 / run.ph; return mk(`url(${runBase}${run.f})`, run.cols, Math.ceil(run.n / run.cols), run.cw * k, run.ch * k, W2 - run.ax * k, -(run.ch - run.ay) * k); })() : null;
+  let curL = null, seq = null, raf = 0;
+  const show = Lo => { if (curL === Lo) return; if (curL) curL.L.style.visibility = 'hidden'; curL = Lo; Lo.L.style.visibility = 'visible'; };
+  [...lay, runLay].forEach(x => x && (x.L.style.visibility = 'hidden')); show(lay[0]); lay[0].set(0);
+  const tick = now => { raf = 0; if (!seq || !el.isConnected) return; const t = now - seq.t0; // seq：{ Lo, ts（各コマの開始ミリ秒）, end, loop, done }
+    if (t < 0) { const p = seq.prev; if (p) { show(p.Lo); p.Lo.set(Math.floor((now - p.t0) / p.step) % p.n); } raf = requestAnimationFrame(tick); return; } // 始まるまでは、前の走りを回し続ける
+    if (seq.loop) { show(seq.Lo); seq.Lo.set(Math.floor(t / seq.step) % seq.n); }
+    else { if (t >= seq.end) { const d = seq.done; seq = null; d && d(); return; } let i = 0; while (i + 1 < seq.ts.length && seq.ts[i + 1] <= t) i++; show(seq.Lo); seq.Lo.set(i); }
+    raf = requestAnimationFrame(tick); };
+  const start = (q, at) => { const prev = seq && seq.loop ? seq : null; seq = { ...q, prev, t0: performance.now() + at }; if (!raf) raf = requestAnimationFrame(tick); };
+  const idle = () => { seq = null; show(lay[0]); lay[0].set(0); };
+  return { reset: idle,
+    run(ms, rate = 1) { if (!runLay) return false; start({ Lo: runLay, loop: true, step: Math.max(28, run.durs[0] / rate), n: run.n }, 0); T(() => { if (seq && seq.loop) seq = null; }, ms + 200); return true; }, // 走りのコマを回す（攻撃が始まれば上書き）
+    play(at, tame = 0) { // at（今からのミリ秒）で振りかぶりを始め、hold のコマで tame ミリ秒止める（溜め）。返り値：使った動きと、当たりの時刻
+      // 速さはコマごとに変える：当たりまでは元の時間を 1/5 に（16〜35ms。全部のコマを見せる＝高速再生）、溜めは hold で止める、振り抜きは 1/2.2 で FOLLOW まで
+      if (!order.length) order = clips.map((_, i) => i).sort(() => Math.random() - .5); const ci = order.pop(), c = clips[ci];
+      const ts = []; let t = 0; c.durs.forEach((d, fi) => { ts.push(t); t += fi < c.hit ? Math.max(16, Math.min(35, d / 5)) : d / 2.2; if (fi === (c.hold ?? c.hit - 1)) t += tame; });
+      const end = Math.min(t, ts[c.hit] + FOLLOW);
+      start({ Lo: lay[ci], ts, end, done: idle }, at);
       return { c, hitAt: at + ts[c.hit] }; } };
 }
 const HUMAN = { mina: 163, sera: 157, ranka: 166, garou: 212, sol: 197, f1: 197, f2: 205, f3: 180, f4: 204 }; // 見た目の背の高さ：一騎打ちと戦場の大きさをこれで揃える。槍の穂先・兜の飾りが測った高さに入る絵は大きめの値（並べて目で合わせた値）
@@ -967,8 +981,8 @@ function playDuel(k, done) { // 画面いっぱいの一騎打ち。五合の勝
     <div class="sd r"><div class="fw"><div class="fc foe" style="background-image:url(assets/npc/foe_${look}.webp)"></div><i class="rg"></i></div><div class="hb"><div class="nm">${F.n}</div><div class="hp"><b style="width:100%"></b></div></div></div></div>
     <div class="stage"><div class="cam"><div class="bg" style="background-image:url(assets/field/duel.jpg),url(assets/field/${R.dir || 'pass'}.jpg)"></div>
       <div class="f L" style="height:${27 * (HUMAN[k] || 165) / 170}%">${(DUEL_CLIP[k] || []).length ? `<div class="sp"></div>` : `<img src="../ally/${k}.png">`}</div><div class="f R" style="height:${27 * (HUMAN['f' + look] || 178) / 170}%">${(FOEDUEL[look] || []).length ? `<div class="sp"></div>` : `<img src="assets/npc/foe_${look}.webp">`}</div>
-      </div><div class="say l"></div><div class="say r foe"></div><div class="cut"><img src="${faceURL[k]}"><div></div></div></div>
-    <div class="ft"><i class="cn bl"></i><i class="cn br"></i><h3>戦況</h3><div class="blr"><span>自軍</span><div class="bal"><b style="width:50%"></b><u style="left:50%"></u></div><span>敵軍</span></div>
+      </div><div class="cut"><img src="${faceURL[k]}"><div></div></div></div>
+    <div class="ft"><i class="cn bl"></i><i class="cn br"></i><div class="ln"><p class="l"></p><p class="r foe"></p></div><h3>戦況</h3><div class="blr"><span>自軍</span><div class="bal"><b style="width:50%"></b><u style="left:50%"></u></div><span>敵軍</span></div>
       <div class="row"><div class="pips">${pipsHtml}</div><div class="stt">間合いを測る</div></div>
       <div class="bt"><button class="sp2">▶▶ 速度 ×1</button><button class="go2"><b>鬨の声</b><small>次の一合を強化</small><em>残り${GM.orders(G)}回</em><i class="tm"><b></b></i></button><button class="sk">スキップ ›</button></div></div>
     <div class="res"></div>`;
@@ -977,7 +991,7 @@ function playDuel(k, done) { // 画面いっぱいの一騎打ち。五合の勝
   const T = (f, ms) => { const t = setTimeout(f, ms); timers.push(t); return t; }, D = ms => ms / spd;
   const actL = clipActor(L, L.querySelector('.sp') || document.createElement('div'), DUEL_CLIP[k] || [], '../ally/', T, runClipOf(k), '../ally/');
   const actR = clipActor(Rf, Rf.querySelector('.sp') || document.createElement('div'), FOEDUEL[look] || [], 'assets/npc/', T, foeRunOf(look), 'assets/npc/');
-  const sayT = {}; const say = (side, text, ms = 1700, big = false) => { const e = $('.say.' + side); clearTimeout(sayT[side]); e.classList.remove('on'); void e.offsetWidth; e.classList.toggle('big', big); e.innerHTML = `<small>${side === 'l' ? A.n : F.n}</small>${text}`; e.classList.add('on'); sayT[side] = setTimeout(() => e.classList.remove('on'), ms); timers.push(sayT[side]); };
+  const sayT = {}; const say = (side, text, ms = 1700, big = false) => { const e = $('.ln .' + side); /* 台詞は舞台に重ねず、下の帯（戦況の上の段）に出す */ clearTimeout(sayT[side]); e.classList.remove('on'); void e.offsetWidth; e.classList.toggle('big', big); e.innerHTML = `<small>${side === 'l' ? A.n : F.n}</small>${text}`; e.classList.add('on'); sayT[side] = setTimeout(() => e.classList.remove('on'), ms); timers.push(sayT[side]); };
   const upd = () => { hl.style.width = hpL + '%'; hr.style.width = hpR + '%'; const b = Math.max(6, Math.min(94, 50 + (hpL - hpR) / 2)); bal.style.width = b + '%'; balu.style.left = b + '%'; word = b > 62 ? '優勢' : b < 38 ? '劣勢' : '拮抗'; };
   let word = '拮抗'; const msg = (html, hv = false) => { stt.innerHTML = html; stt.classList.toggle('hv', hv); };
   const apply = (i, r) => { if (r.ally) { aw++; hpR = Math.max(0, hpR - r.dmg); } else { fw++; hpL = Math.max(0, hpL - r.dmg); } nextI = i + 1; pips[i].classList.remove('cur'); pips[i].classList.add(r.ally ? 'w' : 'l'); };
@@ -1002,7 +1016,7 @@ function playDuel(k, done) { // 画面いっぱいの一騎打ち。五合の勝
     at.style.transition = `transform ${runMs}ms ${ran ? 'linear' : 'ease-in'}`; at.style.transform = `translateX(${dx}px)`;
     camTo(zRun, cx0 + dx * .25, lead); T(() => camTo(zRun, cx1, runMs - lead, 'linear'), lead); // 寄ってから、走りに合わせて追う
     const clashX = (r.ally ? ra.right + dx : ra.left + dx) - rs.left + dir * sw * .02, tame = D(big ? 300 : 170);
-    const P = act ? act.play(Math.max(0, runMs - D(40)), tame) : { c: null, hitAt: runMs + 240 };
+    const P = act ? act.play(Math.max(0, runMs - D(120)), tame) /* 走りの終わりに重ねて振りかぶり始める（踏み込みながら構える） */ : { c: null, hitAt: runMs + 240 };
     const zAtk = big ? zRun * 1.08 : zRun, fx = cx1 + dir * sw * .06; // 攻撃の間も、走った側に寄ったまま（少しだけ前へ向ける）。二人を収める案は FOCUS_ATK=false
     T(() => FOCUS_ATK ? camTo(zAtk, fx, D(220)) : camTo(big ? zFit * 1.06 : zFit, mid, D(big ? 320 : 240)), runMs);
     if (r.kind === 'counter') { const c = $('.cut'); c.querySelector('div').innerHTML = `見切り！<small>${A.n}が大技を受け流す</small>`; T(() => c.classList.add('on'), runMs); T(() => c.classList.remove('on'), P.hitAt + 500); }
