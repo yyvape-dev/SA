@@ -400,6 +400,7 @@ function draw() {
   ctx.restore(); // 世界座標ここまで
   ctx.restore();
   if (G.flash > 0) { ctx.fillStyle = 'rgba(' + (G.flashRGB || '255,255,255') + ',' + Math.min(1, G.flash) + ')'; ctx.fillRect(0, 0, W, CVH()); }
+  drawSay(); // 連携の台詞の吹き出し（battle/ally.js、画面座標）
   drawScreenFx(); // 被弾・瀕死の画面の端の赤（battle/fx2.js）
   if (G.state !== 'title') drawHud();
   drawCutin(); // 仲間の参入（battle/ally.js）

@@ -13,7 +13,7 @@ var ALLY_DEF = {
   sera: { n: 'セラ', r: '内政役', clips: [2], h: HEIGHT.sera, pow: 9, range: 200, sk: '癒しの頁', col: '#b8f0c0',
     join: '姫さま、お待たせしました！ 手当ては任せてください。', use: '姫さま、いま治します！' },
   ranka: { n: 'ランカ', r: '将軍', clips: [0, 1, 2], h: HEIGHT.ranka, pow: 34, range: 250, sk: '星震', col: '#9fd8ff',
-    join: 'お嬢、お待たせ〜。あとはわたしが片付けるじゃん？', use: '星、震わせちゃおっか。' }
+    join: 'お嬢、お待たせ〜。あとはわたしが片付けるじゃん？', use: 'ちょっとだけ本気でいくよ！' }
 };
 var ALLY_SPD = 2.8, ALLY_RUN = null, ALLY_CLIP = []; // 攻撃の連番は一騎打ちの2.8倍速
 function allyLoad(one) {
@@ -49,6 +49,7 @@ function allyTick(dt) {
   a.t += dt; a.anim += dt;
   if (G.cutin) { G.cutin.t += dt; if (G.cutin.t >= G.cutin.life) G.cutin = null; }
   starfallTick(dt); // 星震の進行（battle/fx2.js）
+  if (G.say) { G.say.t += dt; if (G.say.t >= G.say.life) G.say = null; }
   if (G.coCD > 0) G.coCD = Math.max(0, G.coCD - dt);
   if (a.cd > 0) a.cd -= dt;
   var minX = LK(G.seg) + 50, maxX = heroMaxX() + 20;
@@ -112,7 +113,7 @@ function tryCo() {
   if (a.state === 'enter') a.state = 'idle';
   G.coCD = G.coMax;
   a.atk = null; allyStartAtk(a, true); cineStart(a, allyH(a)); // 連携：打つ仲間へ寄って少しスロー → 放つ瞬間に引く（battle/fx2.js）
-  addText(a.x, a.y - allyH(a) - 30, ALLY_DEF[a.k].use, 22, ALLY_DEF[a.k].col, 1.3);
+  G.say = { a: a, s: ALLY_DEF[a.k].use, t: 0, life: 1.7 }; // 台詞は吹き出しで（drawSay）
 }
 function allySkill(a) {
   var d = ALLY_DEF[a.k], h = G.hero, i, e, n = 0;
@@ -196,5 +197,22 @@ function drawCutin() { // 参入のカットイン（画面座標）：青い帯
   for (var i = 0; i < line.length; i++) { var tt = cur + line[i]; if (ctx.measureText(tt).width > mw && cur) { ls.push(cur); cur = line[i]; } else cur = tt; }
   ls.push(cur);
   for (var j = 0; j < Math.min(2, ls.length); j++) txt(ls[j], 30, y0 + 158 + j * 28, 21, '#dbeaff', 'left', 4);
+  ctx.restore();
+}
+
+/* 連携の台詞の吹き出し（画面座標。寄りの拡大を計算して仲間の頭の上に置き、画面からはみ出さないよう寄せる。文字は拡大しない）。羊皮紙色の地＋濃い縁＋下向きのしっぽ。ポンと出て、最後に薄れる */
+function drawSay() {
+  var q = G.say; if (!q || !q.a) return;
+  var a = q.a, t = q.t, pop = t < 0.14 ? 0.6 + 0.4 * vEase(t / 0.14) + 0.06 * Math.sin(t / 0.14 * Math.PI) : 1, al = t > q.life - 0.25 ? Math.max(0, (q.life - t) / 0.25) : Math.min(1, t / 0.06);
+  ctx.save(); ctx.font = '700 24px "DMincho","Hiragino Mincho ProN","Yu Mincho",serif';
+  var tw = ctx.measureText(q.s).width, pw = tw + 36, ph = 50, hx = a.x - camX, hy = a.y - allyH(a) - 34 - camY - TOPY, c = G.cine;
+  if (c && c.px != null && c.z > 1.002) { hx = c.px + (hx - c.px) * c.z; hy = c.py + (hy - c.py) * c.z; }
+  var bx = clamp(hx, pw / 2 + 10, W - pw / 2 - 10), by = Math.max(VH * 0.14 + ph, hy);
+  ctx.globalAlpha = al; ctx.translate(bx, by); ctx.scale(pop, pop);
+  var x0 = -pw / 2, y0 = -ph, r = 14, tx = clamp(hx - bx, x0 + 22, -x0 - 22);
+  ctx.beginPath(); ctx.moveTo(x0 + r, y0); ctx.lineTo(-x0 - r, y0); ctx.quadraticCurveTo(-x0, y0, -x0, y0 + r); ctx.lineTo(-x0, -r); ctx.quadraticCurveTo(-x0, 0, -x0 - r, 0);
+  ctx.lineTo(tx + 10, 0); ctx.lineTo(tx - 2, 16); ctx.lineTo(tx - 8, 0); ctx.lineTo(x0 + r, 0); ctx.quadraticCurveTo(x0, 0, x0, -r); ctx.lineTo(x0, y0 + r); ctx.quadraticCurveTo(x0, y0, x0 + r, y0); ctx.closePath();
+  ctx.fillStyle = 'rgba(248,240,220,0.96)'; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = '#4a3a24'; ctx.stroke();
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#2a1e12'; ctx.fillText(q.s, 0, y0 + ph / 2 + 1);
   ctx.restore();
 }

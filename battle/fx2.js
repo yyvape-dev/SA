@@ -367,5 +367,5 @@ function cineTick(rdt) {
 function cineApply() {
   var c = G.cine; if (!c || Math.abs(c.z - 1) < 0.002) return;
   var px = clamp(c.fx - camX, W * 0.28, W * 0.72), py = clamp(c.fy - camY - TOPY, VH * 0.3, VH * 0.62); // 寄る点（画面の座標）。端に寄りすぎない
-  ctx.translate(px, py); ctx.scale(c.z, c.z); ctx.translate(-px, -py);
+  c.px = px; c.py = py; ctx.translate(px, py); ctx.scale(c.z, c.z); ctx.translate(-px, -py);
 }
