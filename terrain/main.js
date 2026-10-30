@@ -1452,8 +1452,8 @@ function frame(now) {
 }
 canvas.addEventListener('webglcontextlost', e => { e.preventDefault(); status.ok = false; status.reason = 'WebGLが失われた'; });
 G = loadSave() || GM.newState(layout.areas); syncMap(true); refreshUI(); takeBattleResult();
-if (params.has('field')) { const sv = JSON.stringify(G); for (const a of Object.values(GM.ALLY)) if (a.join && !G.open.includes(a.join)) G.open.push(a.join); G.raid = { kind: 'raid', E: 46, name: '将軍の侵攻（試し）', boss: true, w: 12, dir: 'pass', ranka: false }; G.troops = Math.max(G.troops || 0, 6); fieldBattle('auto', () => { G = JSON.parse(sv); writeSave(); refreshUI(); ui.toast('試しの戦闘を終えた（記録は残らない）'); }); } // ?field で任せた戦闘だけ見る
-if (params.has('duel')) { const sv = JSON.stringify(G); for (const a of Object.values(GM.ALLY)) if (a.join && !G.open.includes(a.join)) G.open.push(a.join); G.rankaAway = false; G.rankaRest = false; // 試しは仲間4人とも選べる（ランカも）
+if (params.has('field')) { const sv = JSON.stringify(G); for (const a of Object.values(GM.ALLY)) if (a.join && !G.open.includes(a.join)) G.open.push(a.join); G.met = Object.assign({}, G.met, { lily: true }); /* 出来事で加入する仲間（リリィ）も試しでは選べる */ G.raid = { kind: 'raid', E: 46, name: '将軍の侵攻（試し）', boss: true, w: 12, dir: 'pass', ranka: false }; G.troops = Math.max(G.troops || 0, 6); fieldBattle('auto', () => { G = JSON.parse(sv); writeSave(); refreshUI(); ui.toast('試しの戦闘を終えた（記録は残らない）'); }); } // ?field で任せた戦闘だけ見る
+if (params.has('duel')) { const sv = JSON.stringify(G); for (const a of Object.values(GM.ALLY)) if (a.join && !G.open.includes(a.join)) G.open.push(a.join); G.met = Object.assign({}, G.met, { lily: true }); /* 出来事で加入する仲間（リリィ）も試しでは選べる */ G.rankaAway = false; G.rankaRest = false; // 試しは仲間4人とも選べる（ランカも）
   G.raid = { kind: 'raid', E: 46, name: '将軍の侵攻（試し）', boss: true, w: 12, dir: 'pass', ranka: true }; maybeDuel(() => { G = JSON.parse(sv); writeSave(); refreshUI(); ui.toast('試しの一騎打ちを終えた（記録は残らない）'); }); } // ?duel で一騎打ちだけ見る
 resize(); apply(); renderer.render(scene, camera); status.ok = true; if (window.__bootDone) window.__bootDone();
 window.__t.castle = () => { select(null); selCastle = true; refreshUI(); }; // 試験：城を選ぶ
