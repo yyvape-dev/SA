@@ -1016,7 +1016,7 @@ function playDuel(k, done) { // 画面いっぱいの一騎打ち。五合の勝
     const CLOSE = .10; /* 詰める深さ：絵の枠（余白つき）同士を、舞台の幅のこの割合だけ重ねる（2026-10-29、もっと近くへ） */ const gap = r.ally ? rd.left - ra.right : ra.left - rd.right, dx = dir * Math.max(0, gap + sw * CLOSE); // 相手の懐まで詰める
     const cx0 = (ra.left + ra.right) / 2 - rs.left, cx1 = cx0 + dx; // 走る側の中心（世界の座標。カメラは毎合 引きから始まる）
     const span = Math.max(ra.right + dx, rd.right) - Math.min(ra.left + dx, rd.left), mid = (Math.max(ra.right + dx, rd.right) + Math.min(ra.left + dx, rd.left)) / 2 - rs.left;
-    const zFit = Math.min(2.2, sw / (span + sw * .1)), zRun = Math.max(zFit + .5, 2.1); // 攻撃＝二人がぎりぎり収まる／走り＝その人を大きく
+    const zFit = Math.min(1.9, sw / (span + sw * .1)), zRun = Math.max(zFit + .3, 1.7); /* 2026-10-30 寄りを約2割弱く（以前 2.2・+.5・2.1） */ // 攻撃＝二人がぎりぎり収まる／走り＝その人を大きく
     const runMs = D(dx ? 470 : 160), ran = act && dx ? act.run(runMs, r.ally ? 1 : 2.2) : false, lead = D(140);
     at.style.transition = `transform ${runMs}ms ${ran ? 'linear' : 'ease-in'}`; at.style.transform = `translateX(${dx}px)`;
     const FR = dir > 0 ? .32 : .68; /* 寄るとき、攻める側を中央より後ろに置き、進む先（相手と斬撃）に余白を残す（2026-10-29） */ camTo(zRun, cx0 + dx * .25, lead, undefined, FR); T(() => camTo(zRun, cx1, runMs - lead, 'linear', FR), lead); // 寄ってから、走りに合わせて追う
