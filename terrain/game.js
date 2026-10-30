@@ -278,6 +278,7 @@ export const duelP = (s, k) => { // ミナは絆2・3で勝率が上がる。ラ
   if (k === 'mina') p += (bond(s, 'mina') >= 2 ? .12 : 0) + (bond(s, 'mina') >= 3 ? .08 : 0);
   p += drillP(s); // 訓練場
   if (k === 'ranka') p = Math.max(.7, p);
+  if (k === 'lily') p = Math.max(.4, p); // リリィも英雄：相手が誰でも最低40%（2026-10-30、ユーザー）
   return clamp(p, .1, k === 'ranka' ? .95 : .9); };
 export function duelSet(s, k, win) { s.raid.duel = win; s.raid.champ = k; s.log.push(`一騎打ち：${ALLY[k].n}が${win ? '勝った' : '敗れた'}`); return win; }
 export function duel(s, k, rnd = Math.random) { return duelSet(s, k, rnd() < duelP(s, k)); } // 演出なしで決めるとき

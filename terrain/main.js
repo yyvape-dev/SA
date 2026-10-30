@@ -1,7 +1,7 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793450000';
+import * as GM from './game.js?v=1793470000';
 import { createUI } from './ui.js?v=1793290034';
 import { createMorning } from './morning.js?v=1793290034';
 import { slashFX, impactFX, clashFX, chargeFX, rallyFX } from './fx_slash.js?v=1793390000';
@@ -824,7 +824,8 @@ const dCss = document.createElement('style'); dCss.textContent = `
 #dsel .pn{position:relative;z-index:1;flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;padding:0 calc(16*var(--u)) calc(52*var(--u))}
 #dsel h2{margin:calc(-2*var(--u)) 0 0;font-size:calc(23*var(--u));font-weight:700;letter-spacing:.12em}
 #dsel .dv{width:calc(220*var(--u));margin:calc(2*var(--u)) 0 calc(12*var(--u))}
-#dsel .grid{width:100%;display:grid;grid-template-columns:1fr 1fr;gap:calc(10*var(--u))}
+#dsel .grid{width:100%;display:grid;grid-template-columns:1fr 1fr;gap:calc(10*var(--u));flex:0 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:calc(2*var(--u))} /* 仲間が増えて入りきらないときは、カードの欄だけスクロール */
+#dsel.many .hero{flex-basis:30%}#dsel.many .cd{aspect-ratio:2.05}#dsel.many .dv{margin-bottom:calc(6*var(--u))}#dsel.many .cd .nm{font-size:calc(17*var(--u))}#dsel.many .go{height:calc(58*var(--u));margin-top:calc(6*var(--u))}#dsel.many .no{margin-top:calc(8*var(--u))} /* 5人以上：敵将の絵とカードを縮める */
 #dsel .cd{position:relative;aspect-ratio:1.58;overflow:hidden;cursor:pointer;background:#ece2c8;border:1px solid #bba57a;box-shadow:inset 0 0 0 calc(3*var(--u)) #ece2c8,inset 0 0 0 calc(4*var(--u)) #cdb98e;transition:box-shadow .15s,background .15s}
 #dsel .cd img{position:absolute;left:0;top:0;height:100%;width:60%;object-fit:cover;object-position:50% 10%;-webkit-mask-image:linear-gradient(90deg,#000 62%,transparent);mask-image:linear-gradient(90deg,#000 62%,transparent)}
 #dsel .cd .tx{position:absolute;right:calc(8*var(--u));top:0;bottom:0;width:44%;display:flex;flex-direction:column;justify-content:center;align-items:center}
@@ -1062,7 +1063,7 @@ function openSelect(cs, F, onPick, onDecline) { // 一騎打ちに送り出す�
   duelSel.querySelectorAll('.cd').forEach(c => { c.onclick = e => { e.stopPropagation(); sel = c.dataset.k; mark(); }; });
   if (go) go.onclick = e => { e.stopPropagation(); duelSel.style.display = 'none'; onPick(sel); };
   duelSel.querySelector('.no').onclick = e => { e.stopPropagation(); duelSel.style.display = 'none'; onDecline(); };
-  duelSel.style.display = 'flex';
+  duelSel.classList.toggle('many', cs.length > 4); duelSel.style.display = 'flex';
 }
 function maybeDuel(next) { // 接戦なら、一騎打ちに出す仲間を選ぶ
   if (!GM.duelDue(G) || G.raid.duel !== undefined) { next(); return; }
