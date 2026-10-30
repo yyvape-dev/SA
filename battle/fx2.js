@@ -284,8 +284,8 @@ var SF = { dim: 0.3, sky: 0.45, fall: 0.7, quake: 1.25, end: 1.5, dur: 0.1 }; //
 function startStarfall(a) {
   var list = G.enemies.filter(function (e) { return e.state === 'walk' && e.x > camX - 40 && e.x < camX + W + 40; }).sort(function (p, q) { return p.x - q.x; });
   var n = list.length, step = n ? Math.min(0.07, 0.5 / n) : 0, top = camY + TOPY + VH * 0.16, stars = [];
-  for (var i = 0; i < n; i++) stars.push({ e: list[i], x: clamp(list[i].x + rnd(-50, 50), camX + 30, camX + W - 30), y: top + rnd(0, VH * 0.14), at: SF.fall + i * step, r: rnd(10, 14), hit: false });
-  G.starfall = { t: 0, a: a, stars: stars, quaked: false };
+  for (var i = 0; i < n; i++) stars.push({ e: list[i], x: clamp(list[i].x + rnd(-50, 50), camX + 30, camX + W - 30), y: top + rnd(0, VH * 0.14), at: SF.fall + i * step, r: rnd(10, 14), hit: false, wk: rnd(0.6, 1.45), lk: rnd(0.7, 1.35), ph: rnd(0, 6.283) }); // wk・lk＝太さと長さの個体差、ph＝明滅のずれ
+  G.starfall = { t: 0, a: a, stars: stars, quaked: false, carry: 0.55 }; // carry＝溜めの暗さから続けて暗くする（踏み抜きで一瞬明るく戻らない）
 }
 function starfallTick(dt) {
   var sf = G.starfall; if (!sf) return;
@@ -306,7 +306,7 @@ function starfallTick(dt) {
   }
   if (sf.t >= SF.end) G.starfall = null;
 }
-function sfDimA(sf) { var t = sf.t; return t < SF.dim ? t / SF.dim : t < SF.quake ? 1 : Math.max(0, 1 - (t - SF.quake) / (SF.end - SF.quake)); }
+function sfDimA(sf) { var t = sf.t, c = sf.carry || 0; return t < SF.dim ? c + (1 - c) * t / SF.dim : t < SF.quake ? 1 : Math.max(0, 1 - (t - SF.quake) / (SF.end - SF.quake)); }
 // 夜空の暗転（世界座標。背景の後・人物の前に描く）
 function drawStarDim() {
   var sf = G.starfall; if (!sf) return; var k = sfDimA(sf), x0 = camX - 20, y0 = camY + TOPY - 20, w = W + 40, h = CVH() + 40;
@@ -336,9 +336,11 @@ function drawStarfall() {
       vGlow(s.x, s.y, s.r * 3.2 * ap, C, ap * k); vStar4(s.x, s.y, s.r * 2.2 * ap * tw, 0, C.core, ap * k); vStar4(s.x, s.y, s.r * 1.2 * ap, 0.785, C.spark, 0.8 * ap * k);
       if (e && i < 10) { var g = ctx.createLinearGradient(s.x, s.y, tx, ty); g.addColorStop(0, vrgba(C.main, 0.35 * ap * k)); g.addColorStop(1, vrgba(C.main, 0)); ctx.strokeStyle = g; ctx.lineWidth = 1.2; ctx.setLineDash([4, 8]); ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(tx, ty); ctx.stroke(); ctx.setLineDash([]); }
     } else if (!s.hit) { // 落ちる星：3層の筋
-      var f = vEaseIn((t - s.at) / SF.dur), x = s.x + (tx - s.x) * f, y = s.y + (ty - s.y) * f, vx = tx - s.x, vy = ty - s.y, L = Math.min(260, Math.hypot(vx, vy) * (0.25 + 0.5 * f));
-      vStreak(x, y, vx, vy, L, 16, C.glow, 0.7); vStreak(x, y, vx, vy, L * 0.8, 6, C.main, 1); vStreak(x, y, vx, vy, L * 0.55, 2.2, C.core, 1);
-      vStar4(x, y, s.r * 2.4, 0, C.core, 1);
+      var u = (t - s.at) / SF.dur, f = u * u * u, x = s.x + (tx - s.x) * f, y = s.y + (ty - s.y) * f, vx = tx - s.x, vy = ty - s.y; // 3乗で加速（重力のように、着弾の直前が一番速い）
+      var L = Math.min(300, Math.hypot(vx, vy) * (0.2 + 0.6 * f)) * s.lk, sh = (1 - 0.6 * f) * s.wk; // 着弾に近づくほど細く鋭く
+      var fl = 0.72 + 0.28 * Math.abs(Math.sin(G.t * 61 + s.ph) * Math.sin(G.t * 37 + s.ph * 2)); // 毎フレームのパチパチした明滅
+      vStreak(x, y, vx, vy, L, 18 * sh, C.glow, 0.7 * fl); vStreak(x, y, vx, vy, L * 0.8, 6.5 * sh, C.main, fl); vStreak(x, y, vx, vy, L * 0.55, 2.4 * sh, C.core, 1);
+      vStar4(x, y, s.r * 2.4 * (0.8 + 0.4 * fl), G.t * 8, C.core, fl);
     }
   }
   ctx.restore();
@@ -469,7 +471,7 @@ FX2.vsstomp = function (f) {
   for (var l = 0; l < LY.length; l++) {
     var Ly = LY[l], head = vEase((ms - Ly.lag) / 120), fade = Math.max(0, 1 - Math.max(0, ms - 160) / 520); if (head <= 0 || fade <= 0) continue;
     var Wd = f.h * 0.55 * Ly.w * (0.6 + 0.4 * fade), hy = y - PH * head, g = ctx.createLinearGradient(0, y, 0, hy);
-    g.addColorStop(0, vrgba(Ly.c, Ly.a * fade)); g.addColorStop(0.7, vrgba(Ly.c, Ly.a * 0.7 * fade)); g.addColorStop(1, vrgba(Ly.c, 0));
+    g.addColorStop(0, vrgba(Ly.c, Ly.a * 0.25 * fade)); g.addColorStop(0.06, vrgba(Ly.c, Ly.a * fade)); g.addColorStop(0.7, vrgba(Ly.c, Ly.a * 0.7 * fade)); g.addColorStop(1, vrgba(Ly.c, 0)); // 根本も先端も四角く切れないよう、両端をぼかす
     ctx.globalCompositeOperation = Ly.dk ? 'source-over' : 'lighter'; ctx.fillStyle = g;
     ctx.beginPath(); ctx.moveTo(x - Wd * 0.25, y); ctx.quadraticCurveTo(x - Wd * 0.55, y - PH * 0.35 * head, x, hy); ctx.quadraticCurveTo(x + Wd * 0.55, y - PH * 0.35 * head, x + Wd * 0.25, y); ctx.closePath(); ctx.fill();
   }
