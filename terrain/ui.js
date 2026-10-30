@@ -27,11 +27,12 @@ const css = `
 #top .t1{display:flex;align-items:center;gap:6px;padding:0 2px}#top .t1w{margin:0 0 0 18px}#top .bnr{position:absolute;left:2px;top:calc(env(safe-area-inset-top) + 0px);height:34px;z-index:1;filter:drop-shadow(0 2px 3px #000)}
 #top .ttl{font:700 11px/1 ${SERIF};color:#ffe3a0;white-space:nowrap}
 #top .wk{flex:1;display:flex;align-items:center;justify-content:space-between;position:relative;min-width:0}
-#top .wk:before{content:"";position:absolute;left:4px;right:4px;top:50%;height:2px;background:#6a5030}
-#top .wk i{position:relative;width:9px;height:9px;background:url(assets/ui/wk_norm.png) center/contain no-repeat;font:700 5px/9px system-ui;color:#e0c890;text-align:center;font-style:normal}
-#top .wk i.past{background-image:url(assets/ui/wk_past.png);color:#d8d0c0}#top .wk i.raid{background-image:url(assets/ui/wk_raid.png);color:#ffe0d0}
-#top .wk i.now{width:15px;height:15px;line-height:15px;font-size:8px;background-image:url(assets/ui/wk_now.png);color:#3a2410;filter:drop-shadow(0 0 5px #ffcc66)}
-#top .scroll{margin:-2px 0 0;display:flex;align-items:center;gap:7px;padding:0 6px;min-height:19px;border-style:solid;border-width:2px 24px;border-color:transparent;border-image:url(assets/ui/scroll.png) 40 110 40 110 fill / 2px 24px stretch;color:#3a2410;text-shadow:none;font:700 11px/1.2 ${SERIF};filter:drop-shadow(0 2px 3px #000a)}
+#top .wk{gap:6px}
+#top .wk .wn{font:700 9px/1 system-ui;color:#e0c890;white-space:nowrap}#top .wk .wn em{font:700 15px/1 ${SERIF};color:#ffe3a0;font-style:normal;margin-right:1px}
+#top .wk .wbar{position:relative;flex:1;height:5px;background:#3a2410;border:1px solid #6a5030;border-radius:3px}
+#top .wk .wfill{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(#ffd27a,#c8862a);border-radius:2px;transition:width .4s}
+#top .wk u{position:absolute;top:-3px;width:2px;height:9px;margin-left:-1px;background:#d8604a;text-decoration:none}
+#top .wk i.bs{position:absolute;top:-6px;width:16px;height:16px;margin-left:-8px;background:url(assets/ui/wk_boss.png) center/contain no-repeat}
 #top .scroll .wkn{font-size:12px;white-space:nowrap}#top .scroll .sep{width:1px;align-self:stretch;background:#8a6430}
 #top .scroll .foe{margin-left:auto;display:flex;align-items:center;gap:3px;color:#7a1a10;white-space:nowrap}
 #top .res{margin:-3px -4px 0;display:grid;grid-template-columns:repeat(6,1fr);gap:0;padding:0 2px}
@@ -91,7 +92,7 @@ export function createUI({ onEndWeek, onReset }) {
   const ui = {
     // d = {title, week, weeks, raidWeeks:[], bossWeek, band:{wk, next, foe}, res:[{ic,lab,val,sub,cls,bar,col}]}
     top(d) {
-      const wk = Array.from({ length: d.weeks }, (_, i) => { const w = i + 1, c = w < d.week ? 'past' : w === d.week ? 'now' : d.raidWeeks.includes(w) ? 'raid' : ''; return w === d.bossWeek && w !== d.week ? `<i style="width:16px;height:16px;background-image:url(assets/ui/wk_boss.png)"></i>` : `<i class="${c}">${w}</i>`; }).join('');
+      const wk = (() => { const pc = i => ((i - 0.5) / d.weeks * 100).toFixed(2); const ticks = d.raidWeeks.filter(w => w !== d.bossWeek).map(w => `<u style="left:${pc(w)}%"></u>`).join(''); const boss = d.bossWeek ? `<i class="bs" style="left:${pc(d.bossWeek)}%"></i>` : ''; return `<b class="wn"><em>${d.week}</em>/${d.weeks}</b><span class="wbar"><span class="wfill" style="width:${(d.week / d.weeks * 100).toFixed(1)}%"></span>${ticks}${boss}</span>`; })();
       top.innerHTML = `<img class="bnr" src="assets/ui/banner.png" alt=""><div class="frs t1w"><div class="t1"><span class="ttl">${d.title}</span><div class="wk">${wk}</div></div></div>
         <div class="scroll"><span class="wkn">第${d.band.wk}週</span><span class="sep"></span><span>${d.band.next}</span><span class="foe"><img src="assets/ui/seal.png" alt="" style="height:17px">${d.band.foe}</span></div>
         <div class="res frs">${d.res.map(r => `<div title="${r.lab}">${ico(r.ic, 16)}<span style="min-width:0;flex:1"><b>${r.val}${r.sub ? `<span class="${r.cls || 'd'}"> ${r.sub}</span>` : ''}</b>${r.bar !== undefined ? `<div class="bar"><span style="width:${Math.max(0, Math.min(100, r.bar))}%;background:${r.col || '#7ac06a'}"></span></div>` : ''}</span></div>`).join('')}</div>`;

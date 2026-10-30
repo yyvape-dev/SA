@@ -12,7 +12,7 @@ var ALLY_DEF = {
     join: 'ガハハ！ 姫、加勢に参りましたぜ！', use: 'まとめて吹っ飛べぇ！' },
   sera: { n: 'セラ', r: '内政役', clips: [2], h: HEIGHT.sera, pow: 9, range: 200, sk: '癒しの頁', col: '#b8f0c0',
     join: '姫さま、お待たせしました！ 手当ては任せてください。', use: '姫さま、いま治します！' },
-  ranka: { n: 'ランカ', r: '将軍', clips: [0, 1, 2], h: HEIGHT.ranka, pow: 34, range: 250, sk: '星震', col: '#9fd8ff',
+  ranka: { n: 'ランカ', r: '将軍', clips: [0, 1, 2, 3], h: HEIGHT.ranka, pow: 34, range: 250, sk: '星震', col: '#9fd8ff',
     join: 'お嬢、お待たせ〜。あとはわたしが片付けるじゃん？', use: 'ちょっとだけ本気でいくよ！' },
   lily: { n: 'リリィ', r: '副団長', clips: [0, 1, 2], h: HEIGHT.lily, pow: 28, range: 240, sk: '追星', col: '#cfe0ff', // 蹴り技。連携＝追星（一直線に駆け抜ける蹴り。拘束中1.5倍）
     join: 'ラナ様、加勢します！ ……ランカばっかりに、いい格好はさせないんだから。', use: 'わたしだって、やれるんだから！' }
@@ -27,7 +27,7 @@ function allyLoad(one) {
     var c = m['run_' + ALLY_K] || m['walk_' + ALLY_K]; if (c) { ALLY_RUN = c; total++; one('arun', 'ally/' + c.f); }
     onDone();
   }).catch(function () { failed++; onDone(); });
-  fetch('ally/duel_meta.json?v=6').then(function (r) { return r.json(); }).then(function (m) {
+  fetch('ally/duel_meta.json?v=7').then(function (r) { return r.json(); }).then(function (m) {
     var list = m[ALLY_K] || [];
     ALLY_DEF[ALLY_K].clips.forEach(function (ci) { var c = list[ci]; if (!c) return; var j = ALLY_CLIP.length; ALLY_CLIP.push(c); total++; one('aclip' + j, 'ally/' + c.f); });
     (m[ALLY_K + '_ult'] || []).forEach(function (c) { var j = ALLY_CLIP.length; ALLY_CLIP.push(c); total++; one('aclip' + j, 'ally/' + c.f); }); // 連携専用のモーション（ランカの星震。c.ult）
