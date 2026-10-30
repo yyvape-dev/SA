@@ -588,7 +588,7 @@ function setPlot(pl, fac, stage) { pl.fac = stage ? fac : null; pl.stage = stage
 
 // ---------- 仲間（家の街の広場に立つ。仲間になると現れる）----------
 const ALLY_POS = { mina: [372, 1066], garou: [568, 1066], sera: [505, 1090], ranka: [435, 1090], lily: [470, 1110] };
-const MAP_BB = { mina: 635, garou: 670, sera: 635, ranka: 625, lily: 628 }, MAP_H = { mina: 76, sera: 76, ranka: 76 * 202 / 210, garou: 76 * 228 / 210, lily: 76 * 212 / 210 }; /* リリィの背の高さは212（2026-10-30） */ // マップ用の絵（ally/map_*.png）の人物の高さ（実測）と、描く高さ
+const MAP_BB = { mina: 635, garou: 670, sera: 635, ranka: 625, lily: 628 }, MAP_H = { mina: 76, sera: 76, ranka: 76 * 202 / 210, garou: 76 * 228 / 210, lily: 76 * 224 / 210 }; /* リリィの背の高さは224（2026-10-30、212から上げた） */ // マップ用の絵（ally/map_*.png）の人物の高さ（実測）と、描く高さ
 const allyMesh = {}, WALK_BBH = { mina: 420, garou: 452, sera: 424, ranka: 426, lily: 430 }; // 歩行コマの中の人物の高さ（元の512px基準）
 for (const k of Object.keys(GM.ALLY)) {
   const mapIm = await loadImage(`../ally/map_${k}.png`), im = mapIm || await loadImage(`../ally/${k}.png`); if (!im) continue; // マップ用の小さな絵（等角）。なければ立ち絵
@@ -972,7 +972,7 @@ function clipActor(el, sp, clips, base, T, run, runBase) { // 動画由来の連
       start({ Lo: lay[ci], ts, end, done: idle }, at);
       return { c, hitAt: at + ts[c.hit] }; } };
 }
-const HUMAN = { mina: 181, sera: 181, ranka: 174, garou: 196, lily: 182, sol: 200, f1: 200, f2: 182, f3: 194, f4: 182 }; /* 2026-10-30 ゲーム全体の背の高さ（battle/core.js の HEIGHT と同じ比。×0.86 で、一騎打ち・任せた戦闘の画面の大きさは従来並み） */ // 見た目の背の高さ：一騎打ちと戦場の大きさをこれで揃える。槍の穂先・兜の飾りが測った高さに入る絵は大きめの値（並べて目で合わせた値）
+const HUMAN = { mina: 181, sera: 181, ranka: 174, garou: 196, lily: 192, sol: 200, f1: 200, f2: 182, f3: 194, f4: 182 }; /* 2026-10-30 ゲーム全体の背の高さ（battle/core.js の HEIGHT と同じ比。×0.86 で、一騎打ち・任せた戦闘の画面の大きさは従来並み） */ // 見た目の背の高さ：一騎打ちと戦場の大きさをこれで揃える。槍の穂先・兜の飾りが測った高さに入る絵は大きめの値（並べて目で合わせた値）
 const duelSel = document.createElement('div'); duelSel.id = 'dsel'; document.body.appendChild(duelSel);
 const duelRank = () => G.raid && G.raid.boss ? 'boss' : G.raid && G.raid.E >= 30 ? 'vice' : 'cap';
 const pickOf = a => a[Math.floor(Math.random() * a.length)];
