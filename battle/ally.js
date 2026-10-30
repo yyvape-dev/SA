@@ -27,7 +27,7 @@ function allyLoad(one) {
     var c = m['run_' + ALLY_K] || m['walk_' + ALLY_K]; if (c) { ALLY_RUN = c; total++; one('arun', 'ally/' + c.f); }
     onDone();
   }).catch(function () { failed++; onDone(); });
-  fetch('ally/duel_meta.json?v=4').then(function (r) { return r.json(); }).then(function (m) {
+  fetch('ally/duel_meta.json?v=6').then(function (r) { return r.json(); }).then(function (m) {
     var list = m[ALLY_K] || [];
     ALLY_DEF[ALLY_K].clips.forEach(function (ci) { var c = list[ci]; if (!c) return; var j = ALLY_CLIP.length; ALLY_CLIP.push(c); total++; one('aclip' + j, 'ally/' + c.f); });
     (m[ALLY_K + '_ult'] || []).forEach(function (c) { var j = ALLY_CLIP.length; ALLY_CLIP.push(c); total++; one('aclip' + j, 'ally/' + c.f); }); // 連携専用のモーション（ランカの星震。c.ult）
