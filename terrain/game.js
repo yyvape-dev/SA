@@ -16,10 +16,12 @@ export const DIM = [1, .7, .5, .35, .25];
 export const facCount = (s, f) => Object.values(s.plots).filter(p => p.fac === f).length;
 export const dimNote = (s, f) => { const n = facCount(s, f); return FAC[f].one ? '1つまで' : n ? `${n + 1}つ目は効き${Math.round((DIM[n] ?? .2) * 100)}%` : ''; };
 export const STAGE = ['空き地', '建築中', '完成', '発展後'];
-export const WEEKS = 12;
-export const SCHED = [ // 襲撃の予定（E=敵の規模）。後半ほど強く、家の街だけでは守り切れない強さにする
-  { w: 3, E: 13, name: '野盗の襲撃', dir: 'river' }, { w: 5, E: 18, name: '謀反軍の偵察隊', dir: 'pass' }, { w: 7, E: 24, name: '謀反軍の先遣隊', dir: 'river' },
-  { w: 9, E: 31, name: '将軍の副官の軍', dir: 'pass' }, { w: 11, E: 38, name: '謀反軍の本隊', dir: 'river' }, { w: 12, E: 46, name: '将軍の侵攻', boss: true, dir: 'pass' },
+export const WEEKS = 24; // 2026-10-30 12週→24週（ユーザー）
+export const SCHED = [ // 襲撃の予定（E=敵の規模）。奇数週に11回、最後の24週に将軍。敵の規模は 13→40 へ少しずつ上げ、将軍は46（12週のときと同じ幅を、2倍の週に広げた）
+  { w: 3, E: 13, name: '野盗の襲撃', dir: 'river' }, { w: 5, E: 15, name: '野盗の大群', dir: 'pass' }, { w: 7, E: 17, name: '謀反軍の斥候', dir: 'river' },
+  { w: 9, E: 19, name: '謀反軍の偵察隊', dir: 'pass' }, { w: 11, E: 22, name: '謀反軍の先遣隊', dir: 'river' }, { w: 13, E: 24, name: '略奪隊の襲撃', dir: 'pass' },
+  { w: 15, E: 27, name: '謀反軍の突撃隊', dir: 'river' }, { w: 17, E: 30, name: '将軍の副官の軍', dir: 'pass' }, { w: 19, E: 33, name: '謀反軍の討伐隊', dir: 'river' },
+  { w: 21, E: 36, name: '副官の精鋭軍', dir: 'pass' }, { w: 23, E: 40, name: '謀反軍の本隊', dir: 'river' }, { w: 24, E: 46, name: '将軍の侵攻', boss: true, dir: 'pass' },
 ];
 const CAP_TROOPS = 16;
 // 戦場（敵が来る方角）。前線＝街の外で迎え撃つ場所
@@ -229,7 +231,7 @@ export function weekReport(prev, s) {
   if (prev.hp !== s.hp) ch.push(`城の耐久 ${prev.hp} → ${s.hp}`);
   const done = Object.entries(s.plots).filter(([id, p]) => prev.plots[id] && prev.plots[id].stage === 1 && p.stage === 2).map(([id, p]) => FAC[p.fac].n);
   if (done.length) ch.push(`完成：${done.join('・')}`);
-  for (const t of s.log.slice(prev.logN)) if (/襲撃|偵察隊|先遣隊|副官|本隊|侵攻/.test(t) && /：/.test(t)) ch.push(t);
+  for (const t of s.log.slice(prev.logN)) if (/襲撃|大群|斥候|偵察隊|先遣隊|突撃隊|討伐隊|精鋭軍|副官|本隊|侵攻/.test(t) && /：/.test(t)) ch.push(t);
   // 注意点
   const r = nextRaid(s);
   if (r) { const lack = r.E - D(s), wk = r.w - s.week; if (lack > -4) wr.push(`${wk ? wk + '週後' : '今週末'}に${r.name}（規模${s.scouted[r.w] ? r.E : '約' + r.E}）。防衛力${Math.round(D(s))}では${lack > 0 ? '足りない' : 'ぎりぎり'}。`); else if (wk <= 1) wr.push(`${wk ? '来週末' : '今週末'}に${r.name}。防衛力は足りている。`); }

@@ -1,5 +1,5 @@
 // 画面のUI（DOM）。モック（GPTのモック2の夜版）に合わせた3層：
-//  上＝題と12週の列／巻物の帯（週・次の襲撃・敵の規模）／資源6つ。下＝立ち絵つきのパネル（選んだ場所・行動・費用・効果・大ボタン・週を終える）。
+//  上＝題と週の列／巻物の帯（週・次の襲撃・敵の規模）／資源6つ。下＝立ち絵つきのパネル（選んだ場所・行動・費用・効果・大ボタン・週を終える）。
 // ルールは持たない。main.js が組み立てたデータを描くだけ。
 const ICO = {
   sup: '<rect x="3" y="6" width="18" height="14" rx="2" fill="#c9984f" stroke="#5a3d16" stroke-width="1.5"/><path d="M3 11h18M12 6v14" stroke="#5a3d16" stroke-width="1.5"/>',
@@ -28,9 +28,9 @@ const css = `
 #top .ttl{font:700 11px/1 ${SERIF};color:#ffe3a0;white-space:nowrap}
 #top .wk{flex:1;display:flex;align-items:center;justify-content:space-between;position:relative;min-width:0}
 #top .wk:before{content:"";position:absolute;left:4px;right:4px;top:50%;height:2px;background:#6a5030}
-#top .wk i{position:relative;width:13px;height:13px;background:url(assets/ui/wk_norm.png) center/contain no-repeat;font:700 6.5px/13px system-ui;color:#e0c890;text-align:center;font-style:normal}
+#top .wk i{position:relative;width:9px;height:9px;background:url(assets/ui/wk_norm.png) center/contain no-repeat;font:700 5px/9px system-ui;color:#e0c890;text-align:center;font-style:normal}
 #top .wk i.past{background-image:url(assets/ui/wk_past.png);color:#d8d0c0}#top .wk i.raid{background-image:url(assets/ui/wk_raid.png);color:#ffe0d0}
-#top .wk i.now{width:16px;height:16px;line-height:16px;font-size:8px;background-image:url(assets/ui/wk_now.png);color:#3a2410;filter:drop-shadow(0 0 5px #ffcc66)}
+#top .wk i.now{width:15px;height:15px;line-height:15px;font-size:8px;background-image:url(assets/ui/wk_now.png);color:#3a2410;filter:drop-shadow(0 0 5px #ffcc66)}
 #top .scroll{margin:-2px 0 0;display:flex;align-items:center;gap:7px;padding:0 6px;min-height:19px;border-style:solid;border-width:2px 24px;border-color:transparent;border-image:url(assets/ui/scroll.png) 40 110 40 110 fill / 2px 24px stretch;color:#3a2410;text-shadow:none;font:700 11px/1.2 ${SERIF};filter:drop-shadow(0 2px 3px #000a)}
 #top .scroll .wkn{font-size:12px;white-space:nowrap}#top .scroll .sep{width:1px;align-self:stretch;background:#8a6430}
 #top .scroll .foe{margin-left:auto;display:flex;align-items:center;gap:3px;color:#7a1a10;white-space:nowrap}
@@ -91,7 +91,7 @@ export function createUI({ onEndWeek, onReset }) {
   const ui = {
     // d = {title, week, weeks, raidWeeks:[], bossWeek, band:{wk, next, foe}, res:[{ic,lab,val,sub,cls,bar,col}]}
     top(d) {
-      const wk = Array.from({ length: d.weeks }, (_, i) => { const w = i + 1, c = w < d.week ? 'past' : w === d.week ? 'now' : d.raidWeeks.includes(w) ? 'raid' : ''; return w === d.bossWeek && w !== d.week ? `<i style="width:17px;height:17px;background-image:url(assets/ui/wk_boss.png)"></i>` : `<i class="${c}">${w}</i>`; }).join('');
+      const wk = Array.from({ length: d.weeks }, (_, i) => { const w = i + 1, c = w < d.week ? 'past' : w === d.week ? 'now' : d.raidWeeks.includes(w) ? 'raid' : ''; return w === d.bossWeek && w !== d.week ? `<i style="width:16px;height:16px;background-image:url(assets/ui/wk_boss.png)"></i>` : `<i class="${c}">${w}</i>`; }).join('');
       top.innerHTML = `<img class="bnr" src="assets/ui/banner.png" alt=""><div class="frs t1w"><div class="t1"><span class="ttl">${d.title}</span><div class="wk">${wk}</div></div></div>
         <div class="scroll"><span class="wkn">第${d.band.wk}週</span><span class="sep"></span><span>${d.band.next}</span><span class="foe"><img src="assets/ui/seal.png" alt="" style="height:17px">${d.band.foe}</span></div>
         <div class="res frs">${d.res.map(r => `<div title="${r.lab}">${ico(r.ic, 16)}<span style="min-width:0;flex:1"><b>${r.val}${r.sub ? `<span class="${r.cls || 'd'}"> ${r.sub}</span>` : ''}</b>${r.bar !== undefined ? `<div class="bar"><span style="width:${Math.max(0, Math.min(100, r.bar))}%;background:${r.col || '#7ac06a'}"></span></div>` : ''}</span></div>`).join('')}</div>`;

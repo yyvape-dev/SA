@@ -1,8 +1,8 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793470000';
-import { createUI } from './ui.js?v=1793290034';
+import * as GM from './game.js?v=1793630000';
+import { createUI } from './ui.js?v=1793630000';
 import { createMorning } from './morning.js?v=1793290034';
 import { slashFX, impactFX, clashFX, chargeFX, rallyFX } from './fx_slash.js?v=1793390000';
 
@@ -1349,7 +1349,7 @@ const why = (need) => (G.raid ? '襲撃の最中' : G.ap < 1 ? '行動点が足�
 function defaultAlly() { const a = GM.advisorOf(G); return a && GM.joined(G, a) ? a : 'mina'; }
 function refreshUI() {
   const r = GM.raidView(G), inc = GM.income(G), md = GM.moraleD(G), apMax = GM.apOf(G.morale), wk = Math.min(G.week, GM.WEEKS);
-  ui.top({ title: '再建の12週', week: wk, weeks: GM.WEEKS, raidWeeks: GM.SCHED.map(x => x.w), bossWeek: GM.SCHED.find(x => x.boss).w,
+  ui.top({ title: '再建の' + GM.WEEKS + '週', week: wk, weeks: GM.WEEKS, raidWeeks: GM.SCHED.map(x => x.w), bossWeek: GM.SCHED.find(x => x.boss).w,
     band: { wk, next: r ? (r.inWeeks ? `次の襲撃まであと<b style="font-size:15px"> ${r.inWeeks} </b>週` : '今週末に襲撃') : '襲撃の予定はない', foe: r ? `敵 ${r.known ? r.E : r.lo + '〜' + r.hi}` : '' },
     res: [{ ic: 'sup', lab: '物資', val: G.sup, sub: `${sg(inc)}/週`, cls: inc >= 0 ? 'd' : 'n' }, { ic: 'mor', lab: '民心', val: Math.round(G.morale), bar: G.morale, col: G.morale < 30 ? '#e05a4a' : '#6ac06a' },
       { ic: 'trp', lab: '兵力', val: G.troops, bar: G.troops / 16 * 100, col: '#7aa8e0' }, { ic: 'def', lab: '防衛', val: Math.round(GM.D(G)) },
@@ -1460,9 +1460,9 @@ function frame(now) {
 }
 canvas.addEventListener('webglcontextlost', e => { e.preventDefault(); status.ok = false; status.reason = 'WebGLが失われた'; });
 G = loadSave() || GM.newState(layout.areas); syncMap(true); refreshUI(); takeBattleResult();
-if (params.has('field')) { const sv = JSON.stringify(G); for (const a of Object.values(GM.ALLY)) if (a.join && !G.open.includes(a.join)) G.open.push(a.join); G.met = Object.assign({}, G.met, { lily: true }); /* 出来事で加入する仲間（リリィ）も試しでは選べる */ G.raid = { kind: 'raid', E: 46, name: '将軍の侵攻（試し）', boss: true, w: 12, dir: 'pass', ranka: false }; G.troops = Math.max(G.troops || 0, 6); fieldBattle('auto', () => { G = JSON.parse(sv); writeSave(); refreshUI(); ui.toast('試しの戦闘を終えた（記録は残らない）'); }); } // ?field で任せた戦闘だけ見る
+if (params.has('field')) { const sv = JSON.stringify(G); for (const a of Object.values(GM.ALLY)) if (a.join && !G.open.includes(a.join)) G.open.push(a.join); G.met = Object.assign({}, G.met, { lily: true }); /* 出来事で加入する仲間（リリィ）も試しでは選べる */ G.raid = { kind: 'raid', E: 46, name: '将軍の侵攻（試し）', boss: true, w: GM.WEEKS, dir: 'pass', ranka: false }; G.troops = Math.max(G.troops || 0, 6); fieldBattle('auto', () => { G = JSON.parse(sv); writeSave(); refreshUI(); ui.toast('試しの戦闘を終えた（記録は残らない）'); }); } // ?field で任せた戦闘だけ見る
 if (params.has('duel')) { const sv = JSON.stringify(G); for (const a of Object.values(GM.ALLY)) if (a.join && !G.open.includes(a.join)) G.open.push(a.join); G.met = Object.assign({}, G.met, { lily: true }); /* 出来事で加入する仲間（リリィ）も試しでは選べる */ G.rankaAway = false; G.rankaRest = false; // 試しは仲間4人とも選べる（ランカも）
-  G.raid = { kind: 'raid', E: 46, name: '将軍の侵攻（試し）', boss: true, w: 12, dir: 'pass', ranka: true }; maybeDuel(() => { G = JSON.parse(sv); writeSave(); refreshUI(); ui.toast('試しの一騎打ちを終えた（記録は残らない）'); }); } // ?duel で一騎打ちだけ見る
+  G.raid = { kind: 'raid', E: 46, name: '将軍の侵攻（試し）', boss: true, w: GM.WEEKS, dir: 'pass', ranka: true }; maybeDuel(() => { G = JSON.parse(sv); writeSave(); refreshUI(); ui.toast('試しの一騎打ちを終えた（記録は残らない）'); }); } // ?duel で一騎打ちだけ見る
 resize(); apply(); renderer.render(scene, camera); status.ok = true; if (window.__bootDone) window.__bootDone();
 window.__t.castle = () => { select(null); selCastle = true; refreshUI(); }; // 試験：城を選ぶ
 window.__t.selAlly = k => { select(null); selAlly = k; newLine(k); refreshUI(); }; window.__t.sync = () => { syncMap(); refreshUI(); writeSave(); }; // 試験：仲間を選ぶ／状態を画面へ
