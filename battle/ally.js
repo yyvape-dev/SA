@@ -23,11 +23,11 @@ function allyLoad(one) {
   total += 2; // 2つの meta（読み終えたら、その中の絵の数だけ total を足す）
   one('apor', 'ally/por_' + ALLY_K + '_1.png'); total++;
   var bi = document.getElementById('btnCi'); if (bi) bi.src = 'ally/por_' + ALLY_K + '_1.png'; // 連携ボタンの顔
-  fetch('ally/side_meta.json').then(function (r) { return r.json(); }).then(function (m) {
+  fetch('ally/side_meta.json?v=2').then(function (r) { return r.json(); }).then(function (m) {
     var c = m['run_' + ALLY_K] || m['walk_' + ALLY_K]; if (c) { ALLY_RUN = c; total++; one('arun', 'ally/' + c.f); }
     onDone();
   }).catch(function () { failed++; onDone(); });
-  fetch('ally/duel_meta.json?v=2').then(function (r) { return r.json(); }).then(function (m) {
+  fetch('ally/duel_meta.json?v=3').then(function (r) { return r.json(); }).then(function (m) {
     var list = m[ALLY_K] || [];
     ALLY_DEF[ALLY_K].clips.forEach(function (ci) { var c = list[ci]; if (!c) return; var j = ALLY_CLIP.length; ALLY_CLIP.push(c); total++; one('aclip' + j, 'ally/' + c.f); });
     (m[ALLY_K + '_ult'] || []).forEach(function (c) { var j = ALLY_CLIP.length; ALLY_CLIP.push(c); total++; one('aclip' + j, 'ally/' + c.f); }); // 連携専用のモーション（ランカの星震。c.ult）

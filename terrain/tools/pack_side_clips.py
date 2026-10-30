@@ -14,7 +14,7 @@ def color_fix(a):  # 動画AIの色ずれ（足元が緑・紫に変わる）を
     a[..., :3] = np.clip(mc.hsv_to_rgb(hs) * 255, 0, 255).astype(np.uint8)
 args = sys.argv[1:]; OUT = '../ally/'
 if args and args[0] == '--out': OUT = args[1].rstrip('/') + '/'; args = args[2:]   # 敵は --out assets/npc
-MAXH = 600; COLS = 6   # 元のコマを縮めない（2026-10-29：寄ると荒さが見えたため。以前は300）
+MAXH = int(os.environ.get('MAXH', 600)); COLS = 6   # 元のコマを縮めない（2026-10-29：寄ると荒さが見えたため。以前は300）
 mp = OUT + 'side_meta.json'; meta = json.load(open(mp)) if os.path.exists(mp) else {}
 for src, name in zip(args[0::2], args[1::2]):
     info = json.load(open(os.path.join(src, 'frames.json')))

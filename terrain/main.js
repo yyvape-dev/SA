@@ -926,14 +926,14 @@ document.head.appendChild(dCss);
 const duelEl = document.createElement('div'); duelEl.id = 'duel'; document.body.appendChild(duelEl);
 const foeURL = FOE_IMG[3] ? 'assets/npc/foe_4.webp' : foeTex.image.toDataURL();
 // 大将戦の攻撃モーション（動画由来の24コマ）。ある仲間だけ。ない仲間は立ち絵のまま
-const DUEL_CLIP = await fetch('../ally/duel_meta.json?v=2').then(r => r.json()).catch(() => ({})); // 仲間ごとの攻撃モーション一覧
+const DUEL_CLIP = await fetch('../ally/duel_meta.json?v=3').then(r => r.json()).catch(() => ({})); // 仲間ごとの攻撃モーション一覧
 // 一騎打ちの絵の先読み：読み込みに加えて decode まで済ませ、Image を持ち続ける（切り替えの瞬間に消える・カクつくのを防ぐ）
 const IMGHOLD = new Map();
 const holdImg = src => { if (!IMGHOLD.has(src)) { const im = new Image(); im.src = src; IMGHOLD.set(src, (im.decode ? im.decode() : new Promise(r => { im.onload = r; })).catch(() => {}).then(() => im)); } return IMGHOLD.get(src); };
 const duelSrcs = (k, look) => [...(DUEL_CLIP[k] || []).map(c => `../ally/${c.f}`), ...(G && G.raid && G.raid.boss ? (DUEL_CLIP[k + '_ult'] || []).map(c => `../ally/${c.f}`) : []), ...(runClipOf(k) ? [`../ally/${runClipOf(k).f}`] : []),
   ...(look ? [...(FOEDUEL[look] || []).map(c => `assets/npc/${c.f}`), ...(foeRunOf(look) ? [`assets/npc/${foeRunOf(look).f}`] : [])] : [])];
 const duelWarm = k => duelSrcs(k, G && G.raid ? foeLook() : null).forEach(holdImg);
-const SIDE_ALLY = await fetch('../ally/side_meta.json').then(r => r.json()).catch(() => ({})); // 仲間の横向きの走り（右向き）
+const SIDE_ALLY = await fetch('../ally/side_meta.json?v=2').then(r => r.json()).catch(() => ({})); // 仲間の横向きの走り（右向き）
 const SIDE_FOE = await fetch('assets/npc/side_meta.json').then(r => r.json()).catch(() => ({}));  // 敵の横向きの歩き（左向き）
 const runClipOf = k => SIDE_ALLY['run_' + k] || SIDE_ALLY['walk_' + k] || null, foeRunOf = look => SIDE_FOE['walk_' + look] || null;
 const FOEDUEL = await fetch('assets/npc/foeduel_meta.json?v=2').then(r => r.json()).catch(() => ({})); // 敵将の攻撃モーション（見た目の番号ごと）
