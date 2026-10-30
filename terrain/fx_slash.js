@@ -198,3 +198,51 @@ export function rallyFX(host, el, o = {}) {
     return alive;
   }, 8, 'normal');
 }
+
+/* ===== 星震の止め（一騎打ちの将軍戦。2026-10-30）。アクション戦闘の vsstomp・starfall を DOM の舞台に移したもの =====
+   starFX(host, at, df, { speed }) … at＝打つ仲間の要素、df＝敵将の要素。毎フレーム位置を測るので、カメラが引いても追う。
+   流れ（ms）：0 踏み抜き（光の柱＋扇の流線、夜空へ暗転）→ 320〜1050 星の雨（敵将へ14個、舞台全体に飾り30個）→ 1150 大きな一撃（輪・閃光）→ 1700 明るく戻る */
+const SKY = { glow: [90, 150, 255], main: [120, 185, 255], core: [235, 245, 255], spark: [190, 225, 255], gold: [255, 205, 110], dark: [4, 8, 30] };
+export function starFX(host, at, df, o = {}) {
+  const sp = o.speed || 1, R = (a, b) => a + Math.random() * (b - a), ease = t => 1 - Math.pow(1 - clamp01(t), 3);
+  const QK = 1150, END = 1750, W0 = host.clientWidth;
+  const box = el => { const hr = host.getBoundingClientRect(), r = el.getBoundingClientRect(); return { cx: (r.left + r.right) / 2 - hr.left, by: r.bottom - hr.top - r.height * .04, h: r.height * .8, w: r.width }; };
+  const st = Array.from({ length: 34 }, () => { const q = Math.random() * 2 - 1, a = Math.abs(q); return { ox: q, d: a * 40 + R(0, 30), sp: 90 + a * 90 + R(0, 40), fo: R(280, 600), hk: R(.75, 1.05) - a * .2, w: (a < .25 ? 2 : 4) + R(0, a < .25 ? 3 : 9), al: a < .25 ? 1 : R(.55, .9), c: a < .2 ? 'core' : Math.random() < .3 ? 'gold' : 'main', sw: R(0, 4), ph: R(0, 6.28) }; });
+  const ln = Array.from({ length: 22 }, (_, i) => { const s = i % 2 ? 1 : -1, ang = -Math.PI / 2 + s * R(.15, 1.45), L = R(W0 * .8, W0 * 1.4), b = R(.12, .35) * s; return { ex: Math.cos(ang) * L, ey: Math.sin(ang) * L * .85, bx: Math.cos(ang + b) * L * .5, by: Math.sin(ang + b) * L * .42, d: R(0, 120), w: R(6, 14), gold: i % 3 === 0 }; });
+  const rain = Array.from({ length: 14 }, (_, i) => ({ at: 320 + i * 45 + R(0, 30), dur: R(150, 210), ox: R(-.35, .35), oy: R(-.55, .1), sx: R(60, 200), wk: R(.6, 1.4), gold: i % 4 === 0, S: sparkSet(8, 0, .6, 1.8, 120) }));
+  const deco = Array.from({ length: 30 }, () => ({ at: R(260, 1100), dur: R(120, 200), gx: R(.03, .97), gy: R(-.06, .04), sx: R(60, 200), wk: R(.4, 1), gold: Math.random() < .3 }));
+  const sky = Array.from({ length: 40 }, () => ({ x: Math.random(), y: Math.random() * .45, p: R(0, 6.28) }));
+  const dimK = T => T < 300 ? .55 + .45 * T / 300 : T < QK ? 1 : Math.max(0, 1 - (T - QK) / (END - QK));
+  const quake = { done: false };
+  // 後ろ：夜空の暗転（人物の前、光の後ろ）
+  const D = layer(host, sp, (ctx, T) => { const k = dimK(T); ctx.globalCompositeOperation = 'source-over'; const H = host.clientHeight, W = host.clientWidth;
+    const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, `rgba(4,8,30,${.78 * k})`); g.addColorStop(.6, `rgba(8,14,44,${.55 * k})`); g.addColorStop(1, `rgba(10,16,40,${.4 * k})`); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    ctx.globalCompositeOperation = 'lighter'; for (const s of sky) { ctx.fillStyle = `rgba(220,235,255,${.7 * k * (.5 + .5 * Math.sin(T / 200 + s.p))})`; ctx.fillRect(s.x * W, s.y * H, 2, 2); }
+    return T < END; }, 6, 'normal');
+  return layer(host, sp, (ctx, T) => {
+    const a = box(at), f = box(df), H = host.clientHeight, x = a.cx, y = a.by, PH = y + 20;
+    // ① 光の柱（細い筋の重ね）
+    for (const q of st) { const b = T - q.d; if (b <= 0) continue; const hd = ease(b / q.sp), tl = ease((b - q.sp * .35) / (q.sp * 3.5)), fd = Math.max(0, 1 - Math.max(0, b - q.sp - 60) / q.fo); if (fd <= 0) continue;
+      const sx = x + q.ox * a.h * .28 * (1 - .5 * hd) + Math.sin(T * .02 + q.ph) * q.sw, t2 = y - PH * q.hk * hd, b2 = y - PH * q.hk * Math.min(hd, tl) * .9, len = b2 - t2; if (len < 4) continue;
+      const w2 = q.w * (.6 + .4 * fd), col = SKY[q.c], g = ctx.createLinearGradient(0, b2, 0, t2); g.addColorStop(0, rgba(col, 0)); g.addColorStop(.25, rgba(col, .55 * q.al * fd)); g.addColorStop(.85, rgba(col, q.al * fd)); g.addColorStop(1, rgba(col, 0));
+      ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(sx, b2); ctx.quadraticCurveTo(sx - w2, b2 - len * .55, sx, t2); ctx.quadraticCurveTo(sx + w2, b2 - len * .55, sx, b2); ctx.fill(); }
+    // ② 扇の流線（3層）
+    for (const q of ln) { const b = T - q.d; if (b <= 0) continue; const fd = Math.max(0, 1 - Math.max(0, b - 260) / 380); if (fd <= 0) continue; const p0y = y - a.h * .1;
+      [[q.gold ? SKY.gold : SKY.glow, 40, .6, 2.2, .5], [q.gold ? SKY.gold : SKY.main, 16, .45, 1, .95], [SKY.core, 0, .32, .35, 1]].forEach(([c, lag, tail, w, al]) => { const hd = ease((b - lag) / 200), tl = ease((b - lag - 200 * tail) / 300); if (hd <= 0) return;
+        const pt = u => { const iu = 1 - u; return [iu * iu * x + 2 * iu * u * (x + q.bx) + u * u * (x + q.ex), iu * iu * p0y + 2 * iu * u * (p0y + q.by) + u * u * (p0y + q.ey)]; }, A = pt(Math.min(hd, tl)), B = pt(hd);
+        streak(ctx, B[0], B[1], B[0] - A[0], B[1] - A[1], Math.hypot(B[0] - A[0], B[1] - A[1]), q.w * w * fd, c, al * fd); }); }
+    if (T < 160) { glow(ctx, x, y - a.h * .2, a.h * (.8 + T / 120), { core: SKY.core, main: SKY.gold, glow: SKY.glow }, 1 - T / 160); star4(ctx, x, y - a.h * .15, a.h * .9 * (1 - T / 160), 0, SKY.core, .8 * (1 - T / 160)); }
+    // ③ 星の雨：敵将へ
+    for (const s of rain) { const u = (T - s.at) / s.dur, tx = f.cx + s.ox * f.w * .5, ty = f.by - f.h * (.55 - s.oy), sx0 = tx + s.sx, sy0 = -20;
+      if (u > 0 && u < 1) { const e = u * u, px = sx0 + (tx - sx0) * e, py = sy0 + (ty - sy0) * e; streak(ctx, px, py, tx - sx0, ty - sy0, f.h * .55 * s.wk, 7 * s.wk, s.gold ? SKY.gold : SKY.glow, .7); streak(ctx, px, py, tx - sx0, ty - sy0, f.h * .35 * s.wk, 2.5 * s.wk, SKY.core, 1); star4(ctx, px, py, 14 * s.wk, T / 300, SKY.core, .9); }
+      else if (u >= 1) { const b = T - s.at - s.dur; if (b < 260) { glow(ctx, tx, ty, f.h * .35, { core: SKY.core, main: SKY.main, glow: SKY.glow }, 1 - b / 260); star4(ctx, tx, ty, f.h * .3 * (1 - b / 260), .4, SKY.core, 1 - b / 260); } drawSparkSet(ctx, s.S, tx, ty, b, { core: SKY.core, spark: SKY.spark }, 120); } }
+    // 飾りの星：舞台全体の地面へ
+    for (const s of deco) { const u = (T - s.at) / s.dur, W = host.clientWidth, gx = s.gx * W, gy = f.by + s.gy * H, sx0 = gx + s.sx;
+      if (u > 0 && u < 1) { const e = u * u, px = sx0 + (gx - sx0) * e, py = -20 + (gy + 20) * e; streak(ctx, px, py, gx - sx0, gy + 20, 70 * s.wk, 4 * s.wk, s.gold ? SKY.gold : SKY.glow, .6); streak(ctx, px, py, gx - sx0, gy + 20, 40 * s.wk, 1.5 * s.wk, SKY.core, .9); }
+      else if (u >= 1 && T - s.at - s.dur < 220) { const k = 1 - (T - s.at - s.dur) / 220; ring(ctx, gx, gy, 30 * s.wk * (1.6 - k), 1.5, SKY.main, k); glow(ctx, gx, gy, 26 * s.wk, { core: SKY.core, main: SKY.main, glow: SKY.glow }, .6 * k); } }
+    // ④ 大きな一撃
+    if (T >= QK && !quake.done) { quake.done = true; host.classList.remove('kof'); void host.offsetWidth; host.classList.add('kof'); o.onQuake && o.onQuake(); }
+    if (T >= QK) { const k = ease((T - QK) / 600); if (k < 1) for (const [rr, c] of [[1.4, SKY.glow], [.9, SKY.gold]]) { ring(ctx, f.cx, f.by, f.h * rr * (.2 + k), 10 * (1 - k) + 2, c, 1 - k); ring(ctx, f.cx, f.by, f.h * rr * (.2 + k), 2, SKY.core, 1 - k); } }
+    return T < END;
+  }, 8);
+}

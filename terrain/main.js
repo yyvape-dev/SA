@@ -1,10 +1,10 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793630000';
+import * as GM from './game.js?v=1793640000';
 import { createUI } from './ui.js?v=1793355953';
 import { createMorning } from './morning.js?v=1793290034';
-import { slashFX, impactFX, clashFX, chargeFX, rallyFX } from './fx_slash.js?v=1793390000';
+import { slashFX, impactFX, clashFX, chargeFX, rallyFX, starFX } from './fx_slash.js?v=1793640000';
 
 const layout = await (await fetch('data/layout.json')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -1032,15 +1032,15 @@ function playDuel(k, done) { // 画面いっぱいの一騎打ち。五合の勝
     if (r.kind === 'counter') { const c = $('.cut'); c.querySelector('div').innerHTML = `COUNTER<small>見切り　${A.n}が大技を受け流す</small>`; T(() => c.classList.add('on'), runMs); T(() => c.classList.remove('on'), P.hitAt + 500); }
     T(() => { /* コードの斬撃（fx_slash.js、全戦。2026-10-30 以前は将軍戦だけ）。味方の攻撃は青、敵は赤。カメラの寄りに合わせて、画面上の相手の位置に出す */ stopChg();
       const rs2 = stage.getBoundingClientRect(), r2 = df.getBoundingClientRect(), hx = (r2.left + r2.right) / 2 - rs2.left - dir * r2.width * .05, hy = r2.top - rs2.top + r2.height * .42, hsz = Math.min(rs2.height * .95, r2.height * 1.05);
-      slashFX(stage, { x: hx, y: hy, size: hsz, dir, big, speed: spd, color: r.ally ? 'blue' : 'red' }); const sl = document.createElement('i');
+      if (ultFin) { starFX(stage, at, df, { speed: spd, onQuake: () => { duelEl.classList.remove('shake'); void duelEl.offsetWidth; duelEl.classList.add('shake'); T(() => duelEl.classList.remove('shake'), 300); } }); } /* 星震の止め：踏み抜き→星の雨→大きな一撃（fx_slash.js starFX） */ else slashFX(stage, { x: hx, y: hy, size: hsz, dir, big, speed: spd, color: r.ally ? 'blue' : 'red' }); const sl = document.createElement('i');
       if (r.kind === 'counter') clashFX(stage, { x: (dir > 0 ? r2.left : r2.right) - rs2.left + dir * r2.width * .12, y: hy - hsz * .05, size: hsz * .6, speed: spd }); // 見切り：刃がぶつかる
       if (big || fin) impactFX(stage, { x: hx, y: hy, size: hsz * .7, dir, color: r.ally ? 'blue' : 'red', ko: fin, speed: spd }); // 大技・決着の一撃
       if (fin) { stage.classList.remove('kof'); void stage.offsetWidth; stage.classList.add('kof'); } df.classList.remove('hit'); void df.offsetWidth; df.classList.add('hit'); df.style.transition = 'transform .18s ease-out'; df.style.transform = `translateX(${dir * sw * .04}px)`; duelEl.classList.add('shake');
-      FOCUS_ATK ? camTo(zAtk * 1.05, fx, 90, undefined, FR) : camTo((big ? zFit * 1.06 : zFit) * 1.05, mid, 90); // 当たりの瞬間、少しだけ寄る
+      if (ultFin) camTo(1, sw / 2, D(260), 'ease-out'); /* 星震の止め：打った瞬間に引いて、舞台全体に星を降らせる（2026-10-30 ユーザー） */ else FOCUS_ATK ? camTo(zAtk * 1.05, fx, 90, undefined, FR) : camTo((big ? zFit * 1.06 : zFit) * 1.05, mid, 90); // 当たりの瞬間、少しだけ寄る
       const n = document.createElement('div'); n.className = 'num'; n.textContent = r.dmg * 7 + Math.round(Math.random() * 9); n.style.left = (clashX / sw * 100 + (r.ally ? 6 : -14)) + '%'; n.style.top = '30%'; cam.appendChild(n); setTimeout(() => { sl.remove(); n.remove(); }, 900);
       apply(i, r); upd(); say(r.ally ? 'l' : 'r', pickOf((r.ally ? AL : FL).hit), 1500); T(() => say(r.ally ? 'r' : 'l', pickOf((r.ally ? FL : AL).hurt), 1400), D(350)); }, P.hitAt);
     T(() => { df.classList.remove('hit'); duelEl.classList.remove('shake'); df.style.transform = ''; }, P.hitAt + 260);
-    const back = ultFin ? D(1150) : D(FOLLOW + (big ? 140 : 40)), backMs = D(420); // 専用の大技は、着地のあとの残心まで寄ったまま
+    const back = ultFin ? D(1800) : D(FOLLOW + (big ? 140 : 40)), backMs = D(420); // 専用の大技は、着地のあとの残心まで寄ったまま
     T(() => { camTo(1, sw / 2, backMs, 'ease-in-out'); at.style.transition = `transform ${backMs}ms ease-in-out`; at.style.transform = ''; }, P.hitAt + back); // 元の位置へ戻りながら、引きへ
     T(() => { if (aw >= 3 || fw >= 3) finish(); else roundStart(i + 1); }, P.hitAt + back + backMs + D(250)); };
   const goRound = i => { gb.classList.remove('ready'); runRound(i); };

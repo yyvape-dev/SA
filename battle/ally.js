@@ -15,7 +15,7 @@ var ALLY_DEF = {
   ranka: { n: 'ランカ', r: '将軍', clips: [0, 1, 2, 3], h: HEIGHT.ranka, pow: 34, range: 250, sk: '星震', col: '#9fd8ff',
     join: 'お嬢、お待たせ〜。あとはわたしが片付けるじゃん？', use: 'ちょっとだけ本気でいくよ！' },
   lily: { n: 'リリィ', r: '副団長', clips: [0, 1, 2], h: HEIGHT.lily, pow: 28, range: 240, sk: '追星', col: '#cfe0ff', // 蹴り技。連携＝追星（一直線に駆け抜ける蹴り。拘束中1.5倍）
-    join: 'ラナ様、加勢します！ ……ランカばっかりに、いい格好はさせないんだから。', use: 'わたしだって、やれるんだから！' }
+    join: 'ラナさん、加勢します！ ……ランカばっかりに、いい格好はさせないんだから。', use: 'わたしだって、やれるんだから！' }
 };
 var ALLY_SPD = 2.8, ALLY_RUN = null, ALLY_CLIP = []; // 攻撃の連番は一騎打ちの2.8倍速
 function allyLoad(one) {
