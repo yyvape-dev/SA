@@ -25,7 +25,7 @@ for src, name in zip(args[0::2], args[1::2]):
             sz = ndi.sum(m, lab, range(1, n + 1)); big = lab == (int(np.argmax(sz)) + 1)
             near = ndi.binary_dilation(big, iterations=12); keep = np.isin(lab, [k for k in np.unique(lab[near]) if k])
             a[..., 3] = np.where(keep, a[..., 3], 0)
-        color_fix(a)
+        if os.environ.get('NOFIX') != '1': color_fix(a)
     ys = []; xs = []
     for a in fr: yy, xx = np.where(a[..., 3] > 20); ys += [yy.min(), yy.max()]; xs += [xx.min(), xx.max()]
     x0, y0, x1, y1 = max(0, min(xs) - 4), max(0, min(ys) - 4), max(xs) + 5, max(ys) + 3
