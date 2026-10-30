@@ -5,7 +5,7 @@
 #   既に fr のあるクリップは飛ばす。sol（味方の槍兵、foeduel_1 の色違い・縮小版）は foeduel_meta.json の 'sol' に別のクリップとして作る
 import sys, json, numpy as np
 from PIL import Image
-MAXW = 4096; PAD = 2
+MAXW = int(__import__('os').environ.get('MAXW', 4096)); PAD = 2
 def pack(path_img, c, scale=1.0):
     im = Image.open(path_img).convert('RGBA'); A = np.array(im)
     cw, ch, cols = c['cw'] * scale, c['ch'] * scale, c['cols']
