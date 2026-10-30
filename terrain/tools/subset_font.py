@@ -3,7 +3,7 @@
 import sys, glob
 from fontTools import subset
 src = sys.argv[1] if len(sys.argv) > 1 else '.'
-txt = ''.join(open(f, encoding='utf-8').read() for f in ['main.js', 'game.js', 'ui.js', 'morning.js'] + sorted(glob.glob('../battle/*.js')) + ['../index.html']) # アクション戦闘（battle/）の文言も含める
+txt = ''.join(open(f, encoding='utf-8').read() for f in ['main.js', 'game.js', 'ui.js', 'morning.js', 'index.html'] + sorted(glob.glob('../battle/*.js')) + ['../index.html']) # アクション戦闘（battle/）の文言も含める
 chars = set(c for c in txt if ord(c) > 0x2e7f)
 chars |= set(chr(c) for c in range(0x20, 0x7f)) | set(chr(c) for c in range(0x3041, 0x3097)) | set(chr(c) for c in range(0x30a1, 0x30fb))
 chars |= set('ー〜・、。「」『』（）！？…―─×％＋－：　①②③④⑤')
