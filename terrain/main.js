@@ -7,7 +7,7 @@ import { createMorning } from './morning.js?v=1793290034';
 import { createStory } from './story.js?v=1793650000';
 import { slashFX, impactFX, clashFX, chargeFX, rallyFX, starFX } from './fx_slash.js?v=1793640000';
 
-const layout = await (await fetch('data/layout.json')).json();
+const layout = await (await fetch('data/layout.json?v=2')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
 const E = 58 * Math.PI / 180, SIN = Math.sin(E), COS = Math.cos(E);
 const SY0 = 330;                       // 高さ0の地面で、z=0 に当たる基準画像のy
@@ -652,7 +652,7 @@ const hitAlly = (sx, sy) => Object.keys(allyMesh).find(k => { const a = allyMesh
 // ---------- ゲームの状態（game.js のルール）と画面の同期 ----------
 const SAVE_KEY = 'territory_v2';
 let G = null, selCastle = false, selAlly = null;
-function loadSave() { try { const v = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); if (v && v.week) { v.bond = Object.assign({ mina: 0, garou: 0, sera: 0, ranka: 0, lily: 0 }, v.bond || {}); v.assign = v.assign || {}; v.met = v.met || {}; return v; } return null; } catch (e) { return null; } }
+function loadSave() { try { const v = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); if (v && v.week) { v.bond = Object.assign({ mina: 0, garou: 0, sera: 0, ranka: 0, lily: 0 }, v.bond || {}); v.assign = v.assign || {}; v.met = v.met || {}; v.areaDefs = v.areaDefs || []; for (const a of layout.areas) if (!v.areaDefs.some(q => q.id === a.id)) v.areaDefs.push({ id: a.id, name: a.name, cost: a.cost, income: a.income }); /* 後から足した区域を古い保存にも入れる */ return v; } return null; } catch (e) { return null; } }
 function writeSave() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(G)); } catch (e) { } }
 function syncMap(instant) { // 状態 → 区画の絵と霧
   for (const pl of plots) { const p = G.plots[pl.id]; const f = p ? p.fac : null, stg = p ? p.stage : 0; const bt = !!(p && p.burnt); if (pl.fac !== f || pl.stage !== stg || pl.burnt !== bt) { if (!instant && pl.burnt === false && bt) pl.ign = performance.now(); if (!instant && pl.burnt && !bt) emitAt(pl, 'steam', 9); pl.burnt = bt; setPlot(pl, f, stg); } }
