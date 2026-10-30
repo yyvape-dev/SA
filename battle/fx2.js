@@ -280,13 +280,12 @@ FX2.vstar = function (f) {
 };
 
 /* ===== ランカの星震（2026-10-30 作り直し）：夜空へ暗転 → 星が灯り星座の線で敵を結ぶ → 星が1体ずつ落ちる（当たりごとにダメージ）→ 地面が割れる大きな一撃 → 明転 ===== */
-var SF = { dim: 0.25, sky: 0.55, fall: 0.85, quake: 1.4, end: 1.65, dur: 0.1 }; // カットイン（〜0.7秒）が引いてから星が灯る
+var SF = { dim: 0.25, sky: 0.25, fall: 0.5, quake: 1.05, end: 1.3, dur: 0.1 }; // 放つ瞬間（寄りから引いたところ）から始まる
 function startStarfall(a) {
   var list = G.enemies.filter(function (e) { return e.state === 'walk' && e.x > camX - 40 && e.x < camX + W + 40; }).sort(function (p, q) { return p.x - q.x; });
   var n = list.length, step = n ? Math.min(0.07, 0.5 / n) : 0, top = camY + TOPY + VH * 0.16, stars = [];
   for (var i = 0; i < n; i++) stars.push({ e: list[i], x: clamp(list[i].x + rnd(-50, 50), camX + 30, camX + W - 30), y: top + rnd(0, VH * 0.14), at: SF.fall + i * step, r: rnd(10, 14), hit: false });
   G.starfall = { t: 0, a: a, stars: stars, quaked: false };
-  G.cutin = { t: 0, life: 0.75, k: a.k, sk: true };
 }
 function starfallTick(dt) {
   var sf = G.starfall; if (!sf) return;
@@ -304,7 +303,6 @@ function starfallTick(dt) {
     fxRing(a.x, a.y, W * 0.9, 0.8, VFX_STAR); fxRing(a.x, a.y, W * 0.55, 0.6, VFX_STAR);
     G.fx.push({ type: 'vshock', x: a.x, y: a.y, dir: 1, t: 0, life: 0.6, pal: VFX_STAR }); G.fx.push({ type: 'vshock', x: a.x, y: a.y, dir: -1, t: 0, life: 0.6, pal: VFX_STAR });
     G.flash = 0.3; G.flashRGB = '190,220,255'; G.freeze = Math.max(G.freeze, 0.12); G.shake = Math.max(G.shake, 26);
-    addText(a.x, a.y - 290, '星震！', 56, ALLY_DEF[a.k].col, 1.1); if (n) addText(a.x, a.y - 345, n + '体', 28, '#e6f4ff', 0.9);
   }
   if (sf.t >= SF.end) G.starfall = null;
 }
@@ -344,4 +342,30 @@ function drawStarfall() {
     }
   }
   ctx.restore();
+}
+
+/* ===== 必殺・連携の寄り（2026-10-30）：打つ人物へ寄って少しスロー → 放つ瞬間に一気に引く =====
+   時間は実時間（loop.js が cineTick(dt) を先に呼び、返した倍率で update を遅くする）。HUD と操作盤は寄らない（draw.js で世界座標の前にだけ掛ける） */
+var CINE = { z: 1.42, slow: 0.62, inT: 0.26, outT: 0.16, maxIn: 2.6 };
+function cineStart(who, h) { G.cine = { who: who, h: h || 200, t: 0, phase: 'in', z: 1, ts: 1 }; }
+function cineRelease() { var c = G.cine; if (!c || c.phase !== 'in') return; c.phase = 'out'; c.ot = 0; c.z0 = c.z; c.fx = c.who.x; c.fy = c.who.y - c.h * 0.55; }
+function cineTick(rdt) {
+  var c = G.cine; if (!c) return 1;
+  if (G.state !== 'play' || G.paused) { if (G.state !== 'play') G.cine = null; return 1; }
+  if (c.phase === 'in') {
+    c.t += rdt; var k = vEase(c.t / CINE.inT); c.z = 1 + (CINE.z - 1) * k; c.ts = 1 - (1 - CINE.slow) * k;
+    c.fx = c.who.x; c.fy = c.who.y - c.h * 0.55;
+    if (c.t > CINE.maxIn) cineRelease(); // 念のため（放つ前に止められた場合）
+  } else {
+    c.ot += rdt; var u = c.ot / CINE.outT;
+    c.z = c.z0 + (1 - c.z0) * vEase(u); // 一気に引く（1倍より引くと背景の端が見えるので、1倍で止める）
+    c.ts = 1;
+    if (c.ot >= CINE.outT) { G.cine = null; return 1; }
+  }
+  return c.ts;
+}
+function cineApply() {
+  var c = G.cine; if (!c || Math.abs(c.z - 1) < 0.002) return;
+  var px = clamp(c.fx - camX, W * 0.28, W * 0.72), py = clamp(c.fy - camY - TOPY, VH * 0.3, VH * 0.62); // 寄る点（画面の座標）。端に寄りすぎない
+  ctx.translate(px, py); ctx.scale(c.z, c.z); ctx.translate(-px, -py);
 }

@@ -374,6 +374,7 @@ function draw() {
   ctx.clearRect(0, 0, W, CVH());
   var sx = G.shake ? (Math.random() - 0.5) * G.shake : 0, sy = G.shake ? (Math.random() - 0.5) * G.shake : 0;
   ctx.translate(sx, sy);
+  cineApply(); // 必殺・連携の寄り（battle/fx2.js）
   ctx.save(); ctx.translate(-camX, -camY - TOPY); // ここから世界座標（カメラ追従）。HUDと暗転は、あとで画面座標に戻して描く
   drawBg();
   var h0 = G.hero; // 必殺技の溜め中は、背景を暗くして、主人公と敵を目立たせる

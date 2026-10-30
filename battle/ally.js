@@ -54,7 +54,7 @@ function allyTick(dt) {
   var minX = LK(G.seg) + 50, maxX = heroMaxX() + 20;
   if (a.atk) { // 攻撃の連番：山場のコマで当たる（連携のときは技が出る）
     var k = a.atk; k.t += dt;
-    if (!k.done && k.t >= k.hitT) { k.done = true; if (k.co) allySkill(a); else allyHit(a); }
+    if (!k.done && k.t >= k.hitT) { k.done = true; if (k.co) { cineRelease(); allySkill(a); } else allyHit(a); }
     if (k.t >= k.endT) { a.atk = null; a.state = 'idle'; a.cd = k.co ? 0.3 : rnd(0.35, 0.7); }
     return;
   }
@@ -111,7 +111,7 @@ function tryCo() {
   if (G.coCD > 0) { addText(G.hero.x, G.hero.y - 250, '連携 再使用まで ' + G.coCD.toFixed(1) + '秒', 20, '#a8dcff', 0.7); return; }
   if (a.state === 'enter') a.state = 'idle';
   G.coCD = G.coMax;
-  a.atk = null; allyStartAtk(a, true);
+  a.atk = null; allyStartAtk(a, true); cineStart(a, allyH(a)); // 連携：打つ仲間へ寄って少しスロー → 放つ瞬間に引く（battle/fx2.js）
   addText(a.x, a.y - allyH(a) - 30, ALLY_DEF[a.k].use, 22, ALLY_DEF[a.k].col, 1.3);
 }
 function allySkill(a) {
@@ -127,7 +127,6 @@ function allySkill(a) {
     }
     fxPull(gx, a.y, Math.min(R * 1.25, 720), got);
     G.freeze = Math.max(G.freeze, 0.05 + Math.min(n, 10) * 0.006); G.shake = Math.max(G.shake, 4 + Math.min(n, 12) * 0.8);
-    addText(gx, a.y - 240, n ? n + '体 捕縛網！' : '捕縛網', 32, d.col, 1.0);
   } else if (a.k === 'garou') { // 大薙ぎ：前後の広い範囲に大ダメージ＋大きく吹き飛ばす
     var R2 = 470, lane = 170 * ZK;
     for (i = 0; i < G.enemies.length; i++) {
@@ -138,7 +137,6 @@ function allySkill(a) {
     fxArc(a, -a.face, R2 * 0.8, 0.45, true, false);
     fxRing(a.x, a.y, R2 * 1.1, 0.6, VFX_ATK);
     G.freeze = Math.max(G.freeze, 0.1 + Math.min(n, 12) * 0.006); G.shake = Math.max(G.shake, 18 + Math.min(n, 12));
-    addText(a.x, a.y - 280, '大薙ぎ！', 46, d.col, 1.0); if (n) addText(a.x, a.y - 330, n + '体', 26, '#ffe0b8', 0.9);
   } else if (a.k === 'sera') { // 癒しの頁：主人公を回復し、近くの敵を足止めする
     var heal = Math.round(h.max * 0.4); h.hp = Math.min(h.max, h.hp + heal);
     for (i = 0; i < G.enemies.length; i++) {
@@ -146,7 +144,7 @@ function allySkill(a) {
       e.stun = 1.3 * (e.boss ? 0.3 : 1); e.kx = (e.x >= h.x ? 1 : -1) * 120; e.atk = null; n++;
     }
     fxHeal(h); // 癒しの頁（battle/fx2.js）
-    addText(h.x, h.y - 260, 'HP +' + heal, 34, d.col, 1.1); if (n) addText(h.x, h.y - 305, n + '体 足止め', 22, '#e8f6d8', 0.9);
+    addText(h.x, h.y - 260, '+' + heal, 30, '#b8f5c0', 1.0); // 回復量だけ（技名・体数の文字は出さない。2026-10-30）
   } else { // 星震：画面の敵に、星が1体ずつ落ちる（当たりごとに大ダメージ、拘束中は1.5倍）。演出と進行は battle/fx2.js の startStarfall
     startStarfall(a);
   }

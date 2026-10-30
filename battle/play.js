@@ -32,7 +32,7 @@ function startWave(n) {
 // 部屋に入る：戦場0に立ち、カメラをその位置へ合わせて、最初の波を始める
 function enterRoom(i) {
   G.roomNo = i; ROOM = ROOMS[i % ROOMS.length]; setRoomVars();
-  G.seg = 0; G.phase = 'fight'; G.enemies = []; G.drops = []; G.parts = []; G.fx = []; G.texts = []; G.booms = []; G.queue = []; G.starfall = null;
+  G.seg = 0; G.phase = 'fight'; G.enemies = []; G.drops = []; G.parts = []; G.fx = []; G.texts = []; G.booms = []; G.queue = []; G.starfall = null; G.cine = null;
   var h = G.hero; h.x = LK(0) + Math.round(W * 0.28); h.face = 1; h.y = Math.round((LANE_Y0 + LANE_Y1) / 2); h.state = 'idle'; h.t = 0; h.buf = 0; h.inv = 0;
   updateCam(0, true); startWave(G.wave + 1);
 }
@@ -53,7 +53,7 @@ function spawn(q) {
   };
   if (q.boss) { // 敵将：大きく硬い。引き寄せと拘束はほとんど効かない（e.boss）。HPは上の帯に出す
     e.boss = true; e.size = 1.38; e.max = (22 + n * 5) * 42; e.sp *= 0.75; e.dmg = 10 + n * 3; e.x = cl + W + 60; e.y = (LANE_Y0 + LANE_Y1) / 2;
-    G.boss = e; fxBossIn(e); addText(cl + W * 0.5, LANE_Y0 - 60, BAT.boss ? '将軍 出陣！' : '敵将 出現！', 46, '#ff8a7a', 1.6); G.shake = Math.max(G.shake, 8);
+    G.boss = e; fxBossIn(e); G.shake = Math.max(G.shake, 8);
   }
   e.hp = e.max; G.enemies.push(e);
 }
@@ -85,7 +85,7 @@ function beginAttack(kind) {
   if (kind === 'thr') { h.cancelT = THR.cancel; h.total = THR.total; h.x0 = h.x; h.fxT = 0; G.thrCD = G.thrMax; }
   if (kind === 'sk') G.skCD = G.skMax * S.cd;
   if (kind === 'pull') G.pullCD = G.pullMax * S.pcd;
-  if (kind === 'ult') { h.cancelT = ULT.total; h.total = ULT.total; h.fxT = 0; h.ringT = 0; G.ultCD = G.ultMax; }
+  if (kind === 'ult') { h.cancelT = ULT.total; h.total = ULT.total; h.fxT = 0; h.ringT = 0; G.ultCD = G.ultMax; cineStart(h, 205 * depthScale(h.y)); } // 必殺：ラナへ寄って少しスロー（battle/fx2.js）
 }
 /* 回避：入力の向き（なければ向いている方）へ短く踏み込む。最中は無敵。攻撃の途中・のけぞりの途中でも出せる（必殺技の最中は除く）
    絵は走りのコマ＋残像（専用の絵は無い）。DODGE.dist＝進む距離、dur＝長さ、inv＝無敵の長さ（踏み込みより少し長い） */
@@ -159,8 +159,7 @@ function doUlt(h) {
   G.freeze = Math.max(G.freeze, 0.14 + Math.min(hits, 14) * 0.006);
   G.shake = Math.max(G.shake, 22 + Math.min(hits, 14) * 1.2);
   for (i = 0; i < 40; i++) { var dr = i % 2 ? 1 : -1; G.parts.push({ x: h.x + dr * rnd(40, 400), y: h.y - rnd(0, 30), vx: dr * rnd(80, 520), vy: -rnd(120, 520), g: 900, life: rnd(0.4, 0.9), t: 0, c: i % 3 ? '#d9d2bd' : '#ffc76a', s: rnd(3, 8) }); }
-  addText(h.x, h.y - 280, '必殺！', 58, '#ffe9a8', 1.0);
-  if (hits) addText(h.x, h.y - 340, hits + '体 撃破', 30, '#ffb3b3', 1.0);
+  cineRelease(); // 放つ瞬間に引く
 }
 // 攻撃B：横薙ぎ。元動画のコマ番号ごとの再生時間(ms)。当たりは、前方(コマ28)→背面(コマ30)→頭上からの払い・背面(コマ55)
 var ATB_SRC = [], ATB_T = [], ATB = {}, i0;
@@ -246,8 +245,6 @@ function doThr(h) {
   G.fx.push({ type: 'vshock', x: h.x, y: h.y, dir: h.face, t: 0, life: 0.5, rana: true });
   G.freeze = Math.max(G.freeze, 0.06 + Math.min(hits, 12) * 0.008);
   G.shake = Math.max(G.shake, 8 + Math.min(hits, 12) * 1.4);
-  addText(h.x + h.face * 200, h.y - 250, '貫通！', 40, '#ffd27a', 0.9);
-  if (hits) addText(h.x + h.face * 200, h.y - 300, hits + '体 貫く', 24, '#d9f0ff', 0.9);
 }
 function atkFrame(t, a) {
   var P = [['atk', 0, 9, 48], ['atk', 10, 18, 32], ['rec', 0, 16, 48]];
@@ -298,10 +295,8 @@ function doPull(c) {
   if (n) {
     G.freeze = Math.max(G.freeze, 0.04 + Math.min(n, 10) * 0.006);
     G.shake = Math.max(G.shake, 3 + Math.min(n, 12) * 0.8);
-    addText(gx, c.y - 230, n + '体 捕縛！', 30, '#c9bcff', 0.9);
   } else {
     G.pullCD = Math.min(G.pullCD, 1.2); // 空振りは、ほぼ罰しない
-    addText(gx, c.y - 230, '範囲内に敵なし', 20, '#9d93ab', 0.7);
   }
 }
 
@@ -318,7 +313,7 @@ function kill(e, dir) {
   e.state = 'dying'; e.dt = 0; e.dir = dir;
   G.kills++; G.combo++; G.comboT = 2.4; if (G.combo > G.bestCombo) G.bestCombo = G.combo;
   if (e.boss) fxBossDown(e); else fxKill(e, dir); // 撃破のエフェクト（battle/fx2.js）
-  if (e.boss) { G.boss = null; addText(e.x, e.y - eh(e) - 40, '敵将 撃破！', 48, '#ffe28a', 1.4); G.freeze = Math.max(G.freeze, 0.2); G.shake = Math.max(G.shake, 24); }
+  if (e.boss) { G.boss = null; G.freeze = Math.max(G.freeze, 0.2); G.shake = Math.max(G.shake, 24); }
   var nd = e.boss ? 5 : e.elite ? 2 : (Math.random() < 0.07 ? 1 : 0); // 落とすのは物資だけ（1つ＝領地の物資+1）。強敵は2つ
   for (var k = 0; k < nd; k++) G.drops.push({ x: e.x, y: e.y, z: 20, vx: rnd(-120, 120), vz: rnd(180, 340), type: 3, t: 0, home: false });
   if (S.chain > 0) G.booms.push({ x: e.x, y: e.y, t: 0.12 });
