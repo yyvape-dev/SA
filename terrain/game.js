@@ -30,9 +30,11 @@ export const ALLY = {
   garou: { n: 'ガロウ', r: '火力役', join: 'east', lv: ['', '', '防衛力+4・戦闘のダメージ+15%', '防衛力+7・ダメージ+30%'] },
   sera:  { n: 'セラ',   r: '内政役', join: 'lake', lv: ['', '', '畑の産出+1ずつ・戦闘の最大HP+20', '炊き出しの民心+15・最大HP+40'] },
   ranka: { n: 'ランカ', r: '火力役・将軍', join: 'forest', lv: ['', '', '出撃時の効果がさらに強くなる（防衛力+4・ダメージ+10%）', '出撃時の効果がさらに強くなる（防衛力+8・ダメージ+20%）'] },
+  // リリィ（2026-10-30 追加）：ランカの戦友。区域ではなく出来事で加入（ランカが仲間になって2週後の朝、またはランカと絆1以上）。ev＝出来事で加入。noBattle＝戦闘の絵が届くまで、一騎打ち・任せた戦闘・アクション戦闘には出さない
+  lily:  { n: 'リリィ', r: '抑え役・副団長', join: null, ev: true, noBattle: true, base: 'ランカと同じ区域の施設に配置すると、ランカの配置の効果+50%', lv: ['', '', 'ランカが街にいない週が減る（4分の1→10分の1）・ランカの出撃の防衛力+3', 'ランカは毎週街にいる・ランカの出撃の防衛力+6'] },
 };
 // 施設への配置：仲間1人につき施設1つ。完成・発展後の施設だけ。得意な施設なら効果+基本値ぶん、そうでなければ半分（切り上げ）
-export const AFFINITY = { farm: ['sera'], tavern: ['sera', 'garou', 'ranka'], smithy: ['garou', 'mina', 'ranka'], war: [], drill: [], wall: ['garou', 'ranka'] };
+export const AFFINITY = { farm: ['sera'], tavern: ['sera', 'garou', 'ranka'], smithy: ['garou', 'mina', 'ranka', 'lily'], war: [], drill: [], wall: ['garou', 'ranka', 'lily'] };
 export function assignBonus(fac, k) { const e = Object.values(FAC[fac].eff)[0]; if (fac === 'smithy') return k === 'ranka' ? .5 : AFFINITY.smithy.includes(k) ? .25 : .1; // 鍛冶場は兵の強さ（小数）
   if (k === 'ranka' && fac !== 'farm') return e * 2; return AFFINITY[fac].includes(k) ? e : Math.ceil(e / 2); } // ランカは酒場（民心）か鍛冶場で2倍
 export const allyAt = (s, id) => Object.keys(s.assign || {}).find(k => s.assign[k] === id) || null;
@@ -40,13 +42,14 @@ export function canAssign(s, k, id) { const p = s.plots[id]; return joined(s, k)
 export function assign(s, k, id) { if (!canAssign(s, k, id)) return false; const other = allyAt(s, id); if (other) delete s.assign[other]; s.assign[k] = id; s.log.push(`${ALLY[k].n}を${FAC[s.plots[id].fac].n}に配置した`); return true; }
 export function unassign(s, k) { if (!s.assign[k]) return false; delete s.assign[k]; return true; }
 function cleanAssign(s) { for (const k of Object.keys(s.assign || {})) { const p = s.plots[s.assign[k]]; if (!p || p.stage < 2) delete s.assign[k]; } }
-export const joined = (s, k) => !ALLY[k].join || s.open.includes(ALLY[k].join);
+export const joined = (s, k) => ALLY[k].ev ? !!(s.met && s.met[k]) : (!ALLY[k].join || s.open.includes(ALLY[k].join));
+export const fighter = k => !ALLY[k].noBattle; // 戦闘に出せる（絵がそろっている）仲間
 const bond = (s, k) => (s.bond && s.bond[k]) || 0;
 export const canTalk = (s, k) => joined(s, k) && !(k === 'ranka' && s.rankaAway) && bond(s, k) < 3 && !s.over && !s.raid && s.ap >= 1;
 export function talk(s, k) { if (!canTalk(s, k)) return false; s.ap -= 1; s.bond[k] = bond(s, k) + 1; s.log.push(`${ALLY[k].n}と過ごした（絆${s.bond[k]}）`); return true; }
 // ランカの出撃：最強の戦力。出た次の戦闘は休み（2回続けて出られない）
 export const rankaReady = s => joined(s, 'ranka') && !s.rankaAway; // 2026-10-30 連戦できる（休みはなし）。街にいない週だけ出られない
-export const rankaD = s => 10 + (bond(s, 'ranka') >= 3 ? 8 : bond(s, 'ranka') >= 2 ? 4 : 0);
+export const rankaD = s => 10 + (bond(s, 'ranka') >= 3 ? 8 : bond(s, 'ranka') >= 2 ? 4 : 0) + (joined(s, 'lily') ? (bond(s, 'lily') >= 3 ? 6 : bond(s, 'lily') >= 2 ? 3 : 0) : 0); // リリィの絆で上乗せ
 export const rankaDmg = s => .4 + (bond(s, 'ranka') >= 3 ? .2 : bond(s, 'ranka') >= 2 ? .1 : 0);
 export const orders = s => 1 + Math.round(effSum(s, 'order')); // 一騎打ちで使える鬨の声の回数
 export const drillP = s => effSum(s, 'duel');                       // 訓練場：仲間の一騎打ちの勝率の上乗せ
@@ -61,13 +64,15 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const mult = st => (st === 2 ? 1 : st === 3 ? 2 : 0);
 
 export function newState(areaDefs) {
-  return { week: 1, ap: 3, sup: 10, morale: 60, troops: 4, hp: 3, plots: {}, open: [], bond: { mina: 0, garou: 0, sera: 0, ranka: 0 }, assign: {}, battle: null, scouted: {}, tired: false, over: null, why: '', raid: null, log: [], areaDefs: areaDefs.map(a => ({ id: a.id, name: a.name, cost: a.cost, income: a.income })) };
+  return { week: 1, ap: 3, sup: 10, morale: 60, troops: 4, hp: 3, plots: {}, open: [], bond: { mina: 0, garou: 0, sera: 0, ranka: 0, lily: 0 }, met: {}, assign: {}, battle: null, scouted: {}, tired: false, over: null, why: '', raid: null, log: [], areaDefs: areaDefs.map(a => ({ id: a.id, name: a.name, cost: a.cost, income: a.income })) };
 }
 
 // ---------- 指標（全部ここから計算） ----------
 function facVal(s, id, p, key) { const f = FAC[p.fac]; if (!f || !f.eff[key] || p.burnt) return null;
   let v = (f.eff[key] + (key === 'sup' && bond(s, 'sera') >= 2 ? 1 : 0)) * mult(p.stage);
-  const k = allyAt(s, id); if (k && p.stage >= 2 && !(k === 'ranka' && s.rankaAway)) v += assignBonus(p.fac, k); return v; }
+  const k = allyAt(s, id); if (k && p.stage >= 2 && !(k === 'ranka' && s.rankaAway)) v += assignBonus(p.fac, k) * (k === 'ranka' && lilyPair(s) ? 1.5 : 1); return v; }
+// リリィがランカと同じ区域の施設にいる（ランカの配置の効果+50%）
+export const lilyPair = s => joined(s, 'lily') && !!s.assign && !!s.assign.lily && !!s.assign.ranka && PLOT_AREA[s.assign.lily] === PLOT_AREA[s.assign.ranka];
 function effSum(s, key) { // 種類ごとに大きい順に並べ、DIM を掛けて足す
   const by = {};
   for (const [id, p] of Object.entries(s.plots)) { const v = facVal(s, id, p, key); if (v != null) (by[p.fac] = by[p.fac] || []).push(v); }
@@ -137,7 +142,10 @@ function afterWeek(s) {
   s.week++; if (s.week > WEEKS) { s.over = 'win'; s.why = `${WEEKS}週を生き延びた`; return; }
   s.ap = Math.max(1, apOf(s.morale) - (s.tired ? 1 : 0)); s.tired = false; s.away = 0; s.sortied = false; // 出撃した兵が戻る
   // ランカは、たまにその週の街にいない（4分の1。2週続けてはいない）。配置の効果も出撃もなし
-  s.rankaAway = joined(s, 'ranka') && !s.rankaAway && Math.random() < .25;
+  // リリィの加入：ランカが仲間になって2週後の朝（またはランカと絆1以上）
+  if (joined(s, 'ranka') && !joined(s, 'lily')) { s.rkW = (s.rkW || 0) + 1; if (s.rkW >= 2 || bond(s, 'ranka') >= 1) { s.met = s.met || {}; s.met.lily = true; s.newcomer = 'lily'; s.log.push('ランカの戦友、リリィが仲間になった'); } }
+  const lb = joined(s, 'lily') ? bond(s, 'lily') : 0; // リリィの絆で、ランカが街を空ける週が減る
+  s.rankaAway = joined(s, 'ranka') && !s.rankaAway && Math.random() < (lb >= 3 ? 0 : lb >= 2 ? .1 : .25);
   if (s.rankaAway) s.log.push('ランカは今週、街にいない');
 }
 function checkLose(s) { if (s.over) return; if (s.hp <= 0) { s.over = 'lose'; s.why = '城が落とされた'; } else if (s.morale <= 0) { s.over = 'lose'; s.why = '民心が尽き、反乱が起きた'; } }
@@ -196,9 +204,14 @@ export const LINES = {
     farm: ['畑仕事かぁ……わたし向きじゃないよね？ ま、お嬢が言うならやるけどさ。'], tavern: ['酒場はいいよね〜。兵のみんなと飲んでると、士気って勝手に上がるんだよ。'], smithy: ['刃はちゃんと研いどいてよ？ お嬢の兵、一人も無駄にしたくないじゃん。'],
     rest: ['さすがに連戦はキツいって。次は休ませてよね、お嬢。'],
     b3: ['お嬢の旗の下なら、わたし何回でも立てるよ。……あ、今の照れるから忘れて。'] },
+  lily: { idle: ['いつもみんなしてランカにばっかり……。わたしがなんとかしなきゃ。', 'ランカは強すぎるの。だから、誰かが隣で支えてあげないと。', '騎士は義に生きるもの。ラナ様の民は、わたしも守ります。', 'わぁ、綺麗な花畑！ ふふ、素敵だなぁ……あっ、見回りの途中でした。'],
+    farm: ['畑の見回りも、騎士の務めです。……わぁ、この花、かわいい。'], tavern: ['ちょっと！ 何してるの、ランカ！ 昼間から飲みすぎ！ ……もう。'], smithy: ['剣の手入れは毎日欠かしません。強くならないと、あの子の隣には立てないから。'], wall: ['この城壁、わたしが守ります。ランカひとりに背負わせたりしない。'],
+    b3: ['ランカが笑っていられる国なら、きっとラナ様の民も笑っていられる。……わたし、そういう国を見てみたいんです。'],
+    join: ['ランカ！ やっと見つけた……ちょっと！ 何してるの、こんな遠い国で！ ――失礼しました。あなたがラナ様ですね。わたしはリリィ。ランカの戦友です。逃げながらも民を想うあなたに、剣を預けさせてください。'] },
 };
 export function lineOf(s, k, rnd = Math.random) {
   const L = LINES[k], at = s.assign && s.assign[k], fac = at && s.plots[at] ? s.plots[at].fac : null;
+  if (s.newcomer === k && L.join) { s.newcomer = null; return L.join[0]; } // 加入した最初の会話
   const pool = [...L.idle, ...((fac && L[fac]) || []), ...((fac && L[fac]) || []), ...(bond(s, k) >= 3 ? L.b3 : [])];
   return pool[Math.floor(rnd() * pool.length)];
 }
@@ -255,9 +268,9 @@ export function morningLines(s, who, rnd = Math.random) {
 }
 
 // ---------- 一騎打ち（接戦のとき、将軍同士が戦う） ----------
-export const DUEL_POW = { ranka: 14, garou: 11, mina: 9, sera: 6 };
+export const DUEL_POW = { ranka: 14, garou: 11, mina: 9, sera: 6, lily: 12 };
 export const duelDue = s => !!s.raid && (s.raid.boss || s.raid.E >= 30 || Math.abs(raidD(s) - s.raid.E) <= 4); // 副官と将軍は必ず一騎打ちに出てくる
-export const champions = s => Object.keys(ALLY).filter(k => joined(s, k) && !(k === 'ranka' && (s.rankaAway || !s.raid.ranka)));
+export const champions = s => Object.keys(ALLY).filter(k => fighter(k) && joined(s, k) && !(k === 'ranka' && (s.rankaAway || !s.raid.ranka)));
 export const foeGeneral = s => ({ n: s.raid.boss ? '謀反の将軍' : s.raid.E >= 30 ? '将軍の副官' : '敵の隊長', pow: s.raid.E / 3 + (s.raid.boss ? 6 : s.raid.E >= 30 ? 2 : 0) });
 export const duelPow = (s, k) => DUEL_POW[k] + bond(s, k) * 1.5;
 export const duelP = (s, k) => { // ミナは絆2・3で勝率が上がる。ランカは相手が誰でも7割は勝つ（最強の将）

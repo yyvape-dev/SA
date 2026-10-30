@@ -1,7 +1,7 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793290034';
+import * as GM from './game.js?v=1793430000';
 import { createUI } from './ui.js?v=1793290034';
 import { createMorning } from './morning.js?v=1793290034';
 import { slashFX, impactFX, clashFX, chargeFX, rallyFX } from './fx_slash.js?v=1793390000';
@@ -587,8 +587,8 @@ function hitCastle(sx, sy) { const h = castleHit; if (!h) return false; const u 
 function setPlot(pl, fac, stage) { pl.fac = stage ? fac : null; pl.stage = stage; refreshPlot(pl); }
 
 // ---------- 仲間（家の街の広場に立つ。仲間になると現れる）----------
-const ALLY_POS = { mina: [372, 1066], garou: [568, 1066], sera: [505, 1090], ranka: [435, 1090] };
-const MAP_BB = { mina: 635, garou: 670, sera: 635, ranka: 625 }, MAP_H = { mina: 76, sera: 76, ranka: 76 * 202 / 210, garou: 76 * 228 / 210 }; // マップ用の絵（ally/map_*.png）の人物の高さ（実測）と、描く高さ
+const ALLY_POS = { mina: [372, 1066], garou: [568, 1066], sera: [505, 1090], ranka: [435, 1090], lily: [470, 1110] };
+const MAP_BB = { mina: 635, garou: 670, sera: 635, ranka: 625, lily: 248 }, MAP_H = { mina: 76, sera: 76, ranka: 76 * 202 / 210, garou: 76 * 228 / 210, lily: 42 }; /* lily は立ち絵の胸から上の仮（全身の絵が届いたら差し替え） */ // マップ用の絵（ally/map_*.png）の人物の高さ（実測）と、描く高さ
 const allyMesh = {}, WALK_BBH = { mina: 420, garou: 452, sera: 424, ranka: 426 }; // 歩行コマの中の人物の高さ（元の512px基準）
 for (const k of Object.keys(GM.ALLY)) {
   const mapIm = await loadImage(`../ally/map_${k}.png`), im = mapIm || await loadImage(`../ally/${k}.png`); if (!im) continue; // マップ用の小さな絵（等角）。なければ立ち絵
@@ -624,7 +624,7 @@ function walkAllies(dt) { const now = performance.now();
     setWalkPose(a, true, now); }
 }
 const faceTex = {}, faceURL = {}, faceRaw = {};
-const FACE = { mina: [178, 74, 56], garou: [247, 50, 58], sera: [150, 64, 54], ranka: [180, 62, 56] }; // 立ち絵の顔の中心と半径（画素）
+const FACE = { mina: [178, 74, 56], garou: [247, 50, 58], sera: [150, 64, 54], ranka: [180, 62, 56], lily: [198, 152, 60] }; // 立ち絵の顔の中心と半径（画素）
 async function makeFace(k) { // 立ち絵の顔を丸く切り抜いて、金の縁をつける
   const im = await loadImage(`../ally/${k}.png`); if (!im) return null; const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
   g.fillStyle = '#2a1a0c'; g.beginPath(); g.arc(64, 64, 60, 0, 7); g.fill(); g.save(); g.beginPath(); g.arc(64, 64, 54, 0, 7); g.clip();
@@ -651,7 +651,7 @@ const hitAlly = (sx, sy) => Object.keys(allyMesh).find(k => { const a = allyMesh
 // ---------- ゲームの状態（game.js のルール）と画面の同期 ----------
 const SAVE_KEY = 'territory_v2';
 let G = null, selCastle = false, selAlly = null;
-function loadSave() { try { const v = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); if (v && v.week) { v.bond = Object.assign({ mina: 0, garou: 0, sera: 0, ranka: 0 }, v.bond || {}); v.assign = v.assign || {}; return v; } return null; } catch (e) { return null; } }
+function loadSave() { try { const v = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); if (v && v.week) { v.bond = Object.assign({ mina: 0, garou: 0, sera: 0, ranka: 0, lily: 0 }, v.bond || {}); v.assign = v.assign || {}; v.met = v.met || {}; return v; } return null; } catch (e) { return null; } }
 function writeSave() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(G)); } catch (e) { } }
 function syncMap(instant) { // 状態 → 区画の絵と霧
   for (const pl of plots) { const p = G.plots[pl.id]; const f = p ? p.fac : null, stg = p ? p.stage : 0; const bt = !!(p && p.burnt); if (pl.fac !== f || pl.stage !== stg || pl.burnt !== bt) { if (!instant && pl.burnt === false && bt) pl.ign = performance.now(); if (!instant && pl.burnt && !bt) emitAt(pl, 'steam', 9); pl.burnt = bt; setPlot(pl, f, stg); } }
@@ -777,7 +777,7 @@ function endRaidFx() { raidFx.classList.remove('on'); foes.forEach(f => scene.re
 function autoBattle(resolveFn) { // 任せた戦闘：仲間と兵が軍勢とぶつかり、押し合いの末に結果が出る（約3秒、タップで飛ばせる）
   if (!G.raid) { ui.modal(null); return; }
   const R = G.raid, usD = GM.raidD(G), E = R.E;
-  const team = Object.keys(GM.ALLY).filter(k => GM.joined(G, k) && !(k === 'ranka' && (G.rankaAway || !R.ranka))).slice(0, 4);
+  const team = Object.keys(GM.ALLY).filter(k => GM.fighter(k) && GM.joined(G, k) && !(k === 'ranka' && (G.rankaAway || !R.ranka))).slice(0, 4);
   const t = resolveFn(); // 先に結果を決め、演出をその結果に合わせる
   const good = /被害なし|完勝|勝利/.test(t) && !/敗北/.test(t), mid = /小被害|苦戦/.test(t);
   const label = good ? '勝利' : mid ? '辛勝' : /大被害|敗北|敗走/.test(t) ? '敗北' : '苦戦', col = good ? '#ffd770' : mid ? '#ffe0a0' : '#ff7a6a';
@@ -799,7 +799,7 @@ function autoBattle(resolveFn) { // 任せた戦闘：仲間と兵が軍勢と�
 }
 // ---------- 一騎打ちの演出（仮：マップ用の絵を大きく並べ、動きはコード）----------
 const dCss = document.createElement('style'); dCss.textContent = `
-@font-face{font-family:'DMincho';src:url(assets/font/mincho-b.woff2) format('woff2');font-weight:700;font-display:swap}
+@font-face{font-family:'DMincho';src:url(assets/font/mincho-b.woff2?v=2) format('woff2');font-weight:700;font-display:swap}
 #dsel,#duel{--u:min(.2326vw,.1073dvh);--ink:#2b1d10;--ink2:#5e4728;--gold:#a8833c;--teal:#2c6a64;--red:#a3362b;
   position:fixed;inset:0;display:none;flex-direction:column;overflow:hidden;font-family:'DMincho','Hiragino Mincho ProN','Yu Mincho',serif;font-weight:700;color:var(--ink);
   background:#efe3c8 url(assets/ui2/parch.jpg) 0 0/calc(760*var(--u)) auto repeat;-webkit-font-smoothing:antialiased}
@@ -1157,7 +1157,7 @@ function fbUnit(stage, kind, K, side, x, y, H) { // x,y＝足元（舞台の％�
 function fieldBattle(mode, onEnd) { // onEnd：試しのとき、結果を記録せずに呼ぶ // mode：'auto'（任せる）。'hand' は旧「確率で決める」（画面からは外した）
   if (!G.raid) { ui.modal(null); return; }
   const R = G.raid, usD = Math.round(GM.raidD(G)), E = R.E, fr = GM.FRONT[R.dir], K = fbKinds(), rank = duelRank(), FL = GM.DUEL_LINES[rank], F = GM.foeGeneral(G), look = foeLook();
-  const team = Object.keys(GM.ALLY).filter(k => GM.joined(G, k) && !(k === 'ranka' && (G.rankaAway || !R.ranka))).slice(0, 4);
+  const team = Object.keys(GM.ALLY).filter(k => GM.fighter(k) && GM.joined(G, k) && !(k === 'ranka' && (G.rankaAway || !R.ranka))).slice(0, 4);
   abt.className = 'fb'; abt.style.backgroundImage = ''; abt.onclick = null;
   abt.innerHTML = `<div class="fh"><i class="cn tl"></i><i class="cn tr"></i><div class="tag">${R.kind === 'sortie' ? '出撃' : '防衛戦'}</div><h1>${R.name}</h1><img src="assets/ui2/divider2.webp">
       <div class="sub"><span>${R.kind === 'sortie' ? `戦力（兵${R.sent}）` : '防衛力'}<b>${usD}</b></span><span class="md">${fr ? fr.n : ''}</span><span>敵の規模<b>${E}</b></span></div></div>
@@ -1238,7 +1238,7 @@ function fieldBattle(mode, onEnd) { // onEnd：試しのとき、結果を記録
 }
 function goBattle() { // アクション戦闘へ移る。結果は battle_result に書かれ、戻ってきたときに反映する
   const R = G.raid, id = String(Date.now()), m = GM.battleMods(G); G.battle = { id }; writeSave();
-  const al = Object.keys(GM.ALLY).filter(k => GM.joined(G, k) && !(k === 'ranka' && !R.ranka)).join(','); // 途中で参入する仲間の候補（戦闘の側でランダムに1人。ランカは街にいる週だけ）
+  const al = Object.keys(GM.ALLY).filter(k => GM.fighter(k) && GM.joined(G, k) && !(k === 'ranka' && !R.ranka)).join(','); // 途中で参入する仲間の候補（戦闘の側でランダムに1人。ランカは街にいる週だけ）
   const q = new URLSearchParams({ battle: '1', id, waves: GM.wavesOf(R.E), name: R.name, dmg: m.dmg, bind: m.bind, hp: m.hp, al, boss: R.boss ? 1 : 0, ret: 'terrain/index.html' });
   location.href = '../index.html?' + q.toString();
 }
@@ -1371,7 +1371,7 @@ function renderActions() {
       if (p.stage === 2) L.push({ label: '発展', act: `${d.n}を発展させる`, sup: -d.up, ap: 1, eff: d.ud || '効果が2倍になる', verb: '発展させる', can: GM.canUpgrade(G, id), why: why(d.up), fn: () => act(() => GM.upgrade(G, id), `${d.n}を発展させた`) });
       if (p.stage >= 2 && !d.noStaff) {
         for (const k of Object.keys(GM.ALLY)) { if (!GM.joined(G, k) || k === here) continue; const A = GM.ALLY[k], bon = GM.assignBonus(p.fac, k), fit = GM.AFFINITY[p.fac].includes(k);
-          L.push({ label: `${A.n}を配置`, act: `${A.n}を配置する${fit ? '（得意）' : ''}`, eff: `${p.fac === 'smithy' ? '兵1人の強さ' : '効果'} +${bon}${G.assign[k] ? '・今の配置から移る' : ''}`, verb: '配置する', can: GM.canAssign(G, k, id), why: why(), fn: () => act(() => GM.assign(G, k, id), `${A.n}を${d.n}に配置した`) }); }
+          L.push({ label: `${A.n}を配置`, act: `${A.n}を配置する${fit ? '（得意）' : ''}`, eff: `${p.fac === 'smithy' ? '兵1人の強さ' : '効果'} +${bon}${k === 'lily' && G.assign.ranka && GM.PLOT_AREA[G.assign.ranka] === GM.PLOT_AREA[id] ? '・ランカと同じ区域：ランカ+50%' : ''}${G.assign[k] ? '・今の配置から移る' : ''}`, verb: '配置する', can: GM.canAssign(G, k, id), why: why(), fn: () => act(() => GM.assign(G, k, id), `${A.n}を${d.n}に配置した`) }); }
         if (here) L.push({ label: `${GM.ALLY[here].n}を外す`, act: `${GM.ALLY[here].n}を外す`, eff: '広場へ戻る', verb: '外す', fn: () => act(() => GM.unassign(G, here), `${GM.ALLY[here].n}を広場へ戻した`) }); }
       L.push({ label: '取り壊す', act: `${d.n}を取り壊す`, eff: '行動点は使わない。配置は外れる', verb: '取り壊す', fn: () => act(() => GM.demolish(G, id), `${d.n}を取り壊した`) }); } }
   else { const k = defaultAlly(); por = P(k); title = '陛下の領地'; icon = 'flag'; key = 'idle';
@@ -1457,6 +1457,7 @@ if (params.has('duel')) { const sv = JSON.stringify(G); for (const a of Object.v
   G.raid = { kind: 'raid', E: 46, name: '将軍の侵攻（試し）', boss: true, w: 12, dir: 'pass', ranka: true }; maybeDuel(() => { G = JSON.parse(sv); writeSave(); refreshUI(); ui.toast('試しの一騎打ちを終えた（記録は残らない）'); }); } // ?duel で一騎打ちだけ見る
 resize(); apply(); renderer.render(scene, camera); status.ok = true; if (window.__bootDone) window.__bootDone();
 window.__t.castle = () => { select(null); selCastle = true; refreshUI(); }; // 試験：城を選ぶ
+window.__t.selAlly = k => { select(null); selAlly = k; newLine(k); refreshUI(); }; window.__t.sync = () => { syncMap(); refreshUI(); writeSave(); }; // 試験：仲間を選ぶ／状態を画面へ
 window.__t.setView = (zoom, sx, sy) => { view.zoom = zoom; view.cx = sx; view.cz = zOf(sy); clampView(); apply(); renderer.render(scene, camera); };
 window.__t.playDuel = playDuel; window.__t.fieldBattle = fieldBattle; window.__t.maybeDuel = maybeDuel; window.__t.raidIntro = raidIntro; window.__t.allyMesh = allyMesh; window.__t.select = id => select(plots.find(p => p.id === id) || null);
 window.__t.plots = plots; window.__t.G = () => G; window.__t.playDuel = playDuel; window.__t.fieldBattle = fieldBattle; window.__t.maybeDuel = maybeDuel; window.__t.raidIntro = raidIntro; window.__t.camp = () => camp && camp.map(c => [c.position.x|0, c.position.y|0, c.position.z|0, c.visible]); window.__t.faces = () => faceURL; window.__t.raidIntro = raidIntro; window.__t.raidModal = raidModal; window.__t.showReport = showReport; window.__t.openMorning = openMorning; window.__t.GM = GM; window.__t.commit = () => commit(); window.__t.reset = () => { try { localStorage.removeItem(SAVE_KEY); } catch (e) { } }; window.__t.pickAt = (cx, cy) => pickAt(cx, cy); window.__t.view = view; window.__t.sel = () => selected && selected.id; window.__t.build = (id, fac, stage) => { if (stage) G.plots[id] = { fac, stage }; else delete G.plots[id]; commit(); };
