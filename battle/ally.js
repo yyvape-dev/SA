@@ -116,7 +116,7 @@ function tryCo() {
   if (G.coCD > 0) { addText(G.hero.x, G.hero.y - 250, '連携 再使用まで ' + G.coCD.toFixed(1) + '秒', 20, '#a8dcff', 0.7); return; }
   if (a.state === 'enter') a.state = 'idle';
   G.coCD = G.coMax;
-  a.atk = null; allyStartAtk(a, true); cineStart(a, allyH(a)); // 連携：打つ仲間へ寄って少しスロー → 放つ瞬間に引く（battle/fx2.js）
+  a.atk = null; allyStartAtk(a, true); cineStart(a, allyH(a)); if (a.k === 'ranka') fxStarCharge(a); // ランカ：青と金のオーラが溜まる // 連携：打つ仲間へ寄って少しスロー → 放つ瞬間に引く（battle/fx2.js）
   G.say = { a: a, s: ALLY_DEF[a.k].use, t: 0, life: 1.7 }; // 台詞は吹き出しで（drawSay）
 }
 function allySkill(a) {
@@ -160,7 +160,7 @@ function allySkill(a) {
     fxDash(x0, a.x, a.y, a.face);
     G.freeze = Math.max(G.freeze, 0.1 + Math.min(n, 12) * 0.006); G.shake = Math.max(G.shake, 14 + Math.min(n, 12));
   } else { // 星震：画面の敵に、星が1体ずつ落ちる（当たりごとに大ダメージ、拘束中は1.5倍）。演出と進行は battle/fx2.js の startStarfall
-    startStarfall(a);
+    fxStarStomp(a); startStarfall(a); // 踏み抜き（光の柱＋画面いっぱいの流線）→ 星の雨
   }
 }
 

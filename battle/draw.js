@@ -383,6 +383,7 @@ function draw() {
   }
   drawStarDim(); // 星震の夜空（battle/fx2.js）
   drawFoeAura(); // 敵将・強敵の足元の気配（battle/fx2.js）
+  drawChargeBack(); // ランカの溜めのオーラ（体の後ろ）
   drawBindFloor(); // 拘束の床の印（敵より先＝足元の下）
   var list = [];
   G.enemies.forEach(function (e) { list.push({ y: e.y, f: function () { drawFoe(e); } }); });

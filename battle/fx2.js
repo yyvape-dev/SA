@@ -280,7 +280,7 @@ FX2.vstar = function (f) {
 };
 
 /* ===== ランカの星震（2026-10-30 作り直し）：夜空へ暗転 → 星が灯り星座の線で敵を結ぶ → 星が1体ずつ落ちる（当たりごとにダメージ）→ 地面が割れる大きな一撃 → 明転 ===== */
-var SF = { dim: 0.25, sky: 0.25, fall: 0.5, quake: 1.05, end: 1.3, dur: 0.1 }; // 放つ瞬間（寄りから引いたところ）から始まる
+var SF = { dim: 0.3, sky: 0.45, fall: 0.7, quake: 1.25, end: 1.5, dur: 0.1 }; // 踏み抜きの光（約0.5秒）が引いてから星が灯る // 放つ瞬間（寄りから引いたところ）から始まる
 function startStarfall(a) {
   var list = G.enemies.filter(function (e) { return e.state === 'walk' && e.x > camX - 40 && e.x < camX + W + 40; }).sort(function (p, q) { return p.x - q.x; });
   var n = list.length, step = n ? Math.min(0.07, 0.5 / n) : 0, top = camY + TOPY + VH * 0.16, stars = [];
@@ -386,4 +386,103 @@ FX2.vdash = function (f) {
   for (var i = 0; i < f.st.length; i++) { var q = f.st[i], a = t - q.d - q.u * 0.08; if (a < 0 || a > q.life) continue; var al = Math.sin(a / q.life * Math.PI); vStar4(f.x0 + (f.x1 - f.x0) * q.u, f.y + q.oy + q.vy * a, q.r, a * 3, i % 3 ? C.spark : C.core, al); }
   var bt = t - 0.06; if (bt > 0 && bt < 0.14) { vGlow(f.x1 + f.face * 30, f.y, 120 * (0.5 + bt * 4), C, 1 - bt / 0.14); }
   if (t > 0.06) drawSparks({ t: t - 0.06, sp: f.sp }, f.x1 + f.face * 30, f.y, C, 5, 700);
+};
+
+/* ===== ランカの星震：溜め（青と金のオーラ）→ 踏み抜き（足から縦に昇る光の柱＋画面いっぱいの流線）（2026-10-30） =====
+   スキル code-vfx-canvas の手法：太さの変わる形／時間差の3層（残光・本体・芯）／加算の光＋暗い下地／速度の向きの筋／対象に追従／t から位置／重なりの上限 */
+var VFX_SKY = { glow: '60,140,255', main: '140,205,255', core: '255,255,255', spark: '255,226,150', gold: '255,196,70', dark: '4,8,34', dk: 0.5 };
+// 曲線（2次ベジェ p0→c→p1）の u0〜u1 を、太さの変わるリボン（根本は細く、先端の手前で太く、先端で尖る）で塗る
+function vCurveRibbon(p0x, p0y, cx, cy, p1x, p1y, u0, u1, w, style) {
+  if (u1 - u0 < 0.01) return; var N = 22, L = [], R = [];
+  for (var i = 0; i <= N; i++) {
+    var s = i / N, u = u0 + (u1 - u0) * s, iu = 1 - u, x = iu * iu * p0x + 2 * iu * u * cx + u * u * p1x, y = iu * iu * p0y + 2 * iu * u * cy + u * u * p1y;
+    var dx = 2 * iu * (cx - p0x) + 2 * u * (p1x - cx), dy = 2 * iu * (cy - p0y) + 2 * u * (p1y - cy), m = Math.hypot(dx, dy) || 1;
+    var ww = w * Math.pow(Math.sin(Math.PI * Math.min(1, s * 1.1)), 0.7) * (0.25 + 0.75 * s);
+    L.push(x - dy / m * ww, y + dx / m * ww); R.push(x + dy / m * ww * 0.45, y - dx / m * ww * 0.45);
+  }
+  ctx.beginPath(); ctx.moveTo(L[0], L[1]); for (i = 2; i < L.length; i += 2) ctx.lineTo(L[i], L[i + 1]); for (i = R.length - 2; i >= 0; i -= 2) ctx.lineTo(R[i], R[i + 1]); ctx.closePath(); ctx.fillStyle = style; ctx.fill();
+}
+function vCurveGrad(p0x, p0y, cx, cy, p1x, p1y, u0, u1, col, a) {
+  var q = function (u) { var iu = 1 - u; return [iu * iu * p0x + 2 * iu * u * cx + u * u * p1x, iu * iu * p0y + 2 * iu * u * cy + u * u * p1y]; }, A = q(u0), B = q(u1);
+  var g = ctx.createLinearGradient(A[0], A[1], B[0], B[1]); g.addColorStop(0, vrgba(col, 0)); g.addColorStop(0.6, vrgba(col, a * 0.4)); g.addColorStop(0.92, vrgba(col, a)); g.addColorStop(1, vrgba(col, a * 0.6)); return g;
+}
+// 溜め：連携を押した瞬間から、踏み抜き（cineRelease）まで続く
+function fxStarCharge(a) {
+  var sp = []; for (var i = 0; i < 54; i++) sp.push({ a: Math.random() * 6.283, r: vR(200, 420), w: vR(4, 8) * (Math.random() < 0.5 ? 1 : -1), d: Math.random() * 1.2, life: vR(0.45, 0.75), s: vR(1.6, 3.2), gold: i % 3 === 0 });
+  var em = []; for (i = 0; i < 26; i++) em.push({ ox: vR(-1, 1), p: Math.random(), v: vR(0.7, 1.3), s: vR(3, 6), gold: i % 2 === 0 });
+  G.fx.push({ type: 'vscharge', a: a, at: a.atk, t: 0, life: 4, sp: sp, em: em });
+}
+function vsCharge(f) { var a = f.a; if (!a || a.atk !== f.at || f.done) { f.t = f.life; return null; } var H = allyH(a); return { a: a, H: H, cx: a.x, cy: a.y - H * 0.55, fy: a.y, k: Math.min(1, f.t / 0.5), pulse: 0.8 + 0.2 * Math.sin(f.t * 22) }; }
+// 後ろの層（人物より先に描く＝体の後ろで光り、輪郭が浮く）：足元の輪・光の柱・胸の光
+function drawChargeBack() {
+  if (!G.fx) return; ctx.save();
+  for (var n = 0; n < G.fx.length; n++) { var f = G.fx[n]; if (f.type !== 'vscharge') continue; var o = vsCharge(f); if (!o) continue;
+    var C = VFX_SKY, t = f.t, H = o.H, cx = o.cx, cy = o.cy, fy = o.fy, k = o.k, pulse = o.pulse;
+    for (var j = 0; j < 2; j++) {
+      var ph = (t * 1.6 + j * 0.5) % 1, r = (230 - 170 * vEaseIn(ph)) * (0.7 + 0.3 * k), al = Math.sin(ph * Math.PI) * k;
+      ctx.globalCompositeOperation = 'source-over'; ctx.strokeStyle = vrgba(C.dark, 0.4 * al); ctx.lineWidth = 9; ctx.beginPath(); ctx.ellipse(cx, fy + 3, r, r * 0.28, 0, 0, 6.283); ctx.stroke();
+      ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = vrgba(j ? C.gold : C.glow, 0.8 * al); ctx.lineWidth = 6; ctx.stroke(); ctx.strokeStyle = vrgba(C.core, 0.9 * al); ctx.lineWidth = 1.6; ctx.beginPath(); ctx.ellipse(cx, fy, r, r * 0.28, 0, 0, 6.283); ctx.stroke();
+    }
+    ctx.globalCompositeOperation = 'source-over'; ctx.fillStyle = 'rgba(4,6,22,' + (0.42 * k) + ')'; ctx.fillRect(camX - 20, camY + TOPY - 20, W + 40, CVH() + 40); // ラナの必殺と同じく、背景を暗くして光を立たせる
+    vPuff(cx, cy, H * 0.9, C.dark, 0.35 * k);
+    ctx.globalCompositeOperation = 'lighter'; vPillar(cx, fy, H * 1.0, H * 1.6 * k, { core: C.main, main: C.glow, glow: C.glow }, 0.95 * k * pulse); vPillar(cx, fy, H * 0.45, H * 1.3 * k, { core: C.core, main: C.gold, glow: C.gold }, 0.75 * k * pulse);
+    for (var tg = 0; tg < 12; tg++) { // オーラの炎の舌：足元から体の外側を、揺れながら頭の上まで昇る（太さの変わるリボン、外は青・内は金、時間差の層）
+      var sd = tg % 2 ? 1 : -1, ph2 = (t * 1.4 + tg * 0.29) % 1, base = cx + sd * H * (0.18 + (tg % 3) * 0.07), tipx = cx + sd * H * (0.1 + 0.25 * Math.sin(t * 4 + tg)), tipy = fy - H * (1.15 + 0.35 * (tg % 3) / 2) * (0.6 + 0.4 * ph2) * k;
+      var ccx = base + sd * H * (0.35 + 0.15 * Math.sin(t * 6 + tg * 1.7)), ccy = fy - H * 0.6 * k, al3 = Math.sin(ph2 * Math.PI) * k, gold = tg % 3 === 0;
+      var u1 = vEase(ph2 * 1.6), u0 = Math.max(0, ph2 * 1.6 - 0.7);
+      vCurveRibbon(base, fy, ccx, ccy, tipx, tipy, Math.min(u0, u1), u1, H * 0.11, vCurveGrad(base, fy, ccx, ccy, tipx, tipy, Math.min(u0, u1), u1, gold ? C.gold : C.glow, 0.75 * al3));
+      vCurveRibbon(base, fy, ccx, ccy, tipx, tipy, Math.min(u0, u1), u1, H * 0.04, vCurveGrad(base, fy, ccx, ccy, tipx, tipy, Math.min(u0, u1), u1, gold ? C.spark : C.core, al3));
+    }
+    for (var fl = 0; fl < 10; fl++) { var fp = (t * (1.3 + fl % 3 * 0.2) + fl * 0.17) % 1, fx = cx + Math.sin(fl * 2.1 + t * 3) * H * 0.3, fyy = fy - fp * H * 1.3; vGlow(fx, fyy, H * 0.22 * (1 - fp * 0.5), { core: C.core, main: fl % 2 ? C.gold : C.main, glow: fl % 2 ? C.gold : C.glow }, Math.sin(fp * Math.PI) * 0.55 * k); } // 体の後ろで揺らめく炎のかたまり
+    vGlow(cx, cy, H * (0.35 + 0.35 * k) * pulse, { core: C.core, main: C.gold, glow: C.glow }, 0.7 * k);
+  }
+  ctx.restore();
+}
+// 前の層（人物の後に描く）：吸い込まれる光の筋と、昇る火の粉
+FX2.vscharge = function (f) {
+  var o = vsCharge(f); if (!o) return; var C = VFX_SKY, t = f.t, H = o.H, cx = o.cx, cy = o.cy, fy = o.fy, k = o.k, i;
+  for (i = 0; i < f.sp.length; i++) {
+    var q = f.sp[i], age = (t - q.d) % q.life; if (t < q.d) continue; var u = vEaseIn(age / q.life), rr = q.r * (1 - u) + 8, th = q.a + q.w * age * (0.5 + u);
+    if (rr < H * 0.22) continue; // 体に重なる手前で消す（顔や着物を白く塗らない）
+    var px = cx + Math.cos(th) * rr, py = cy + Math.sin(th) * rr * 0.6, a0 = Math.max(0, age - 0.05), u0 = vEaseIn(a0 / q.life), r0 = q.r * (1 - u0) + 8, th0 = q.a + q.w * a0 * (0.5 + u0);
+    vStreak(px, py, px - (cx + Math.cos(th0) * r0), py - (cy + Math.sin(th0) * r0 * 0.6), Math.min(60, rr * 0.25) + 6, q.s * (0.6 + u), q.gold ? C.gold : C.main, (0.3 + 0.7 * u) * k);
+  }
+  for (i = 0; i < f.em.length; i++) { var e = f.em[i], p = (t * e.v + e.p) % 1, x = cx + e.ox * H * 0.42 * (1 - p * 0.3), y = fy - p * H * 1.15, al2 = Math.sin(p * Math.PI) * k; vGlow(x, y, e.s * 3, { core: C.core, main: e.gold ? C.gold : C.main, glow: e.gold ? C.gold : C.glow }, al2 * 0.6); vStreak(x, y, 0, -1, H * 0.06, e.s * 0.6, e.gold ? C.spark : C.core, al2); }
+};
+// 踏み抜き：足から縦に昇る光の柱 ＋ 画面いっぱいに走る流線 ＋ 地面の衝撃
+function fxStarStomp(a) {
+  G.fx.forEach(function (f) { if (f.type === 'vscharge' && f.a === a) f.done = true; });
+  var H = allyH(a), ln = [];
+  for (var i = 0; i < 22; i++) { // 流線：足元から扇形に、上と左右へ。画面の外まで
+    var side = i % 2 ? 1 : -1, ang = -Math.PI / 2 + side * vR(0.15, 1.45), L = vR(W * 0.8, W * 1.4), bend = vR(0.12, 0.35) * side;
+    ln.push({ ex: Math.cos(ang) * L, ey: Math.sin(ang) * L * 0.85, bx: Math.cos(ang + bend) * L * 0.5, by: Math.sin(ang + bend) * L * 0.5 * 0.85, d: vR(0, 0.12) + (i < 10 ? 0 : 0.05), w: vR(10, 22), gold: i % 3 === 0 });
+  }
+  for (i = 0; i < 6; i++) ln.push({ ex: (i % 2 ? 1 : -1) * W * vR(0.9, 1.3), ey: vR(-20, 10), bx: (i % 2 ? 1 : -1) * W * 0.4, by: -vR(20, 60), d: vR(0, 0.08), w: vR(8, 14), gold: i % 2 === 0, low: true }); // 地をはう流線
+  G.fx.push({ type: 'vsstomp', x: a.x, y: a.y, h: H, t: 0, life: 0.95, ln: ln, sp: vSparks(36, 0, 400, 1200, 1.4) });
+  fxRing(a.x, a.y, W * 0.75, 0.6, VFX_STAR);
+  G.flash = 0.32; G.flashRGB = '170,205,255'; G.shake = Math.max(G.shake, 28); G.freeze = Math.max(G.freeze, 0.09);
+}
+FX2.vsstomp = function (f) {
+  var C = VFX_SKY, t = f.t, ms = t * 1000, x = f.x, y = f.y, top = camY + TOPY - 40, PH = y - top, i;
+  // ① 足から縦に昇る光の柱（3層＋暗い下地、先端が駆け上がり、根本は遅れて細る）
+  var LY = [{ c: C.dark, w: 1.25, a: C.dk, lag: 20, dk: 1 }, { c: C.glow, w: 1.0, a: 0.85, lag: 30 }, { c: C.gold, w: 0.5, a: 0.95, lag: 12 }, { c: C.core, w: 0.18, a: 1, lag: 0 }];
+  for (var l = 0; l < LY.length; l++) {
+    var Ly = LY[l], head = vEase((ms - Ly.lag) / 120), fade = Math.max(0, 1 - Math.max(0, ms - 160) / 520); if (head <= 0 || fade <= 0) continue;
+    var Wd = f.h * 0.55 * Ly.w * (0.6 + 0.4 * fade), hy = y - PH * head, g = ctx.createLinearGradient(0, y, 0, hy);
+    g.addColorStop(0, vrgba(Ly.c, Ly.a * fade)); g.addColorStop(0.7, vrgba(Ly.c, Ly.a * 0.7 * fade)); g.addColorStop(1, vrgba(Ly.c, 0));
+    ctx.globalCompositeOperation = Ly.dk ? 'source-over' : 'lighter'; ctx.fillStyle = g;
+    ctx.beginPath(); ctx.moveTo(x - Wd * 0.25, y); ctx.quadraticCurveTo(x - Wd * 0.55, y - PH * 0.35 * head, x, hy); ctx.quadraticCurveTo(x + Wd * 0.55, y - PH * 0.35 * head, x + Wd * 0.25, y); ctx.closePath(); ctx.fill();
+  }
+  ctx.globalCompositeOperation = 'lighter';
+  // ② 画面いっぱいの流線（時間差の3層：残光・本体・芯。青と金）
+  for (i = 0; i < f.ln.length; i++) {
+    var q = f.ln[i], b = ms - q.d * 1000; if (b <= 0) continue; var fd = Math.max(0, 1 - Math.max(0, b - 260) / 380); if (fd <= 0) continue;
+    var p0x = x, p0y = y - (q.low ? 6 : f.h * 0.1), cx = x + q.bx, cy = p0y + q.by, p1x = x + q.ex, p1y = p0y + q.ey;
+    var lay = [{ c: q.gold ? C.gold : C.glow, lag: 40, tail: 0.6, w: 2.2, a: 0.5 }, { c: q.gold ? C.gold : C.main, lag: 16, tail: 0.45, w: 1, a: 0.95 }, { c: C.core, lag: 0, tail: 0.32, w: 0.35, a: 1 }];
+    for (var m = 0; m < 3; m++) { var Lr = lay[m], hd = vEase((b - Lr.lag) / 200), tl = vEase((b - Lr.lag - 200 * Lr.tail) / 300); if (hd <= 0) continue; var u0 = Math.min(hd, tl);
+      vCurveRibbon(p0x, p0y, cx, cy, p1x, p1y, u0, hd, q.w * Lr.w * (0.7 + 0.3 * fd), vCurveGrad(p0x, p0y, cx, cy, p1x, p1y, u0, hd, Lr.c, Lr.a * fd)); }
+  }
+  // ③ 踏み抜いた点の光と、跳ね上がる火花（上へ）
+  if (ms < 160) { vGlow(x, y - f.h * 0.2, f.h * (0.8 + ms / 120), { core: C.core, main: C.gold, glow: C.glow }, 1 - ms / 160); vStar4(x, y - f.h * 0.15, f.h * 0.9 * (1 - ms / 160), 0, C.core, 0.8 * (1 - ms / 160)); }
+  drawSparks(f, x, y - 10, { core: C.core, spark: C.spark }, 3, 900);
 };
