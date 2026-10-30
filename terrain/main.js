@@ -930,7 +930,7 @@ const DUEL_CLIP = await fetch('../ally/duel_meta.json').then(r => r.json()).catc
 // 一騎打ちの絵の先読み：読み込みに加えて decode まで済ませ、Image を持ち続ける（切り替えの瞬間に消える・カクつくのを防ぐ）
 const IMGHOLD = new Map();
 const holdImg = src => { if (!IMGHOLD.has(src)) { const im = new Image(); im.src = src; IMGHOLD.set(src, (im.decode ? im.decode() : new Promise(r => { im.onload = r; })).catch(() => {}).then(() => im)); } return IMGHOLD.get(src); };
-const duelSrcs = (k, look) => [...(DUEL_CLIP[k] || []).map(c => `../ally/${c.f}`), ...(runClipOf(k) ? [`../ally/${runClipOf(k).f}`] : []),
+const duelSrcs = (k, look) => [...(DUEL_CLIP[k] || []).map(c => `../ally/${c.f}`), ...(G && G.raid && G.raid.boss ? (DUEL_CLIP[k + '_ult'] || []).map(c => `../ally/${c.f}`) : []), ...(runClipOf(k) ? [`../ally/${runClipOf(k).f}`] : []),
   ...(look ? [...(FOEDUEL[look] || []).map(c => `assets/npc/${c.f}`), ...(foeRunOf(look) ? [`assets/npc/${foeRunOf(look).f}`] : [])] : [])];
 const duelWarm = k => duelSrcs(k, G && G.raid ? foeLook() : null).forEach(holdImg);
 const SIDE_ALLY = await fetch('../ally/side_meta.json').then(r => r.json()).catch(() => ({})); // 仲間の横向きの走り（右向き）
@@ -950,7 +950,7 @@ function clipActor(el, sp, clips, base, T, run, runBase) { // 動画由来の連
     sh.style.webkitMaskImage = sh.style.maskImage = url; sh.style.webkitMaskSize = sh.style.maskSize = size; sp.appendChild(L);
     return { L, set(i) { const ps = `${-(i % cols) * cw}px ${-Math.floor(i / cols) * ch}px`; L.style.backgroundPosition = ps; sh.style.webkitMaskPosition = sh.style.maskPosition = ps; } }; };
   const H = el.clientHeight, W2 = el.clientWidth / 2;
-  const lay = clips.map(c => { const k = H / c.idle.h; return mk(`url(${base}${c.f})`, c.cols, 4, c.cw * k, c.ch * k, W2 - (c.idle.x + c.idle.w / 2) * k, -(c.pad ?? 2.8) * k); });
+  const lay = clips.map(c => { const k = H / c.idle.h; return mk(`url(${base}${c.f})`, c.cols, c.rows || 4, c.cw * k, c.ch * k, W2 - (c.idle.x + c.idle.w / 2) * k, -(c.pad ?? 2.8) * k); });
   const runLay = run ? (() => { const k = H * .97 / run.ph; return mk(`url(${runBase}${run.f})`, run.cols, Math.ceil(run.n / run.cols), run.cw * k, run.ch * k, W2 - run.ax * k, -(run.ch - run.ay) * k); })() : null;
   let curL = null, seq = null, raf = 0;
   const show = Lo => { if (curL === Lo) return; if (curL) curL.L.style.visibility = 'hidden'; curL = Lo; Lo.L.style.visibility = 'visible'; };
@@ -966,9 +966,11 @@ function clipActor(el, sp, clips, base, T, run, runBase) { // 動画由来の連
     run(ms, rate = 1) { if (!runLay) return false; start({ Lo: runLay, loop: true, step: Math.max(28, run.durs[0] / rate), n: run.n }, 0); T(() => { if (seq && seq.loop) seq = null; }, ms + 200); return true; }, // 走りのコマを回す（攻撃が始まれば上書き）
     play(at, tame = 0) { // at（今からのミリ秒）で振りかぶりを始め、hold のコマで tame ミリ秒止める（溜め）。返り値：使った動きと、当たりの時刻
       // 速さはコマごとに変える：当たりまでは元の時間を 1/5 に（16〜35ms。全部のコマを見せる＝高速再生）、溜めは hold で止める、振り抜きは 1/2.2 で FOLLOW まで
-      if (!order.length) order = clips.map((_, i) => i).sort(() => Math.random() - .5); const ci = order.pop(), c = clips[ci];
-      const ts = []; let t = 0; c.durs.forEach((d, fi) => { ts.push(t); t += fi < c.hit ? Math.max(16, Math.min(35, d / 5)) : d / 2.2; if (fi === (c.hold ?? c.hit - 1)) t += tame; });
-      const end = Math.min(t, ts[c.hit] + FOLLOW);
+      const ui = clips.findIndex(c => c.ult); let ci; // ult＝専用の止めの大技（ランカの星震）。普段の攻撃からは選ばない
+      if (tame === 'ult' && ui >= 0) ci = ui; else { if (!order.length) order = clips.map((_, i) => i).filter(i => !clips[i].ult).sort(() => Math.random() - .5); ci = order.pop(); }
+      const c = clips[ci], U = !!c.ult; if (U) tame = 0;
+      const ts = []; let t = 0; c.durs.forEach((d, fi) => { ts.push(t); t += U ? d / 1.15 : fi < c.hit ? Math.max(16, Math.min(35, d / 5)) : d / 2.2; if (fi === (c.hold ?? c.hit - 1)) t += tame; }); // 専用の大技は、溜め・回転・着地をほぼ元の速さで見せる
+      const end = U ? t : Math.min(t, ts[c.hit] + FOLLOW);
       start({ Lo: lay[ci], ts, end, done: idle }, at);
       return { c, hitAt: at + ts[c.hit] }; } };
 }
@@ -994,7 +996,7 @@ function playDuel(k, done) { // 画面いっぱいの一騎打ち。五合の勝
   let timers = [], spd = 1, hpL = 100, hpR = 100, aw = 0, fw = 0, nextI = 0, left = GM.orders(G), used = left <= 0, armed = false, inWin = false, over = false, winT = null, cur = -1;
   let chg = null; const stopChg = () => { if (chg) { chg.stop(); chg = null; } }; // 大技の構えの気配（fx_slash.js chargeFX）
   const T = (f, ms) => { const t = setTimeout(f, ms); timers.push(t); return t; }, D = ms => ms / spd;
-  const actL = clipActor(L, L.querySelector('.sp') || document.createElement('div'), DUEL_CLIP[k] || [], '../ally/', T, runClipOf(k), '../ally/');
+  const actL = clipActor(L, L.querySelector('.sp') || document.createElement('div'), [...(DUEL_CLIP[k] || []), ...(R.boss ? DUEL_CLIP[k + '_ult'] || [] : [])], '../ally/', T, runClipOf(k), '../ally/');
   const actR = clipActor(Rf, Rf.querySelector('.sp') || document.createElement('div'), FOEDUEL[look] || [], 'assets/npc/', T, foeRunOf(look), 'assets/npc/');
   const sayT = {}; const say = (side, text, ms = 1700, big = false) => { const e = $('.ln .' + side); /* 台詞は舞台に重ねず、下の帯（戦況の上の段）に出す */ clearTimeout(sayT[side]); e.classList.remove('on'); void e.offsetWidth; e.classList.toggle('big', big); e.innerHTML = `<small>${side === 'l' ? A.n : F.n}</small>${text}`; e.classList.add('on'); sayT[side] = setTimeout(() => e.classList.remove('on'), ms); timers.push(sayT[side]); };
   const upd = () => { hl.style.width = hpL + '%'; hr.style.width = hpR + '%'; const b = Math.max(6, Math.min(94, 50 + (hpL - hpR) / 2)); bal.style.width = b + '%'; balu.style.left = b + '%'; word = b > 62 ? '優勢' : b < 38 ? '劣勢' : '拮抗'; };
@@ -1021,7 +1023,7 @@ function playDuel(k, done) { // 画面いっぱいの一騎打ち。五合の勝
     at.style.transition = `transform ${runMs}ms ${ran ? 'linear' : 'ease-in'}`; at.style.transform = `translateX(${dx}px)`;
     const FR = dir > 0 ? .32 : .68; /* 寄るとき、攻める側を中央より後ろに置き、進む先（相手と斬撃）に余白を残す（2026-10-29） */ camTo(zRun, cx0 + dx * .25, lead, undefined, FR); T(() => camTo(zRun, cx1, runMs - lead, 'linear', FR), lead); // 寄ってから、走りに合わせて追う
     const clashX = (r.ally ? ra.right + dx : ra.left + dx) - rs.left + dir * sw * .02, tame = D(big ? 300 : 170);
-    const P = act ? act.play(Math.max(0, runMs - D(120)), tame) /* 走りの終わりに重ねて振りかぶり始める（踏み込みながら構える） */ : { c: null, hitAt: runMs + 240 };
+    const ultFin = fin && r.ally && R.boss && (DUEL_CLIP[k + '_ult'] || []).length; /* 将軍戦の止め：専用の大技 */ const P = act ? act.play(Math.max(0, runMs - D(120)), ultFin ? 'ult' : tame) /* 走りの終わりに重ねて振りかぶり始める（踏み込みながら構える） */ : { c: null, hitAt: runMs + 240 };
     const zAtk = big ? zRun * 1.08 : zRun, fx = cx1; // 攻撃の間も、走った側に寄ったまま（少しだけ前へ向ける）。二人を収める案は FOCUS_ATK=false
     T(() => FOCUS_ATK ? camTo(zAtk, fx, D(220), undefined, FR) : camTo(big ? zFit * 1.06 : zFit, mid, D(big ? 320 : 240)), runMs);
     if (r.kind === 'counter') { const c = $('.cut'); c.querySelector('div').innerHTML = `COUNTER<small>見切り　${A.n}が大技を受け流す</small>`; T(() => c.classList.add('on'), runMs); T(() => c.classList.remove('on'), P.hitAt + 500); }
@@ -1035,7 +1037,7 @@ function playDuel(k, done) { // 画面いっぱいの一騎打ち。五合の勝
       const n = document.createElement('div'); n.className = 'num'; n.textContent = r.dmg * 7 + Math.round(Math.random() * 9); n.style.left = (clashX / sw * 100 + (r.ally ? 6 : -14)) + '%'; n.style.top = '30%'; cam.appendChild(n); setTimeout(() => { sl.remove(); n.remove(); }, 900);
       apply(i, r); upd(); say(r.ally ? 'l' : 'r', pickOf((r.ally ? AL : FL).hit), 1500); T(() => say(r.ally ? 'r' : 'l', pickOf((r.ally ? FL : AL).hurt), 1400), D(350)); }, P.hitAt);
     T(() => { df.classList.remove('hit'); duelEl.classList.remove('shake'); df.style.transform = ''; }, P.hitAt + 260);
-    const back = D(FOLLOW + (big ? 140 : 40)), backMs = D(420);
+    const back = ultFin ? D(1150) : D(FOLLOW + (big ? 140 : 40)), backMs = D(420); // 専用の大技は、着地のあとの残心まで寄ったまま
     T(() => { camTo(1, sw / 2, backMs, 'ease-in-out'); at.style.transition = `transform ${backMs}ms ease-in-out`; at.style.transform = ''; }, P.hitAt + back); // 元の位置へ戻りながら、引きへ
     T(() => { if (aw >= 3 || fw >= 3) finish(); else roundStart(i + 1); }, P.hitAt + back + backMs + D(250)); };
   const goRound = i => { gb.classList.remove('ready'); runRound(i); };

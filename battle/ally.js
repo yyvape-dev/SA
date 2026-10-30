@@ -30,6 +30,7 @@ function allyLoad(one) {
   fetch('ally/duel_meta.json').then(function (r) { return r.json(); }).then(function (m) {
     var list = m[ALLY_K] || [];
     ALLY_DEF[ALLY_K].clips.forEach(function (ci) { var c = list[ci]; if (!c) return; var j = ALLY_CLIP.length; ALLY_CLIP.push(c); total++; one('aclip' + j, 'ally/' + c.f); });
+    (m[ALLY_K + '_ult'] || []).forEach(function (c) { var j = ALLY_CLIP.length; ALLY_CLIP.push(c); total++; one('aclip' + j, 'ally/' + c.f); }); // 連携専用のモーション（ランカの星震。c.ult）
     onDone();
   }).catch(function () { failed++; onDone(); });
 }
@@ -90,9 +91,10 @@ function allyTick(dt) {
   a.x = clamp(a.x, minX, maxX); a.y = clamp(a.y, LANE_Y0, LANE_Y1);
 }
 function allyStartAtk(a, co) {
-  var n = ALLY_CLIP.length, ci = n ? Math.floor(Math.random() * n) : -1, c = ALLY_CLIP[ci];
+  var nor = [], ult = -1; ALLY_CLIP.forEach(function (c, i) { if (c.ult) ult = i; else nor.push(i); });
+  var ci = co && ult >= 0 ? ult : nor.length ? nor[Math.floor(Math.random() * nor.length)] : -1, c = ALLY_CLIP[ci];
   if (!c) { a.atk = { t: 0, hitT: 0.25, endT: 0.5, ci: -1, co: co, done: false }; a.state = 'atk'; return; }
-  var acc = 0, hitT = 0, starts = [], sp = co ? ALLY_SPD * 1.2 : ALLY_SPD;
+  var acc = 0, hitT = 0, starts = [], sp = c.ult ? 1.4 : co ? ALLY_SPD * 1.2 : ALLY_SPD; // 専用モーションは元の速さに近く（溜め→回転→着地の重さを見せる）
   for (var i = 0; i < c.n; i++) { starts.push(acc / 1000 / sp); if (i === c.hit) hitT = acc / 1000 / sp; acc += c.durs[i]; }
   a.atk = { t: 0, hitT: hitT, endT: acc / 1000 / sp, ci: ci, starts: starts, co: co, done: false }; a.state = 'atk';
 }
