@@ -934,7 +934,7 @@ document.head.appendChild(dCss);
 const duelEl = document.createElement('div'); duelEl.id = 'duel'; document.body.appendChild(duelEl);
 const foeURL = FOE_IMG[3] ? 'assets/npc/foe_4.webp' : foeTex.image.toDataURL();
 // 大将戦の攻撃モーション（動画由来の24コマ）。ある仲間だけ。ない仲間は立ち絵のまま
-const DUEL_CLIP = await fetch('../ally/duel_meta.json?v=8').then(r => r.json()).catch(() => ({})); // 仲間ごとの攻撃モーション一覧
+const DUEL_CLIP = await fetch('../ally/duel_meta.json?v=9').then(r => r.json()).catch(() => ({})); // 仲間ごとの攻撃モーション一覧
 // 一騎打ちの絵の先読み：読み込みに加えて decode まで済ませ、Image を持ち続ける（切り替えの瞬間に消える・カクつくのを防ぐ）
 const IMGHOLD = new Map();
 const holdImg = src => { if (!IMGHOLD.has(src)) { const im = new Image(); im.src = src; IMGHOLD.set(src, (im.decode ? im.decode() : new Promise(r => { im.onload = r; })).catch(() => {}).then(() => im)); } return IMGHOLD.get(src); };
