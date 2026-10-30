@@ -588,8 +588,8 @@ function setPlot(pl, fac, stage) { pl.fac = stage ? fac : null; pl.stage = stage
 
 // ---------- 仲間（家の街の広場に立つ。仲間になると現れる）----------
 const ALLY_POS = { mina: [372, 1066], garou: [568, 1066], sera: [505, 1090], ranka: [435, 1090], lily: [470, 1110] };
-const MAP_BB = { mina: 635, garou: 670, sera: 635, ranka: 625, lily: 248 }, MAP_H = { mina: 76, sera: 76, ranka: 76 * 202 / 210, garou: 76 * 228 / 210, lily: 42 }; /* lily は立ち絵の胸から上の仮（全身の絵が届いたら差し替え） */ // マップ用の絵（ally/map_*.png）の人物の高さ（実測）と、描く高さ
-const allyMesh = {}, WALK_BBH = { mina: 420, garou: 452, sera: 424, ranka: 426 }; // 歩行コマの中の人物の高さ（元の512px基準）
+const MAP_BB = { mina: 635, garou: 670, sera: 635, ranka: 625, lily: 628 }, MAP_H = { mina: 76, sera: 76, ranka: 76 * 202 / 210, garou: 76 * 228 / 210, lily: 76 }; /* リリィの背の高さは仮に210（ミナ・セラと同じ）。戦闘の絵が届いたら HEIGHT とそろえて決める */ // マップ用の絵（ally/map_*.png）の人物の高さ（実測）と、描く高さ
+const allyMesh = {}, WALK_BBH = { mina: 420, garou: 452, sera: 424, ranka: 426, lily: 430 }; // 歩行コマの中の人物の高さ（元の512px基準）
 for (const k of Object.keys(GM.ALLY)) {
   const mapIm = await loadImage(`../ally/map_${k}.png`), im = mapIm || await loadImage(`../ally/${k}.png`); if (!im) continue; // マップ用の小さな絵（等角）。なければ立ち絵
   const t = new THREE.Texture(im); t.needsUpdate = true; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
@@ -624,7 +624,7 @@ function walkAllies(dt) { const now = performance.now();
     setWalkPose(a, true, now); }
 }
 const faceTex = {}, faceURL = {}, faceRaw = {};
-const FACE = { mina: [178, 74, 56], garou: [247, 50, 58], sera: [150, 64, 54], ranka: [180, 62, 56], lily: [198, 152, 60] }; // 立ち絵の顔の中心と半径（画素）
+const FACE = { mina: [178, 74, 56], garou: [247, 50, 58], sera: [150, 64, 54], ranka: [180, 62, 56], lily: [140, 62, 50] }; // 立ち絵の顔の中心と半径（画素）
 async function makeFace(k) { // 立ち絵の顔を丸く切り抜いて、金の縁をつける
   const im = await loadImage(`../ally/${k}.png`); if (!im) return null; const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
   g.fillStyle = '#2a1a0c'; g.beginPath(); g.arc(64, 64, 60, 0, 7); g.fill(); g.save(); g.beginPath(); g.arc(64, 64, 54, 0, 7); g.clip();
