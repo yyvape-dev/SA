@@ -27,7 +27,7 @@ function allyLoad(one) {
     var c = m['run_' + ALLY_K] || m['walk_' + ALLY_K]; if (c) { ALLY_RUN = c; total++; one('arun', 'ally/' + c.f); }
     onDone();
   }).catch(function () { failed++; onDone(); });
-  fetch('ally/duel_meta.json').then(function (r) { return r.json(); }).then(function (m) {
+  fetch('ally/duel_meta.json?v=2').then(function (r) { return r.json(); }).then(function (m) {
     var list = m[ALLY_K] || [];
     ALLY_DEF[ALLY_K].clips.forEach(function (ci) { var c = list[ci]; if (!c) return; var j = ALLY_CLIP.length; ALLY_CLIP.push(c); total++; one('aclip' + j, 'ally/' + c.f); });
     (m[ALLY_K + '_ult'] || []).forEach(function (c) { var j = ALLY_CLIP.length; ALLY_CLIP.push(c); total++; one('aclip' + j, 'ally/' + c.f); }); // 連携専用のモーション（ランカの星震。c.ult）
@@ -167,21 +167,21 @@ function allySkill(a) {
 /* ---------- 描画 ---------- */
 function drawAlly() {
   var a = G.ally; if (!a) return;
-  var H0 = allyH(a), im, c, k, sx, sy, sw, shh, ox, oy;
+  var H0 = allyH(a), im, c, k, sx, sy, sw, shh, ox, oy, q, ddx = 0, ddy = 0;
   shadow(a.x, a.y, 34 * depthScale(a.y));
   if (a.atk && a.atk.ci >= 0 && (im = IMG['aclip' + a.atk.ci]) && im.naturalWidth) {
     c = ALLY_CLIP[a.atk.ci]; var fi = 0; while (fi + 1 < c.n && a.atk.starts[fi + 1] <= a.atk.t) fi++;
-    k = H0 / c.idle.h; sw = c.cw; shh = c.ch; sx = (fi % c.cols) * c.cw; sy = Math.floor(fi / c.cols) * c.ch; ox = c.idle.x + c.idle.w / 2; oy = c.ch - (c.pad == null ? 2.8 : c.pad);
+    k = H0 / c.idle.h; q = cellOf(c, fi); sx = q[0]; sy = q[1]; sw = q[2]; shh = q[3]; ddx = q[4]; ddy = q[5]; ox = c.idle.x + c.idle.w / 2; oy = c.ch - (c.pad == null ? 2.8 : c.pad);
   } else if ((a.state === 'run' || a.state === 'enter') && ALLY_RUN && (im = IMG.arun) && im.naturalWidth) {
     c = ALLY_RUN; var rf = Math.floor(a.anim * 1000 / c.durs[0] * (c.durs[0] > 80 ? 2.2 : 1)) % c.n;
     k = H0 / c.ph; sw = c.cw; shh = c.ch; sx = (rf % c.cols) * c.cw; sy = Math.floor(rf / c.cols) * c.ch; ox = c.ax; oy = c.ay;
   } else if (ALLY_CLIP[0] && (im = IMG.aclip0) && im.naturalWidth) { // 待機：攻撃の連番の1コマ目（構え）を、息で少し揺らす
-    c = ALLY_CLIP[0]; k = H0 / c.idle.h; sw = c.cw; shh = c.ch; sx = 0; sy = 0; ox = c.idle.x + c.idle.w / 2; oy = c.ch - (c.pad == null ? 2.8 : c.pad);
+    c = ALLY_CLIP[0]; k = H0 / c.idle.h; q = cellOf(c, 0); sx = q[0]; sy = q[1]; sw = q[2]; shh = q[3]; ddx = q[4]; ddy = q[5]; ox = c.idle.x + c.idle.w / 2; oy = c.ch - (c.pad == null ? 2.8 : c.pad);
   } else return;
   ctx.save(); ctx.translate(a.x, a.y);
   var br = a.state === 'idle' && !a.atk ? 1 + 0.012 * Math.sin(a.t * 3.7) : 1;
   ctx.scale(a.face < 0 ? -k : k, k * br); // 絵は右向き
-  ctx.drawImage(im, sx, sy, sw, shh, -ox, -oy, sw, shh);
+  ctx.drawImage(im, sx, sy, sw, shh, -ox + ddx, -oy + ddy, sw, shh);
   ctx.restore();
   if (a.state !== 'enter') { // 足元の青い印（味方の目印）
     ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = 'rgba(110,190,255,0.55)'; ctx.lineWidth = 3;

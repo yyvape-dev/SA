@@ -46,12 +46,12 @@ function drawHero() {
 }
 
 function drawFoe(e) { // 赤い兵：歩き（シート）／攻撃（連番）。やられはコードで倒れて消える
-  var H0 = eh(e), p = e.state === 'dying' ? e.dt / 0.4 : 0, im, sx, sy, sw, shh, k, ox, oy, flip;
+  var H0 = eh(e), p = e.state === 'dying' ? e.dt / 0.4 : 0, im, sx, sy, sw, shh, k, ox, oy, flip, q, ddx = 0, ddy = 0;
   e.tilt = 0;
   var c = e.atk && e.atk.ci >= 0 ? (FOE_CLIP[e.kind] || [])[e.atk.ci] : null;
   if (c && IMG['fd' + e.kind + '_' + e.atk.ci] && IMG['fd' + e.kind + '_' + e.atk.ci].naturalWidth) {
     var fi = 0; while (fi + 1 < c.n && e.atk.starts[fi + 1] <= e.atk.t) fi++;
-    im = IMG['fd' + e.kind + '_' + e.atk.ci]; k = H0 / c.idle.h; sw = c.cw; shh = c.ch; sx = (fi % c.cols) * c.cw; sy = Math.floor(fi / c.cols) * c.ch;
+    im = IMG['fd' + e.kind + '_' + e.atk.ci]; k = H0 / c.idle.h; q = cellOf(c, fi); sx = q[0]; sy = q[1]; sw = q[2]; shh = q[3]; ddx = q[4]; ddy = q[5];
     flip = e.face > 0; // 攻撃の絵は左向き
     ox = (c.idle.x + c.idle.w / 2); oy = c.ch - (c.pad == null ? 2.8 : c.pad);
   } else if (FOE_SW[e.kind] && IMG['sw' + e.kind] && IMG['sw' + e.kind].naturalWidth && e.state === 'walk' && e.stun <= 0 && !(e.bind > 0)) {
@@ -61,7 +61,7 @@ function drawFoe(e) { // 赤い兵：歩き（シート）／攻撃（連番）�
     sx = (wf % c.cols) * c.cw; sy = Math.floor(wf / c.cols) * c.ch; flip = e.face > 0; ox = c.ax; oy = c.ay;
   } else if ((FOE_CLIP[e.kind] || [])[0] && IMG['fd' + e.kind + '_0'] && IMG['fd' + e.kind + '_0'].naturalWidth) {
     // 歩き：一騎打ちの横向きの絵（攻撃の連番の1コマ目＝構え）を、上下の揺れと傾きで歩かせる（横向きの歩きの絵ができたら差し替える）
-    c = FOE_CLIP[e.kind][0]; im = IMG['fd' + e.kind + '_0']; k = H0 / c.idle.h; sw = c.cw; shh = c.ch; sx = 0; sy = 0;
+    c = FOE_CLIP[e.kind][0]; im = IMG['fd' + e.kind + '_0']; k = H0 / c.idle.h; q = cellOf(c, 0); sx = q[0]; sy = q[1]; sw = q[2]; shh = q[3]; ddx = q[4]; ddy = q[5];
     flip = e.face > 0; ox = (c.idle.x + c.idle.w / 2); oy = c.ch - (c.pad == null ? 2.8 : c.pad);
     var mv = e.state === 'walk' && e.stun <= 0 && !(e.bind > 0) ? 1 : 0, ph = e.t * 9 + e.yo;
     oy += mv * Math.abs(Math.sin(ph)) * 7; e.tilt = mv * Math.sin(ph) * 0.045;
@@ -79,10 +79,10 @@ function drawFoe(e) { // 赤い兵：歩き（シート）／攻撃（連番）�
   ctx.translate(e.x, e.y - p * 20);
   ctx.rotate(p * 1.2 * (e.dir || 1) + (e.tilt || 0)); // 歩きの揺れの傾きも // 吹き飛ぶ向きへ倒れる
   ctx.scale(flip ? -k : k, k);
-  ctx.drawImage(im, sx, sy, sw, shh, -ox, -oy, sw, shh);
+  ctx.drawImage(im, sx, sy, sw, shh, -ox + ddx, -oy + ddy, sw, shh);
   if (e.flash > 0 || e.bind > 0) { // 被弾は白く、拘束は紫に光らせる（同じ絵を加算で重ねる）
     ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = (1 - p) * (e.flash > 0 ? 0.7 : 0.28);
-    ctx.drawImage(im, sx, sy, sw, shh, -ox, -oy, sw, shh);
+    ctx.drawImage(im, sx, sy, sw, shh, -ox + ddx, -oy + ddy, sw, shh);
   }
   ctx.restore();
   if (e.bind > 0 && e.state === 'walk') drawBindBand(e); // 拘束の帯（battle/fx.js）。床の印は drawBindFloor

@@ -50,7 +50,7 @@ function loadAll() {
   function one(key, src) { var im = new Image(); im.onload = onDone; im.onerror = function () { failed++; onDone(); }; im.src = src; IMG[key] = im; }
   one('fbk', 'terrain/assets/field/duel.jpg'); // 昼の草原（上＝奥の背景、土の帯＝床）
   FOE_TYPES.forEach(function (n) { one('fw' + n, 'terrain/assets/npc/foewalk_' + n + '.webp'); });
-  fetch('terrain/assets/npc/foeduel_meta.json').then(function (r) { return r.json(); }).then(function (meta) { // 攻撃の連番（一騎打ちと同じ絵。左向き）
+  fetch('terrain/assets/npc/foeduel_meta.json?v=2').then(function (r) { return r.json(); }).then(function (meta) { // 攻撃の連番（一騎打ちと同じ絵。左向き）
     FOE_TYPES.forEach(function (n) { FOE_CLIP[n] = (meta[n] || []).map(function (c, i) { total++; one('fd' + n + '_' + i, 'terrain/assets/npc/' + c.f); return c; }); });
     onDone();
   }).catch(function () { failed++; onDone(); });
@@ -75,6 +75,8 @@ var HEIGHT = { rana: 205, mina: 210, sera: 210, ranka: 202, garou: 228, lily: 22
 var FOE_HK = { 1: 233 / 201, 2: 1.04 * 212 / 207, 3: 0.91 * 225 / 182, 4: 1.04 * 212 / 198 };
 var HERO_K = HEIGHT.rana / 219; // ラナの絵は0.6倍で219（実測）。当たり判定はそのまま
 var FOE_H = 200, FOE_SPD = 3.3, FOE_CLIP = {}, FOE_SW = {}; // FOE_H＝槍兵の見た目の背の高さ（世界座標。主人公は約220）。攻撃は一騎打ちの2.6倍速
+// 一騎打ちの連番の1コマ：詰め直したシート（c.fr、terrain/tools/pack_trim.py）なら、その矩形と元のコマの中でのずれ。なければ格子のマス
+function cellOf(c, i) { if (c.fr) { var r = c.fr[i]; return [r[0], r[1], r[2], r[3], r[4], r[5]]; } return [(i % c.cols) * c.cw, Math.floor(i / c.cols) * c.ch, c.cw, c.ch, 0, 0]; }
 function eh(e) { return FOE_H * FOE_HK[e.kind] * depthScale(e.y) * e.size; } // 敵の見た目の背の高さ
 
 /* ---------- 定数と状態 ---------- */
