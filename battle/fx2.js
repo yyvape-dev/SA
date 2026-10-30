@@ -285,7 +285,9 @@ function startStarfall(a) {
   var list = G.enemies.filter(function (e) { return e.state === 'walk' && e.x > camX - 40 && e.x < camX + W + 40; }).sort(function (p, q) { return p.x - q.x; });
   var n = list.length, step = n ? Math.min(0.07, 0.5 / n) : 0, top = camY + TOPY + VH * 0.16, stars = [];
   for (var i = 0; i < n; i++) stars.push({ e: list[i], x: clamp(list[i].x + rnd(-50, 50), camX + 30, camX + W - 30), y: top + rnd(0, VH * 0.14), at: SF.fall + i * step, r: rnd(10, 14), hit: false, wk: rnd(0.6, 1.45), lk: rnd(0.7, 1.35), ph: rnd(0, 6.283) }); // wk・lk＝太さと長さの個体差、ph＝明滅のずれ
-  G.starfall = { t: 0, a: a, stars: stars, quaked: false, carry: 0.55 }; // carry＝溜めの暗さから続けて暗くする（踏み抜きで一瞬明るく戻らない）
+  var deco = []; // 飾りの星：敵の数に関係なく、画面いっぱいに降って地面ではじける（ダメージなし）
+  for (var d = 0; d < 46; d++) { var gy = rnd(LANE_Y0 - 40, LANE_Y1 + 40), gx = camX + rnd(20, W - 20); deco.push({ gx: gx, gy: gy, sx: gx + rnd(60, 200), sy: top + rnd(-VH * 0.1, VH * 0.12), at: SF.fall - 0.1 + Math.random() * (SF.quake - SF.fall + 0.05), dur: rnd(0.12, 0.2), wk: rnd(0.4, 1.0), lk: rnd(0.6, 1.2), ph: rnd(0, 6.283), sp: vSparks(5, 0, 120, 380, 1.3), gold: Math.random() < 0.3 }); }
+  G.starfall = { t: 0, a: a, stars: stars, deco: deco, quaked: false, carry: 0.55 }; // carry＝溜めの暗さから続けて暗くする（踏み抜きで一瞬明るく戻らない）
 }
 function starfallTick(dt) {
   var sf = G.starfall; if (!sf) return;
@@ -327,6 +329,17 @@ function drawStarfall() {
     var lf = k * Math.max(0, 1 - Math.max(0, t - p.at) / 0.15); if (lf <= 0) continue; // 星が落ちたら、その線は消える
     ctx.strokeStyle = vrgba(C.glow, 0.45 * lf); ctx.lineWidth = 8; ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(ex, ey); ctx.stroke();
     ctx.strokeStyle = vrgba(C.core, 0.9 * lf); ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(ex, ey); ctx.stroke();
+  }
+  var D = sf.deco || []; // 飾りの星：落ちる筋 → 地面ではじける（床の輪・光・火花）
+  for (i = 0; i < D.length; i++) {
+    var q = D[i], u = (t - q.at) / q.dur; if (u < 0) continue;
+    var cg = q.gold ? { core: C.core, main: '255,214,120', glow: '255,170,50', spark: C.spark } : C;
+    if (u < 1) { var f3 = u * u * u, x3 = q.sx + (q.gx - q.sx) * f3, y3 = q.sy + (q.gy - q.sy) * f3, vx3 = q.gx - q.sx, vy3 = q.gy - q.sy, L3 = Math.min(240, Math.hypot(vx3, vy3) * (0.2 + 0.5 * f3)) * q.lk, sh3 = (1 - 0.6 * f3) * q.wk, fl3 = 0.7 + 0.3 * Math.abs(Math.sin(G.t * 59 + q.ph));
+      vStreak(x3, y3, vx3, vy3, L3, 14 * sh3, cg.glow, 0.55 * fl3); vStreak(x3, y3, vx3, vy3, L3 * 0.75, 5 * sh3, cg.main, fl3); vStreak(x3, y3, vx3, vy3, L3 * 0.5, 1.8 * sh3, C.core, 1); continue; }
+    var b = (u - 1) * q.dur; if (b > 0.45) continue;
+    if (b < 0.1) { vGlow(q.gx, q.gy - 6, 60 * q.wk * (0.6 + b * 6), cg, 1 - b / 0.1); vStar4(q.gx, q.gy - 6, 34 * q.wk * (1 - b / 0.1), 0.785, C.core, 1 - b / 0.1); }
+    var kr = vEase(b / 0.3); if (kr < 1) { var rr = 14 + 70 * q.wk * kr; ctx.strokeStyle = vrgba(cg.main, 0.8 * (1 - kr)); ctx.lineWidth = 4 * (1 - kr) + 1; ctx.beginPath(); ctx.ellipse(q.gx, q.gy, rr, rr * 0.28, 0, 0, 6.283); ctx.stroke(); }
+    drawSparks({ t: b, sp: q.sp }, q.gx, q.gy - 4, cg, 5, 900);
   }
   for (i = 0; i < S.length; i++) {
     var s = S[i], ap = vEase((t - SF.sky - i * 0.012) / 0.15); if (ap <= 0) continue;
