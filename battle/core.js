@@ -71,7 +71,7 @@ var FOE_WALK = { 1: { cw: 145, ch: 257, h: 240 }, 2: { cw: 146, ch: 220, h: 210 
 /* 背の高さ（2026-10-30 決定。同じ奥行きで、画面上の頭〜足の高さ。ゲーム全体で共通）：
    ラナ205・ミナ210・セラ210・ランカ202・ガロウ228／槍兵233（穂先込み、頭で210）・騎士212・山賊225・斧212。強敵は×1.12、敵将は×1.38。
    FOE_HK＝FOE_H(200)に掛ける比。絵ごとの実測（歩きの絵で 槍兵201・騎士207・山賊182・斧198）から逆算した値 */
-var HEIGHT = { rana: 205, mina: 210, sera: 210, ranka: 202, garou: 228, f1: 233, f2: 212, f3: 225, f4: 212 };
+var HEIGHT = { rana: 205, mina: 210, sera: 210, ranka: 202, garou: 228, lily: 212, f1: 233, f2: 212, f3: 225, f4: 212 };
 var FOE_HK = { 1: 233 / 201, 2: 1.04 * 212 / 207, 3: 0.91 * 225 / 182, 4: 1.04 * 212 / 198 };
 var HERO_K = HEIGHT.rana / 219; // ラナの絵は0.6倍で219（実測）。当たり判定はそのまま
 var FOE_H = 200, FOE_SPD = 3.3, FOE_CLIP = {}, FOE_SW = {}; // FOE_H＝槍兵の見た目の背の高さ（世界座標。主人公は約220）。攻撃は一騎打ちの2.6倍速
@@ -105,8 +105,8 @@ var G, S;
 var BAT = (function () { var q = new URLSearchParams(location.search || ''); if (q.get('battle') !== '1') return { on: false };
   return { on: true, id: q.get('id') || '', waves: Math.max(1, +q.get('waves') || 3), name: q.get('name') || '出撃', dmg: +q.get('dmg') || 1, bind: +q.get('bind') || 0, hp: +q.get('hp') || 0, al: (q.get('al') || '').split(',').filter(Boolean), boss: q.get('boss') === '1', ret: q.get('ret') || 'terrain/index.html' }; })();
 /* 途中で参入する仲間（battle/ally.js）：領地から渡された候補（al）からランダムに1人。試し（?battle なし）は4人から。?ally=mina で固定。候補が無ければ参入なし */
-var ALLY_K = (function () { var q = new URLSearchParams(location.search || ''), f = q.get('ally'), pool = BAT.on ? BAT.al : ['mina', 'garou', 'sera', 'ranka'];
-  if (f === 'none') return ''; if (f && ['mina', 'garou', 'sera', 'ranka'].indexOf(f) >= 0) return f; return pool.length ? pool[Math.floor(Math.random() * pool.length)] : ''; })();
+var ALLY_K = (function () { var q = new URLSearchParams(location.search || ''), f = q.get('ally'), pool = BAT.on ? BAT.al : ['mina', 'garou', 'sera', 'ranka', 'lily'];
+  if (f === 'none') return ''; if (f && ['mina', 'garou', 'sera', 'ranka', 'lily'].indexOf(f) >= 0) return f; return pool.length ? pool[Math.floor(Math.random() * pool.length)] : ''; })();
 /* 戦場の数：領地の wavesOf は「規模÷7（2〜7）＋2」。前半＝雑兵、JOIN の戦場から仲間が参入して強敵が混じる、最後＝敵将 */
 function SEGS() { return BAT.on ? Math.max(3, BAT.waves) : 5; }
 function JOIN() { return Math.max(1, Math.floor(SEGS() * 0.4)); } // 仲間が参入する戦場（0始まり）

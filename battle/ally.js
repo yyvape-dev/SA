@@ -13,7 +13,9 @@ var ALLY_DEF = {
   sera: { n: 'セラ', r: '内政役', clips: [2], h: HEIGHT.sera, pow: 9, range: 200, sk: '癒しの頁', col: '#b8f0c0',
     join: '姫さま、お待たせしました！ 手当ては任せてください。', use: '姫さま、いま治します！' },
   ranka: { n: 'ランカ', r: '将軍', clips: [0, 1, 2], h: HEIGHT.ranka, pow: 34, range: 250, sk: '星震', col: '#9fd8ff',
-    join: 'お嬢、お待たせ〜。あとはわたしが片付けるじゃん？', use: 'ちょっとだけ本気でいくよ！' }
+    join: 'お嬢、お待たせ〜。あとはわたしが片付けるじゃん？', use: 'ちょっとだけ本気でいくよ！' },
+  lily: { n: 'リリィ', r: '副団長', clips: [0, 1, 2], h: HEIGHT.lily, pow: 28, range: 240, sk: '追星', col: '#cfe0ff', // 蹴り技。連携＝追星（一直線に駆け抜ける蹴り。拘束中1.5倍）
+    join: 'ラナ様、加勢します！ ……ランカばっかりに、いい格好はさせないんだから。', use: 'わたしだって、やれるんだから！' }
 };
 var ALLY_SPD = 2.8, ALLY_RUN = null, ALLY_CLIP = []; // 攻撃の連番は一騎打ちの2.8倍速
 function allyLoad(one) {
@@ -146,6 +148,15 @@ function allySkill(a) {
     }
     fxHeal(h); // 癒しの頁（battle/fx2.js）
     addText(h.x, h.y - 260, '+' + heal, 30, '#b8f5c0', 1.0); // 回復量だけ（技名・体数の文字は出さない。2026-10-30）
+  } else if (a.k === 'lily') { // 追星：前へ一直線に駆け抜けながら蹴る（貫通。拘束中1.5倍）。通った跡に星の粒
+    var R3 = 560, lane3 = 90 * ZK, x0 = a.x;
+    for (i = 0; i < G.enemies.length; i++) {
+      e = G.enemies[i]; var dx = (e.x - a.x) * a.face; if (e.state !== 'walk' || dx < -40 || dx > R3 || Math.abs(e.y - a.y) > lane3) continue;
+      hurt(e, 120 * (0.9 + Math.random() * 0.2) * (e.bind > 0 ? 1.5 : 1), a.face, true); n++;
+    }
+    a.x = clamp(a.x + a.face * 380, heroMinX(), heroMaxX());
+    fxDash(x0, a.x, a.y, a.face);
+    G.freeze = Math.max(G.freeze, 0.1 + Math.min(n, 12) * 0.006); G.shake = Math.max(G.shake, 14 + Math.min(n, 12));
   } else { // 星震：画面の敵に、星が1体ずつ落ちる（当たりごとに大ダメージ、拘束中は1.5倍）。演出と進行は battle/fx2.js の startStarfall
     startStarfall(a);
   }

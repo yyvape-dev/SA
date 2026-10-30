@@ -369,3 +369,21 @@ function cineApply() {
   var px = clamp(c.fx - camX, W * 0.28, W * 0.72), py = clamp(c.fy - camY - TOPY, VH * 0.3, VH * 0.62); // 寄る点（画面の座標）。端に寄りすぎない
   c.px = px; c.py = py; ctx.translate(px, py); ctx.scale(c.z, c.z); ctx.translate(-px, -py);
 }
+
+/* ===== リリィの追星（2026-10-30）：駆け抜けた一直線に、青白の光の帯（暗い下地→光→芯、後ろから消える）＋星の粒＋先端の衝撃 ===== */
+function fxDash(x0, x1, y, face) {
+  var st = []; for (var i = 0; i < 26; i++) st.push({ u: Math.random(), oy: (Math.random() - 0.5) * 90, d: Math.random() * 0.12, r: vR(5, 11), vy: -vR(30, 140), life: vR(0.35, 0.7) });
+  G.fx.push({ type: 'vdash', x0: x0, x1: x1, y: y - 95, gy: y, face: face, t: 0, life: 0.6, st: st, sp: vSparks(14, face, 300, 800, 0.4) });
+}
+FX2.vdash = function (f) {
+  var C = VFX_STAR, t = f.t, head = vEase(t / 0.08), tail = vEase((t - 0.08) / 0.4), xa = f.x0 + (f.x1 - f.x0) * tail, xb = f.x0 + (f.x1 - f.x0) * head, fade = 1 - Math.max(0, t - 0.3) / 0.3;
+  if (xb !== xa && fade > 0) {
+    var LY = [{ c: C.dark, w: 34, a: 0.45, dk: 1 }, { c: C.glow, w: 30, a: 0.6 }, { c: C.main, w: 11, a: 0.95 }, { c: C.core, w: 3.5, a: 1 }];
+    for (var l = 0; l < LY.length; l++) { var L = LY[l], g = ctx.createLinearGradient(xa, 0, xb, 0); g.addColorStop(0, vrgba(L.c, 0)); g.addColorStop(0.85, vrgba(L.c, L.a * fade)); g.addColorStop(1, vrgba(L.c, L.a * 0.6 * fade));
+      ctx.globalCompositeOperation = L.dk ? 'source-over' : 'lighter'; ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(xa, f.y); ctx.quadraticCurveTo((xa + xb) / 2, f.y - L.w * 0.5, xb, f.y); ctx.quadraticCurveTo((xa + xb) / 2, f.y + L.w * 0.5, xa, f.y); ctx.fill(); }
+    ctx.globalCompositeOperation = 'lighter';
+  }
+  for (var i = 0; i < f.st.length; i++) { var q = f.st[i], a = t - q.d - q.u * 0.08; if (a < 0 || a > q.life) continue; var al = Math.sin(a / q.life * Math.PI); vStar4(f.x0 + (f.x1 - f.x0) * q.u, f.y + q.oy + q.vy * a, q.r, a * 3, i % 3 ? C.spark : C.core, al); }
+  var bt = t - 0.06; if (bt > 0 && bt < 0.14) { vGlow(f.x1 + f.face * 30, f.y, 120 * (0.5 + bt * 4), C, 1 - bt / 0.14); }
+  if (t > 0.06) drawSparks({ t: t - 0.06, sp: f.sp }, f.x1 + f.face * 30, f.y, C, 5, 700);
+};
