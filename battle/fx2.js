@@ -460,21 +460,28 @@ function fxStarStomp(a) {
     ln.push({ ex: Math.cos(ang) * L, ey: Math.sin(ang) * L * 0.85, bx: Math.cos(ang + bend) * L * 0.5, by: Math.sin(ang + bend) * L * 0.5 * 0.85, d: vR(0, 0.12) + (i < 10 ? 0 : 0.05), w: vR(10, 22), gold: i % 3 === 0 });
   }
   for (i = 0; i < 6; i++) ln.push({ ex: (i % 2 ? 1 : -1) * W * vR(0.9, 1.3), ey: vR(-20, 10), bx: (i % 2 ? 1 : -1) * W * 0.4, by: -vR(20, 60), d: vR(0, 0.08), w: vR(8, 14), gold: i % 2 === 0, low: true }); // 地をはう流線
-  G.fx.push({ type: 'vsstomp', x: a.x, y: a.y, h: H, t: 0, life: 0.95, ln: ln, sp: vSparks(36, 0, 400, 1200, 1.4) });
+  var st = []; // 柱の筋：芯の近くは白く細く速く、外ほど青く太く遅い。金が混じる
+  for (i = 0; i < 34; i++) { var o = (Math.random() - 0.5) * 2, ao = Math.abs(o); st.push({ ox: o, d: ao * 40 + Math.random() * 30, sp: 90 + ao * 90 + Math.random() * 40, fo: 280 + Math.random() * 320, hk: 0.75 + Math.random() * 0.3 - ao * 0.2, w: (ao < 0.25 ? 2 : 4) + Math.random() * (ao < 0.25 ? 3 : 9), a: ao < 0.25 ? 1 : 0.55 + Math.random() * 0.35, c: ao < 0.2 ? 2 : Math.random() < 0.3 ? 1 : 0, sw: Math.random() * 4, ph: Math.random() * 6.283 }); }
+  G.fx.push({ type: 'vsstomp', x: a.x, y: a.y, h: H, t: 0, life: 0.95, ln: ln, st: st, sp: vSparks(36, 0, 400, 1200, 1.4) });
   fxRing(a.x, a.y, W * 0.75, 0.6, VFX_STAR);
   G.flash = 0.32; G.flashRGB = '170,205,255'; G.shake = Math.max(G.shake, 28); G.freeze = Math.max(G.freeze, 0.09);
 }
 FX2.vsstomp = function (f) {
   var C = VFX_SKY, t = f.t, ms = t * 1000, x = f.x, y = f.y, top = camY + TOPY - 40, PH = y - top, i;
-  // ① 足から縦に昇る光の柱（3層＋暗い下地、先端が駆け上がり、根本は遅れて細る）
-  var LY = [{ c: C.dark, w: 1.25, a: C.dk, lag: 20, dk: 1 }, { c: C.glow, w: 1.0, a: 0.85, lag: 30 }, { c: C.gold, w: 0.5, a: 0.95, lag: 12 }, { c: C.core, w: 0.18, a: 1, lag: 0 }];
-  for (var l = 0; l < LY.length; l++) {
-    var Ly = LY[l], head = vEase((ms - Ly.lag) / 120), fade = Math.max(0, 1 - Math.max(0, ms - 160) / 520); if (head <= 0 || fade <= 0) continue;
-    var Wd = f.h * 0.55 * Ly.w * (0.6 + 0.4 * fade), hy = y - PH * head, g = ctx.createLinearGradient(0, y, 0, hy);
-    g.addColorStop(0, vrgba(Ly.c, Ly.a * 0.25 * fade)); g.addColorStop(0.06, vrgba(Ly.c, Ly.a * fade)); g.addColorStop(0.7, vrgba(Ly.c, Ly.a * 0.7 * fade)); g.addColorStop(1, vrgba(Ly.c, 0)); // 根本も先端も四角く切れないよう、両端をぼかす
-    ctx.globalCompositeOperation = Ly.dk ? 'source-over' : 'lighter'; ctx.fillStyle = g;
-    ctx.beginPath(); ctx.moveTo(x - Wd * 0.25, y); ctx.quadraticCurveTo(x - Wd * 0.55, y - PH * 0.35 * head, x, hy); ctx.quadraticCurveTo(x + Wd * 0.55, y - PH * 0.35 * head, x + Wd * 0.25, y); ctx.closePath(); ctx.fill();
+  // ① 足から縦に昇る光の柱：細いグラデーションの筋を何十本も重ねて、1本の線に見せない（斬撃と同じ考え方。2026-10-30）
+  //   下地は輪郭のない暗いぼかし（四角い暗い帯を作らない）。筋は1本ずつ、太さ・高さ・速さ・横のずれ・色・揺れが違う
+  var fade0 = Math.max(0, 1 - Math.max(0, ms - 160) / 520), up0 = vEase(ms / 120);
+  if (fade0 > 0) { ctx.globalCompositeOperation = 'source-over'; var gd = ctx.createRadialGradient(x, y - PH * 0.4 * up0, 0, x, y - PH * 0.4 * up0, f.h * 0.9); gd.addColorStop(0, vrgba(C.dark, 0.35 * fade0)); gd.addColorStop(1, vrgba(C.dark, 0)); ctx.save(); ctx.translate(x, y - PH * 0.4 * up0); ctx.scale(0.45, Math.max(0.3, PH * up0 / (f.h * 1.8))); ctx.translate(-x, -(y - PH * 0.4 * up0)); ctx.fillStyle = gd; ctx.fillRect(x - f.h, y - PH * 0.4 * up0 - f.h, f.h * 2, f.h * 2); ctx.restore(); }
+  ctx.globalCompositeOperation = 'lighter';
+  for (i = 0; i < f.st.length; i++) {
+    var q = f.st[i], b0 = ms - q.d; if (b0 <= 0) continue;
+    var hd = vEase(b0 / q.sp), tl = vEase((b0 - q.sp * 0.35) / (q.sp * 3.5)), fd = Math.max(0, 1 - Math.max(0, b0 - q.sp - 60) / q.fo); if (fd <= 0) continue;
+    var sx = x + q.ox * f.h * 0.28 * (1 - 0.5 * hd) + Math.sin(ms * 0.02 + q.ph) * q.sw, top2 = y - PH * q.hk * hd, bot2 = y - PH * q.hk * Math.min(hd, tl) * 0.9, len = bot2 - top2; if (len < 4) continue;
+    var w2 = q.w * (0.6 + 0.4 * fd), g2 = ctx.createLinearGradient(0, bot2, 0, top2), col = q.c === 2 ? C.core : q.c === 1 ? C.gold : C.main;
+    g2.addColorStop(0, vrgba(col, 0)); g2.addColorStop(0.25, vrgba(col, 0.55 * q.a * fd)); g2.addColorStop(0.85, vrgba(col, q.a * fd)); g2.addColorStop(1, vrgba(col, 0)); // 両端が消える
+    ctx.fillStyle = g2; ctx.beginPath(); ctx.moveTo(sx, bot2); ctx.quadraticCurveTo(sx - w2, bot2 - len * 0.55, sx, top2); ctx.quadraticCurveTo(sx + w2, bot2 - len * 0.55, sx, bot2); ctx.fill(); // 中ほどが太く、上下が尖る
   }
+  if (fade0 > 0) vPillar(x, y, f.h * 0.55, PH * up0 * 0.95, { core: C.main, main: C.glow, glow: C.glow }, 0.45 * fade0); // 筋の束をまとめる、輪郭のない青い残光
   ctx.globalCompositeOperation = 'lighter';
   // ② 画面いっぱいの流線（時間差の3層：残光・本体・芯。青と金）
   for (i = 0; i < f.ln.length; i++) {
