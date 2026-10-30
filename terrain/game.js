@@ -16,13 +16,22 @@ export const DIM = [1, .7, .5, .35, .25];
 export const facCount = (s, f) => Object.values(s.plots).filter(p => p.fac === f).length;
 export const dimNote = (s, f) => { const n = facCount(s, f); return FAC[f].one ? '1つまで' : n ? `${n + 1}つ目は効き${Math.round((DIM[n] ?? .2) * 100)}%` : ''; };
 export const STAGE = ['空き地', '建築中', '完成', '発展後'];
-export const WEEKS = 24; // 2026-10-30 12週→24週（ユーザー）
-export const SCHED = [ // 襲撃の予定（E=敵の規模）。奇数週に11回、最後の24週に将軍。敵の規模は 13→40 へ少しずつ上げ、将軍は46（12週のときと同じ幅を、2倍の週に広げた）
-  { w: 3, E: 13, name: '野盗の襲撃', dir: 'river' }, { w: 5, E: 15, name: '野盗の大群', dir: 'pass' }, { w: 7, E: 17, name: '謀反軍の斥候', dir: 'river' },
-  { w: 9, E: 19, name: '謀反軍の偵察隊', dir: 'pass' }, { w: 11, E: 22, name: '謀反軍の先遣隊', dir: 'river' }, { w: 13, E: 24, name: '略奪隊の襲撃', dir: 'pass' },
-  { w: 15, E: 27, name: '謀反軍の突撃隊', dir: 'river' }, { w: 17, E: 30, name: '将軍の副官の軍', dir: 'pass' }, { w: 19, E: 33, name: '謀反軍の討伐隊', dir: 'river' },
-  { w: 21, E: 36, name: '副官の精鋭軍', dir: 'pass' }, { w: 23, E: 40, name: '謀反軍の本隊', dir: 'river' }, { w: 24, E: 46, name: '将軍の侵攻', boss: true, dir: 'pass' },
+// 2026-10-30 36週＝1章6週×6章（ユーザー承認）。各章：2・4週目に襲撃、6週目に章の将軍（一騎打ちあり）。最後の第36週は大公（ボス、勝てば国を取り戻す）
+export const CH_LEN = 6;
+export const CHAPTERS = [ // area＝章の始まりに自動で開く区域（無料。仲間もそこで加入）。null＝まだ区域が無い（②で追加）。g＝章の将軍。bust＝胸像のファイル（無ければ従来の bust_4）
+  { t: '逃亡の朝', d: '処刑されるはずだった女王を、民はまだ信じない。', area: null, g: '山賊頭グレン', E: [13, 15, 18] },
+  { t: '斧の値段', d: '金で振る斧と、主のために振る斧。', area: 'east', g: '傭兵団長ボルグ', E: [17, 19, 23] },
+  { t: '本の虫と鉄の花', d: '知恵者の過去が、敵の陣に立っている。', area: 'lake', g: '女騎士エルザ', E: [22, 24, 28] },
+  { t: '星が震える', d: 'これは、ただの謀反ではなかった。', area: 'forest', g: '黒騎士', E: [27, 29, 33] },
+  { t: '師の剣', d: '剣を教えてくれた人と、刃を交える。', area: 'pass2', g: '総大将ヘルマン', E: [32, 35, 39] },
+  { t: '月夜の回廊', d: '女王は、国へ帰る。', area: 'capital', g: '大公ヴァルド', E: [38, 41, 46] },
 ];
+export const WEEKS = CH_LEN * CHAPTERS.length;
+export const chapterOf = w => Math.min(CHAPTERS.length, Math.max(1, Math.ceil(w / CH_LEN)));
+const RAID_N = [['野盗の襲撃', '山賊の大群'], ['傭兵の斥候', '傭兵団の先遣隊'], ['謀反軍の偵察隊', '騎士団の突撃隊'], ['黒い軍勢の斥候', '黒い軍勢の討伐隊'], ['砦の守備隊', '王国軍の精鋭'], ['王都の近衛', '大公の本隊']];
+export const SCHED = CHAPTERS.flatMap((c, i) => { const w0 = i * CH_LEN, last = i === CHAPTERS.length - 1;
+  return [{ w: w0 + 2, E: c.E[0], name: RAID_N[i][0], dir: 'river' }, { w: w0 + 4, E: c.E[1], name: RAID_N[i][1], dir: 'pass' },
+    { w: w0 + 6, E: c.E[2], name: last ? '大公の侵攻' : c.g + 'の侵攻', gen: i + 1, boss: last, dir: i % 2 ? 'river' : 'pass' }]; });
 const CAP_TROOPS = 16;
 // 戦場（敵が来る方角）。前線＝街の外で迎え撃つ場所
 export const FRONT = { pass: { n: '山道の峠', from: '北西の山道' }, river: { n: '川の渡し場', from: '西の川' } };
@@ -66,7 +75,7 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const mult = st => (st === 2 ? 1 : st === 3 ? 2 : 0);
 
 export function newState(areaDefs) {
-  return { week: 1, ap: 3, sup: 10, morale: 60, troops: 4, hp: 3, plots: {}, open: [], bond: { mina: 0, garou: 0, sera: 0, ranka: 0, lily: 0 }, met: {}, assign: {}, battle: null, scouted: {}, tired: false, over: null, why: '', raid: null, log: [], areaDefs: areaDefs.map(a => ({ id: a.id, name: a.name, cost: a.cost, income: a.income })) };
+  return { week: 1, ap: 3, sup: 10, morale: 60, troops: 4, hp: 3, plots: {}, open: [], bond: { mina: 0, garou: 0, sera: 0, ranka: 0, lily: 0 }, met: {}, assign: {}, battle: null, scouted: {}, tired: false, over: null, why: '', raid: null, log: [], chStart: 1, areaDefs: areaDefs.map(a => ({ id: a.id, name: a.name, cost: a.cost, income: a.income })) };
 }
 
 // ---------- 指標（全部ここから計算） ----------
@@ -104,7 +113,8 @@ export function build(s, id, fac) { if (!canBuild(s, fac, id) || s.plots[id]) re
 export function canUpgrade(s, id) { const p = s.plots[id]; return !!p && p.stage === 2 && !p.burnt && !s.over && !s.raid && s.ap >= 1 && s.sup >= FAC[p.fac].up; }
 export function upgrade(s, id) { if (!canUpgrade(s, id)) return false; const p = s.plots[id]; spend(s, FAC[p.fac].up); p.stage = 3; s.log.push(`${FAC[p.fac].n}を発展させた`); return true; }
 export function demolish(s, id) { if (!s.plots[id] || s.raid || s.over) return false; s.log.push(`${FAC[s.plots[id].fac].n}を取り壊した`); delete s.plots[id]; cleanAssign(s); return true; }
-export function canOpen(s, a) { return !s.open.includes(a.id) && !s.over && !s.raid && s.ap >= 1 && s.sup >= a.cost; }
+export const chapterOfArea = id => CHAPTERS.findIndex(c => c.area === id) + 1; // その区域が開く章（0＝章に無い）
+export function canOpen(s, a) { return false; } // 2026-10-30 区域は章の始まりに自動で開く（手で開く操作はやめた）
 export function openArea(s, a) { if (!canOpen(s, a)) return false; spend(s, a.cost); s.open.push(a.id); s.log.push(`${a.name}を開拓した`); return true; }
 
 export const CASTLE = { // 城でできること
@@ -136,7 +146,7 @@ export function endWeek(s) {
   const msg = `週末：物資${i >= 0 ? '+' : ''}${i} 民心${d >= 0 ? '+' : ''}${d}${done.length ? '／完成：' + done.join('・') : ''}`;
   s.log.push(msg);
   const r = SCHED.find(x => x.w === s.week);
-  if (r) s.raid = { kind: 'raid', E: r.E, name: r.name, boss: !!r.boss, w: r.w, dir: r.dir }; else afterWeek(s);
+  if (r) s.raid = { kind: 'raid', E: r.E, name: r.name, boss: !!r.boss, gen: r.gen || 0, w: r.w, dir: r.dir }; else afterWeek(s);
   return msg;
 }
 function afterWeek(s) {
@@ -144,11 +154,16 @@ function afterWeek(s) {
   s.week++; if (s.week > WEEKS) { s.over = 'win'; s.why = `${WEEKS}週を生き延びた`; return; }
   s.ap = Math.max(1, apOf(s.morale) - (s.tired ? 1 : 0)); s.tired = false; s.away = 0; s.sortied = false; // 出撃した兵が戻る
   // ランカは、たまにその週の街にいない（4分の1。2週続けてはいない）。配置の効果も出撃もなし
-  // リリィの加入：ランカが仲間になって2週後の朝（またはランカと絆1以上）
-  if (joined(s, 'ranka') && !joined(s, 'lily')) { s.rkW = (s.rkW || 0) + 1; if (s.rkW >= 2 || bond(s, 'ranka') >= 1) { s.met = s.met || {}; s.met.lily = true; s.newcomer = 'lily'; s.log.push('ランカの戦友、リリィが仲間になった'); } }
+  if ((s.week - 1) % CH_LEN === 0) startChapter(s, chapterOf(s.week));
   const lb = joined(s, 'lily') ? bond(s, 'lily') : 0; // リリィの絆で、ランカが街を空ける週が減る
   s.rankaAway = joined(s, 'ranka') && !s.rankaAway && Math.random() < (lb >= 3 ? 0 : lb >= 2 ? .1 : .25);
   if (s.rankaAway) s.log.push('ランカは今週、街にいない');
+}
+// 章の始まり：区域が開き（無料）、仲間が加わる。リリィは第5章の始まりに加入（2026-10-30、ユーザー）
+export function startChapter(s, c) {
+  const C = CHAPTERS[c - 1]; if (!C) return; s.chStart = c;
+  if (C.area && s.areaDefs.some(a => a.id === C.area) && !s.open.includes(C.area)) { s.open.push(C.area); const a = s.areaDefs.find(a => a.id === C.area); s.log.push(`${a.name}へ進んだ`); }
+  if (c >= 5 && !joined(s, 'lily')) { s.met = s.met || {}; s.met.lily = true; s.newcomer = 'lily'; s.log.push('ランカの戦友、リリィが仲間になった'); }
 }
 function checkLose(s) { if (s.over) return; if (s.hp <= 0) { s.over = 'lose'; s.why = '城が落とされた'; } else if (s.morale <= 0) { s.over = 'lose'; s.why = '民心が尽き、反乱が起きた'; } }
 // 前線を破られると、敵が街に入り込み、施設が焼かれる（効果なし。修理すると戻る）
@@ -164,7 +179,8 @@ export function resolve(s, mode, rnd = Math.random, forced) { // forced: アク�
   const at = m >= 4 ? 0 : m >= 0 ? 1 : m >= -4 ? 2 : 3; let ok, tier, t = `${R.name}（${mode === 'auto' ? '任せた' : forced === undefined ? '自分で戦った' : '自分で戦った・' + (forced ? '勝利' : '敗北')}）：`;
   if (mode === 'auto') { tier = at; ok = tier === 0; } else { ok = forced === undefined ? rnd() < handP(s, E) : !!forced; tier = ok ? 0 : clamp(at + 1, 1, 3); if (R.kind === 'sortie') s.ap = Math.max(0, s.ap - 1); else s.tired = true; }
   s.raid = null;
-  if (R.boss) { s.over = ok ? 'win' : 'lose'; s.why = ok ? '将軍の侵攻を退けた' : '将軍に城を落とされた'; s.log.push(t + (ok ? '勝利' : '敗北')); return t + (ok ? '勝利' : '敗北'); }
+  if (R.gen) s.chEnd = { c: R.gen, win: !!ok }; // 章の終わりの会話（main.js が出す）
+  if (R.boss) { s.over = ok ? 'win' : 'lose'; s.why = ok ? '大公を討ち、国を取り戻した' : '大公の軍に城を落とされた'; s.log.push(t + (ok ? '勝利' : '敗北')); return t + (ok ? '勝利' : '敗北'); }
   if (R.kind === 'sortie') { const n = R.sent || 0; let lost = 0;
     if (ok) { const g = sortieGain(n) + (mode === 'hand' ? 2 : 0); s.sup += g; s.morale += 3; t += `勝利 物資+${g}`; }
     else if (tier === 1) { lost = 1; s.morale -= 5; t += '苦戦 兵力-1 民心-5'; }
@@ -231,7 +247,7 @@ export function weekReport(prev, s) {
   if (prev.hp !== s.hp) ch.push(`城の耐久 ${prev.hp} → ${s.hp}`);
   const done = Object.entries(s.plots).filter(([id, p]) => prev.plots[id] && prev.plots[id].stage === 1 && p.stage === 2).map(([id, p]) => FAC[p.fac].n);
   if (done.length) ch.push(`完成：${done.join('・')}`);
-  for (const t of s.log.slice(prev.logN)) if (/襲撃|大群|斥候|偵察隊|先遣隊|突撃隊|討伐隊|精鋭軍|副官|本隊|侵攻/.test(t) && /：/.test(t)) ch.push(t);
+  for (const t of s.log.slice(prev.logN)) if (/襲撃|大群|斥候|偵察隊|先遣隊|突撃隊|討伐隊|精鋭|守備隊|近衛|副官|本隊|侵攻/.test(t) && /：/.test(t)) ch.push(t);
   // 注意点
   const r = nextRaid(s);
   if (r) { const lack = r.E - D(s), wk = r.w - s.week; if (lack > -4) wr.push(`${wk ? wk + '週後' : '今週末'}に${r.name}（規模${s.scouted[r.w] ? r.E : '約' + r.E}）。防衛力${Math.round(D(s))}では${lack > 0 ? '足りない' : 'ぎりぎり'}。`); else if (wk <= 1) wr.push(`${wk ? '来週末' : '今週末'}に${r.name}。防衛力は足りている。`); }
@@ -244,7 +260,6 @@ export function weekReport(prev, s) {
   if (s.rankaAway) wr.push('ランカは今週、街にいない。配置の効果も出撃もなし。');
   const idle = Object.keys(ALLY).filter(k => joined(s, k) && !(s.assign || {})[k]);
   if (idle.length && Object.values(s.plots).some(p => p.stage >= 2)) wr.push(`${idle.map(k => ALLY[k].n).join('・')}が施設に配置されていない。`);
-  const a = s.areaDefs.find(a => !s.open.includes(a.id)); if (a && s.sup >= a.cost + 2) wr.push(`物資が貯まっている。${a.name}を開拓できる（物資${a.cost}）。`);
   return { title: `第${prev.week}週の報告`, changes: ch, warns: wr };
 }
 
@@ -271,9 +286,9 @@ export function morningLines(s, who, rnd = Math.random) {
 
 // ---------- 一騎打ち（接戦のとき、将軍同士が戦う） ----------
 export const DUEL_POW = { ranka: 14, garou: 11, mina: 9, sera: 6, lily: 12 };
-export const duelDue = s => !!s.raid && (s.raid.boss || s.raid.E >= 30 || Math.abs(raidD(s) - s.raid.E) <= 4); // 副官と将軍は必ず一騎打ちに出てくる
+export const duelDue = s => !!s.raid && (s.raid.boss || !!s.raid.gen || s.raid.E >= 30 || Math.abs(raidD(s) - s.raid.E) <= 4); // 副官と将軍は必ず一騎打ちに出てくる
 export const champions = s => Object.keys(ALLY).filter(k => fighter(k) && joined(s, k) && !(k === 'ranka' && (s.rankaAway || !s.raid.ranka)));
-export const foeGeneral = s => ({ n: s.raid.boss ? '謀反の将軍' : s.raid.E >= 30 ? '将軍の副官' : '敵の隊長', pow: s.raid.E / 3 + (s.raid.boss ? 6 : s.raid.E >= 30 ? 2 : 0) });
+export const foeGeneral = s => ({ n: s.raid.gen ? CHAPTERS[s.raid.gen - 1].g : s.raid.E >= 30 ? '敵の副官' : '敵の隊長', pow: s.raid.E / 3 + (s.raid.boss ? 6 : s.raid.gen ? 4 : s.raid.E >= 30 ? 2 : 0) });
 export const duelPow = (s, k) => DUEL_POW[k] + bond(s, k) * 1.5;
 export const duelP = (s, k) => { // ミナは絆2・3で勝率が上がる。ランカは相手が誰でも7割は勝つ（最強の将）
   let p = clamp(.5 + (duelPow(s, k) - foeGeneral(s).pow) / 16, .1, .9);

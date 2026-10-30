@@ -32,6 +32,7 @@ const css = `
 #top .wk .wbar{position:relative;flex:1;height:5px;background:#3a2410;border:1px solid #6a5030;border-radius:3px}
 #top .wk .wfill{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(#ffd27a,#c8862a);border-radius:2px;transition:width .4s}
 #top .wk u{position:absolute;top:-3px;width:2px;height:9px;margin-left:-1px;background:#d8604a;text-decoration:none}
+#top .wk i.bs.g{width:12px;height:12px;margin-left:-6px;top:-4px;opacity:.85}
 #top .wk i.bs{position:absolute;top:-6px;width:16px;height:16px;margin-left:-8px;background:url(assets/ui/wk_boss.png) center/contain no-repeat}
 #top .scroll .wkn{font-size:12px;white-space:nowrap}#top .scroll .sep{width:1px;align-self:stretch;background:#8a6430}
 #top .scroll .foe{margin-left:auto;display:flex;align-items:center;gap:3px;color:#7a1a10;white-space:nowrap}
@@ -92,7 +93,7 @@ export function createUI({ onEndWeek, onReset }) {
   const ui = {
     // d = {title, week, weeks, raidWeeks:[], bossWeek, band:{wk, next, foe}, res:[{ic,lab,val,sub,cls,bar,col}]}
     top(d) {
-      const wk = (() => { const pc = i => ((i - 0.5) / d.weeks * 100).toFixed(2); const ticks = d.raidWeeks.filter(w => w !== d.bossWeek).map(w => `<u style="left:${pc(w)}%"></u>`).join(''); const boss = d.bossWeek ? `<i class="bs" style="left:${pc(d.bossWeek)}%"></i>` : ''; return `<b class="wn"><em>${d.week}</em>/${d.weeks}</b><span class="wbar"><span class="wfill" style="width:${(d.week / d.weeks * 100).toFixed(1)}%"></span>${ticks}${boss}</span>`; })();
+      const wk = (() => { const pc = i => ((i - 0.5) / d.weeks * 100).toFixed(2); const ticks = d.raidWeeks.filter(w => w !== d.bossWeek && !(d.genWeeks || []).includes(w)).map(w => `<u style="left:${pc(w)}%"></u>`).join(''); const boss = (d.bossWeek ? `<i class="bs" style="left:${pc(d.bossWeek)}%"></i>` : '') + (d.genWeeks || []).map(w => `<i class="bs g" style="left:${pc(w)}%"></i>`).join(''); return `<b class="wn"><em>${d.week}</em>/${d.weeks}</b><span class="wbar"><span class="wfill" style="width:${(d.week / d.weeks * 100).toFixed(1)}%"></span>${ticks}${boss}</span>`; })();
       top.innerHTML = `<img class="bnr" src="assets/ui/banner.png" alt=""><div class="frs t1w"><div class="t1"><span class="ttl">${d.title}</span><div class="wk">${wk}</div></div></div>
         <div class="scroll"><span class="wkn">第${d.band.wk}週</span><span class="sep"></span><span>${d.band.next}</span><span class="foe"><img src="assets/ui/seal.png" alt="" style="height:17px">${d.band.foe}</span></div>
         <div class="res frs">${d.res.map(r => `<div title="${r.lab}">${ico(r.ic, 16)}<span style="min-width:0;flex:1"><b>${r.val}${r.sub ? `<span class="${r.cls || 'd'}"> ${r.sub}</span>` : ''}</b>${r.bar !== undefined ? `<div class="bar"><span style="width:${Math.max(0, Math.min(100, r.bar))}%;background:${r.col || '#7ac06a'}"></span></div>` : ''}</span></div>`).join('')}</div>`;
