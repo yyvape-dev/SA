@@ -674,7 +674,7 @@ const morning = createMorning();
 const story = createStory();
 function playStory(c, kind, then) { // 章の始まり／終わりの会話（story.js）
   const C = GM.CHAPTERS[c - 1]; if (!C) { then && then(); return; }
-  try { story.play({ c, kind, title: C.t, desc: C.d, foeName: C.g, foeBust: [`assets/npc/bust_g${c}.webp`, 'assets/npc/bust_4.webp'], por: POR, ranaSrc: '../sprites/idle_00.png' }, then); } catch (e) { console.error('章の会話', e); then && then(); }
+  try { story.play({ c, kind, title: C.t, desc: C.d, foeName: C.g, foeBust: [`assets/npc/bust_g${c}${c === 6 && kind !== 'start' ? 'b' : ''}.webp`, 'assets/npc/bust_4.webp'], por: POR, ranaSrc: '../sprites/idle_00.png' }, then); } catch (e) { console.error('章の会話', e); then && then(); }
 }
 function chapterStartScene() { if (!G || !G.chStart || G.raid || G.over) return; const c = G.chStart; G.chStart = 0; writeSave(); playStory(c, 'start', () => refreshUI()); }
 function chapterEndScene(then) { if (!G.chEnd) { then(); return; } const e = G.chEnd; G.chEnd = null; writeSave(); playStory(e.c, e.win ? 'win' : 'lose', then); }
@@ -987,7 +987,7 @@ function clipActor(el, sp, clips, base, T, run, runBase) { // 動画由来の連
 }
 const HUMAN = { mina: 181, sera: 181, ranka: 174, garou: 196, lily: 192, sol: 200, f1: 200, f2: 182, f3: 194, f4: 182 }; /* 2026-10-30 ゲーム全体の背の高さ（battle/core.js の HEIGHT と同じ比。×0.86 で、一騎打ち・任せた戦闘の画面の大きさは従来並み） */ // 見た目の背の高さ：一騎打ちと戦場の大きさをこれで揃える。槍の穂先・兜の飾りが測った高さに入る絵は大きめの値（並べて目で合わせた値）
 const duelSel = document.createElement('div'); duelSel.id = 'dsel'; document.body.appendChild(duelSel);
-const bustBG = look => `url(assets/npc/bust_${G.raid && G.raid.gen ? 'g' + G.raid.gen : look}.webp),url(assets/npc/bust_${look}.webp)`; /* 章の将軍は bust_g<章>.webp（無ければ従来の胸像） */
+const bustBG = (look, duel) => { const g = G.raid && G.raid.gen; const n = g ? 'g' + g + (g === 6 && duel ? 'b' : '') : look; return `url(assets/npc/bust_${n}.webp),url(assets/npc/bust_${look}.webp)`; }; /* 大公（第6章）は、一騎打ちで悪魔の姿（g6b） */ /* 章の将軍は bust_g<章>.webp（無ければ従来の胸像） */
 const duelRank = () => G.raid && (G.raid.boss || G.raid.gen) ? 'boss' : G.raid && G.raid.E >= 30 ? 'vice' : 'cap';
 const pickOf = a => a[Math.floor(Math.random() * a.length)];
 function playDuel(k, done) { // 画面いっぱいの一騎打ち。五合の勝負（先に3合）。鬨の声は1回（作戦室で増える）：大技の合に使えば見切り、通常の合なら強化
@@ -1070,7 +1070,7 @@ function playDuel(k, done) { // 画面いっぱいの一騎打ち。五合の勝
 function openSelect(cs, F, onPick, onDecline) { // 一騎打ちに送り出す仲間を選ぶ（モック準拠：上に敵将、下に仲間のカード）
   const R = G.raid, look = foeLook(), FLo = GM.DUEL_LINES[duelRank()]; let sel = cs[0];
   const por = {}; cs.forEach(k => { por[k] = POR[k] ? pickOf(POR[k]) : `../ally/${k}.png`; });
-  duelSel.innerHTML = `<div class="hero" style="background-image:${bustBG(look)},url(assets/field/${R.dir || 'pass'}.jpg);background-size:124% auto,124% auto,cover;background-position:0 0,0 0,center"><div class="tt"><small>第${R.w || G.week}週</small><img class="dv0" src="assets/ui2/divider2.webp"><h1>一騎打ち</h1></div><div class="qt">${FLo.open[0]}<small>${F.n}</small></div></div>
+  duelSel.innerHTML = `<div class="hero" style="background-image:${bustBG(look, 1)},url(assets/field/${R.dir || 'pass'}.jpg);background-size:124% auto,124% auto,cover;background-position:0 0,0 0,center"><div class="tt"><small>第${R.w || G.week}週</small><img class="dv0" src="assets/ui2/divider2.webp"><h1>一騎打ち</h1></div><div class="qt">${FLo.open[0]}<small>${F.n}</small></div></div>
     <div class="pn"><i class="cn tl"></i><i class="cn tr"></i><h2>誰を送り出す？</h2><img class="dv" src="assets/ui2/divider2.webp"><div class="grid">${cs.map(k => { const p = Math.round(GM.duelP(G, k) * 100); return `<div class="cd" data-k="${k}"><img src="${por[k]}"><div class="tx"><div class="nm">${GM.ALLY[k].n}</div><div class="ln"></div><div class="pw">勝率 約<b>${p}</b>%</div></div><div class="ck">✓</div></div>`; }).join('')}</div>
       <div class="hint dline">勝てば有利に、負ければ不利になる</div>${cs.length ? '<button class="go"></button>' : ''}<div class="no">挑戦に応じない</div></div>`;
   const go = duelSel.querySelector('.go'), mark = () => { duelSel.querySelectorAll('.cd').forEach(c => c.classList.toggle('on', c.dataset.k === sel)); if (go) go.textContent = `${GM.ALLY[sel].n}を送り出す`; }; mark();
@@ -1180,7 +1180,7 @@ function fieldBattle(mode, onEnd) { // onEnd：試しのとき、結果を記録
       <div class="sub"><span>${R.kind === 'sortie' ? `戦力（兵${R.sent}）` : '防衛力'}<b>${usD}</b></span><span class="md">${fr ? fr.n : ''}</span><span>敵の規模<b>${E}</b></span></div></div>
     <div class="fs${FB_TOP ? '' : ' nobg'}"><div class="ban"></div></div>
     <div class="ff"><i class="cn bl"></i><i class="cn br"></i><h3>戦況</h3><div class="bal"><b style="width:50%"></b><u style="left:50%"></u></div><div class="stt">両軍、前へ</div>
-      <button class="dbtn"><i style="background-image:${bustBG(look)}"></i><span>一騎打ちの挑戦 ›</span></button>
+      <button class="dbtn"><i style="background-image:${bustBG(look, 1)}"></i><span>一騎打ちの挑戦 ›</span></button>
       <div class="fk"><button class="spd">速度 ×1</button><button class="sk">スキップ ›</button></div></div>
     <div class="fr"></div>`;
   abt.style.display = 'flex';
