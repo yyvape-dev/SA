@@ -625,7 +625,7 @@ function walkAllies(dt) { const now = performance.now();
     setWalkPose(a, true, now); }
 }
 const faceTex = {}, faceURL = {}, faceRaw = {};
-const FACE = { mina: [178, 74, 56], garou: [247, 50, 58], sera: [150, 64, 54], ranka: [180, 62, 56], lily: [140, 62, 50] }; // 立ち絵の顔の中心と半径（画素）
+const FACE = { mina: [178, 74, 56], garou: [247, 50, 58], sera: [150, 64, 54], ranka: [180, 62, 56], lily: [140, 74, 52] }; // 立ち絵の顔の中心と半径（画素）
 async function makeFace(k) { // 立ち絵の顔を丸く切り抜いて、金の縁をつける
   const im = await loadImage(`../ally/${k}.png`); if (!im) return null; const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
   g.fillStyle = '#2a1a0c'; g.beginPath(); g.arc(64, 64, 60, 0, 7); g.fill(); g.save(); g.beginPath(); g.arc(64, 64, 54, 0, 7); g.clip();
