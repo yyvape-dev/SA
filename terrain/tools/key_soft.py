@@ -7,7 +7,7 @@ import sys, os, numpy as np
 from PIL import Image
 from scipy import ndimage as ndi
 import matplotlib.colors as mc
-def key_soft(a, t0=50, t1=135):
+def key_soft(a, t0=50, t1=135, keep_purple=False):  # keep_purple＝紫の服の人（ヴァルド）。紫を灰へ寄せない
     bg = np.median(np.concatenate([a[:16, :16].reshape(-1, 3), a[:16, -16:].reshape(-1, 3), a[-16:, :16].reshape(-1, 3), a[-16:, -16:].reshape(-1, 3)]), axis=0)
     d = np.sqrt(((a - bg) ** 2).sum(-1)); al = np.clip((d - t0) / (t1 - t0), 0, 1)
     al = np.clip(ndi.gaussian_filter(al, 0.5), 0, 1); al = np.where(al < 0.04, 0, al)  # 動画のノイズで縁がざらつかないよう、ごく軽くならす
@@ -22,7 +22,7 @@ def key_soft(a, t0=50, t1=135):
     mn = np.minimum(a2[..., 0], a2[..., 2]); ex = np.clip(mn - a2[..., 1], 0, None) * edge * 0.7
     a2[..., 0] -= ex; a2[..., 2] -= ex
     hs = mc.rgb_to_hsv(np.clip(a2, 0, 255) / 255); h, s = hs[..., 0] * 360, hs[..., 1]
-    bad = (al > 0) & (s > 0.25) & (((h >= 75) & (h <= 165)) | ((h >= 270) & (h <= 330)))
+    bad = (al > 0) & (s > 0.25) & (((h >= 75) & (h <= 165)) | (((h >= 270) & (h <= 330)) & (not keep_purple)))
     hs[..., 1] = np.where(bad, s * 0.2, s); hs[..., 0] = np.where(bad, 30 / 360, hs[..., 0])
     rgb = mc.hsv_to_rgb(hs) * 255
     return np.dstack([rgb, al * 255]).astype(np.uint8)
