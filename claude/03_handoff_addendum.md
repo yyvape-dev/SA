@@ -2,6 +2,9 @@
 
 プロジェクトの `03` の「引き継ぎ」の先頭に、そのまま貼る用。
 
+## 2026-10-31 23:20 報告には試す URL を必ず付ける（ユーザーの指示、CLAUDE.md に追記）
+* 報告のたびに、実機で試す URL をセットで送る。push のあと、GitHub の actions「pages build and deployment」が success になってから。
+
 ## 2026-10-31 23:10 WebGL 段階2の1：アクション戦闘の背景とキャラを PixiJS へ（push 済み）
 * PixiJS v8.22.0 を `battle/vendor/pixi.min.js`（約840KB、gzip 約237KB。MIT、`PIXI_LICENSE`）。index.html（ルート）で core.js の前に読み、core.js の後に `battle/pxr.js`。
 * 作り（`battle/pxr.js`）：既存の描画の関数はそのまま。`draw()` の中で、背景（`drawBg`）とキャラ（`drawHero`・`drawFoe`・`drawAlly`）を描くあいだだけ `ctx` を記録係 `PX.px` に差し替え、Canvas 2D の命令（変形・不透明度・加算・drawImage・fillRect・楕円・線形グラデーション）を Pixi のスプライトと図形に置き換える。Pixi のキャンバス `#pxgame` は `#game` の下。
