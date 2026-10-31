@@ -1,23 +1,26 @@
 // 2026-10-31 エフェクト専用の WebGL の層（試作）。現場の作り方（アルファ侵食・色の帯〈グラデーションマップ〉・帯の上を流れる絵）を、ライブラリなしの小さなシェーダーで。
 // 1つの舞台に1枚のキャンバスを重ね、加算（色の出力のアルファ0）と暗い下地（通常の合成）を同じ絵で描く。
-// 素材：白黒の「データ」の絵。R＝形の濃さ、G＝消える順番（大きいほど後まで残る）。今は手続きで作った仮の素材（procStroke）。外部AIの筆跡が届いたら差し替える。
+// 素材：白黒の「データ」の絵。R＝形の濃さ、G＝消える順番（大きいほど後まで残る）。assets/fx/（外部AIの筆跡を tools/fx_tex_build.py で変換）。読み込むまでは手続きの仮（procStroke）。
+// 2026-10-31 調査の答え合わせ：形の絵は繰り返さない（CLAMP、1回きりの斬撃）。流すのはノイズ（すじ）だけ。侵食に向き（尾から先へ欠ける）。
 // isHeld（ヒットストップ）と FXPAL（色）は呼ぶ側から渡す（版の違う fx_slash.js を二重に読むと、止めの状態が共有されないため）
 
+const TEXV = 1; // 素材を作り直したら上げる
 const VS = `attribute vec2 aPos; attribute vec2 aUv; uniform vec2 uRes; varying vec2 vUv;
 void main(){ vUv = aUv; vec2 c = aPos / uRes * 2.0 - 1.0; gl_Position = vec4(c.x, -c.y, 0.0, 1.0); }`;
 const FS = `precision mediump float; varying vec2 vUv;
-uniform sampler2D uShape, uNoise, uRamp; uniform float uHead, uTail, uErode, uPan, uAlpha, uDark, uRep;
+uniform sampler2D uShape, uNoise, uRamp, uFiber; uniform float uHead, uTail, uErode, uPan, uAlpha, uDark, uRep;
 void main(){
-  vec4 s = texture2D(uShape, vec2(vUv.x * uRep + uPan, vUv.y));
+  vec4 s = texture2D(uShape, vec2(.18 + .82 * pow(vUv.x, .7), vUv.y)); // 形（右端＝刃の頭、左端＝尾）。弧も根本が細いので、絵の細すぎる尾は使わない
+  float fb = texture2D(uFiber, vec2(vUv.x * uRep - uPan * 1.4, vUv.y * .5)).r; // 帯の上を流れるすじ
   float n = texture2D(uNoise, vec2(vUv.x * 1.6 - uPan * 1.7, vUv.y * .7 + uPan * .4)).r;
   float sweep = smoothstep(uTail, uTail + .18, vUv.x) * (1.0 - smoothstep(uHead - .03, uHead, vUv.x)); // 刃が走る範囲（根本は遅れて追う）
-  float e = s.g * .65 + n * .35;                                   // 消える順番（形の芯ほど後まで残る＋ノイズで崩れ方を揺らす）
+  float e = (s.g * .62 + n * .38) * (.72 + .28 * vUv.x);             // 消える順番（形の芯ほど後まで残る＋ノイズで揺らす）×向き（尾から先へ）
   float keep = smoothstep(uErode, uErode + .1, e);                  // 侵食：しきい値より薄い所から欠ける
   float band = (smoothstep(uErode - .02, uErode + .03, e) - smoothstep(uErode + .03, uErode + .12, e)) * step(.01, uErode); // 欠ける縁だけが燃える
   float a = s.r * sweep * keep;
   if (uDark > 1.5) { float pr = 1.0 - abs(vUv.y - .4) / .6; float gw = max(pr, 0.0) * sweep * smoothstep(uErode, uErode + .3, .5 + n * .5) * .32 * uAlpha; gl_FragColor = vec4(texture2D(uRamp, vec2(.62, .5)).rgb * gw, 0.0); return; } // 外側の柔らかい光
   if (uDark > .5) { float d = s.r * sweep * keep * .55 * uAlpha; gl_FragColor = vec4(vec3(.06, .02, .05) * d, d); return; } // 暗い下地（通常の合成）
-  float inten = clamp(a * (.55 + .7 * n) + band * s.r * sweep * 1.2, 0.0, 1.0);
+  float inten = clamp(a * (.45 + .55 * fb + .25 * n) + band * s.r * sweep * 1.2, 0.0, 1.0);
   gl_FragColor = vec4(texture2D(uRamp, vec2(inten, .5)).rgb * inten * uAlpha, 0.0);   // 加算（アルファ0）
 }`;
 
@@ -74,10 +77,16 @@ export function createGL(host, { isHeld = () => false, FXPAL = {} } = {}) {
   const U = n => gl.getUniformLocation(pr, n), aPos = gl.getAttribLocation(pr, 'aPos'), aUv = gl.getAttribLocation(pr, 'aUv'), bP = gl.createBuffer(), bU = gl.createBuffer();
   const tex = (src, unit, repeat) => { const t = gl.createTexture(); gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, t); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src);
     const w = repeat ? gl.REPEAT : gl.CLAMP_TO_EDGE; gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, w); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR); return t; };
-  const shapeT = tex(procStroke(), 0, true), noiseT = tex(noiseCanvas(), 1, true); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+  const noiseT = tex(noiseCanvas(), 1, true); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+  const fiberT = tex(noiseCanvas(), 3, true); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+  const proc = tex(procStroke(), 0, false), shapes = { ink: proc, blade: proc, smash: proc };
+  const load = (name, done) => { const im = new Image(); im.onload = () => { if (!lost) done(im); }; im.src = new URL(`./assets/fx/${name}.png?v=${TEXV}`, import.meta.url).href; };
+  for (const k of ['ink', 'blade', 'smash']) load('band_' + k, im => { shapes[k] = tex(im, 0, false); });
+  load('noise_cloud', im => { gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, noiseT); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, im); });
+  load('noise_fiber', im => { gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, fiberT); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, im); });
   const fromPal = k => { const P = FXPAL[k]; return P ? [[0, P.dark || [0, 0, 0]], [.35, P.main], [.65, P.glow], [.85, P.spark], [1, P.core]] : null; }; // 一騎打ちの色（FXPAL）から色の帯を作る
   const ramps = {}; const rampT = k => ramps[k] || (ramps[k] = tex(rampCanvas(RAMPS[k] || fromPal(k) || RAMPS.azure), 2, false));
-  gl.uniform1i(U('uShape'), 0); gl.uniform1i(U('uNoise'), 1); gl.uniform1i(U('uRamp'), 2);
+  gl.uniform1i(U('uShape'), 0); gl.uniform1i(U('uNoise'), 1); gl.uniform1i(U('uRamp'), 2); gl.uniform1i(U('uFiber'), 3);
   gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
   const items = []; let raf = 0, prev = 0;
   const resize = () => { const W = host.clientWidth, H = host.clientHeight; if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); } gl.viewport(0, 0, cv.width, cv.height); gl.uniform2f(U('uRes'), W, H); };
@@ -89,16 +98,16 @@ export function createGL(host, { isHeld = () => false, FXPAL = {} } = {}) {
   const frame = now => { raf = 0; if (!prev) prev = now; const held = isHeld(now), dt = held ? 0 : Math.min(50, now - prev); prev = now;
     resize(); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
     for (let i = items.length - 1; i >= 0; i--) { const it = items[i]; it.t += dt * it.sp; if (it.t > it.end) { items.splice(i, 1); continue; } }
-    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, shapeT); gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, noiseT);
-    for (const it of items) { gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, rampT(it.ramp)); for (const m of it.meshes) { const st = it.state(it.t - (m.delay || 0)); if (!st) continue; draw(m, st, true); draw(m, st, 2); draw(m, st, false); } } // 下地→柔らかい光→本体（加算）
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, noiseT); gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, fiberT);
+    for (const it of items) { gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, shapes[it.tex] || shapes.ink); gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, rampT(it.ramp)); for (const m of it.meshes) { const st = it.state(it.t - (m.delay || 0)); if (!st) continue; draw(m, st, true); draw(m, st, 2); draw(m, st, false); } } // 下地→柔らかい光→本体（加算）
     if (items.length) raf = requestAnimationFrame(frame); };
   const kick = () => { if (!raf) { prev = 0; raf = requestAnimationFrame(frame); } };
   const E = t => 1 - Math.pow(1 - Math.max(0, Math.min(1, t)), 3);
   return {
     // 斬撃：刃が走る（130ms）→ 根本が追う → 侵食で崩れ、欠ける縁が燃えて消える（約500ms）。big＝2本目が交差
     ok: () => !lost,
-    slash(o) { const size = o.size, dir = o.dir || 1, meshes = [arcMesh(o.x, o.y, size * (o.len || 1.4), dir, o.ang ?? .62, size * (o.bend ?? .3), size * .16 * (o.thick || 1))];
+    slash(o) { const size = o.size, dir = o.dir || 1, meshes = [arcMesh(o.x, o.y, size * (o.len || 1.4), dir, o.ang ?? .62, size * (o.bend ?? .3), size * .2 * (o.thick || 1))];
       if (o.big) meshes.push(Object.assign(arcMesh(o.x, o.y - size * .04, size * 1.5, dir, -.5, size * .26, size * .17), { delay: 110 }));
-      items.push({ t: 0, sp: o.speed || 1, end: 740, ramp: o.ramp || 'azure', meshes, state: t => t < 0 ? null : ({ head: E(t / 130) * 1.03, tail: E((t - 70) / 380) * .95, erode: Math.max(0, Math.min(1, (t - 120) / 420)) * 1.05, pan: t * .0022, alpha: 1, rep: 1.3 }) }); kick(); },
+      items.push({ t: 0, sp: o.speed || 1, end: 740, ramp: o.ramp || 'azure', tex: o.tex || 'ink', meshes, state: t => t < 0 ? null : ({ head: E(t / 130) * 1.03, tail: E((t - 110) / 520) * .55, erode: Math.max(0, Math.min(1, (t - 130) / 430)) * 1.05, pan: t * .0022, alpha: 1, rep: 1.6 }) }); kick(); },
     destroy() { cancelAnimationFrame(raf); cv.remove(); }, cv };
 }

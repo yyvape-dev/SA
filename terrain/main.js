@@ -1,7 +1,7 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import { createGL } from './fx_gl.js?v=1794700000';
+import { createGL } from './fx_gl.js?v=1794800000';
 import * as GM from './game.js?v=1794600000';
 import { createUI } from './ui.js?v=1793650000';
 import { createMorning } from './morning.js?v=1793800000';
@@ -972,9 +972,9 @@ let GLFX = null; // 一騎打ちの WebGL のエフェクトの層（fx_gl.js）
 const arcFX = (stage, o) => { if (GLFX && GLFX.ok()) { GLFX.slash({ ...o, ramp: o.pn }); slashFX(stage, { ...o, arc: false }); } else slashFX(stage, o); }; // 弧＝WebGL、火花と当たりの光＝Canvas
 function strikeFX(stage, st, o) { // o＝{x,y,size,dir,big,speed,fb（相手の足元 y）,ax,ay（打つ側の手元）}
   const [kind, pn, smoke] = st, pal = FXPAL[pn] || FXPAL.red, big = o.big; o = { ...o, pn };
-  if (kind === 'cleave') { arcFX(stage, { ...o, pal, ang: 1.2, len: 1.15, thick: 1.6, bend: .16 }); crackFX(stage, { x: o.x, y: o.fb, size: o.size, pal, speed: o.speed }); }
+  if (kind === 'cleave') { arcFX(stage, { ...o, pal, tex: 'smash', ang: 1.2, len: 1.15, thick: 1.6, bend: .16 }); crackFX(stage, { x: o.x, y: o.fb, size: o.size, pal, speed: o.speed }); }
   else if (kind === 'palm') burstFX(stage, { ...o, pal, heavy: big });
-  else if (kind === 'kick') { arcFX(stage, { ...o, pal, ang: -.2, len: .95, thick: .85, bend: .38, big: false }); burstFX(stage, { ...o, size: o.size * .8, pal, heavy: big }); }
+  else if (kind === 'kick') { arcFX(stage, { ...o, pal, tex: 'blade', ang: -.2, len: .95, thick: .85, bend: .38, big: false }); burstFX(stage, { ...o, size: o.size * .8, pal, heavy: big }); }
   else if (kind === 'lash') { chainFX(stage, { x0: o.ax, y0: o.ay, x1: o.x, y1: o.y, r: o.size * .45, pal, speed: o.speed }); burstFX(stage, { ...o, size: o.size * .7, pal, heavy: false }); }
   else if (kind === 'glyph') glyphFX(stage, { ...o, pal });
   else arcFX(stage, { ...o, pal });
