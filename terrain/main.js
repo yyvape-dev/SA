@@ -883,7 +883,8 @@ const dCss = document.createElement('style'); dCss.textContent = `
 #duel .ld{position:absolute;inset:0;z-index:6;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(10*var(--u));background:#0007;color:#f3e7c8;font-size:calc(15*var(--u));letter-spacing:.15em;transition:opacity .3s}#duel .ld.out{opacity:0}
 #duel .ld i{width:50%;height:calc(4*var(--u));background:#0008;border:1px solid #a8833c}#duel .ld u{display:block;height:100%;width:0;background:#d9b878;transition:width .15s}
 #duel .L{left:9%}#duel .R{right:8%}
-#duel.pair .L{left:23%}#duel .L2{left:0%}#duel.pair .f.bk{bottom:17%} /* 2人参戦：前に出ている方が手前、もう1人は少し奥（2026-10-31） */
+#duel.pair .L{left:23%}#duel .L2{left:0%}
+#duel .f.rn .sp .sh{display:none}#duel .f.rn .sp{filter:brightness(1.15) saturate(1.1)}#duel .L.rn{left:19%}#duel.pair .L.rn{left:27%}#duel .L2.rn{left:12%}#duel.rn2 .L{left:33%} /* ラナ：黒い鎧が陰の層で沈むので陰を外して明るく。剣が体の左へ長く出るので、右へ寄せる（2026-10-31 ユーザー） */#duel.pair .f.bk{bottom:17%} /* 2人参戦：前に出ている方が手前、もう1人は少し奥（2026-10-31） */
 #duel .fw .fc2{position:absolute;right:-16%;bottom:-8%;width:48%;height:48%;border-radius:50%;object-fit:cover;z-index:1}
 #duel .cam{position:absolute;inset:0;transform-origin:50% 72%;transition:transform .26s cubic-bezier(.2,.7,.3,1)}#duel .cam .bg{position:absolute;inset:-2%;background:#222 center 66%/cover no-repeat}
 #duel .f.chg .sp,#duel .f.chg img{animation:dchg .45s ease-in-out infinite alternate}@keyframes dchg{from{filter:drop-shadow(0 0 calc(3*var(--u)) #ff4a2a) drop-shadow(0 0 calc(8*var(--u)) #b0100088)}to{filter:drop-shadow(0 0 calc(5*var(--u)) #ff6a3a) drop-shadow(0 0 calc(14*var(--u)) #c01000aa)}}#duel .f.ko .sp,#duel .f.ko img{filter:grayscale(.7) brightness(.62)!important;transition:filter .9s .3s}#duel .stage.kof::before{content:'';position:absolute;inset:0;background:#fff3d6;z-index:9;pointer-events:none;animation:kof .55s ease-out forwards}@keyframes kof{from{opacity:.7}to{opacity:0}}
@@ -944,14 +945,14 @@ document.head.appendChild(dCss);
 const duelEl = document.createElement('div'); duelEl.id = 'duel'; document.body.appendChild(duelEl);
 const foeURL = FOE_IMG[3] ? 'assets/npc/foe_4.webp' : foeTex.image.toDataURL();
 // 大将戦の攻撃モーション（動画由来の24コマ）。ある仲間だけ。ない仲間は立ち絵のまま
-const DUEL_CLIP = await fetch('../ally/duel_meta.json?v=10').then(r => r.json()).catch(() => ({})); // 仲間ごとの攻撃モーション一覧
+const DUEL_CLIP = await fetch('../ally/duel_meta.json?v=11').then(r => r.json()).catch(() => ({})); // 仲間ごとの攻撃モーション一覧
 // 一騎打ちの絵の先読み：読み込みに加えて decode まで済ませ、Image を持ち続ける（切り替えの瞬間に消える・カクつくのを防ぐ）
 const IMGHOLD = new Map();
 const holdImg = src => { if (!IMGHOLD.has(src)) { const im = new Image(); im.src = src; IMGHOLD.set(src, (im.decode ? im.decode() : new Promise(r => { im.onload = r; })).catch(() => {}).then(() => im)); } return IMGHOLD.get(src); };
 const duelSrcs = (k, look) => [...(DUEL_CLIP[k] || []).map(c => `../ally/${c.f}`), ...(G && G.raid && (G.raid.boss || G.raid.gen) ? (DUEL_CLIP[k + '_ult'] || []).map(c => `../ally/${c.f}`) : []), ...(runClipOf(k) ? [`../ally/${runClipOf(k).f}`] : []),
   ...(look ? [...(FOEDUEL[look] || []).map(c => `assets/npc/${c.f}`), ...(foeRunOf(look) ? [`assets/npc/${foeRunOf(look).f}`] : [])] : [])];
 const duelWarm = k => duelSrcs(k, G && G.raid ? dLook() : null).forEach(holdImg);
-const SIDE_ALLY = await fetch('../ally/side_meta.json?v=5').then(r => r.json()).catch(() => ({})); // 仲間の横向きの走り（右向き）
+const SIDE_ALLY = await fetch('../ally/side_meta.json?v=6').then(r => r.json()).catch(() => ({})); // 仲間の横向きの走り（右向き）
 const SIDE_FOE = await fetch('assets/npc/side_meta.json').then(r => r.json()).catch(() => ({}));  // 敵の横向きの歩き（左向き）
 const runClipOf = k => SIDE_ALLY['run_' + k] || SIDE_ALLY['walk_' + k] || null, foeRunOf = look => SIDE_FOE['walk_' + look] || null;
 const FOEDUEL = await fetch('assets/npc/foeduel_meta.json?v=7').then(r => r.json()).catch(() => ({})); // 敵将の攻撃モーション（見た目の番号ごと）
@@ -1016,13 +1017,13 @@ function playDuel(kIn, done) { // 画面いっぱいの一騎打ち。五合の�
     <div class="ct"><small>第${R.w || G.week}週</small><img src="assets/ui2/divider2.webp"><h1>一騎打ち</h1></div>
     <div class="sd r"><div class="fw"><div class="fc foe" style="background-image:url(${foeFace(look)})${String(look)[0] === 'g' ? ';background-size:260%;background-position:50% 12%' : ''}"></div><i class="rg"></i></div><div class="hb"><div class="nm">${F.n}</div><div class="hp"><b style="width:100%"></b></div></div></div></div>
     <div class="stage"><div class="cam"><div class="bg" style="background-image:url(assets/field/duel.jpg),url(assets/field/${R.dir || 'pass'}.jpg)"></div>
-      ${ks.map((x, j) => `<div class="f ${j ? 'L2' : 'L'}" style="height:${27 * (HUMAN[x] || 165) / 170}%">${(DUEL_CLIP[x] || []).length ? `<div class="sp"></div>` : `<img src="${standOf(x)}">`}</div>`).join('')}<div class="f R" style="height:${27 * dHum(look) / 170}%">${(FOEDUEL[look] || []).length ? `<div class="sp"></div>` : `<img src="assets/npc/foe_${look}.webp">`}</div>
+      ${ks.map((x, j) => `<div class="f ${j ? 'L2' : 'L'}${x === 'rana' ? ' rn' : ''}" style="height:${27 * (HUMAN[x] || 165) / 170}%">${(DUEL_CLIP[x] || []).length ? `<div class="sp"></div>` : `<img src="${standOf(x)}">`}</div>`).join('')}<div class="f R" style="height:${27 * dHum(look) / 170}%">${(FOEDUEL[look] || []).length ? `<div class="sp"></div>` : `<img src="assets/npc/foe_${look}.webp">`}</div>
       </div><div class="cut"><img src="${faceURL[k]}"><div></div></div></div>
     <div class="ft"><i class="cn bl"></i><i class="cn br"></i><div class="ln"><p class="l"></p><p class="r foe"></p></div><h3>戦況</h3><div class="blr"><span>自軍</span><div class="bal"><b style="width:50%"></b><u style="left:50%"></u></div><span>敵軍</span></div>
       <div class="row"><div class="pips">${pipsHtml}</div><div class="stt">間合いを測る</div></div>
       <div class="bt"><button class="sp2">▶▶ 速度 ×1</button><button class="go2"><b>鬨の声</b><small>次の一合を強化</small><em>残り${GM.orders(G)}回</em><i class="tm"><b></b></i></button><button class="sk">スキップ ›</button></div></div>
     <div class="res"></div>`;
-  duelEl.classList.toggle('pair', pair);
+  duelEl.classList.toggle('pair', pair); duelEl.classList.toggle('rn2', pair && ks[1] === 'rana');
   const $ = q => duelEl.querySelector(q), L = $('.L'), L2 = $('.L2'), Rf = $('.R'), hl = $('.sd:not(.r) .hp b'), hr = $('.sd.r .hp b'), pips = [...duelEl.querySelectorAll('.pips i')], tm = $('.tm b'), gb = $('.go2'), stt = $('.stt'), bal = $('.bal b'), balu = $('.bal u'), stage = $('.stage'), cam = $('.cam');
   let timers = [], spd = 1, hpL = 100, hpR = 100, aw = 0, fw = 0, nextI = 0, left = GM.orders(G), used = left <= 0, armed = false, inWin = false, over = false, winT = null, cur = -1;
   let chg = null; const stopChg = () => { if (chg) { chg.stop(); chg = null; } }; // 大技の構えの気配（fx_slash.js chargeFX）

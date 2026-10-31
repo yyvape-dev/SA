@@ -1,6 +1,7 @@
 # 2026-10-31 ラナの一騎打ちの攻撃：アクション戦闘の連番（sprites/atc・atb・thr、右向き）をそのまま並べて、一騎打ちの連番シートにする（拡大・縮小なし）。
 #  1＝縦斬り（atc 0〜20、当たり＝コマ9＝元のコマ18）／2＝横薙ぎ（atb 0〜24、当たり＝16＝元のコマ28）／3＝貫通の突き（thr 0〜23、当たり15）
-#  足元と体の中心は battle/core.js の ATC_A・ATB_A・THR_A。立ち姿の背の高さ＝219（0.6倍で描いたときの実測）÷ k。
+#  足元は battle/core.js の ATC_A・ATB_A・THR_A の y。体の中心は最初のコマの胴体（剣を除く、縦に一番詰まった列）で測る（2026-10-31：アクションの基準点は構えの体より84px右にあり、左へ見切れた）。
+#  立ち姿の背の高さ＝219（0.6倍で描いたときの実測）÷ k。
 # 使い方: cd terrain && python3 -I tools/rana_duel_build.py && python3 -I tools/pack_trim.py ../ally/duel_meta.json ../ally/（走り side_run_rana も作る）
 import json, numpy as np
 from PIL import Image
@@ -17,6 +18,7 @@ for j, (nm, rg, hit, ax, ay, k) in enumerate(CL, 1):
     for i, r in enumerate(fr): sh.paste(Image.fromarray(r[y0:y1, x0:x1]), ((i % cols) * cw, (i // cols) * ch))
     f = f'duel_rana_{j}.webp'; sh.save('../ally/' + f, 'WEBP', lossless=True, method=4)
     h = 219 / k; w = h * .4
+    a0 = fr[0][..., 3] > 128; ax = float(np.argmax(np.convolve(a0.sum(0), np.ones(41) / 41, 'same')))  # 構えの胴体の中心
     durs = [120] * n; durs[hit - 1] = 260
     for i in range(hit, n): durs[i] = 80
     out.append({'f': f, 'cols': cols, 'rows': rows, 'cw': int(cw), 'ch': int(ch), 'n': n, 'durs': durs, 'hit': hit, 'hold': hit - 1,
@@ -27,4 +29,5 @@ mp = '../ally/duel_meta.json'; meta = json.load(open(mp)); meta['rana'] = out; j
 fr = [Image.open(f'../sprites/run_{i:02d}.png').convert('RGBA') for i in range(10)]; cw, ch = fr[0].size; sh = Image.new('RGBA', (cw * 6, ch * 2))
 for i, im in enumerate(fr): sh.paste(im, ((i % 6) * cw, (i // 6) * ch))
 sh.save('../ally/side_run_rana.webp', 'WEBP', lossless=True, method=4)
-sp = '../ally/side_meta.json'; sm = json.load(open(sp)); sm['run_rana'] = {'f': 'side_run_rana.webp', 'cols': 6, 'cw': cw, 'ch': ch, 'n': 10, 'durs': [50] * 10, 'ph': round(365 / .93, 1), 'ax': 362, 'ay': 379}; json.dump(sm, open(sp, 'w'))
+rax = round(float(np.mean([np.argmax(np.convolve((np.array(im)[..., 3] > 128).sum(0), np.ones(41) / 41, 'same')) for im in fr])), 1)  # 走りの胴体の中心（平均）
+sp = '../ally/side_meta.json'; sm = json.load(open(sp)); sm['run_rana'] = {'f': 'side_run_rana.webp', 'cols': 6, 'cw': cw, 'ch': ch, 'n': 10, 'durs': [50] * 10, 'ph': round(365 / .93, 1), 'ax': rax, 'ay': 379}; json.dump(sm, open(sp, 'w'))
