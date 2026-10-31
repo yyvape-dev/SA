@@ -373,9 +373,15 @@ function cineTick(rdt) {
     c.fx = c.who.x; c.fy = c.who.y - c.h * 0.55;
     if (c.t > CINE.maxIn) cineRelease(); // 念のため（放つ前に止められた場合）
   } else {
-    c.ot += rdt; var u = c.ot / CINE.outT;
+    c.ot += rdt; c.ts = 1;
+    if (c.follow) { // 追う引き（リリィの追星）：寄ったまま走る道を追いかけ（0.15秒）、走り切ってから1倍まで引いて道の全体を見せる（計0.45秒）
+      var F = c.follow, uf = c.ot / 0.45; c.fx = F.x0 + (F.x1 - F.x0) * vEase(Math.min(1, c.ot / 0.15));
+      c.z = c.z0 + (1 - c.z0) * vEase(Math.max(0, (c.ot - 0.12) / 0.33));
+      if (uf >= 1) { G.cine = null; return 1; }
+      return c.ts;
+    }
+    var u = c.ot / CINE.outT;
     c.z = c.z0 + (1 - c.z0) * vEase(u); // 一気に引く（1倍より引くと背景の端が見えるので、1倍で止める）
-    c.ts = 1;
     if (c.ot >= CINE.outT) { G.cine = null; return 1; }
   }
   return c.ts;

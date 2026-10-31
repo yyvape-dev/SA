@@ -161,6 +161,7 @@ function allySkill(a) {
     if ((tx - x0) * a.face < 220) tx = clamp(x0 + a.face * 380, heroMinX(), heroMaxX()); // 端が近すぎるときは従来の距離
     a.x = tx;
     G.lilyRush = { a: a, x0: x0, x1: tx, y: a.y, face: a.face, lane: 120 * ZK, k: 0, t: 0 };
+    if (G.cine && G.cine.who === a) G.cine.follow = { x0: x0, x1: tx }; // カメラが走る道を追ってから引く（battle/fx2.js の cineTick）
     fxDash(x0, a.x, a.y, a.face); G.dashGhost = { a: a, x0: x0, x1: a.x, y: a.y, face: a.face, t0: G.t }; // 残像（drawAllyGhosts）
     G.freeze = Math.max(G.freeze, 0.08); G.shake = Math.max(G.shake, 16);
   } else { // 星震：踏み抜いた瞬間に画面の敵へ1回目、星が落ちて2回目（2026-11-01 2段にして威力を上げた）
