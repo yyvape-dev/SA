@@ -1,11 +1,12 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
+import { createGL } from './fx_gl.js?v=1794700000';
 import * as GM from './game.js?v=1794600000';
 import { createUI } from './ui.js?v=1793650000';
 import { createMorning } from './morning.js?v=1793800000';
 import { createStory } from './story.js?v=1794300000';
-import { slashFX, impactFX, clashFX, chargeFX, rallyFX, starFX, hitStop, isHeld, shaker, FXPAL, burstFX, crackFX, chainFX, glyphFX, smokeFX, warpFX } from './fx_slash.js?v=1794500000';
+import { slashFX, impactFX, clashFX, chargeFX, rallyFX, starFX, hitStop, isHeld, shaker, FXPAL, burstFX, crackFX, chainFX, glyphFX, smokeFX, warpFX } from './fx_slash.js?v=1794700000';
 
 const layout = await (await fetch('data/layout.json?v=2')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -967,14 +968,16 @@ const foeFace = l => String(l)[0] === 'g' ? `assets/npc/bust_${l}.webp` : `asset
 const STYLE = { rana: ['slash', 'rana'], garou: ['cleave', 'azure'], mina: ['lash', 'violet'], sera: ['glyph', 'jade'], ranka: ['palm', 'sky'], lily: ['kick', 'silver'] };
 const FSTYLE = { g1: ['cleave', 'red'], g2: ['cleave', 'red'], g3: ['slash', 'red'], g4: ['slash', 'abyss', 1], g5: ['slash', 'steel'], g6: ['slash', 'abyss', 1], g6b: ['slash', 'abyss', 1] };
 const HS = { light: 60, heavy: 110, fin: 170 }, TRAUMA = { light: .3, heavy: .55, fin: .9 }; // 重さ3段階：止める ms（Capcom の弱/中/強の考え方）と揺れ
+let GLFX = null; // 一騎打ちの WebGL のエフェクトの層（fx_gl.js）。無い・リセットされたときは Canvas の弧に戻す
+const arcFX = (stage, o) => { if (GLFX && GLFX.ok()) { GLFX.slash({ ...o, ramp: o.pn }); slashFX(stage, { ...o, arc: false }); } else slashFX(stage, o); }; // 弧＝WebGL、火花と当たりの光＝Canvas
 function strikeFX(stage, st, o) { // o＝{x,y,size,dir,big,speed,fb（相手の足元 y）,ax,ay（打つ側の手元）}
-  const [kind, pn, smoke] = st, pal = FXPAL[pn] || FXPAL.red, big = o.big;
-  if (kind === 'cleave') { slashFX(stage, { ...o, pal, ang: 1.2, len: 1.15, thick: 1.6, bend: .16 }); crackFX(stage, { x: o.x, y: o.fb, size: o.size, pal, speed: o.speed }); }
+  const [kind, pn, smoke] = st, pal = FXPAL[pn] || FXPAL.red, big = o.big; o = { ...o, pn };
+  if (kind === 'cleave') { arcFX(stage, { ...o, pal, ang: 1.2, len: 1.15, thick: 1.6, bend: .16 }); crackFX(stage, { x: o.x, y: o.fb, size: o.size, pal, speed: o.speed }); }
   else if (kind === 'palm') burstFX(stage, { ...o, pal, heavy: big });
-  else if (kind === 'kick') { slashFX(stage, { ...o, pal, ang: -.2, len: .95, thick: .85, bend: .38, big: false }); burstFX(stage, { ...o, size: o.size * .8, pal, heavy: big }); }
+  else if (kind === 'kick') { arcFX(stage, { ...o, pal, ang: -.2, len: .95, thick: .85, bend: .38, big: false }); burstFX(stage, { ...o, size: o.size * .8, pal, heavy: big }); }
   else if (kind === 'lash') { chainFX(stage, { x0: o.ax, y0: o.ay, x1: o.x, y1: o.y, r: o.size * .45, pal, speed: o.speed }); burstFX(stage, { ...o, size: o.size * .7, pal, heavy: false }); }
   else if (kind === 'glyph') glyphFX(stage, { ...o, pal });
-  else slashFX(stage, { ...o, pal });
+  else arcFX(stage, { ...o, pal });
   if (smoke) smokeFX(stage, { x: o.x, y: o.y, size: o.size, speed: o.speed });
 }
 const FOLLOW = 380; // 当たりのあと、振り抜きを見せる長さ（ミリ秒）
@@ -1042,7 +1045,7 @@ function playDuel(kIn, done) { // 画面いっぱいの一騎打ち。五合の�
   duelEl.classList.toggle('pair', pair); duelEl.classList.toggle('rn2', pair && ks[1] === 'rana');
   const $ = q => duelEl.querySelector(q), L = $('.L'), L2 = $('.L2'), Rf = $('.R'), hl = $('.sd:not(.r) .hp b'), hr = $('.sd.r .hp b'), pips = [...duelEl.querySelectorAll('.pips i')], tm = $('.tm b'), gb = $('.go2'), stt = $('.stt'), bal = $('.bal b'), balu = $('.bal u'), stage = $('.stage'), cam = $('.cam');
   let timers = [], spd = 1, hpL = 100, hpR = 100, aw = 0, fw = 0, nextI = 0, left = GM.orders(G), used = left <= 0, armed = false, inWin = false, over = false, winT = null, cur = -1;
-  const shk = shaker(cam); let chg = null; const stopChg = () => { if (chg) { chg.stop(); chg = null; } }; // 大技の構えの気配（fx_slash.js chargeFX）
+  const shk = shaker(cam); try { GLFX && GLFX.destroy(); GLFX = createGL(stage, { isHeld, FXPAL }); } catch (e) { GLFX = null; } let chg = null; const stopChg = () => { if (chg) { chg.stop(); chg = null; } }; // 大技の構えの気配（fx_slash.js chargeFX）
   const T = (f, ms) => { const t = setTimeout(f, ms); timers.push(t); return t; }, D = ms => ms / spd;
   const actL = clipActor(L, L.querySelector('.sp') || document.createElement('div'), [...(DUEL_CLIP[k] || []), ...((R.boss || R.gen) ? DUEL_CLIP[k + '_ult'] || [] : [])], '../ally/', T, runClipOf(k), '../ally/');
   const actL2 = pair ? clipActor(L2, L2.querySelector('.sp') || document.createElement('div'), [...(DUEL_CLIP[ks[1]] || []), ...((R.boss || R.gen) ? DUEL_CLIP[ks[1] + '_ult'] || [] : [])], '../ally/', T, runClipOf(ks[1]), '../ally/') : null;
@@ -1055,7 +1058,7 @@ function playDuel(kIn, done) { // 画面いっぱいの一騎打ち。五合の�
   const finish = () => { if (over) return; over = true; stopChg(); (aw >= 3 ? [Rf] : FE.filter(Boolean)).forEach(x => x.classList.add('ko')); if (window.__duelLog) console.log('DUEL finish aw=' + aw + ' fw=' + fw + ' pips=' + pips.map(p => p.className).join('|') + ' dom=' + pips[0].isConnected); const win = aw >= 3; GM.duelSet(G, pair ? ks : k, win); if (win) hpR = 0; else hpL = 0; upd(); gb.classList.remove('ready'); msg(win ? '勝負あり' : '勝負あり'); tm.style.width = '0%';
     say(win ? 'l' : 'r', pickOf((win ? AL : FL).win), 2600); say(win ? 'r' : 'l', pickOf((win ? FL : AL).lose), 2600);
     T(() => { const r = $('.res'); r.innerHTML = `<div class="bd"><div class="k">${pair ? '将軍戦' : '一騎打ち'}</div><h2 class="${win ? 'w' : 'l'}">${win ? '勝利' : '敗北'}</h2><img src="assets/ui2/divider2.webp"><p>${win ? `${both}が${F.n}を討ち取った。戦況が有利になる` : `${both}が敗れた。戦況が不利になる`}<small>タップで続ける</small></p></div>`; r.classList.add('on');
-      r.onclick = e => { e.stopPropagation(); if (!r.classList.contains('on')) return; timers.forEach(clearTimeout); if (actL) actL.reset(); if (actL2) actL2.reset(); if (actR) actR.reset(); duelEl.style.display = 'none'; duelEl.innerHTML = ''; srcs.forEach(sr => IMGHOLD.delete(sr)); /* 使い終わった絵を手放す（読み込んだ画像と、画面の層） */ done(); }; }, 1900); };
+      r.onclick = e => { e.stopPropagation(); if (!r.classList.contains('on')) return; timers.forEach(clearTimeout); if (actL) actL.reset(); if (actL2) actL2.reset(); if (actR) actR.reset(); if (GLFX) { GLFX.destroy(); GLFX = null; } duelEl.style.display = 'none'; duelEl.innerHTML = ''; srcs.forEach(sr => IMGHOLD.delete(sr)); /* 使い終わった絵を手放す（読み込んだ画像と、画面の層） */ done(); }; }, 1900); };
   // カメラ：走り出した側に寄って追いかける → 攻撃で二人がぎりぎり収まる大きさまで引く → 元の位置へ戻りながら引きへ
   const FOCUS_ATK = true; // true＝攻撃も攻める側に寄ったまま／false＝攻撃で二人が収まるまで引く
   const camTo = (z, wx, ms, ease = 'cubic-bezier(.2,.7,.3,1)', fr = .5) => { // fr＝wx を画面の横のどこに置くか（.5＝中央） // 世界の x＝wx を画面の中央に、足元（舞台の85%）が画面の92%に来るよう、z倍に寄る（背景の外が見えないように抑える）

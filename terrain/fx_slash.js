@@ -93,7 +93,7 @@ export function slashFX(host, o) {
     cuts.forEach((c, ci) => {
       const t = T - c.t0; if (t < 0) { alive = true; return; }
       const fade = t > SWING ? clamp01(1 - (t - SWING) / FADE) : 1; if (fade > 0) alive = true;
-      for (const Ly of LAYERS) {
+      if (o.arc !== false) for (const Ly of LAYERS) { // arc:false＝弧は WebGL の層（fx_gl.js）が描く。ここは火花と当たりの光だけ
         const head = easeOut(clamp01((t - Ly.lag) / SWING)); if (head <= 0) continue;
         const tailT = easeOut(clamp01((t - Ly.lag - SWING * Ly.tail) / (SWING * 1.4))); // 根本は遅れて追い、最後は先端に追いつく
         const u0 = Math.min(head, tailT * 1.02), u1 = head;

@@ -1,7 +1,7 @@
 // 2026-10-31 エフェクト専用の WebGL の層（試作）。現場の作り方（アルファ侵食・色の帯〈グラデーションマップ〉・帯の上を流れる絵）を、ライブラリなしの小さなシェーダーで。
 // 1つの舞台に1枚のキャンバスを重ね、加算（色の出力のアルファ0）と暗い下地（通常の合成）を同じ絵で描く。
 // 素材：白黒の「データ」の絵。R＝形の濃さ、G＝消える順番（大きいほど後まで残る）。今は手続きで作った仮の素材（procStroke）。外部AIの筆跡が届いたら差し替える。
-import { isHeld } from './fx_slash.js';
+// isHeld（ヒットストップ）と FXPAL（色）は呼ぶ側から渡す（版の違う fx_slash.js を二重に読むと、止めの状態が共有されないため）
 
 const VS = `attribute vec2 aPos; attribute vec2 aUv; uniform vec2 uRes; varying vec2 vUv;
 void main(){ vUv = aUv; vec2 c = aPos / uRes * 2.0 - 1.0; gl_Position = vec4(c.x, -c.y, 0.0, 1.0); }`;
@@ -63,18 +63,20 @@ function arcMesh(x, y, size, dir, ang, bend, width) { // u＝弧に沿って 0�
   return { pos: new Float32Array(pos), wide: new Float32Array(wide), uv: new Float32Array(uv), n: (N + 1) * 2 };
 }
 
-export function createGL(host) {
+export function createGL(host, { isHeld = () => false, FXPAL = {} } = {}) {
   const dpr = Math.min(2, window.devicePixelRatio || 1), cv = document.createElement('canvas');
   cv.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:8';
   host.appendChild(cv);
-  const gl = cv.getContext('webgl', { premultipliedAlpha: true, alpha: true, antialias: true }); if (!gl) return null;
+  const gl = cv.getContext('webgl', { premultipliedAlpha: true, alpha: true, antialias: true }); if (!gl) { cv.remove(); return null; }
+  let lost = false; cv.addEventListener('webglcontextlost', e => { e.preventDefault(); lost = true; }); // スマホで描画がリセットされたら、呼ぶ側は Canvas の描画に戻す（ok() が false）
   const sh = (t, s) => { const o = gl.createShader(t); gl.shaderSource(o, s); gl.compileShader(o); if (!gl.getShaderParameter(o, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(o)); return o; };
   const pr = gl.createProgram(); gl.attachShader(pr, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(pr, sh(gl.FRAGMENT_SHADER, FS)); gl.linkProgram(pr); gl.useProgram(pr);
   const U = n => gl.getUniformLocation(pr, n), aPos = gl.getAttribLocation(pr, 'aPos'), aUv = gl.getAttribLocation(pr, 'aUv'), bP = gl.createBuffer(), bU = gl.createBuffer();
   const tex = (src, unit, repeat) => { const t = gl.createTexture(); gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, t); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src);
     const w = repeat ? gl.REPEAT : gl.CLAMP_TO_EDGE; gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, w); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR); return t; };
   const shapeT = tex(procStroke(), 0, true), noiseT = tex(noiseCanvas(), 1, true); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
-  const ramps = {}; const rampT = k => ramps[k] || (ramps[k] = tex(rampCanvas(RAMPS[k] || RAMPS.azure), 2, false));
+  const fromPal = k => { const P = FXPAL[k]; return P ? [[0, P.dark || [0, 0, 0]], [.35, P.main], [.65, P.glow], [.85, P.spark], [1, P.core]] : null; }; // 一騎打ちの色（FXPAL）から色の帯を作る
+  const ramps = {}; const rampT = k => ramps[k] || (ramps[k] = tex(rampCanvas(RAMPS[k] || fromPal(k) || RAMPS.azure), 2, false));
   gl.uniform1i(U('uShape'), 0); gl.uniform1i(U('uNoise'), 1); gl.uniform1i(U('uRamp'), 2);
   gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
   const items = []; let raf = 0, prev = 0;
@@ -94,7 +96,8 @@ export function createGL(host) {
   const E = t => 1 - Math.pow(1 - Math.max(0, Math.min(1, t)), 3);
   return {
     // 斬撃：刃が走る（130ms）→ 根本が追う → 侵食で崩れ、欠ける縁が燃えて消える（約500ms）。big＝2本目が交差
-    slash(o) { const size = o.size, dir = o.dir || 1, meshes = [arcMesh(o.x, o.y, size * 1.4, dir, o.ang ?? .62, size * (o.bend ?? .3), size * .16 * (o.thick || 1))];
+    ok: () => !lost,
+    slash(o) { const size = o.size, dir = o.dir || 1, meshes = [arcMesh(o.x, o.y, size * (o.len || 1.4), dir, o.ang ?? .62, size * (o.bend ?? .3), size * .16 * (o.thick || 1))];
       if (o.big) meshes.push(Object.assign(arcMesh(o.x, o.y - size * .04, size * 1.5, dir, -.5, size * .26, size * .17), { delay: 110 }));
       items.push({ t: 0, sp: o.speed || 1, end: 740, ramp: o.ramp || 'azure', meshes, state: t => t < 0 ? null : ({ head: E(t / 130) * 1.03, tail: E((t - 70) / 380) * .95, erode: Math.max(0, Math.min(1, (t - 120) / 420)) * 1.05, pan: t * .0022, alpha: 1, rep: 1.3 }) }); kick(); },
     destroy() { cancelAnimationFrame(raf); cv.remove(); }, cv };
