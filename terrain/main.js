@@ -4,7 +4,7 @@ import * as THREE from './vendor/three.module.min.js';
 import * as GM from './game.js?v=1793740000';
 import { createUI } from './ui.js?v=1793650000';
 import { createMorning } from './morning.js?v=1793290034';
-import { createStory } from './story.js?v=1793650000';
+import { createStory } from './story.js?v=1793760000';
 import { slashFX, impactFX, clashFX, chargeFX, rallyFX, starFX } from './fx_slash.js?v=1793640000';
 
 const layout = await (await fetch('data/layout.json?v=2')).json();
@@ -680,7 +680,7 @@ const morning = createMorning();
 const story = createStory();
 function playStory(c, kind, then) { // 章の始まり／終わりの会話（story.js）
   const C = GM.CHAPTERS[c - 1]; if (!C) { then && then(); return; }
-  try { story.play({ c, kind, title: C.t, desc: C.d, foeName: C.g, foeBust: [`assets/npc/bust_g${c}${c === 6 && kind !== 'start' ? 'b' : ''}.webp`, 'assets/npc/bust_4.webp'], por: POR, ranaSrc: '../sprites/idle_00.png' }, then); } catch (e) { console.error('章の会話', e); then && then(); }
+  try { story.play({ c, kind, title: C.t, desc: C.d, foeName: C.g, foeKey: `g${c}${c === 6 && kind !== 'start' ? 'b' : ''}` }, then); } catch (e) { console.error('章の会話', e); then && then(); }
 }
 function chapterStartScene() { if (!G || !G.chStart || G.raid || G.over) return; const c = G.chStart; G.chStart = 0; writeSave();
   playStory(c, 'start', () => { refreshUI(); const nf = G.newFac || []; G.newFac = null; writeSave(); if (nf.length) ui.toast(`新しい施設：${nf.map(f => FAC[f].n).join('・')}（空き地から建てられる）`); }); }
