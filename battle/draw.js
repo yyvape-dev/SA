@@ -85,7 +85,7 @@ function drawFoe(e) { // 赤い兵：歩き（シート）／攻撃（連番）�
     ctx.drawImage(im, sx, sy, sw, shh, -ox + ddx, -oy + ddy, sw, shh);
   }
   ctx.restore();
-  if (e.bind > 0 && e.state === 'walk') drawBindBand(e); // 拘束の帯（battle/fx.js）。床の印は drawBindFloor
+  if (e.bind > 0 && e.state === 'walk') { if (ctx === PX.px) PX.later.push(e); else drawBindBand(e); } // 拘束の帯（battle/fx.js）。床の印は drawBindFloor。Pixi で描くときは、キャラの層のあとに Canvas 2D で
 }
 function drawSkeleton(e) { // 予備（敵の絵が読めなかったとき）
   var sc = depthScale(e.y) * e.size, t = e.t;
@@ -366,17 +366,7 @@ function drawBg() {
     ctx.drawImage(im, 0, 0, BW + 1, H + 1); ctx.restore();
   }
 }
-function draw() {
-  if (resTick++ % 30 === 0) fitRes();
-  updateTouchCd();
-  ctx.setTransform(RES, 0, 0, RES, 0, 0);
-  ctx.save();
-  ctx.clearRect(0, 0, W, CVH());
-  var sx = G.shake ? (Math.random() - 0.5) * G.shake : 0, sy = G.shake ? (Math.random() - 0.5) * G.shake : 0;
-  ctx.translate(sx, sy);
-  cineApply(); // 必殺・連携の寄り（battle/fx2.js）
-  ctx.save(); ctx.translate(-camX, -camY - TOPY); // ここから世界座標（カメラ追従）。HUDと暗転は、あとで画面座標に戻して描く
-  drawBg();
+function drawUnder() {
   var h0 = G.hero; // 必殺技の溜め中は、背景を暗くして、主人公と敵を目立たせる
   if (G.state === 'play' && h0.state === 'atk' && h0.kind === 'ult' && h0.t < ULT.hit + 0.02) {
     ctx.fillStyle = 'rgba(6,4,14,' + (0.5 * Math.min(1, h0.t / 0.5)) + ')'; ctx.fillRect(camX - 10, camY + TOPY - 10, W + 20, CVH() + 20);
@@ -385,13 +375,27 @@ function draw() {
   drawFoeAura(); // 敵将・強敵の足元の気配（battle/fx2.js）
   drawChargeBack(); // ランカの溜めのオーラ（体の後ろ）
   drawBindFloor(); // 拘束の床の印（敵より先＝足元の下）
+}
+function draw() {
+  if (resTick++ % 30 === 0) fitRes();
+  updateTouchCd();
+  ctx.setTransform(RES, 0, 0, RES, 0, 0);
+  var pxOn = PX.on; if (pxOn) PX.begin(ctx, W, CVH(), RES); // 背景とキャラは PixiJS（battle/pxr.js）、エフェクトと文字はこの Canvas 2D
+  ctx.save();
+  ctx.clearRect(0, 0, W, CVH());
+  var sx = G.shake ? (Math.random() - 0.5) * G.shake : 0, sy = G.shake ? (Math.random() - 0.5) * G.shake : 0;
+  ctx.translate(sx, sy);
+  cineApply(); // 必殺・連携の寄り（battle/fx2.js）
+  ctx.save(); ctx.translate(-camX, -camY - TOPY); // ここから世界座標（カメラ追従）。HUDと暗転は、あとで画面座標に戻して描く
+  if (pxOn) PX.run('bg', drawBg); else drawBg();
+  if (pxOn) PX.under(drawUnder); else drawUnder(); // 足元の下（Pixi のときは、背景とキャラのあいだに挟む）
   var list = [];
   G.enemies.forEach(function (e) { list.push({ y: e.y, f: function () { drawFoe(e); } }); });
   if (G.ally) list.push({ y: G.ally.y, f: drawAlly });
   if (G.state !== 'title') list.push({ y: G.hero.y, f: drawHero });
   else list.push({ y: G.hero.y, f: function () { G.hero.anim += 0.016; drawHero(); } });
   list.sort(function (a, b) { return a.y - b.y; });
-  list.forEach(function (o) { o.f(); });
+  if (pxOn) { PX.later.length = 0; list.forEach(function (o) { PX.run('ch', o.f); }); PX.later.forEach(drawBindBand); } else list.forEach(function (o) { o.f(); });
   drawDrops(); drawFx(); drawStarfall();
   G.texts.forEach(function (t) {
     ctx.globalAlpha = Math.min(1, (t.life - t.t) / 0.3);
@@ -412,4 +416,5 @@ function draw() {
     ctx.fillStyle = 'rgba(0,0,0,' + Math.min(1, ta) + ')'; ctx.fillRect(0, 0, W, CVH());
     if (tk > 0.3 && tk < 0.85) { ctx.globalAlpha = Math.min(1, ta * 1.5); txt(ROOMS[(G.roomNo + (G.trans.sw ? 0 : 1)) % ROOMS.length].name, W / 2, VH / 2 + 10, 44, '#ffd27a', 'center'); ctx.globalAlpha = 1; }
   }
+  if (pxOn) PX.end();
 }
