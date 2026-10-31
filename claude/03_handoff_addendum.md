@@ -2,6 +2,10 @@
 
 プロジェクトの `03` の「引き継ぎ」の先頭に、そのまま貼る用。
 
+## 2026-11-01 実機の感想と、エフェクトの確認の Skill（push 済み）
+* ユーザー（実機）：段階2の2（エフェクトを PixiJS）は「軽い、良い」。
+* Skill `sa-battle-fx-check`（`.claude/skills/`）：アクション戦闘のエフェクトを、従来版（`px=0`）と PixiJS 版で同じ時刻で止めて撮り、並べる。道具は `battle/tools/fx_shot.js`（自前の小さなサーバー付き。場面：arc・ult・lance・hit・boss・under・star、`FX_PLAY=1` で70回押して遊ぶ）と `battle/tools/fx_cmp.py`（左右に並べる）。
+
 ## 2026-11-01 WebGL 段階2の2：アクション戦闘のエフェクトを PixiJS へ（push 済み）
 * 新しい `battle/pxfx.js`（pxr.js の次に読む）。エフェクトの描画の関数（fx.js・fx2.js・drawFx・drawDrops・drawStarfall・drawUnder）はそのまま。描くあいだだけ `ctx` を「三角形の記録係」（`PX.vx`）に差し替える。
   * 記録係：Canvas 2D の命令（線・塗り・楕円・2次／3次曲線・点線・丸い端・線形／放射のグラデーション・加算）を色つきの三角形にして、1つの頂点の束に積む。縁は 1px の柔らかい帯。
