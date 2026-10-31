@@ -2,6 +2,12 @@
 
 プロジェクトの `03` の「引き継ぎ」の先頭に、そのまま貼る用。
 
+## 2026-10-31 21:10 素材の調査の答え合わせ・発注票・段階2の計画（push 済み）
+* 原典の5サイト（vfxdoc.readthedocs.io・nexus.leagueoflegends.com・www.vfxapprentice.com・3dreference.notion.site・realtimevfx.com）は、このセッションでも通信設定で拒否（curl も WebFetch も）。ユーザーが環境の「ネットワーク」で許可ドメインに足し、新しいセッションで開く必要がある。今回は、それらのドメインに絞った検索の抜粋で答え合わせ。
+* 答え合わせ（抜粋の範囲）：一致＝白黒のデータの絵・侵食・色の帯・ノイズを流す・暗い下地・2枚の掛け合わせ。直す＝①一回きりの斬撃は形の絵を繰り返さない（CLAMP、流すのはノイズだけ）②侵食に向き（尾から欠ける）。チャンネル詰め（R/G の割り当て）の原典は見つからず。
+* 発注票（5件：斬撃の帯 墨の一閃・鋭い刃の光・荒い叩き割り、ノイズ 柔らかい雲・かすれのすじ）：https://claude.ai/artifact/J7PwVemHUTBcD4qE87bFcs 。生成元 `_order_fx/index.html`（コミットしない）。帯は 1536×1024 で右が太い頭・左が細い尾、届いたらこちらで切り抜き・継ぎ目消し・G（消える順番）を距離変換で作る。
+* 段階2の計画：`claude/04_webgl_stage2_plan.md`。提案は「PixiJS へ全面移行の前に、アクション戦闘の Canvas の上へ fx_gl の層を重ねる（2a）」。ユーザーの判断待ち。
+
 ## 2026-10-31 20:58 WebGL 移行・段階1：一騎打ちの弧を WebGL に（push 済み）
 * ユーザー決定：WebGL へ移行する。段階案＝①エフェクトの層（済：一騎打ちの弧）→②アクション戦闘を PixiJS へ→③一騎打ちの舞台を PixiJS へ。
 * main.js：一騎打ちごとに `createGL(stage, { isHeld, FXPAL })`（終わりで destroy）。`arcFX`＝弧は WebGL（`GLFX.slash`、色は FXPAL から色の帯を作る）、火花と当たりの光は Canvas（`slashFX` の `arc:false`）。WebGL が無い・描画がリセットされた（`ok()` が false）ときは Canvas の弧に戻す。
