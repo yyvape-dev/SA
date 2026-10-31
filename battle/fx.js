@@ -141,6 +141,7 @@ function drawVArc(f) {
   var fade = ms > SW ? Math.max(0, 1 - (ms - SW) / FD) : 1;
   var LY = [{ c: C.glow, lag: 40, tail: 0.6, w: C === VFX_RANA ? 1.55 : 2.2, a: C === VFX_RANA ? 1 : 0.68 }, { c: C.main, lag: 15, tail: 0.45, w: 1.0, a: 0.95 }, { c: C.core, lag: 0, tail: 0.32, w: 0.38, a: 1 }];
   ctx.save(); ctx.translate(f.x + f.face * ox, f.y + oy); ctx.scale(f.face, 1);
+  if (!(ctx.slashGL && ctx.slashGL(vArcLine(rx, ry, a0, a1, W * 1.6, ms, SW, f.life, C, f.geo ? 'smash' : 'ink')))) { // WebGL（battle/pxfx.js）：侵食・色の帯・流れるすじのシェーダー。使えないときは下の Canvas の形
   // 暗い下地（明るい床でも形が残る）：本体と同じ形を、通常の合成で薄く
   var hd = vEase((ms - 15) / SW), tl = vEase((ms - 15 - SW * 0.45) / (SW * 1.4));
   ctx.globalCompositeOperation = 'source-over';
@@ -151,6 +152,8 @@ function drawVArc(f) {
     var tail = vEase((ms - L.lag - SW * L.tail) / (SW * 1.4)), u0 = Math.min(head, tail);
     vArcRibbon(rx, ry, a0, a1, u0, head, W * L.w * (0.85 + 0.15 * fade), vArcGrad(rx, ry, a0, a1, u0, head, L.c, L.a * fade));
   }
+  }
+  ctx.globalCompositeOperation = 'lighter';
   // 刃の先端からこぼれる火花（接線の向き）。t から位置を計算
   for (var k = 0; k < f.sp.length; k++) {
     var q = f.sp[k], age = (ms - q.d) / 1000; if (age < 0 || age > q.life) continue;
@@ -161,6 +164,15 @@ function drawVArc(f) {
     ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - cvx / cm * ln, y - cvy / cm * ln); ctx.stroke();
   }
   ctx.restore();
+}
+// WebGL の弧に渡す中心線（局所の座標）：楕円の a0→a1、外向きの法線、太さ（根本は細く、先端の手前で太く、先端で尖る）。時間は ms・sw（振り）・life
+function vArcLine(rx, ry, a0, a1, W, ms, sw, life, pal, tex) {
+  var N = 48, pts = [], nrm = [], w = [];
+  for (var i = 0; i <= N; i++) {
+    var u = i / N, th = a0 + (a1 - a0) * u, c = Math.cos(th), s = Math.sin(th), nx = c / rx, ny = s / ry, m = Math.hypot(nx, ny) || 1;
+    pts.push(rx * c, ry * s); nrm.push(nx / m, ny / m); w.push(W * Math.pow(Math.sin(Math.PI * Math.min(1, u * 1.12)), 0.7) * (0.3 + 0.7 * u));
+  }
+  return { pts: pts, nrm: nrm, w: w, inner: 0.45, ms: ms, sw: sw, life: life, pal: pal, tex: tex };
 }
 function fxArc(h, face, R, life, big, second, pal, geo) {
   var sp = [], n = geo ? 60 : big ? 30 : 18;
@@ -233,6 +245,11 @@ function drawVLance(f) {
   var C = VFX_RANA, ms = f.t * 1000, SW = 90, fade = ms > SW ? Math.max(0, 1 - (ms - SW) / (f.life * 1000 - SW)) : 1, R = f.R * 1.15;
   ctx.save(); ctx.translate(f.x, f.y - 95 * depthScale(f.y)); ctx.scale(f.face, 1);
   var LY = [{ c: C.dark, lag: 10, w: 52, a: C.dk, dk: 1 }, { c: C.glow, lag: 25, w: 44, a: 0.95 }, { c: C.main, lag: 10, w: 18, a: 0.95 }, { c: C.core, lag: 0, w: 6, a: 1 }];
+  if (ctx.slashGL) { // WebGL（battle/pxfx.js）：まっすぐな中心線に同じシェーダー
+    var N = 32, pts = [], nrm = [], wl = [];
+    for (var u = 0; u <= N; u++) { var k0 = u / N; pts.push(30 + R * k0, 0); nrm.push(0, -1); wl.push(46 * Math.pow(Math.sin(Math.PI * Math.min(1, k0 * 1.08)), 0.6) * (0.35 + 0.65 * k0)); }
+    if (ctx.slashGL({ pts: pts, nrm: nrm, w: wl, inner: 1, ms: ms, sw: SW, life: f.life, pal: C, tex: 'blade' })) LY = [LY[3]]; // 芯（白い細い刃）だけ重ねて、先を鋭く
+  }
   for (var l = 0; l < LY.length; l++) {
     var Ly = LY[l], k = vEase((ms - Ly.lag) / SW); if (k <= 0) continue;
     var L = R * k, tail = vEase((ms - Ly.lag - SW * 0.5) / (SW * 2)), x0 = 30 + L * tail * 0.8;

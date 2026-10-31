@@ -103,14 +103,15 @@ var PX = { on: false, ready: false, app: null, stats: { spr: 0, gfx: 0 } };
     world.addChild(bgL.c); uTex = canvasTex(uCv); uSpr = new P.Sprite(uTex); world.addChild(uSpr); world.addChild(chL.c);
     app.stage.addChild(world);
     var gl = app.renderer.gl; if (gl && gl.canvas) gl.canvas.addEventListener('webglcontextlost', function (e) { PX.on = false; cvs.style.display = 'none'; });
-    PX.app = app; PX.ready = true; PX.on = true;
+    PX.app = app; PX.world = world; PX.chC = chL.c; PX.ready = true; PX.on = true;
+    (PX.onReady || []).forEach(function (f) { try { f(); } catch (e) { PX.err = String(e && e.message || e); } }); // battle/pxfx.js（エフェクトの層）
   }).catch(function (e) { cvs.remove(); PX.on = false; PX.err = String(e && e.message || e); });
 
   var real = null, RW0 = 0, RH0 = 0, RR0 = 0;
   PX.begin = function (realCtx, w, h, res) { // フレームの始め：大きさを合わせ、層を空にする
     real = realCtx; PX.stats.spr = PX.stats.gfx = 0;
     if (w !== RW0 || h !== RH0 || res !== RR0) { RW0 = w; RH0 = h; RR0 = res; app.renderer.resize(w, h, res); uCv.width = Math.round(w * res * U_RES); uCv.height = Math.round(h * res * U_RES); var old = uTex; uTex = canvasTex(uCv); uSpr.texture = uTex; old.destroy(true); uHad = true; }
-    bgL.begin(); chL.begin(); uDrew = false;
+    bgL.begin(); chL.begin(); uDrew = false; if (PX.vBegin) PX.vBegin();
     if (uHad) { uCtx.setTransform(1, 0, 0, 1, 0, 0); uCtx.clearRect(0, 0, uCv.width, uCv.height); }
   };
   function sync(c, k) { var m = real.getTransform(); c.setTransform(m.a * k, m.b * k, m.c * k, m.d * k, m.e * k, m.f * k); }
@@ -118,12 +119,15 @@ var PX = { on: false, ready: false, app: null, stats: { spr: 0, gfx: 0 } };
     var L = layer === 'bg' ? bgL : chL; px.L = L; px.st.length = 0; px.globalAlpha = 1; px.globalCompositeOperation = 'source-over'; sync(px, 1 / RR0);
     var keep = ctx; ctx = px; try { fn(); } finally { ctx = keep; }
   };
-  PX.under = function (fn) { // fn を足元の下の層（半分の解像度の Canvas）に描く
+  PX.sync = function (c) { sync(c, 1 / RR0); }; PX.res = function () { return RR0; };
+  PX.under = function (fn) { // fn を足元の下の層（半分の解像度の Canvas）に描く。エフェクトの層（battle/pxfx.js）が使えるときは、そちらで GPU に直接
+    if (PX.vOn) return PX.vrun('under', fn);
     sync(uCtx, U_RES); uCtx.globalAlpha = 1; uCtx.globalCompositeOperation = 'source-over';
     var keep = ctx; ctx = uCtx; try { fn(); } finally { ctx = keep; }
   };
   PX.end = function () { // フレームの終わり：足元の下の層を送って、描く
     uSpr.visible = uDrew; if (uDrew) { uTex.source.update(); uSpr.width = RW0; uSpr.height = RH0; uHad = true; } else uHad = false;
+    if (PX.vEnd) PX.vEnd();
     app.renderer.render(app.stage);
   };
 })();
