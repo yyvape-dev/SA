@@ -295,7 +295,7 @@ function starfallTick(dt) {
   for (var i = 0; i < sf.stars.length; i++) {
     var s = sf.stars[i]; if (s.hit || sf.t < s.at + SF.dur) continue;
     s.hit = true; var e = s.e;
-    if (e && e.state === 'walk') { hurt(e, 150 * (0.9 + Math.random() * 0.2) * (e.bind > 0 ? 1.5 : 1), e.x >= sf.a.x ? 1 : -1, true); }
+    if (e && e.state === 'walk') { hurt(e, 190 * (0.9 + Math.random() * 0.2) * (e.bind > 0 ? 1.5 : 1), e.x >= sf.a.x ? 1 : -1, true); }
     var tx = e ? e.x : s.x, ty = e ? e.y - eh(e) * 0.55 : s.y;
     G.fx.push({ type: 'vstar', x: tx, y: ty, h: e ? eh(e) : 200, d: -0.11, full: i < 10, t: 0, life: 0.4, sp: i < 10 ? vSparks(8, 0, 200, 600, 1.2) : [] });
     if (i < 8) fxGroundSlam(e ? e.x : s.x, e ? e.y : s.y + 300, 220, VFX_SKY, false, true); // 星が落ちた所の砂埃・岩片・小さな地割れ

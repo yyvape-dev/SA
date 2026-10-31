@@ -399,6 +399,7 @@ function draw() {
   if (G.state !== 'title') list.push({ y: G.hero.y, f: drawHero });
   else list.push({ y: G.hero.y, f: function () { G.hero.anim += 0.016; drawHero(); } });
   list.sort(function (a, b) { return a.y - b.y; });
+  if (pxOn) PX.run('ch', drawRockUps); else drawRockUps(); // 盛り上がる岩（全員の後ろ。battle/fx3.js）
   if (pxOn) { PX.later.length = 0; list.forEach(function (o) { PX.run('ch', o.f); }); } else list.forEach(function (o) { o.f(); });
   if (G.dashGhost) { if (pxOn) PX.run('ch', drawAllyGhosts); else drawAllyGhosts(); } // 追星の残像（全員の上。battle/ally.js）
   if (pxOn && PX.vOn) PX.vrun('fx', function () { PX.later.forEach(drawBindBand); drawDrops(); drawFx(); drawStarfall(); }); // エフェクトも PixiJS（battle/pxfx.js）

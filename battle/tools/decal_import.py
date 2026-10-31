@@ -3,7 +3,8 @@
 # 使い方（リポジトリ直下で）:
 #   python3 battle/tools/decal_import.py <入力.png> <名前> radial   … 中心から放射（クレーター。現れる順＝中心からの距離）
 #   python3 battle/tools/decal_import.py <入力.png> <名前> line     … 左→右に走る跡（えぐれ跡。現れる順＝左からの位置。右が踏み込み）
-#   出力先は terrain/assets/fx/。radial は 1024 角、line は 1536×512 に収める。
+#   python3 battle/tools/decal_import.py <入力.png> <名前> sprite   … 地面から立ち上がる絵（盛り上がる岩）。色の絵だけ
+#   出力先は terrain/assets/fx/。radial・sprite は 1024 角、line は 1536×512 に収める。
 import sys, numpy as np
 from PIL import Image, ImageFilter
 
@@ -22,10 +23,11 @@ rgb[semi] = fill[semi]
 ys, xs = np.where(al > 0); y0, y1, x0, x1 = ys.min(), ys.max() + 1, xs.min(), xs.max() + 1
 pad = 8; y0, x0 = max(0, y0 - pad), max(0, x0 - pad); y1, x1 = min(al.shape[0], y1 + pad), min(al.shape[1], x1 + pad)
 col = np.dstack([rgb, al[..., None] * 255])[y0:y1, x0:x1]
-W, H = (1024, 1024) if kind == 'radial' else (1536, 512)
+W, H = (1024, 1024) if kind in ('radial', 'sprite') else (1536, 512)
 ci = Image.fromarray(np.clip(col, 0, 255).astype(np.uint8), 'RGBA'); h0, w0 = ci.size[1], ci.size[0]
 s = min(W / w0, H / h0); ci = ci.resize((max(1, int(w0 * s)), max(1, int(h0 * s))), Image.LANCZOS)
 out = Image.new('RGBA', (W, H), (0, 0, 0, 0)); out.paste(ci, ((W - ci.size[0]) // 2, (H - ci.size[1]) // 2)); out.save(f'terrain/assets/fx/{name}_col.webp', 'WEBP', quality=92, method=6)
+if kind == 'sprite': print(name, out.size, '（立ち上がる絵：色だけ）'); sys.exit(0)  # sprite＝地面から立ち上がる絵（岩など）。データの絵は要らない
 o = np.asarray(out).astype(np.float32); A = o[..., 3] / 255; lum = (o[..., 0] * .3 + o[..., 1] * .59 + o[..., 2] * .11) / 255
 # 4) データの絵
 # R＝深さ：縁から内へ（縮めながら重ねる）。細い所・縁から先に閉じる

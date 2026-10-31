@@ -50,6 +50,12 @@ function allyTick(dt) {
   var a = G.ally; if (!a) return;
   var d = ALLY_DEF[a.k], h = G.hero;
   a.t += dt; a.anim += dt;
+  var r = G.lilyRush; // 追星の連続ヒット：0.05秒おきに5段、通り道（駆け抜けた範囲）の敵に当てる
+  if (r) { r.t += dt; while (r.k < 5 && r.t >= r.k * 0.05) {
+    var lo = Math.min(r.x0, r.x1) - 50, hi = Math.max(r.x0, r.x1) + 50, hitN = 0;
+    for (var ri = 0; ri < G.enemies.length; ri++) { var re = G.enemies[ri]; if (re.state !== 'walk' || re.x < lo || re.x > hi || Math.abs(re.y - r.y) > r.lane) continue; hurt(re, 40 * (0.9 + Math.random() * 0.2) * (re.bind > 0 ? 1.5 : 1), r.face, r.k === 4); hitN++; }
+    if (hitN) G.shake = Math.max(G.shake, 6 + r.k * 2); r.k++; }
+    if (r.k >= 5) G.lilyRush = null; }
   if (G.cutin) { G.cutin.t += dt; if (G.cutin.t >= G.cutin.life) G.cutin = null; }
   starfallTick(dt); // 星震の進行（battle/fx2.js）
   if (G.say) { G.say.t += dt; if (G.say.t >= G.say.life) G.say = null; }
@@ -150,16 +156,18 @@ function allySkill(a) {
     }
     fxHeal(h); // 癒しの頁（battle/fx2.js）
     addText(h.x, h.y - 260, '+' + heal, 30, '#b8f5c0', 1.0); // 回復量だけ（技名・体数の文字は出さない。2026-10-30）
-  } else if (a.k === 'lily') { // 追星：前へ一直線に駆け抜けながら蹴る（貫通。拘束中1.5倍）。通った跡に星の粒
-    var R3 = 560, lane3 = 90 * ZK, x0 = a.x;
-    for (i = 0; i < G.enemies.length; i++) {
-      e = G.enemies[i]; var dx = (e.x - a.x) * a.face; if (e.state !== 'walk' || dx < -40 || dx > R3 || Math.abs(e.y - a.y) > lane3) continue;
-      hurt(e, 120 * (0.9 + Math.random() * 0.2) * (e.bind > 0 ? 1.5 : 1), a.face, true); n++;
-    }
-    a.x = clamp(a.x + a.face * 380, heroMinX(), heroMaxX());
+  } else if (a.k === 'lily') { // 追星：画面の端の手前まで一直線に駆け抜け、通り道の敵に連続で当て続ける（5段。拘束中1.5倍）。2026-11-01 範囲を広げて連続ヒットに
+    var x0 = a.x, tx = clamp(a.face > 0 ? camX + W - 70 : camX + 70, heroMinX(), heroMaxX());
+    if ((tx - x0) * a.face < 220) tx = clamp(x0 + a.face * 380, heroMinX(), heroMaxX()); // 端が近すぎるときは従来の距離
+    a.x = tx;
+    G.lilyRush = { a: a, x0: x0, x1: tx, y: a.y, face: a.face, lane: 120 * ZK, k: 0, t: 0 };
     fxDash(x0, a.x, a.y, a.face); G.dashGhost = { a: a, x0: x0, x1: a.x, y: a.y, face: a.face, t0: G.t }; // 残像（drawAllyGhosts）
-    G.freeze = Math.max(G.freeze, 0.1 + Math.min(n, 12) * 0.006); G.shake = Math.max(G.shake, 14 + Math.min(n, 12));
-  } else { // 星震：画面の敵に、星が1体ずつ落ちる（当たりごとに大ダメージ、拘束中は1.5倍）。演出と進行は battle/fx2.js の startStarfall
+    G.freeze = Math.max(G.freeze, 0.08); G.shake = Math.max(G.shake, 16);
+  } else { // 星震：踏み抜いた瞬間に画面の敵へ1回目、星が落ちて2回目（2026-11-01 2段にして威力を上げた）
+    for (i = 0; i < G.enemies.length; i++) {
+      e = G.enemies[i]; if (e.state !== 'walk' || e.x < camX - 40 || e.x > camX + W + 40) continue;
+      hurt(e, 110 * (0.9 + Math.random() * 0.2) * (e.bind > 0 ? 1.5 : 1), e.x >= a.x ? 1 : -1, true); n++;
+    } // 2回目：画面の敵に、星が1体ずつ落ちる（当たりごとに大ダメージ、拘束中は1.5倍）。演出と進行は battle/fx2.js の startStarfall
     fxStarStomp(a); startStarfall(a); // 踏み抜き（光の柱＋画面いっぱいの流線）→ 星の雨
   }
 }

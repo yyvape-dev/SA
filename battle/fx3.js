@@ -203,3 +203,17 @@ function drawGroundFx() {
   for (var i = 0; i < G.fx.length; i++) { var f = G.fx[i]; if (FX_UNDER[f.type]) FX_UNDER[f.type](f); }
   ctx.restore();
 }
+
+// 盛り上がる岩（リリィの追星の踏み込み）：画像AIの絵（terrain/assets/fx/rockup_col.webp）を、地面から一気にせり上げ、少し揺れて、最後は沈みながら消す。
+// キャラの絵と同じ層で、全員の後ろに描く（draw.js）。Canvas 版でも同じ（drawImage）
+var ROCK_IMG = new Image(); ROCK_IMG.src = 'terrain/assets/fx/rockup_col.webp?v=1';
+function drawRockUps() {
+  if (!G.fx || !ROCK_IMG.complete || !ROCK_IMG.naturalWidth) return;
+  for (var i = 0; i < G.fx.length; i++) {
+    var f = G.fx[i]; if (f.type !== 'vwake') continue; var b = f.t - 0.07; if (b <= 0) continue;
+    var up = b < 0.1 ? vEase(b / 0.1) * 1.1 : b < 0.18 ? 1.1 - 0.1 * (b - 0.1) / 0.08 : 1, end = Math.max(0, (f.t - (f.life - 0.45)) / 0.45), sink = 1 - 0.5 * end, al = 1 - end;
+    if (al <= 0) continue; var S = 360, jit = b < 0.2 ? (Math.random() - 0.5) * 8 * (1 - b / 0.2) : 0;
+    ctx.save(); ctx.globalAlpha = al; ctx.translate(f.x1 - f.face * 60 + jit, f.y + 18); // 画面の端の手前で止まるので、踏み込みの少し手前から盛り上げる ctx.scale(f.face * (0.85 + 0.15 * Math.min(1, up)), up * sink); // 足元（絵の下の方）を軸にせり上がる
+    ctx.drawImage(ROCK_IMG, -S * 0.42, -S * 0.78, S, S); ctx.restore();
+  }
+}
