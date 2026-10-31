@@ -1,7 +1,7 @@
 /* 縦画面のアクション戦闘。見た目の基準は battle/tools/mock_target.png（ユーザーのモック）。
    部品の絵は battle/ui/p/（ユーザー作成のシート2枚から battle/tools/slice_ui.py で切り出し）。
    寸法は --k（横941の座標の1単位）。上の帯は 941×214、操作盤は 941×600 の座標で置く。 */
-@font-face { font-family: 'DMincho'; src: url(../terrain/assets/font/mincho-b.woff2?v=5) format('woff2'); font-weight: 700; font-display: block; }
+@font-face { font-family: 'DMincho'; src: url(../terrain/assets/font/mincho-b.woff2?v=6) format('woff2'); font-weight: 700; font-display: block; }
 :root { --gold: #d9b878; --gold2: #f3dfae; --ink: #0b0a0f; --teal: #4fb6bd; --red: #c23a33; --font: 'DMincho', 'Hiragino Mincho ProN', 'Yu Mincho', serif; color-scheme: dark; }
 * { box-sizing: border-box; }
 html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; touch-action: none; overscroll-behavior: none; -webkit-text-size-adjust: 100%; background: #000; color: #eee; font-family: var(--font); font-weight: 700; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }

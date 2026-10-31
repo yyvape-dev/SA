@@ -1,7 +1,7 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793740000';
+import * as GM from './game.js?v=1793900000';
 import { createUI } from './ui.js?v=1793650000';
 import { createMorning } from './morning.js?v=1793800000';
 import { createStory } from './story.js?v=1793800000';
@@ -631,15 +631,16 @@ function walkAllies(dt) { const now = performance.now();
     setWalkPose(a, true, now); }
 }
 const faceTex = {}, faceURL = {}, faceRaw = {};
-const FACE = { mina: [178, 74, 56], garou: [247, 50, 58], sera: [150, 64, 54], ranka: [180, 62, 56], lily: [140, 74, 52] }; // 立ち絵の顔の中心と半径（画素）
+const FACE = { mina: [178, 74, 56], garou: [247, 50, 58], sera: [150, 64, 54], ranka: [180, 62, 56], lily: [140, 74, 52], rana: [308, 72, 44] };
+const standOf = k => k === 'rana' ? '../sprites/idle_00.png' : `../ally/${k}.png`; /* ラナの立ち絵＝アクション戦闘の待機（2026-10-31 一騎打ちの最終章で使う） */ // 立ち絵の顔の中心と半径（画素）
 async function makeFace(k) { // 立ち絵の顔を丸く切り抜いて、金の縁をつける
-  const im = await loadImage(`../ally/${k}.png`); if (!im) return null; const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
+  const im = await loadImage(standOf(k)); if (!im) return null; const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
   g.fillStyle = '#2a1a0c'; g.beginPath(); g.arc(64, 64, 60, 0, 7); g.fill(); g.save(); g.beginPath(); g.arc(64, 64, 54, 0, 7); g.clip();
   const [fx, fy, fr] = FACE[k] || [im.width / 2, 70, 60], s = fr * 2.3; g.drawImage(im, fx - s / 2, fy - s / 2, s, s, 10, 10, 108, 108); g.restore();
   g.strokeStyle = '#e8c060'; g.lineWidth = 7; g.beginPath(); g.arc(64, 64, 56, 0, 7); g.stroke(); g.strokeStyle = '#5a3a10'; g.lineWidth = 2; g.beginPath(); g.arc(64, 64, 60, 0, 7); g.stroke();
   { const c2 = document.createElement('canvas'); c2.width = c2.height = 128; const g2 = c2.getContext('2d'); g2.beginPath(); g2.arc(64, 64, 64, 0, 7); g2.clip(); g2.drawImage(im, fx - s / 2, fy - s / 2, s, s, 0, 0, 128, 128); faceRaw[k] = c2.toDataURL(); }
   faceURL[k] = c.toDataURL(); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; }
-for (const k of Object.keys(GM.ALLY)) faceTex[k] = await makeFace(k);
+for (const k of [...Object.keys(GM.ALLY), 'rana']) faceTex[k] = await makeFace(k);
 let badges = [];
 function refreshBadges() {
   badges.forEach(b => scene.remove(b)); badges = [];
@@ -814,7 +815,7 @@ function autoBattle(resolveFn) { // 任せた戦闘：仲間と兵が軍勢と�
 }
 // ---------- 一騎打ちの演出（仮：マップ用の絵を大きく並べ、動きはコード）----------
 const dCss = document.createElement('style'); dCss.textContent = `
-@font-face{font-family:'DMincho';src:url(assets/font/mincho-b.woff2?v=4) format('woff2');font-weight:700;font-display:swap}
+@font-face{font-family:'DMincho';src:url(assets/font/mincho-b.woff2?v=6) format('woff2');font-weight:700;font-display:swap}
 #dsel,#duel{--u:min(.2326vw,.1073dvh);--ink:#2b1d10;--ink2:#5e4728;--gold:#a8833c;--teal:#2c6a64;--red:#a3362b;
   position:fixed;inset:0;display:none;flex-direction:column;overflow:hidden;font-family:'DMincho','Hiragino Mincho ProN','Yu Mincho',serif;font-weight:700;color:var(--ink);
   background:#efe3c8 url(assets/ui2/parch.jpg) 0 0/calc(760*var(--u)) auto repeat;-webkit-font-smoothing:antialiased}
@@ -850,7 +851,7 @@ const dCss = document.createElement('style'); dCss.textContent = `
 #dsel .cd .pw{font-size:calc(13.5*var(--u));white-space:nowrap;color:var(--ink2)}#dsel .cd .pw b{font-size:1.1em;color:var(--ink)}
 #dsel .cd.on{background:#dfe5cc;border-color:#58775a;box-shadow:inset 0 0 0 calc(3*var(--u)) #dfe5cc,inset 0 0 0 calc(4*var(--u)) #8aa483,0 0 calc(10*var(--u)) #5a8a5f66}
 #dsel .cd .ck{display:none;position:absolute;right:calc(7*var(--u));top:calc(7*var(--u));width:calc(26*var(--u));height:calc(26*var(--u));border-radius:50%;background:#2f4a3c;border:1px solid #c9d6bb;color:#f2f0e0;align-items:center;justify-content:center;font-size:calc(15*var(--u))}
-#dsel .cd.on .ck{display:flex}
+#dsel .cd.on .ck{display:flex}#dsel .cd.qn{background:#efe0c2;border-color:#b0873a}#dsel .cd.qn img{object-position:50% 4%}#dsel .hint b{font-size:1.15em;color:var(--teal)}
 #dsel .hint{margin-top:auto;font-size:calc(12.5*var(--u));letter-spacing:.06em}
 #dsel .go{width:88%;height:calc(66*var(--u));margin-top:calc(10*var(--u));background:url(assets/ui2/btn_teal.webp) center/100% 100% no-repeat;color:#f3ead2;font-size:calc(20*var(--u));letter-spacing:.16em;text-shadow:0 1px 2px #0006}
 #dsel .go:active{filter:brightness(1.12)}
@@ -882,6 +883,8 @@ const dCss = document.createElement('style'); dCss.textContent = `
 #duel .ld{position:absolute;inset:0;z-index:6;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(10*var(--u));background:#0007;color:#f3e7c8;font-size:calc(15*var(--u));letter-spacing:.15em;transition:opacity .3s}#duel .ld.out{opacity:0}
 #duel .ld i{width:50%;height:calc(4*var(--u));background:#0008;border:1px solid #a8833c}#duel .ld u{display:block;height:100%;width:0;background:#d9b878;transition:width .15s}
 #duel .L{left:9%}#duel .R{right:8%}
+#duel.pair .L{left:23%}#duel .L2{left:0%}#duel.pair .f.bk{bottom:17%} /* 2人参戦：前に出ている方が手前、もう1人は少し奥（2026-10-31） */
+#duel .fw .fc2{position:absolute;right:-16%;bottom:-8%;width:48%;height:48%;border-radius:50%;object-fit:cover;z-index:1}
 #duel .cam{position:absolute;inset:0;transform-origin:50% 72%;transition:transform .26s cubic-bezier(.2,.7,.3,1)}#duel .cam .bg{position:absolute;inset:-2%;background:#222 center 66%/cover no-repeat}
 #duel .f.chg .sp,#duel .f.chg img{animation:dchg .45s ease-in-out infinite alternate}@keyframes dchg{from{filter:drop-shadow(0 0 calc(3*var(--u)) #ff4a2a) drop-shadow(0 0 calc(8*var(--u)) #b0100088)}to{filter:drop-shadow(0 0 calc(5*var(--u)) #ff6a3a) drop-shadow(0 0 calc(14*var(--u)) #c01000aa)}}#duel .f.ko .sp,#duel .f.ko img{filter:grayscale(.7) brightness(.62)!important;transition:filter .9s .3s}#duel .stage.kof::before{content:'';position:absolute;inset:0;background:#fff3d6;z-index:9;pointer-events:none;animation:kof .55s ease-out forwards}@keyframes kof{from{opacity:.7}to{opacity:0}}
 #duel .f.hit{animation:fhit .32s linear}#duel .f.hit .sp,#duel .f.hit img{filter:sepia(.35) saturate(2.2) hue-rotate(-25deg) brightness(1.06)!important}
@@ -941,14 +944,14 @@ document.head.appendChild(dCss);
 const duelEl = document.createElement('div'); duelEl.id = 'duel'; document.body.appendChild(duelEl);
 const foeURL = FOE_IMG[3] ? 'assets/npc/foe_4.webp' : foeTex.image.toDataURL();
 // 大将戦の攻撃モーション（動画由来の24コマ）。ある仲間だけ。ない仲間は立ち絵のまま
-const DUEL_CLIP = await fetch('../ally/duel_meta.json?v=9').then(r => r.json()).catch(() => ({})); // 仲間ごとの攻撃モーション一覧
+const DUEL_CLIP = await fetch('../ally/duel_meta.json?v=10').then(r => r.json()).catch(() => ({})); // 仲間ごとの攻撃モーション一覧
 // 一騎打ちの絵の先読み：読み込みに加えて decode まで済ませ、Image を持ち続ける（切り替えの瞬間に消える・カクつくのを防ぐ）
 const IMGHOLD = new Map();
 const holdImg = src => { if (!IMGHOLD.has(src)) { const im = new Image(); im.src = src; IMGHOLD.set(src, (im.decode ? im.decode() : new Promise(r => { im.onload = r; })).catch(() => {}).then(() => im)); } return IMGHOLD.get(src); };
 const duelSrcs = (k, look) => [...(DUEL_CLIP[k] || []).map(c => `../ally/${c.f}`), ...(G && G.raid && (G.raid.boss || G.raid.gen) ? (DUEL_CLIP[k + '_ult'] || []).map(c => `../ally/${c.f}`) : []), ...(runClipOf(k) ? [`../ally/${runClipOf(k).f}`] : []),
   ...(look ? [...(FOEDUEL[look] || []).map(c => `assets/npc/${c.f}`), ...(foeRunOf(look) ? [`assets/npc/${foeRunOf(look).f}`] : [])] : [])];
 const duelWarm = k => duelSrcs(k, G && G.raid ? dLook() : null).forEach(holdImg);
-const SIDE_ALLY = await fetch('../ally/side_meta.json?v=4').then(r => r.json()).catch(() => ({})); // 仲間の横向きの走り（右向き）
+const SIDE_ALLY = await fetch('../ally/side_meta.json?v=5').then(r => r.json()).catch(() => ({})); // 仲間の横向きの走り（右向き）
 const SIDE_FOE = await fetch('assets/npc/side_meta.json').then(r => r.json()).catch(() => ({}));  // 敵の横向きの歩き（左向き）
 const runClipOf = k => SIDE_ALLY['run_' + k] || SIDE_ALLY['walk_' + k] || null, foeRunOf = look => SIDE_FOE['walk_' + look] || null;
 const FOEDUEL = await fetch('assets/npc/foeduel_meta.json?v=7').then(r => r.json()).catch(() => ({})); // 敵将の攻撃モーション（見た目の番号ごと）
@@ -996,39 +999,46 @@ function clipActor(el, sp, clips, base, T, run, runBase) { // 動画由来の連
       start({ Lo: lay[ci], ts, end, done: idle }, at);
       return { c, hitAt: at + ts[c.hit] }; } };
 }
-const HUMAN = { mina: 181, sera: 181, ranka: 174, garou: 196, lily: 162, sol: 200, f1: 200, f2: 182, f3: 194, f4: 182, g1: 200, g2: 196, g3: 178, g4: 205, g5: 186, g6: 182, g6b: 186 }; /* 2026-10-30 ゲーム全体の背の高さ（battle/core.js の HEIGHT と同じ比。×0.86 で、一騎打ち・任せた戦闘の画面の大きさは従来並み） */ // 見た目の背の高さ：一騎打ちと戦場の大きさをこれで揃える。槍の穂先・兜の飾りが測った高さに入る絵は大きめの値（並べて目で合わせた値）
+const HUMAN = { rana: 176, mina: 181, sera: 181, ranka: 174, garou: 196, lily: 162, sol: 200, f1: 200, f2: 182, f3: 194, f4: 182, g1: 200, g2: 196, g3: 178, g4: 205, g5: 186, g6: 182, g6b: 186 }; /* 2026-10-30 ゲーム全体の背の高さ（battle/core.js の HEIGHT と同じ比。×0.86 で、一騎打ち・任せた戦闘の画面の大きさは従来並み） */ // 見た目の背の高さ：一騎打ちと戦場の大きさをこれで揃える。槍の穂先・兜の飾りが測った高さに入る絵は大きめの値（並べて目で合わせた値）
 const duelSel = document.createElement('div'); duelSel.id = 'dsel'; document.body.appendChild(duelSel);
 const bustBG = (look, duel) => { const g = G.raid && G.raid.gen; const n = g ? 'g' + g + (g === 6 && duel ? 'b' : '') : look; return `url(assets/npc/bust_${n}.webp),url(assets/npc/bust_${look}.webp)`; }; /* 大公（第6章）は、一騎打ちで悪魔の姿（g6b） */ /* 章の将軍は bust_g<章>.webp（無ければ従来の胸像） */
 const duelRank = () => G.raid && (G.raid.boss || G.raid.gen) ? 'boss' : G.raid && G.raid.E >= 30 ? 'vice' : 'cap';
 const pickOf = a => a[Math.floor(Math.random() * a.length)];
-function playDuel(k, done) { // 画面いっぱいの一騎打ち。五合の勝負（先に3合）。鬨の声は1回（作戦室で増える）：大技の合に使えば見切り、通常の合なら強化
-  const R = G.raid, A = GM.ALLY[k], F = GM.foeGeneral(G), look = dLook(), plan = GM.duelPlan(G, k), AL = GM.DUEL_LINES[k] || GM.DUEL_LINES.mina, FL = GM.DUEL_LINES[duelRank()];
+function playDuel(kIn, done) { // 画面いっぱいの一騎打ち。五合の勝負（先に3合）。鬨の声は1回（作戦室で増える）：大技の合に使えば見切り、通常の合なら強化
+  // 2026-10-31 ⑤2人参戦：kIn が配列なら2人。合ごとに交代で前に出る（敵の攻撃も前に出た方が受ける）。決着の一撃は合わせ技（相方が先に打ち、締め役が決める。将軍戦でランカがいれば星震で締める）
+  const ks = [].concat(kIn), pair = ks.length > 1, k = ks[0], R = G.raid, F = GM.foeGeneral(G), look = dLook(), plan = GM.duelPlan(G, pair ? ks : k), FL = GM.DUEL_LINES[duelRank()];
+  const ALs = ks.map(x => GM.DUEL_LINES[x] || GM.DUEL_LINES.mina), NM = ks.map(GM.nameOf), both = NM.join('と');
+  const closer = pair ? ks.indexOf(((R.boss || R.gen) && ks.find(x => (DUEL_CLIP[x + '_ult'] || []).length)) || ks[1]) : 0; // 締め役（ks の番号）
+  let act0 = 0, AL = ALs[0], lname = NM[0];
   duelEl.style.display = 'flex';
   const pipsHtml = [0, 1, 2, 3, 4].map(i => `<i class="${plan.heavy.includes(i) ? 'h' : ''}"></i>`).join('');
-  duelEl.innerHTML = `<div class="hd"><i class="cn tl"></i><i class="cn tr"></i><div class="sd"><div class="fw"><img class="fc" src="${faceRaw[k]}"><i class="rg"></i></div><div class="hb"><div class="nm">${A.n}</div><div class="hp"><b style="width:100%"></b></div></div></div>
+  duelEl.innerHTML = `<div class="hd"><i class="cn tl"></i><i class="cn tr"></i><div class="sd"><div class="fw"><img class="fc" src="${faceRaw[k]}"><i class="rg"></i>${pair ? `<img class="fc2" src="${faceURL[ks[1]]}">` : ''}</div><div class="hb"><div class="nm">${NM.join('・')}</div><div class="hp"><b style="width:100%"></b></div></div></div>
     <div class="ct"><small>第${R.w || G.week}週</small><img src="assets/ui2/divider2.webp"><h1>一騎打ち</h1></div>
     <div class="sd r"><div class="fw"><div class="fc foe" style="background-image:url(${foeFace(look)})${String(look)[0] === 'g' ? ';background-size:260%;background-position:50% 12%' : ''}"></div><i class="rg"></i></div><div class="hb"><div class="nm">${F.n}</div><div class="hp"><b style="width:100%"></b></div></div></div></div>
     <div class="stage"><div class="cam"><div class="bg" style="background-image:url(assets/field/duel.jpg),url(assets/field/${R.dir || 'pass'}.jpg)"></div>
-      <div class="f L" style="height:${27 * (HUMAN[k] || 165) / 170}%">${(DUEL_CLIP[k] || []).length ? `<div class="sp"></div>` : `<img src="../ally/${k}.png">`}</div><div class="f R" style="height:${27 * dHum(look) / 170}%">${(FOEDUEL[look] || []).length ? `<div class="sp"></div>` : `<img src="assets/npc/foe_${look}.webp">`}</div>
+      ${ks.map((x, j) => `<div class="f ${j ? 'L2' : 'L'}" style="height:${27 * (HUMAN[x] || 165) / 170}%">${(DUEL_CLIP[x] || []).length ? `<div class="sp"></div>` : `<img src="${standOf(x)}">`}</div>`).join('')}<div class="f R" style="height:${27 * dHum(look) / 170}%">${(FOEDUEL[look] || []).length ? `<div class="sp"></div>` : `<img src="assets/npc/foe_${look}.webp">`}</div>
       </div><div class="cut"><img src="${faceURL[k]}"><div></div></div></div>
     <div class="ft"><i class="cn bl"></i><i class="cn br"></i><div class="ln"><p class="l"></p><p class="r foe"></p></div><h3>戦況</h3><div class="blr"><span>自軍</span><div class="bal"><b style="width:50%"></b><u style="left:50%"></u></div><span>敵軍</span></div>
       <div class="row"><div class="pips">${pipsHtml}</div><div class="stt">間合いを測る</div></div>
       <div class="bt"><button class="sp2">▶▶ 速度 ×1</button><button class="go2"><b>鬨の声</b><small>次の一合を強化</small><em>残り${GM.orders(G)}回</em><i class="tm"><b></b></i></button><button class="sk">スキップ ›</button></div></div>
     <div class="res"></div>`;
-  const $ = q => duelEl.querySelector(q), L = $('.L'), Rf = $('.R'), hl = $('.sd:not(.r) .hp b'), hr = $('.sd.r .hp b'), pips = [...duelEl.querySelectorAll('.pips i')], tm = $('.tm b'), gb = $('.go2'), stt = $('.stt'), bal = $('.bal b'), balu = $('.bal u'), stage = $('.stage'), cam = $('.cam');
+  duelEl.classList.toggle('pair', pair);
+  const $ = q => duelEl.querySelector(q), L = $('.L'), L2 = $('.L2'), Rf = $('.R'), hl = $('.sd:not(.r) .hp b'), hr = $('.sd.r .hp b'), pips = [...duelEl.querySelectorAll('.pips i')], tm = $('.tm b'), gb = $('.go2'), stt = $('.stt'), bal = $('.bal b'), balu = $('.bal u'), stage = $('.stage'), cam = $('.cam');
   let timers = [], spd = 1, hpL = 100, hpR = 100, aw = 0, fw = 0, nextI = 0, left = GM.orders(G), used = left <= 0, armed = false, inWin = false, over = false, winT = null, cur = -1;
   let chg = null; const stopChg = () => { if (chg) { chg.stop(); chg = null; } }; // 大技の構えの気配（fx_slash.js chargeFX）
   const T = (f, ms) => { const t = setTimeout(f, ms); timers.push(t); return t; }, D = ms => ms / spd;
   const actL = clipActor(L, L.querySelector('.sp') || document.createElement('div'), [...(DUEL_CLIP[k] || []), ...((R.boss || R.gen) ? DUEL_CLIP[k + '_ult'] || [] : [])], '../ally/', T, runClipOf(k), '../ally/');
+  const actL2 = pair ? clipActor(L2, L2.querySelector('.sp') || document.createElement('div'), [...(DUEL_CLIP[ks[1]] || []), ...((R.boss || R.gen) ? DUEL_CLIP[ks[1] + '_ult'] || [] : [])], '../ally/', T, runClipOf(ks[1]), '../ally/') : null;
+  const FE = [L, L2], AC = () => [actL, actL2]; // 味方の枠と動き（ks の番号順）
   const actR = clipActor(Rf, Rf.querySelector('.sp') || document.createElement('div'), FOEDUEL[look] || [], 'assets/npc/', T, foeRunOf(look), 'assets/npc/');
-  const sayT = {}; const say = (side, text, ms = 1700, big = false) => { const e = $('.ln .' + side); /* 台詞は舞台に重ねず、下の帯（戦況の上の段）に出す */ clearTimeout(sayT[side]); e.classList.remove('on'); void e.offsetWidth; e.classList.toggle('big', big); e.innerHTML = `<small>${side === 'l' ? A.n : F.n}</small>${text}`; e.classList.add('on'); sayT[side] = setTimeout(() => e.classList.remove('on'), ms); timers.push(sayT[side]); };
+  const sayT = {}; const say = (side, text, ms = 1700, big = false) => { const e = $('.ln .' + side); /* 台詞は舞台に重ねず、下の帯（戦況の上の段）に出す */ clearTimeout(sayT[side]); e.classList.remove('on'); void e.offsetWidth; e.classList.toggle('big', big); e.innerHTML = `<small>${side === 'l' ? lname : F.n}</small>${text}`; e.classList.add('on'); sayT[side] = setTimeout(() => e.classList.remove('on'), ms); timers.push(sayT[side]); };
   const upd = () => { hl.style.width = hpL + '%'; hr.style.width = hpR + '%'; const b = Math.max(6, Math.min(94, 50 + (hpL - hpR) / 2)); bal.style.width = b + '%'; balu.style.left = b + '%'; word = b > 62 ? '優勢' : b < 38 ? '劣勢' : '拮抗'; };
   let word = '拮抗'; const msg = (html, hv = false) => { stt.innerHTML = html; stt.classList.toggle('hv', hv); };
   const apply = (i, r) => { if (r.ally) { aw++; hpR = Math.max(0, hpR - r.dmg); } else { fw++; hpL = Math.max(0, hpL - r.dmg); } nextI = i + 1; pips[i].classList.remove('cur'); pips[i].classList.add(r.ally ? 'w' : 'l'); };
-  const finish = () => { if (over) return; over = true; stopChg(); (aw >= 3 ? Rf : L).classList.add('ko'); if (window.__duelLog) console.log('DUEL finish aw=' + aw + ' fw=' + fw + ' pips=' + pips.map(p => p.className).join('|') + ' dom=' + pips[0].isConnected); const win = aw >= 3; GM.duelSet(G, k, win); if (win) hpR = 0; else hpL = 0; upd(); gb.classList.remove('ready'); msg(win ? '勝負あり' : '勝負あり'); tm.style.width = '0%';
+  const finish = () => { if (over) return; over = true; stopChg(); (aw >= 3 ? [Rf] : FE.filter(Boolean)).forEach(x => x.classList.add('ko')); if (window.__duelLog) console.log('DUEL finish aw=' + aw + ' fw=' + fw + ' pips=' + pips.map(p => p.className).join('|') + ' dom=' + pips[0].isConnected); const win = aw >= 3; GM.duelSet(G, pair ? ks : k, win); if (win) hpR = 0; else hpL = 0; upd(); gb.classList.remove('ready'); msg(win ? '勝負あり' : '勝負あり'); tm.style.width = '0%';
     say(win ? 'l' : 'r', pickOf((win ? AL : FL).win), 2600); say(win ? 'r' : 'l', pickOf((win ? FL : AL).lose), 2600);
-    T(() => { const r = $('.res'); r.innerHTML = `<div class="bd"><div class="k">一騎打ち</div><h2 class="${win ? 'w' : 'l'}">${win ? '勝利' : '敗北'}</h2><img src="assets/ui2/divider2.webp"><p>${win ? `${A.n}が${F.n}を討ち取った。戦況が有利になる` : `${A.n}が敗れた。戦況が不利になる`}<small>タップで続ける</small></p></div>`; r.classList.add('on');
-      r.onclick = e => { e.stopPropagation(); if (!r.classList.contains('on')) return; timers.forEach(clearTimeout); if (actL) actL.reset(); if (actR) actR.reset(); duelEl.style.display = 'none'; duelEl.innerHTML = ''; srcs.forEach(sr => IMGHOLD.delete(sr)); /* 使い終わった絵を手放す（読み込んだ画像と、画面の層） */ done(); }; }, 1900); };
+    T(() => { const r = $('.res'); r.innerHTML = `<div class="bd"><div class="k">一騎打ち</div><h2 class="${win ? 'w' : 'l'}">${win ? '勝利' : '敗北'}</h2><img src="assets/ui2/divider2.webp"><p>${win ? `${both}が${F.n}を討ち取った。戦況が有利になる` : `${both}が敗れた。戦況が不利になる`}<small>タップで続ける</small></p></div>`; r.classList.add('on');
+      r.onclick = e => { e.stopPropagation(); if (!r.classList.contains('on')) return; timers.forEach(clearTimeout); if (actL) actL.reset(); if (actL2) actL2.reset(); if (actR) actR.reset(); duelEl.style.display = 'none'; duelEl.innerHTML = ''; srcs.forEach(sr => IMGHOLD.delete(sr)); /* 使い終わった絵を手放す（読み込んだ画像と、画面の層） */ done(); }; }, 1900); };
   // カメラ：走り出した側に寄って追いかける → 攻撃で二人がぎりぎり収まる大きさまで引く → 元の位置へ戻りながら引きへ
   const FOCUS_ATK = true; // true＝攻撃も攻める側に寄ったまま／false＝攻撃で二人が収まるまで引く
   const camTo = (z, wx, ms, ease = 'cubic-bezier(.2,.7,.3,1)', fr = .5) => { // fr＝wx を画面の横のどこに置くか（.5＝中央） // 世界の x＝wx を画面の中央に、足元（舞台の85%）が画面の92%に来るよう、z倍に寄る（背景の外が見えないように抑える）
@@ -1036,7 +1046,8 @@ function playDuel(k, done) { // 画面いっぱいの一騎打ち。五合の勝
     const tx = Math.min(0, Math.max(sw - z * sw, sw * fr - z * wx)), ty = Math.min(0, Math.max(sh - z * sh, sh * (.92 - z * .85)));
     cam.style.transition = `transform ${ms}ms ${ease}`; cam.style.transformOrigin = '0 0'; cam.style.transform = z === 1 ? '' : `translate(${tx}px,${ty}px) scale(${z})`; };
   const runRound = i => { inWin = false; gb.classList.remove('ready');
-    const r = GM.duelRound(plan, i, armed), at = r.ally ? L : Rf, df = r.ally ? Rf : L, dir = r.ally ? 1 : -1, act = r.ally ? actL : actR; armed = false; const fin = (r.ally ? aw : fw) + 1 >= 3; // fin＝決着の一撃
+    const r = GM.duelRound(plan, i, armed), fin = (r.ally ? aw : fw) + 1 >= 3, link = pair && fin && r.ally; armed = false; // fin＝決着の一撃。link＝2人の合わせ技
+    if (link) setAct(closer); const Lc = FE[act0], at = r.ally ? Lc : Rf, df = r.ally ? Rf : Lc, dir = r.ally ? 1 : -1, act = r.ally ? AC()[act0] : actR;
     const big = r.kind === 'counter' || r.kind === 'heavy', sw = stage.clientWidth, rs = stage.getBoundingClientRect(), ra = at.getBoundingClientRect(), rd = df.getBoundingClientRect();
     const CLOSE = .03; /* 詰める深さ：絵の枠（余白つき）同士を、舞台の幅のこの割合だけ重ねる（2026-10-31 .10→.03、近すぎたので少し離す） */ at.style.zIndex = 3; df.style.zIndex = 2; /* 攻める側を手前に */ const gap = r.ally ? rd.left - ra.right : ra.left - rd.right, dx = dir * Math.max(0, gap + sw * CLOSE); // 相手の懐まで詰める
     const cx0 = (ra.left + ra.right) / 2 - rs.left, cx1 = cx0 + dx; // 走る側の中心（世界の座標。カメラは毎合 引きから始まる）
@@ -1046,10 +1057,18 @@ function playDuel(k, done) { // 画面いっぱいの一騎打ち。五合の勝
     at.style.transition = `transform ${runMs}ms ${ran ? 'linear' : 'ease-in'}`; at.style.transform = `translateX(${dx}px)`;
     const FR = dir > 0 ? .32 : .68; /* 寄るとき、攻める側を中央より後ろに置き、進む先（相手と斬撃）に余白を残す（2026-10-29） */ camTo(zRun, cx0 + dx * .25, lead, undefined, FR); T(() => camTo(zRun, cx1, runMs - lead, 'linear', FR), lead); // 寄ってから、走りに合わせて追う
     const clashX = (r.ally ? ra.right + dx : ra.left + dx) - rs.left + dir * sw * .02, tame = D(big ? 300 : 170);
-    const ultFin = fin && r.ally && (R.boss || R.gen) && (DUEL_CLIP[k + '_ult'] || []).length; /* 将軍戦の止め：専用の大技 */ const P = act ? act.play(Math.max(0, runMs - D(120)), ultFin ? 'ult' : tame) /* 走りの終わりに重ねて振りかぶり始める（踏み込みながら構える） */ : { c: null, hitAt: runMs + 240 };
+    const ultFin = fin && r.ally && (R.boss || R.gen) && (DUEL_CLIP[ks[act0] + '_ult'] || []).length; /* 将軍戦の止め：専用の大技 */ const P = act ? act.play(Math.max(0, runMs - D(120)), ultFin ? 'ult' : tame) /* 走りの終わりに重ねて振りかぶり始める（踏み込みながら構える） */ : { c: null, hitAt: runMs + 240 };
     const zAtk = big ? zRun * 1.08 : zRun, fx = cx1; // 攻撃の間も、走った側に寄ったまま（少しだけ前へ向ける）。二人を収める案は FOCUS_ATK=false
     T(() => FOCUS_ATK ? camTo(zAtk, fx, D(220), undefined, FR) : camTo(big ? zFit * 1.06 : zFit, mid, D(big ? 320 : 240)), runMs);
-    if (r.kind === 'counter') { const c = $('.cut'); c.querySelector('div').innerHTML = `COUNTER<small>見切り　${A.n}が大技を受け流す</small>`; T(() => c.classList.add('on'), runMs); T(() => c.classList.remove('on'), P.hitAt + 500); }
+    if (r.kind === 'counter') { const c = $('.cut'); c.querySelector('div').innerHTML = `COUNTER<small>見切り　${lname}が大技を受け流す</small>`; T(() => c.classList.add('on'), runMs); T(() => c.classList.remove('on'), P.hitAt + 500); }
+    if (link) { /* 合わせ技：相方が先に飛び込んで一太刀、締め役が決める（2026-10-31） */ const pj = 1 - act0, pe = FE[pj], pa = AC()[pj], rp = pe.getBoundingClientRect(), pdx = Math.max(0, rd.left - rp.right + sw * (CLOSE - .05));
+      const c = $('.cut'); c.querySelector('div').innerHTML = `LINK<small>合わせ技　${NM[pj]}と${NM[act0]}</small>`; T(() => c.classList.add('on'), D(80)); T(() => c.classList.remove('on'), P.hitAt + 400);
+      pe.style.zIndex = 4; pe.style.transition = `transform ${D(380)}ms ease-in`; pe.style.transform = `translateX(${pdx}px)`;
+      const pp = pa ? pa.play(Math.max(0, D(260)), 0) : { hitAt: D(560) }, ph = Math.min(pp.hitAt, P.hitAt - D(220));
+      T(() => { const rs2 = stage.getBoundingClientRect(), r2 = df.getBoundingClientRect(), hsz = Math.min(rs2.height * .95, r2.height * 1.05);
+        slashFX(stage, { x: (r2.left + r2.right) / 2 - rs2.left, y: r2.top - rs2.top + r2.height * .42, size: hsz, dir: 1, big: true, speed: spd, color: 'blue' });
+        df.classList.remove('hit'); void df.offsetWidth; df.classList.add('hit'); say('l', pickOf(ALs[pj].hit), 1100); }, ph);
+      T(() => { pe.style.zIndex = ''; }, P.hitAt - D(60)); T(() => { pe.style.transition = `transform ${D(420)}ms ease-in-out`; pe.style.transform = ''; }, P.hitAt + D(ultFin ? 1800 : FOLLOW + 140)); }
     T(() => { /* コードの斬撃（fx_slash.js、全戦。2026-10-30 以前は将軍戦だけ）。味方の攻撃は青、敵は赤。カメラの寄りに合わせて、画面上の相手の位置に出す */ stopChg();
       const rs2 = stage.getBoundingClientRect(), r2 = df.getBoundingClientRect(), hx = (r2.left + r2.right) / 2 - rs2.left - dir * r2.width * .05, hy = r2.top - rs2.top + r2.height * .42, hsz = Math.min(rs2.height * .95, r2.height * 1.05);
       if (ultFin) { starFX(stage, at, df, { speed: spd, onQuake: () => { duelEl.classList.remove('shake'); void duelEl.offsetWidth; duelEl.classList.add('shake'); T(() => duelEl.classList.remove('shake'), 300); } }); } /* 星震の止め：踏み抜き→星の雨→大きな一撃（fx_slash.js starFX） */ else slashFX(stage, { x: hx, y: hy, size: hsz, dir, big, speed: spd, color: r.ally ? 'blue' : 'red' }); const sl = document.createElement('i');
@@ -1063,30 +1082,36 @@ function playDuel(k, done) { // 画面いっぱいの一騎打ち。五合の勝
     const back = ultFin ? D(1800) : D(FOLLOW + (big ? 140 : 40)), backMs = D(420); // 専用の大技は、着地のあとの残心まで寄ったまま
     T(() => { camTo(1, sw / 2, backMs, 'ease-in-out'); at.style.transition = `transform ${backMs}ms ease-in-out`; at.style.transform = ''; }, P.hitAt + back); // 元の位置へ戻りながら、引きへ
     T(() => { if (aw >= 3 || fw >= 3) finish(); else roundStart(i + 1); }, P.hitAt + back + backMs + D(250)); };
+  function setAct(j) { act0 = j; AL = ALs[j]; lname = NM[j]; if (pair) { L.style.zIndex = j ? 1 : 2; L2.style.zIndex = j ? 2 : 1; L.classList.toggle('bk', !!j); L2.classList.toggle('bk', !j); } } // 前に出る側
   const goRound = i => { gb.classList.remove('ready'); runRound(i); };
-  const roundStart = i => { if (over) return; cur = i; const heavy = plan.heavy.includes(i); pips[i].classList.add('cur'); inWin = true;
+  const roundStart = i => { if (over) return; cur = i; if (pair) setAct(i % 2); const heavy = plan.heavy.includes(i); pips[i].classList.add('cur'); inWin = true;
     msg(heavy ? `<em>第${i + 1}合</em>大技の構え${used ? '' : '　─　鬨の声で見切れる'}` : `<em>第${i + 1}合</em>${word}`, heavy); if (heavy) { say('r', pickOf(FL.heavy), D(1600), true); stopChg(); chg = chargeFX(stage, Rf, { color: 'red', speed: spd }); }
     const w = D(used ? 700 : 1800); /* 鬨の声を押せる時間（2.6秒→1.8秒、2026-10-29） */ tm.style.transition = 'none'; tm.style.width = '100%'; void tm.offsetWidth; tm.style.transition = `width ${w}ms linear`; tm.style.width = '0%'; if (!used) gb.classList.add('ready'); winT = T(() => goRound(i), w); };
   gb.onclick = e => { e.stopPropagation(); if (used || over || !inWin) return; left--; used = left <= 0; armed = true; rallyFX(stage, L, { speed: spd }); // 鬨の声の金の輪 gb.classList.remove('ready'); if (used) gb.classList.add('used'); gb.querySelector('em').textContent = used ? '使用済み' : `残り${left}回`;
     const heavy = plan.heavy.includes(cur); msg(`<em>鬨の声</em>${heavy ? '見切りの構え' : '次の一合を強化'}`); say('l', pickOf(AL.hit), D(900)); clearTimeout(winT); winT = T(() => goRound(cur), D(650)); };
   $('.sp2').onclick = e => { e.stopPropagation(); spd = spd === 1 ? 2 : 1; e.currentTarget.textContent = `▶▶ 速度 ×${spd}`; };
-  $('.sk').onclick = e => { e.stopPropagation(); if (over) return; timers.forEach(clearTimeout); stopChg(); if (actL) actL.reset(); if (actR) actR.reset(); [L, Rf].forEach(x => { x.style.transform = ''; x.style.filter = ''; }); camTo(1, stage.clientWidth / 2, 0); duelEl.classList.remove('shake'); $('.cut').classList.remove('on'); pips.forEach(p => p.classList.remove('cur'));
+  $('.sk').onclick = e => { e.stopPropagation(); if (over) return; timers.forEach(clearTimeout); stopChg(); if (actL) actL.reset(); if (actL2) actL2.reset(); if (actR) actR.reset(); [L, L2, Rf].filter(Boolean).forEach(x => { x.style.transform = ''; x.style.filter = ''; }); camTo(1, stage.clientWidth / 2, 0); duelEl.classList.remove('shake'); $('.cut').classList.remove('on'); pips.forEach(p => p.classList.remove('cur'));
     while (aw < 3 && fw < 3 && nextI < 5) { apply(nextI, GM.duelRound(plan, nextI, armed)); armed = false; } upd(); finish(); };
   duelEl.onclick = null;
-  const srcs = duelSrcs(k, look), ld = document.createElement('div'); ld.className = 'ld'; ld.innerHTML = '<b>構えを整えている…</b><i><u></u></i>'; stage.appendChild(ld); // 全部の絵を読み終えてから始める
+  const srcs = [...new Set(ks.flatMap(x => duelSrcs(x, look)))], ld = document.createElement('div'); ld.className = 'ld'; ld.innerHTML = '<b>構えを整えている…</b><i><u></u></i>'; stage.appendChild(ld); // 全部の絵を読み終えてから始める
   let got = 0; const bar = ld.querySelector('u');
   Promise.all(srcs.map(sr => holdImg(sr).then(() => { got++; bar.style.width = (got / srcs.length * 100) + '%'; }))).then(() => { if (over) return; ld.classList.add('out'); setTimeout(() => ld.remove(), 300);
     say('l', pickOf(AL.open), 2200); say('r', pickOf(FL.open), 2200); T(() => roundStart(0), 2300); });
+  if (pair) setAct(0);
 }
-function openSelect(cs, F, onPick, onDecline) { // 一騎打ちに送り出す仲間を選ぶ（モック準拠：上に敵将、下に仲間のカード）
-  const R = G.raid, look = foeLook(), FLo = GM.DUEL_LINES[duelRank()]; let sel = cs[0];
-  const por = {}; cs.forEach(k => { por[k] = POR[k] ? pickOf(POR[k]) : `../ally/${k}.png`; });
+function openSelect(cs, F, onPick, onDecline) { // 一騎打ちに送り出す仲間を選ぶ（モック準拠：上に敵将、下に仲間のカード）。2026-10-31 将軍戦で軍旗の間があれば2人まで（GM.pairOK）
+  const R = G.raid, look = foeLook(), FLo = GM.DUEL_LINES[duelRank()], two = GM.pairOK(G);
+  let sel = [cs[0]]; if (two && GM.finalDuel(G) && cs.includes('ranka')) sel = ['rana', 'ranka']; /* 最終章：ラナとランカが最初から並ぶ */
+  const por = {}; cs.forEach(k => { por[k] = POR[k] ? pickOf(POR[k]) : standOf(k); });
   duelSel.innerHTML = `<div class="hero" style="background-image:${bustBG(look, 1)},url(assets/field/${R.dir || 'pass'}.jpg);background-size:124% auto,124% auto,cover;background-position:0 0,0 0,center"><div class="tt"><small>第${R.w || G.week}週</small><img class="dv0" src="assets/ui2/divider2.webp"><h1>一騎打ち</h1></div><div class="qt">${FLo.open[0]}<small>${F.n}</small></div></div>
-    <div class="pn"><i class="cn tl"></i><i class="cn tr"></i><h2>誰を送り出す？</h2><img class="dv" src="assets/ui2/divider2.webp"><div class="grid">${cs.map(k => { const p = Math.round(GM.duelP(G, k) * 100); return `<div class="cd" data-k="${k}"><img src="${por[k]}"><div class="tx"><div class="nm">${GM.ALLY[k].n}</div><div class="ln"></div><div class="pw">勝率 約<b>${p}</b>%</div></div><div class="ck">✓</div></div>`; }).join('')}</div>
-      <div class="hint dline">勝てば有利に、負ければ不利になる</div>${cs.length ? '<button class="go"></button>' : ''}<div class="no">挑戦に応じない</div></div>`;
-  const go = duelSel.querySelector('.go'), mark = () => { duelSel.querySelectorAll('.cd').forEach(c => c.classList.toggle('on', c.dataset.k === sel)); if (go) go.textContent = `${GM.ALLY[sel].n}を送り出す`; }; mark();
-  duelSel.querySelectorAll('.cd').forEach(c => { c.onclick = e => { e.stopPropagation(); sel = c.dataset.k; mark(); }; });
-  if (go) go.onclick = e => { e.stopPropagation(); duelSel.style.display = 'none'; onPick(sel); };
+    <div class="pn"><i class="cn tl"></i><i class="cn tr"></i><h2>${two ? '誰を送り出す？（2人まで）' : '誰を送り出す？'}</h2><img class="dv" src="assets/ui2/divider2.webp"><div class="grid">${cs.map(k => { const p = Math.round(GM.duelP(G, k) * 100); return `<div class="cd${k === 'rana' ? ' qn' : ''}" data-k="${k}"><img src="${por[k]}"><div class="tx"><div class="nm">${GM.nameOf(k)}</div><div class="ln"></div><div class="pw">勝率 約<b>${p}</b>%</div></div><div class="ck">✓</div></div>`; }).join('')}</div>
+      <div class="hint dline"></div>${cs.length ? '<button class="go"></button>' : ''}<div class="no">挑戦に応じない</div></div>`;
+  const go = duelSel.querySelector('.go'), hint = duelSel.querySelector('.hint'), mark = () => { duelSel.querySelectorAll('.cd').forEach(c => { const i = sel.indexOf(c.dataset.k); c.classList.toggle('on', i >= 0); c.querySelector('.ck').textContent = sel.length > 1 && i >= 0 ? i + 1 : '✓'; });
+    if (go) go.textContent = sel.length > 1 ? `${GM.nameOf(sel[0])}と${GM.nameOf(sel[1])}で挑む` : `${GM.nameOf(sel[0])}を送り出す`;
+    hint.innerHTML = sel.length > 1 ? `2人で挑む　勝率 約<b>${Math.round(GM.duelP(G, sel) * 100)}</b>%` : two ? 'もう1人選ぶと、2人で挑める' : '勝てば有利に、負ければ不利になる'; }; mark();
+  duelSel.querySelectorAll('.cd').forEach(c => { c.onclick = e => { e.stopPropagation(); const k = c.dataset.k, i = sel.indexOf(k);
+    if (!two) sel = [k]; else if (i >= 0) { if (sel.length > 1) sel.splice(i, 1); } else { sel.push(k); if (sel.length > 2) sel.shift(); } mark(); }; });
+  if (go) go.onclick = e => { e.stopPropagation(); duelSel.style.display = 'none'; onPick(sel.length > 1 ? [...sel] : sel[0]); };
   duelSel.querySelector('.no').onclick = e => { e.stopPropagation(); duelSel.style.display = 'none'; onDecline(); };
   duelSel.classList.toggle('many', cs.length > 4); duelSel.style.display = 'flex';
 }
@@ -1481,7 +1506,7 @@ function frame(now) {
 canvas.addEventListener('webglcontextlost', e => { e.preventDefault(); status.ok = false; status.reason = 'WebGLが失われた'; });
 G = loadSave() || GM.newState(layout.areas); syncMap(true); refreshUI(); takeBattleResult();
 if (params.has('field')) { const sv = JSON.stringify(G); for (const a of Object.values(GM.ALLY)) if (a.join && !G.open.includes(a.join)) G.open.push(a.join); G.met = Object.assign({}, G.met, { lily: true }); /* 出来事で加入する仲間（リリィ）も試しでは選べる */ G.raid = { kind: 'raid', E: 46, name: '将軍の侵攻（試し）', boss: true, w: GM.WEEKS, dir: 'pass', ranka: false }; G.troops = Math.max(G.troops || 0, 6); fieldBattle('auto', () => { G = JSON.parse(sv); writeSave(); refreshUI(); ui.toast('試しの戦闘を終えた（記録は残らない）'); }); } // ?field で任せた戦闘だけ見る
-if (params.has('duel')) { const sv = JSON.stringify(G); for (const a of Object.values(GM.ALLY)) if (a.join && !G.open.includes(a.join)) G.open.push(a.join); G.met = Object.assign({}, G.met, { lily: true }); /* 出来事で加入する仲間（リリィ）も試しでは選べる */ G.rankaAway = false; G.rankaRest = false; // 試しは仲間4人とも選べる（ランカも）
+if (params.has('duel')) { const sv = JSON.stringify(G); for (const a of Object.values(GM.ALLY)) if (a.join && !G.open.includes(a.join)) G.open.push(a.join); G.met = Object.assign({}, G.met, { lily: true }); /* 出来事で加入する仲間（リリィ）も試しでは選べる */ G.rankaAway = false; G.rankaRest = false; G.testPair = true; /* 試しは軍旗の間が無くても2人で挑める */ // 試しは仲間4人とも選べる（ランカも）
   const gq = params.get('duel'), gn = /^[1-6]$/.test(gq) ? +gq : 1 + Math.floor(Math.random() * 6); /* 2026-10-31 ?duel＝章の将軍をランダム、?duel=3＝第3章の将軍 */
   G.raid = { kind: 'raid', E: GM.CHAPTERS[gn - 1].E[2], name: GM.CHAPTERS[gn - 1].g + 'の侵攻（試し）', boss: gn === 6, gen: gn, w: gn * GM.CH_LEN, dir: gn % 2 ? 'pass' : 'river', ranka: true }; maybeDuel(() => { G = JSON.parse(sv); writeSave(); refreshUI(); ui.toast('試しの一騎打ちを終えた（記録は残らない）'); }); } // ?duel で一騎打ちだけ見る
 resize(); apply(); renderer.render(scene, camera); status.ok = true; if (window.__bootDone) window.__bootDone();

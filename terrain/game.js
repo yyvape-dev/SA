@@ -11,7 +11,7 @@ export const FAC = { // 施設。stage 1=建築中（効果なし、週末に完
   // 2026-10-31 章ごとに解放（ch＝その章の始まりから建てられる。無い＝最初から）。新しい3つ：
   shrine:   { n: '聖堂',     cost: 6, up: 7, eff: { holy: 1 }, d: '黒い軍勢の穢れ（防衛力-8）を防ぐ', ud: '穢れを防ぎ、さらに防衛力+4', one: true, noStaff: true, ch: 4 }, // 穢れ＝第4・6章の襲撃（SCHED の dark）
   barracks: { n: '兵舎',     cost: 5, up: 6, eff: { cap: 4 }, d: '兵の上限+4・毎週 兵+1（維持費も増える）', ud: '兵の上限+8', one: true, noStaff: true, ch: 5 },
-  banner:   { n: '軍旗の間', cost: 7, up: 8, eff: { rally: .1 }, d: '将軍との一騎打ちで、仲間の勝率+10%（加勢）', ud: '勝率が+20%になる', one: true, noStaff: true, ch: 6 }, // ⑤2人参戦を作ったら、ここを入口にする
+  banner:   { n: '軍旗の間', cost: 7, up: 8, eff: { rally: .1 }, d: '将軍との一騎打ちに、仲間を2人で送り出せる・勝率+10%', ud: '勝率が+20%になる', one: true, noStaff: true, ch: 5 }, /* 2026-10-31 ⑤2人参戦の入口。第6章→第5章（リリィの加入と同じ章） */ // ⑤2人参戦を作ったら、ここを入口にする
 };
 export const facOpen = (s, f) => chapterOf(s.week) >= (FAC[f].ch || 1); // 章で解放されているか
 export const PLOT_AREA = {}; // 区画→区域（main.js が layout.json から入れる）。城壁の「区域ごとに1つ」に使う
@@ -298,20 +298,28 @@ export function morningLines(s, who, rnd = Math.random) {
 }
 
 // ---------- 一騎打ち（接戦のとき、将軍同士が戦う） ----------
-export const DUEL_POW = { ranka: 14, garou: 11, mina: 9, sera: 6, lily: 12 };
+export const DUEL_POW = { ranka: 14, garou: 11, mina: 9, sera: 6, lily: 12, rana: 13 };
+// 2026-10-31 ⑤2人参戦：将軍戦（章の将軍・大公）で、軍旗の間（完成）があれば仲間を2人まで送り出せる。最終章（第6章の将軍・大公）はラナ自身も出られ、2人は常に可。
+// 2人の勝率＝強い方＋12%（上限95%）。五合は交代で攻め、決着の一撃は2人の合わせ技（main.js playDuel）
+export const NAMES = { rana: 'ラナ' };
+export const nameOf = k => (ALLY[k] || {}).n || NAMES[k] || k;
+export const finalDuel = s => !!s.raid && (s.raid.boss || s.raid.gen === 6);
+export const pairOK = s => !!s.raid && (s.raid.boss || !!s.raid.gen) && (finalDuel(s) || s.testPair || Object.values(s.plots).some(p => p.fac === 'banner' && p.stage >= 2 && !p.burnt));
 export const duelDue = s => !!s.raid && (s.raid.boss || !!s.raid.gen || s.raid.E >= 30 || Math.abs(raidD(s) - s.raid.E) <= 4); // 副官と将軍は必ず一騎打ちに出てくる
-export const champions = s => Object.keys(ALLY).filter(k => fighter(k) && joined(s, k) && !(k === 'ranka' && (s.rankaAway || !s.raid.ranka)));
+export const champions = s => [...(finalDuel(s) ? ['rana'] : []), ...Object.keys(ALLY).filter(k => fighter(k) && joined(s, k) && !(k === 'ranka' && (s.rankaAway || !s.raid.ranka)))];
 export const foeGeneral = s => ({ n: s.raid.gen ? CHAPTERS[s.raid.gen - 1].g : s.raid.E >= 30 ? '敵の副官' : '敵の隊長', pow: s.raid.E / 3 + (s.raid.boss ? 6 : s.raid.gen ? 4 : s.raid.E >= 30 ? 2 : 0) });
 export const duelPow = (s, k) => DUEL_POW[k] + bond(s, k) * 1.5;
-export const duelP = (s, k) => { // ミナは絆2・3で勝率が上がる。ランカは相手が誰でも7割は勝つ（最強の将）
+export const duelP = (s, k) => { if (Array.isArray(k)) return k.length > 1 ? Math.min(.95, Math.max(...k.map(x => duelP(s, x))) + .12) : duelP(s, k[0]); // 2人参戦
+  // ミナは絆2・3で勝率が上がる。ランカは相手が誰でも7割は勝つ（最強の将）
   let p = clamp(.5 + (duelPow(s, k) - foeGeneral(s).pow) / 16, .1, .9);
   if (k === 'mina') p += (bond(s, 'mina') >= 2 ? .12 : 0) + (bond(s, 'mina') >= 3 ? .08 : 0);
   p += drillP(s); // 訓練場
   if (s.raid && s.raid.gen) p += effSum(s, 'rally'); // 軍旗の間：将軍戦の加勢
   if (k === 'ranka') p = Math.max(.7, p);
+  if (k === 'rana') p = Math.max(.5, p); // ラナ（最終章だけ出られる）は最低50%
   if (k === 'lily') p = Math.max(.4, p); // リリィも英雄：相手が誰でも最低40%（2026-10-30、ユーザー）
   return clamp(p, .1, k === 'ranka' ? .95 : .9); };
-export function duelSet(s, k, win) { s.raid.duel = win; s.raid.champ = k; s.log.push(`一騎打ち：${ALLY[k].n}が${win ? '勝った' : '敗れた'}`); return win; }
+export function duelSet(s, k, win) { const ks = [].concat(k); s.raid.duel = win; s.raid.champ = ks.find(x => x !== 'rana') || ks[0]; s.raid.champs = ks; s.log.push(`一騎打ち：${ks.map(nameOf).join('と')}が${win ? '勝った' : '敗れた'}`); return win; }
 export function duel(s, k, rnd = Math.random) { return duelSet(s, k, rnd() < duelP(s, k)); } // 演出なしで決めるとき
 
 // 五合の勝負（先に3合取った方が勝ち）。基本勝率＝duelP になるよう、1合ごとの勝率を逆算する。
@@ -334,6 +342,7 @@ export const DUEL_LINES = {
   sera: { open: ['く、来るなら来てください……！', '本で読んだ通りなら……！'], hit: ['えいっ！', 'ここです！', 'ええいっ！'], hurt: ['きゃっ！？', 'うう……痛い……。'], win: ['や、やりました、姫さま……！'], lose: ['す、すみません、姫さま……。'] },
   ranka: { open: ['お嬢の前だし、ちょっと本気出そっか。', 'いいね、楽しませてよ。'], hit: ['はい、一丁上がり。', 'ほいっと！', 'どう？'], hurt: ['へえ、やるじゃん。', 'おっと、危ない危ない。'], win: ['お嬢、片付いたよ〜。'], lose: ['あちゃー……油断した。'] },
   lily: { open: ['ラナさんの民に、手出しはさせない！', 'わたしが相手よ。……ランカの出番は、なしだから。'], hit: ['はあっ！', 'そこっ！', 'まだまだ！'], hurt: ['っ……！', 'ちょっと！ 痛いじゃない！'], win: ['ふふ……見ててくれましたか、ラナさん？'], lose: ['ごめんなさい……もっと、強くならなきゃ……。'] },
+  rana: { open: ['ここで終わらせる。……わたしの国を、返してもらう。', '逃げるのは、もうやめたの。'], hit: ['はあっ！', 'これで！', 'まだよ！'], hurt: ['っ……まだ、立てる！', 'この程度で……！'], win: ['……みんな、ありがとう。'], lose: ['ごめんなさい……まだ、届かない……。'] },
   boss: { open: ['我と戦う者はいるか。'], hit: ['砕けろ！', '跪け！', 'この程度か！'], hurt: ['ぬう……！', '小癪な！'], win: ['他愛もない。'], lose: ['バカな……この俺が……！'], heavy: ['この一撃で終わらせる！'] },
   vice: { open: ['貴様の相手は俺だ。'], hit: ['ふんッ！', '受けてみろ！'], hurt: ['ぐっ……！', 'やるな！'], win: ['……ここまでだ。'], lose: ['無念……！'], heavy: ['避けられるか！'] },
   cap: { open: ['来い、小娘ども。'], hit: ['おらァ！', 'そこだ！'], hurt: ['くそっ……！', 'なめるな！'], win: ['弱い弱い！'], lose: ['ちくしょう……！'], heavy: ['これでもくらえ！'] }
