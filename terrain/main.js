@@ -1038,7 +1038,7 @@ function playDuel(k, done) { // 画面いっぱいの一騎打ち。五合の勝
   const runRound = i => { inWin = false; gb.classList.remove('ready');
     const r = GM.duelRound(plan, i, armed), at = r.ally ? L : Rf, df = r.ally ? Rf : L, dir = r.ally ? 1 : -1, act = r.ally ? actL : actR; armed = false; const fin = (r.ally ? aw : fw) + 1 >= 3; // fin＝決着の一撃
     const big = r.kind === 'counter' || r.kind === 'heavy', sw = stage.clientWidth, rs = stage.getBoundingClientRect(), ra = at.getBoundingClientRect(), rd = df.getBoundingClientRect();
-    const CLOSE = .10; /* 詰める深さ：絵の枠（余白つき）同士を、舞台の幅のこの割合だけ重ねる（2026-10-29、もっと近くへ） */ const gap = r.ally ? rd.left - ra.right : ra.left - rd.right, dx = dir * Math.max(0, gap + sw * CLOSE); // 相手の懐まで詰める
+    const CLOSE = .03; /* 詰める深さ：絵の枠（余白つき）同士を、舞台の幅のこの割合だけ重ねる（2026-10-31 .10→.03、近すぎたので少し離す） */ at.style.zIndex = 3; df.style.zIndex = 2; /* 攻める側を手前に */ const gap = r.ally ? rd.left - ra.right : ra.left - rd.right, dx = dir * Math.max(0, gap + sw * CLOSE); // 相手の懐まで詰める
     const cx0 = (ra.left + ra.right) / 2 - rs.left, cx1 = cx0 + dx; // 走る側の中心（世界の座標。カメラは毎合 引きから始まる）
     const span = Math.max(ra.right + dx, rd.right) - Math.min(ra.left + dx, rd.left), mid = (Math.max(ra.right + dx, rd.right) + Math.min(ra.left + dx, rd.left)) / 2 - rs.left;
     const zFit = Math.min(1.9, sw / (span + sw * .1)), zRun = Math.max(zFit + .3, 1.7); /* 2026-10-30 寄りを約2割弱く（以前 2.2・+.5・2.1） */ // 攻撃＝二人がぎりぎり収まる／走り＝その人を大きく
