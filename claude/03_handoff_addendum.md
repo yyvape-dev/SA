@@ -7,7 +7,7 @@
 * `terrain/fx_slash.js` に土台：`hitStop(ms)`・`isHeld`（エフェクトと clipActor のコマを止める）、`layer(..., bloom)` と slashFX のブルーム（1/3 解像度に写して CSS blur＋screen）、`shaker(el)`（trauma²×なめらかなノイズ、CSS の translate/rotate）、`warpFX(el)`（SVG 乱流の歪み。背景 `.bg` だけに）。
 * 技の形 `FXPAL`・`burstFX`（掌打・蹴り）・`crackFX`（斧の地割れ）・`chainFX`（ミナの鎖）・`glyphFX`（セラの紋様）・`smokeFX`（黒騎士・大公の闇）。slashFX に `pal`・`ang`・`len`・`thick`・`bend`。
 * main.js：`STYLE`（仲間）・`FSTYLE`（敵将）・`strikeFX`。重さ3段階 `HS`（60/110/170ms）・`TRAUMA`（.3/.55/.9）。打たれた側を一瞬白く（`.hf`）→赤。決着はインパクトフレーム（`.imf`→`.imf2`、各1〜2コマ）＋背景の歪み。星震の大きな一撃にも揺れと歪み。
-* 確認：試しのページ `terrain/_fxtest.html`（コミットしない、.git/info/exclude）でコマ送り（40〜460ms）、実戦は `duel_shot.js 2 garou,mina win`。直したもの：地割れ（横線→放射状）、紋様（大きすぎ・白飛び→小さく暗い下地）、煙（黒い円盤→薄く散らす）。実機は未確認。
+* 確認：試しのページ `terrain/_fxtest.html`（コミットしない、.git/info/exclude）でコマ送り（40〜460ms）、実戦は `duel_shot.js 2 garou,mina win`。直したもの：地割れ（横線→放射状→光る線が電気に見えたので、土の色の暗い溝＋石のかけら＋土ぼこり、光るのは割れた瞬間だけ）、紋様（大きすぎ・白飛び→小さく暗い下地）、煙（黒い円盤→薄く散らす）。実機は未確認。
 * 次：任せた戦闘（兵のぶつかり・敵将の撃破・決着）→ アクション戦闘の仲間の連携を同じ形に。
 
 ## 2026-10-31 20:15 ランカとリリィのバックボーン（push 済み）

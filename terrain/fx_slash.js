@@ -308,18 +308,26 @@ export function burstFX(host, o) {
 }
 
 // 地割れ（斧の叩き割り）：着地点から床に沿って走るギザギザの裂け目（暗い下地→光る芯）＋土ぼこり（通常の合成・茶）
-export function crackFX(host, o) {
+export function crackFX(host, o) { // 2026-10-31 作り直し：光る線（電気に見えた）→ 土の色の暗い溝。光るのは割れた瞬間の短い間だけ。石のかけらと土ぼこり
   const pal = o.pal || FXPAL.azure, size = o.size, sp = o.speed || 1, gy = o.y;
-  const cracks = Array.from({ length: 8 }, (_, i) => { let th = i / 8 * 6.283 + (Math.random() - .5) * .5, x = 0, y = 0; const n = 5 + Math.floor(Math.random() * 3), L = size * (.06 + Math.random() * .05), pts = [[0, 0]];
-    for (let j = 1; j <= n; j++) { th += (Math.random() - .5) * .9; x += Math.cos(th) * L; y += Math.sin(th) * L; pts.push([x, y]); } return { pts, d: Math.random() * 40 }; }); // 着地点から放射状に、折れながら走る裂け目（縦は床の奥行きで潰す）
-  const dust = Array.from({ length: 14 }, () => ({ x: (Math.random() - .5) * size * 1.2, vx: (Math.random() - .5) * size * .9, vy: -size * (.3 + Math.random() * .5), r: size * (.08 + Math.random() * .1), d: Math.random() * 80 }));
-  return layer(host, sp, (ctx, T) => {
-    ctx.globalCompositeOperation = 'source-over';
-    for (const q of dust) { const t = (T - q.d) / 1000; if (t < 0 || t > .9) continue; const k = 1 - t / .9, x = o.x + q.x + q.vx * t, y = gy + q.vy * t + size * .5 * t * t, r = q.r * (1 + t * 1.6), g = ctx.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, `rgba(110,86,60,${.45 * k})`); g.addColorStop(1, 'rgba(110,86,60,0)'); ctx.fillStyle = g; ctx.fillRect(x - r, y - r, r * 2, r * 2); }
-    for (const c of cracks) { const k = easeOut(clamp01((T - c.d) / 140)), fd = clamp01(1 - (T - 300) / 500); if (k <= 0 || fd <= 0) continue; const m = Math.max(1, Math.ceil(k * (c.pts.length - 1)));
-      for (const [col, w, a, comp] of [[pal.dark, 6, .55, 'source-over'], [pal.glow, 4, .7, 'lighter'], [pal.core, 1.4, 1, 'lighter']]) { ctx.globalCompositeOperation = comp; ctx.strokeStyle = rgba(col, a * fd); ctx.lineWidth = w; ctx.lineJoin = 'round'; ctx.beginPath(); ctx.moveTo(o.x, gy); for (let j = 1; j <= m; j++) ctx.lineTo(o.x + c.pts[j][0], gy + c.pts[j][1] * .35); ctx.stroke(); } }
-    ctx.globalCompositeOperation = 'lighter'; if (T < 140) glow(ctx, o.x, gy, size * .6, pal, 1 - T / 140);
-    return T < 900;
+  const cracks = Array.from({ length: 6 }, (_, i) => { let th = i / 6 * 6.283 + (Math.random() - .5) * .6, x = 0, y = 0; const n = 4 + Math.floor(Math.random() * 3), L = size * (.08 + Math.random() * .05), pts = [[0, 0]];
+    for (let j = 1; j <= n; j++) { th += (Math.random() - .5) * .8; x += Math.cos(th) * L; y += Math.sin(th) * L; pts.push([x, y]); } return { pts, d: Math.random() * 30 }; });
+  const rocks = Array.from({ length: 12 }, () => ({ vx: (Math.random() - .5) * size * 1.6, vy: -size * (.6 + Math.random() * .9), s: size * (.016 + Math.random() * .024), r: Math.random() * 6, vr: (Math.random() - .5) * 14, c: 50 + Math.random() * 40 }));
+  const dust = Array.from({ length: 12 }, () => ({ x: (Math.random() - .5) * size * .9, vx: (Math.random() - .5) * size * .7, vy: -size * (.15 + Math.random() * .3), r: size * (.07 + Math.random() * .08), d: Math.random() * 60 }));
+  return layer(host, sp, (ctx, T) => { const t = T / 1000; ctx.globalCompositeOperation = 'source-over';
+    // 溝：根本が太く先が細い、暗い土の色。少しずつ薄れる
+    const fd = clamp01(1 - (T - 350) / 450);
+    for (const c of cracks) { const k = easeOut(clamp01((T - c.d) / 110)); if (k <= 0 || fd <= 0) continue; const m = Math.max(1, Math.ceil(k * (c.pts.length - 1)));
+      for (let j = 1; j <= m; j++) { const [x0, y0] = c.pts[j - 1], [x1, y1] = c.pts[j], w = 6.5 * (1 - (j - 1) / c.pts.length) + 1;
+        ctx.strokeStyle = `rgba(30,18,10,${.85 * fd})`; ctx.lineWidth = w; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(o.x + x0, gy + y0 * .32); ctx.lineTo(o.x + x1, gy + y1 * .32); ctx.stroke();
+        ctx.strokeStyle = `rgba(150,120,85,${.35 * fd})`; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(o.x + x0, gy + y0 * .32 - w * .5); ctx.lineTo(o.x + x1, gy + y1 * .32 - w * .5); ctx.stroke(); } } // 溝の縁の明るい土
+    // 土ぼこり（後ろで膨らむ）
+    for (const q of dust) { const tt = (T - q.d) / 1000; if (tt < 0 || tt > .9) continue; const k = 1 - tt / .9, x = o.x + q.x + q.vx * tt, y = gy + q.vy * tt + size * .35 * tt * tt, r = q.r * (1 + tt * 2.2), g = ctx.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, `rgba(122,98,70,${.5 * k})`); g.addColorStop(1, 'rgba(122,98,70,0)'); ctx.fillStyle = g; ctx.fillRect(x - r, y - r, r * 2, r * 2); }
+    // 石のかけら（重力・回転、地面で消える）
+    for (const q of rocks) { const x = o.x + q.vx * t, y = gy + q.vy * t + size * 2.6 * t * t; if (t > .05 && y > gy + 4) continue; ctx.save(); ctx.translate(x, y); ctx.rotate(q.r + q.vr * t); ctx.fillStyle = `rgb(${q.c},${q.c * .8 | 0},${q.c * .6 | 0})`; ctx.fillRect(-q.s, -q.s * .7, q.s * 2, q.s * 1.4); ctx.restore(); }
+    // 割れた瞬間だけ、溝の奥が光る
+    ctx.globalCompositeOperation = 'lighter'; if (T < 160) { const k = 1 - T / 160; glow(ctx, o.x, gy, size * .45, pal, .8 * k); for (const c of cracks) { ctx.strokeStyle = rgba(pal.spark, .7 * k); ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(o.x, gy); for (const [x, y] of c.pts.slice(1, 3)) ctx.lineTo(o.x + x, gy + y * .32); ctx.stroke(); } }
+    return T < 950;
   }, 6, 'normal');
 }
 
