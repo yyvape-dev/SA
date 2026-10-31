@@ -53,6 +53,11 @@ FX2.vhurt = function (f) {
   var C = VFX_FOE, t = f.t, x = f.x, y = f.y, L = f.s * 0.62;
   ctx.save(); ctx.translate(x, y); ctx.rotate(f.rot * f.dir); ctx.scale(f.dir, 1);
   var k = vEase(t / 0.06), fd = 1 - Math.max(0, t - 0.06) / 0.18; // 切り口：一瞬で伸びて細る（暗い下地→赤→芯）
+  if (ctx.slashGL && t < f.life) { // WebGL：斬撃のシェーダーの太い切り口（暗い下地ごと）。一瞬で走って崩れる
+    var N = 20, pts = [], nrm = [], wl = [];
+    for (var i = 0; i <= N; i++) { var u = i / N; pts.push(-L * 0.6 + L * 1.2 * u, (u - 0.5) * (u - 0.5) * L * 0.25); nrm.push(0, -1); wl.push(f.s * 0.13 * Math.pow(Math.sin(Math.PI * u), 0.7)); }
+    if (ctx.slashGL({ pts: pts, nrm: nrm, w: wl, inner: 1, ms: t * 1000, sw: 55, life: f.life * 0.75, pal: VFX_FOE_S, tex: 'ink' })) fd = Math.min(fd, 1 - t / 0.1) * 0.8; // 芯だけ短く重ねる
+  }
   if (fd > 0) {
     var w = f.s * 0.05 * fd, l = L * k;
     ctx.globalCompositeOperation = 'source-over'; ctx.fillStyle = vrgba(C.dark, 0.55 * fd);
@@ -63,6 +68,8 @@ FX2.vhurt = function (f) {
   }
   ctx.restore();
   if (t < 0.12) vGlow(x, y, f.s * (0.35 + t * 2), C, 1 - t / 0.12);
+  vFlare(x, y, f.s * 0.3, t / 0.22, C, f.rot * 0.3); // にじむ赤い閃光
+  if (typeof vRingN === 'function') vRingN(f.gx || x, f.gy || y + f.s * 0.58, f.s * (0.25 + 1.4 * vEase(t / 0.3)), 4 * (1 - t / f.life), C.glow, 0.7 * (1 - t / f.life), f.rot * 50, 0.25); // 足元の輪
   drawSparks(f, x, y, C, 6, 900);
 };
 // 画面の端の赤（画面座標）：被弾の直後と、HPが3割を切ったときの脈
@@ -189,13 +196,20 @@ function fxWarn(e, hitT) {
   G.fx.push({ type: 'vwarn', e: e, at: e.atk, t: 0, life: Math.max(0.12, hitT) + 0.08, hitT: Math.max(0.12, hitT) });
 }
 FX2.vwarn = function (f) {
-  var e = f.e; if (!e || e.state !== 'walk' || e.atk !== f.at) return; // 止められたら消す
+  var e = f.e; if (!e || e.state !== 'walk' || e.atk !== f.at || f.t > f.life) return; // 止められたら消す
   var C = VFX_FOE, k = Math.min(1, f.t / f.hitT), s = depthScale(e.y) * e.size, H = eh(e), big = e.boss ? 1.3 : 1;
-  var r = (150 - 90 * vEaseIn(k)) * s * big, x = e.x + e.face * 70 * s;
-  ctx.globalCompositeOperation = 'source-over'; ctx.strokeStyle = vrgba(C.dark, 0.35); ctx.lineWidth = 7; ctx.beginPath(); ctx.ellipse(x, e.y + 2, r, r * 0.28, 0, 0, 6.283); ctx.stroke();
-  ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = vrgba(C.glow, 0.35 + 0.6 * k); ctx.lineWidth = 3 + 3 * k; ctx.beginPath(); ctx.ellipse(x, e.y, r, r * 0.28, 0, 0, 6.283); ctx.stroke();
-  var gx = e.x + e.face * 40 * s, gy = e.y - H * 0.78, gr = (10 + 14 * k) * s * big;
-  vGlow(gx, gy, gr * 2.2, C, 0.4 + 0.5 * k); vStar4(gx, gy, gr * 1.5, 0.785, C.spark, 0.5 + 0.5 * k); vStar4(gx, gy, gr * 0.7, 0.785, C.core, 0.6 + 0.4 * k);
+  var r = (170 - 110 * vEaseIn(k)) * s * big, x = e.x + e.face * 70 * s, sd = (f.seed = f.seed || Math.random() * 100);
+  // 床：危ない範囲が赤く満ちる（集まるものは濃く）＋むらのある輪が縮んで、当たりの瞬間に閉じる
+  ctx.globalCompositeOperation = 'source-over'; ctx.fillStyle = vrgba(C.dark, 0.18 + 0.22 * k); ctx.beginPath(); ctx.ellipse(x, e.y + 2, r * 1.05, r * 0.3, 0, 0, 6.283); ctx.fill();
+  ctx.globalCompositeOperation = 'lighter';
+  var g = ctx.createRadialGradient(x, e.y, 0, x, e.y, r); g.addColorStop(0, vrgba(C.glow, 0.05 + 0.3 * k * k)); g.addColorStop(0.75, vrgba(C.glow, 0.08 + 0.18 * k)); g.addColorStop(1, vrgba(C.glow, 0));
+  ctx.save(); ctx.translate(x, e.y); ctx.scale(1, 0.28); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, r, 0, 6.283); ctx.fill(); ctx.restore();
+  vRingN(x, e.y, r, 3 + 4 * k, C.glow, 0.45 + 0.55 * k, sd + f.t * 2, 0.2);
+  vRingN(x, e.y, r * 0.97, 1.2 + 1.5 * k, C.core, 0.25 + 0.6 * k, sd + 7, 0.35);
+  // 武器の高さ：火の粉が吸い込まれて集まり、きらめきが育つ
+  var gx = e.x + e.face * 40 * s, gy = e.y - H * 0.78, gr = (10 + 16 * k) * s * big;
+  for (var i = 0; i < 10; i++) { var ph = (f.t * 2.6 + i * 0.1) % 1, th = i * 0.628 + sd, d = gr * (5 - 4.2 * ph); vStreak(gx + Math.cos(th) * d, gy + Math.sin(th) * d * 0.8, -Math.cos(th), -Math.sin(th), 10 + 12 * ph, 2, i % 2 ? C.spark : C.main, Math.sin(ph * 3.1416) * (0.4 + 0.5 * k)); }
+  vGlow(gx, gy, gr * 2.4, C, 0.4 + 0.5 * k); vStar4(gx, gy, gr * 1.7, 0.785 + f.t * 2, C.spark, 0.5 + 0.5 * k); vStar4(gx, gy, gr * 0.75, f.t * 2, C.core, 0.6 + 0.4 * k);
 };
 // 撃破：放射の光線＋金の輪＋黒煙の柱＋火の粉
 function fxBossDown(e) {

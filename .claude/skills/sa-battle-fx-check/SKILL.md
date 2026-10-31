@@ -11,7 +11,7 @@ node battle/tools/fx_shot.js /tmp/fx/gl                 # PixiJS 版（今の既
 node battle/tools/fx_shot.js /tmp/fx/cv px=0            # 従来の Canvas 2D 版（比べる元）
 python3 battle/tools/fx_cmp.py /tmp/fx/cv /tmp/fx/gl /tmp/fx   # → /tmp/fx/cmp_<場面>.png（左＝従来、右＝新しい、上から時刻順）
 ```
-- 場面：slam（地を割る一撃）・wake（リリィの疾風の跡）・swirl（渦をまとう溜め）・arc（太刀2本）・ult（必殺の弧）・lance（突き）・hit（当たり・撃破・輪・吸引）・boss（敵将の撃破・癒し・星・追星・地走り・溜めの輪）・under（拘束の床と帯・強敵の気配・溜め）・star（星震）。しぼるときは3つめの引数に `arc,hit`。
+- 場面：slam（地を割る一撃）・wake（リリィの疾風の跡）・swirl（渦をまとう溜め）・arc（太刀2本）・ult（必殺の弧）・lance（突き）・hit（当たり・撃破・輪・吸引）・boss（敵将の撃破・癒し・星・追星・地走り・溜めの輪）・under（拘束の床と帯・強敵の気配・溜め）・star（星震）・foe1／foe2（敵の攻撃：予兆・突き・振り・斧の床割れ・被弾。敵ごとに当たりの瞬間を0にそろえた時刻）。しぼるときは3つめの引数に `arc,hit`。
 - 2つめの引数は URL に足す引数：`px=0`（全部 Canvas）・`fxgl=0`（弧だけ前の形）。
 - `FX_PLAY=1` を付けると、最後に70回ボタンを押して遊び、頂点の最大とエラーを出す。`DPR=2` で2倍の解像度（拡大して質を見るとき）。
 - 仕組み：update を空にして時間を止め、`G.fx` に場面を積んで `t` をそろえ、`draw()` を呼んで撮る。敵の並びは乱数なので、左右で敵の数や位置が少し違うのは問題ない。

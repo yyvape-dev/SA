@@ -18,6 +18,8 @@ const SCENES = {
   slam: ['G.fx=[]; fxGroundSlam(G.hero.x+120, G.hero.y, W*0.85, VFX_SKY, false);', [0.05, 0.15, 0.35, 0.8]],
   wake: ['G.fx=[]; fxDash(G.hero.x-150, G.hero.x+230, G.hero.y, 1);', [0.05, 0.12, 0.3, 0.6]],
   swirl: ['G.fx=[]; if (!G.ally && typeof allyJoin === "function") { G.allyJoined = false; allyJoin(); } var a = G.ally || null; if (a) { a.state = "idle"; a.x = G.hero.x + 120; a.y = G.hero.y; a.atk = { t: 0 }; fxStarCharge(a); }', [0.3, 0.6, 1.0, 1.5]],
+  foe1: ['G.fx=[]; function fa(e,k,ci,el,bs){e.kind=k;e.elite=el;e.boss=bs;e.size=bs?1.38:el?1.12:1;e.face=-1;e.state="walk";e.stun=0;e.bind=0;e.pull=null;var o=Math.random,c=0;Math.random=function(){return c++?o():(ci+0.5)/FOE_CLIP[k].length;};startFoeAtk(e);Math.random=o;} var E=G.enemies,hx=G.hero.x;E.forEach(function(e,i){e.x=hx+150+(i%2)*190;e.y=i<2?LANE_Y0+40:LANE_Y1-30;});window.__align=1; fa(E[0],1,0); fa(E[1],2,1,true); E[2]&&fa(E[2],3,1); E[3]&&fa(E[3],4,0); fxHurt(G.hero,E[0]);', [-0.15, 0.03, 0.1, 0.22]],
+  foe2: ['G.fx=[]; function fa(e,k,ci,el,bs){e.kind=k;e.elite=el;e.boss=bs;e.size=bs?1.38:el?1.12:1;e.face=-1;e.state="walk";e.stun=0;e.bind=0;e.pull=null;var o=Math.random,c=0;Math.random=function(){return c++?o():(ci+0.5)/FOE_CLIP[k].length;};startFoeAtk(e);Math.random=o;} var E=G.enemies,hx=G.hero.x;E.forEach(function(e,i){e.x=hx+150+(i%2)*190;e.y=i<2?LANE_Y0+40:LANE_Y1-30;});window.__align=1; fa(E[0],1,1); fa(E[1],2,0,false,true); E[2]&&fa(E[2],3,0); E[3]&&fa(E[3],4,1,true);', [-0.15, 0.03, 0.1, 0.22]],
   star: ['G.fx=[]; G.enemies.forEach(e=>{e.bind=0;e.state="walk";}); startStarfall(G.ally||G.hero); G.starfall.t=0;', [0.5, 0.8, 1.0, 1.3]],
 };
 (async () => {
@@ -34,9 +36,9 @@ const SCENES = {
   await p.evaluate(() => { window.__upd = update; update = function () {}; G.enemies.forEach((e, i) => { e.x = G.hero.x + 160 + i * 70; e.y = G.hero.y + (i % 2 ? 30 : -20); }); }); // 止めて、敵を前に並べる
   for (const [name, [code, ts]] of Object.entries(SCENES)) {
     if (only.length && !only.includes(name)) continue;
-    await p.evaluate(code);
+    await p.evaluate(() => { window.__align = 0; }); await p.evaluate(code);
     for (let k = 0; k < ts.length; k++) {
-      await p.evaluate(t => { G.fx.forEach(f => f.t = t); if (G.starfall) G.starfall.t = t; G.t = t; G.flash = 0; G.shake = 0; if (G.drops) G.drops.length = 0; draw(); }, ts[k]);
+      await p.evaluate(t => { if (window.__align) { G.fx.forEach(f => { if (f.t0 == null) f.t0 = f.t; f.t = f.t0 + (f.e && f.e.atk ? f.e.atk.hitT : 0) + t; }); G.enemies.forEach(e => { if (e.atk) e.atk.t = e.atk.hitT + t; }); } else G.fx.forEach(f => f.t = t); if (G.starfall) G.starfall.t = t; G.t = t; G.flash = 0; G.shake = 0; if (G.drops) G.drops.length = 0; draw(); }, ts[k]);
       await p.waitForTimeout(150); await p.evaluate(() => draw()); // 素材の読み込みを待ってもう一度
       await p.screenshot({ path: `${out}_${name}_${k}.png` });
       console.log(name, ts[k], await p.evaluate(() => PX.vstats ? JSON.stringify(PX.vstats) : ''));

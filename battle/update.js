@@ -168,7 +168,7 @@ function startFoeAtk(e) {
   if (!c) { e.atk = { t: 0, hitT: 0.35, endT: 0.6, ci: -1, done: false }; return; } // 攻撃の絵が無いときは、少し止まってから当たる
   var acc = 0, hitT = 0, starts = [];
   for (var i = 0; i < c.n; i++) { starts.push(acc / 1000 / FOE_SPD); if (i === c.hit) hitT = acc / 1000 / FOE_SPD; acc += c.durs[i]; }
-  e.atk = { t: 0, hitT: hitT, endT: acc / 1000 / FOE_SPD, ci: ci, starts: starts, done: false }; fxWarn(e, hitT);
+  e.atk = { t: 0, hitT: hitT, endT: acc / 1000 / FOE_SPD, ci: ci, starts: starts, done: false }; fxWarn(e, hitT); fxFoeAtk(e, hitT); // 予兆と武器の軌跡（battle/fx4.js）
 }
 function hitHero(e) {
   var h = G.hero; h.hp -= e.dmg; h.inv = 0.45; h.flash = 0.25; G.shake = Math.max(G.shake, e.boss ? 12 : 6); fxHurt(h, e); G.freeze = Math.max(G.freeze, e.boss ? 0.08 : 0.04);
