@@ -2,6 +2,14 @@
 
 プロジェクトの `03` の「引き継ぎ」の先頭に、そのまま貼る用。
 
+## 2026-10-31 20:35 エフェクト拡充①：一騎打ち（push 済み）
+* 調査（Riot/Blizzard GDC 2017「予兆→当たり→余韻」、Riot「見た目の衝撃＝効果の大きさ」、Capcom のヒットストップ弱/中/強、Eiserloh の trauma 揺れ、被弾の白い光、インパクトフレーム、PixiJS/three のブルーム・衝撃波）。WebGL/PixiJS は「Canvas 2D でも足りなければ切り替えを検討」（ユーザー）。
+* `terrain/fx_slash.js` に土台：`hitStop(ms)`・`isHeld`（エフェクトと clipActor のコマを止める）、`layer(..., bloom)` と slashFX のブルーム（1/3 解像度に写して CSS blur＋screen）、`shaker(el)`（trauma²×なめらかなノイズ、CSS の translate/rotate）、`warpFX(el)`（SVG 乱流の歪み。背景 `.bg` だけに）。
+* 技の形 `FXPAL`・`burstFX`（掌打・蹴り）・`crackFX`（斧の地割れ）・`chainFX`（ミナの鎖）・`glyphFX`（セラの紋様）・`smokeFX`（黒騎士・大公の闇）。slashFX に `pal`・`ang`・`len`・`thick`・`bend`。
+* main.js：`STYLE`（仲間）・`FSTYLE`（敵将）・`strikeFX`。重さ3段階 `HS`（60/110/170ms）・`TRAUMA`（.3/.55/.9）。打たれた側を一瞬白く（`.hf`）→赤。決着はインパクトフレーム（`.imf`→`.imf2`、各1〜2コマ）＋背景の歪み。星震の大きな一撃にも揺れと歪み。
+* 確認：試しのページ `terrain/_fxtest.html`（コミットしない、.git/info/exclude）でコマ送り（40〜460ms）、実戦は `duel_shot.js 2 garou,mina win`。直したもの：地割れ（横線→放射状）、紋様（大きすぎ・白飛び→小さく暗い下地）、煙（黒い円盤→薄く散らす）。実機は未確認。
+* 次：任せた戦闘（兵のぶつかり・敵将の撃破・決着）→ アクション戦闘の仲間の連携を同じ形に。
+
 ## 2026-10-31 20:15 ランカとリリィのバックボーン（push 済み）
 * ユーザーが2人の過去を書いた → `claude/06b_backbone_ranka_lily.md`（そのまま保存）。ストーリーを書くときはこれを正にする。
 * 反映：第4章のランカの出自（寺で育った拾われっ子、国を追われた王子と旅をした＝ラナに重ねる）、第4章の終わりの戦の言い方、第5章のリリィ（銀狼騎士団の団長、黙って大陸を出たランカを追う、英雄と呼ばれるのを嫌うランカ）。

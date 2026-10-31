@@ -10,6 +10,15 @@ const PAL = {
   red: { glow: [255, 110, 70], main: [235, 50, 30], core: [255, 244, 225], spark: [255, 190, 120] },
 };
 const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
+/* ===== 2026-10-31 土台：ヒットストップ・ブルーム（調査：Capcom の弱/中/強の止め、Riot/Blizzard の「予兆→当たり→余韻」） =====
+   hitStop(ms)：その間、エフェクトの時間（と main.js の clipActor のコマ送り）を止める。重い当たりほど長く。 */
+let HOLD = 0;
+export const hitStop = ms => { HOLD = Math.max(HOLD, performance.now() + ms); };
+export const isHeld = now => now < HOLD;
+// ブルーム：光の層を 1/3 の解像度に写し、CSS でぼかして screen で重ねる（光っている所だけがにじむ。WebGL なしの軽い方法）
+function bloomOf(cv, z) { const b = document.createElement('canvas'), k = 1 / 3; b.width = Math.max(1, Math.round(cv.width * k)); b.height = Math.max(1, Math.round(cv.height * k));
+  b.style.cssText = `position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:${z};mix-blend-mode:screen;filter:blur(5px) brightness(1.25);opacity:.9`;
+  cv.after(b); const bx = b.getContext('2d'); return { copy() { bx.clearRect(0, 0, b.width, b.height); bx.drawImage(cv, 0, 0, b.width, b.height); }, remove() { b.remove(); } }; }
 const easeOut = t => 1 - Math.pow(1 - t, 3);
 const clamp01 = t => Math.max(0, Math.min(1, t));
 
@@ -53,9 +62,9 @@ export function slashFX(host, o) {
   cv.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:7;mix-blend-mode:screen';
   host.appendChild(cv);
   const ctx = cv.getContext('2d'); ctx.scale(dpr, dpr);
-  const pal = PAL[o.color] || PAL.blue, dir = o.dir || 1, sp = o.speed || 1, size = o.size;
+  const pal = o.pal || PAL[o.color] || PAL.blue, dir = o.dir || 1, sp = o.speed || 1, size = o.size, BL = o.bloom === false ? null : bloomOf(cv, 7);
   // 斬撃の本数：通常は1本（右上→左下へ振り下ろす）、大技は時間差で2本目が交差する
-  const cuts = [{ arc: makeArc(o.x, o.y, size * 1.35, dir, .62, size * .3), t0: 0, w: size * .11 }];
+  const cuts = [{ arc: makeArc(o.x, o.y, size * (o.len || 1.35), dir, o.ang ?? .62, size * (o.bend ?? .3)), t0: 0, w: size * .11 * (o.thick || 1) }];
   if (o.big) cuts.push({ arc: makeArc(o.x, o.y - size * .04, size * 1.45, dir, -.5, size * .26), t0: 110, w: size * .13 });
   const SWING = 130, FADE = 300; // 刃が走る時間・消える時間（ms、×1のとき）
   // 層：lag＝先端の遅れ（ms）、tail＝根本がどれだけ遅れて追うか、w＝太さ、a＝濃さ
@@ -75,10 +84,10 @@ export function slashFX(host, o) {
     }
   };
   const flash = { at: 40, dur: 160 }; // 当たりの瞬間の光
-  let start = 0, prev = 0;
+  let prev = 0, T = 0;
   const frame = now => {
-    if (!start) { start = prev = now; }
-    const T = (now - start) * sp, dt = Math.min(50, now - prev) * sp / 1000; prev = now;
+    if (!prev) prev = now; if (isHeld(now)) { prev = now; requestAnimationFrame(frame); return; } // ヒットストップ中は止める
+    const dt = Math.min(50, now - prev) * sp / 1000; T += dt * 1000; prev = now;
     ctx.clearRect(0, 0, W, H); ctx.globalCompositeOperation = 'lighter';
     let alive = false;
     cuts.forEach((c, ci) => {
@@ -111,7 +120,8 @@ export function slashFX(host, o) {
       ctx.strokeStyle = g; ctx.lineWidth = s.r * (.5 + .5 * k); ctx.lineCap = 'round';
       ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(ex, ey); ctx.stroke();
     }
-    if (alive) requestAnimationFrame(frame); else cv.remove();
+    if (BL) BL.copy();
+    if (alive) requestAnimationFrame(frame); else { cv.remove(); BL && BL.remove(); }
   };
   requestAnimationFrame(frame);
   return cv;
@@ -121,17 +131,18 @@ export function slashFX(host, o) {
 PAL.teal = { glow: [70, 230, 200], main: [40, 200, 180], core: [240, 255, 250], spark: [180, 255, 230] };
 PAL.red.dark = [40, 0, 0]; PAL.gold = { glow: [255, 170, 40], main: [255, 205, 100], core: [255, 250, 228], spark: [255, 226, 150], dark: [60, 30, 0] };
 // キャンバスを重ねて draw(ctx, T, dt) を回す。draw が false を返したら消す
-function layer(host, sp, draw, z = 7, blend = 'screen') { // blend＝'normal' のときは、暗い下地を描ける（明るい背景で色を残す）
+function layer(host, sp, draw, z = 7, blend = 'screen', bloom = false) { // blend＝'normal' のときは、暗い下地を描ける（明るい背景で色を残す）。bloom＝光をにじませる
   const dpr = Math.min(2, window.devicePixelRatio || 1), W = host.clientWidth, H = host.clientHeight;
   const cv = document.createElement('canvas'); cv.width = W * dpr; cv.height = H * dpr;
   cv.style.cssText = `position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:${z};mix-blend-mode:${blend}`;
   host.appendChild(cv); const ctx = cv.getContext('2d'); ctx.scale(dpr, dpr);
-  let start = 0, prev = 0, dead = false;
-  const frame = now => { if (dead) return; if (!start) start = prev = now; const T = (now - start) * sp, dt = Math.min(50, now - prev) * sp / 1000; prev = now;
+  let prev = 0, T = 0, dead = false; const BL = bloom && blend === 'screen' ? bloomOf(cv, z) : null;
+  const kill = () => { dead = true; cv.remove(); BL && BL.remove(); };
+  const frame = now => { if (dead) return; if (!prev) prev = now; if (isHeld(now)) { prev = now; requestAnimationFrame(frame); return; } const dt = Math.min(50, now - prev) * sp / 1000; T += dt * 1000; prev = now;
     ctx.clearRect(0, 0, W, H); ctx.globalCompositeOperation = 'lighter';
-    if (draw(ctx, T, dt) === false) { cv.remove(); dead = true; return; } requestAnimationFrame(frame); };
+    if (draw(ctx, T, dt) === false) { kill(); return; } BL && BL.copy(); requestAnimationFrame(frame); };
   requestAnimationFrame(frame);
-  return { stop() { dead = true; cv.remove(); }, cv };
+  return { stop: kill, cv };
 }
 const glow = (ctx, x, y, r, pal, a) => { if (a <= 0) return; const g = ctx.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, rgba(pal.core, .7 * a)); g.addColorStop(.3, rgba(pal.main, .3 * a)); g.addColorStop(1, rgba(pal.glow, 0)); ctx.fillStyle = g; ctx.fillRect(x - r, y - r, r * 2, r * 2); };
 const streak = (ctx, x, y, vx, vy, len, w, col, a) => { const m = Math.hypot(vx, vy) || 1, ex = x - vx / m * len, ey = y - vy / m * len, g = ctx.createLinearGradient(x, y, ex, ey); g.addColorStop(0, rgba(col, a)); g.addColorStop(1, rgba(col, 0)); ctx.strokeStyle = g; ctx.lineWidth = w; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(ex, ey); ctx.stroke(); };
@@ -245,4 +256,115 @@ export function starFX(host, at, df, o = {}) {
     if (T >= QK) { const k = ease((T - QK) / 600); if (k < 1) for (const [rr, c] of [[1.4, SKY.glow], [.9, SKY.gold]]) { ring(ctx, f.cx, f.by, f.h * rr * (.2 + k), 10 * (1 - k) + 2, c, 1 - k); ring(ctx, f.cx, f.by, f.h * rr * (.2 + k), 2, SKY.core, 1 - k); } }
     return T < END;
   }, 8);
+}
+
+/* ===== 2026-10-31 技ごとの形（調査：「形で何の技か読める」Riot、「重さで止め・揺れ・光を変える」） =====
+   色：味方は青系（ラナは赤黒・金、ミナは拘束の紫、セラは癒しの緑金、ランカ・リリィは青白・金）、敵は赤系（黒騎士・大公は赤紫の闇） */
+export const FXPAL = {
+  rana: { glow: [255, 90, 60], main: [200, 25, 35], core: [255, 238, 205], spark: [255, 205, 110], dark: [40, 0, 8] },
+  azure: { glow: [90, 170, 255], main: [55, 125, 255], core: [255, 246, 222], spark: [255, 212, 130], dark: [0, 10, 40] },
+  violet: { glow: [190, 120, 255], main: [140, 70, 255], core: [246, 236, 255], spark: [214, 184, 255], dark: [26, 6, 56] },
+  jade: { glow: [140, 240, 160], main: [70, 205, 140], core: [252, 255, 230], spark: [240, 230, 140], dark: [0, 30, 16] },
+  sky: { glow: [90, 150, 255], main: [120, 185, 255], core: [235, 245, 255], spark: [255, 214, 120], dark: [4, 8, 30] },
+  silver: { glow: [150, 190, 255], main: [110, 150, 255], core: [252, 253, 255], spark: [220, 232, 255], dark: [6, 10, 30] },
+  red: { glow: [255, 110, 70], main: [235, 50, 30], core: [255, 244, 225], spark: [255, 190, 120], dark: [40, 0, 0] },
+  steel: { glow: [255, 140, 90], main: [215, 70, 40], core: [255, 248, 230], spark: [255, 214, 150], dark: [40, 8, 0] },
+  abyss: { glow: [230, 60, 130], main: [140, 10, 80], core: [255, 215, 240], spark: [255, 120, 200], dark: [24, 0, 22] }
+};
+
+// 画面の揺れ（Eiserloh の trauma 方式）：当たりで trauma を足し、時間で減らす。揺れ＝trauma²×なめらかなノイズ。CSS の translate/rotate で（カメラの transform と重ならない）
+export function shaker(el, maxPx = 14, maxDeg = 1.2) {
+  let tr = 0, raf = 0, prev = 0, t = 0;
+  const n = (x, a) => Math.sin(x * 1.7 + a) * .5 + Math.sin(x * 3.1 + a * 2.3) * .3 + Math.sin(x * 5.3 + a * 1.1) * .2; // なめらかな揺らぎ（乱数ではなく連続）
+  const tick = now => { const dt = Math.min(.05, (now - (prev || now)) / 1000); prev = now; t += dt * 18; tr = Math.max(0, tr - dt * 1.6);
+    const s = tr * tr; el.style.translate = s ? `${(maxPx * s * n(t, 0)).toFixed(2)}px ${(maxPx * s * n(t, 4)).toFixed(2)}px` : ''; el.style.rotate = s ? `${(maxDeg * s * n(t, 9)).toFixed(3)}deg` : '';
+    raf = tr > 0 ? requestAnimationFrame(tick) : 0; if (!raf) prev = 0; };
+  return { add(v) { tr = Math.min(1, tr + v); if (!raf) raf = requestAnimationFrame(tick); }, stop() { tr = 0; cancelAnimationFrame(raf); raf = 0; el.style.translate = el.style.rotate = ''; } };
+}
+
+// 集中線（漫画の効果線）：相手の周りから中心へ向かう細い楔。重い当たり・決着だけ
+function speedLines(ctx, x, y, size, pal, k, seed) {
+  for (let i = 0; i < seed.length; i++) { const q = seed[i], a = q.a, r0 = size * (.55 + q.r * .25), r1 = r0 + size * (.6 + q.l * .9), w = size * .012 * q.w;
+    const c = Math.cos(a), s = Math.sin(a), g = ctx.createLinearGradient(x + c * r1, y + s * r1, x + c * r0, y + s * r0); g.addColorStop(0, rgba(pal.glow, 0)); g.addColorStop(1, rgba(q.g ? pal.spark : pal.core, .75 * k));
+    ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(x + c * r1 - s * w, y + s * r1 + c * w); ctx.lineTo(x + c * r0, y + s * r0); ctx.lineTo(x + c * r1 + s * w, y + s * r1 - c * w); ctx.closePath(); ctx.fill(); }
+}
+const lineSeed = n => Array.from({ length: n }, () => ({ a: Math.random() * 6.283, r: Math.random(), l: Math.random(), w: .6 + Math.random() * 1.4, g: Math.random() < .3 }));
+
+// 打撃（掌打・蹴り）：①芯の光 ②体の高さの衝撃の輪（縦に潰さない円）×2 ③床の輪 ④打った向きの楔 ⑤火花 ⑥（重いとき）集中線
+export function burstFX(host, o) {
+  const pal = o.pal || FXPAL.sky, size = o.size, dir = o.dir || 1, heavy = !!o.heavy, sp = o.speed || 1;
+  const rays = Array.from({ length: heavy ? 12 : 7 }, () => ({ a: (Math.random() - .5) * 1.3 + (dir > 0 ? 0 : Math.PI), L: .5 + Math.random() * .7, w: .6 + Math.random() * .8 }));
+  const S = sparkSet(heavy ? 34 : 18, dir, .9, 2.8, size), SL = heavy ? lineSeed(30) : null, END = heavy ? 640 : 460;
+  return layer(host, sp, (ctx, T) => {
+    if (T < 90) { glow(ctx, o.x, o.y, size * (.3 + T / 300), pal, 1 - T / 90); star4(ctx, o.x, o.y, size * (.7 - T / 300), dir > 0 ? .2 : -.2, pal.core, .9 * (1 - T / 90)); }
+    for (let j = 0; j < 2; j++) { const k = easeOut(clamp01((T - j * 60) / 300)); if (k > 0 && k < 1) { ring(ctx, o.x, o.y, size * (.12 + .55 * k), size * .05 * (1 - k) + 1, pal.glow, .9 * (1 - k), 1); ring(ctx, o.x, o.y, size * (.12 + .55 * k), 1.6, pal.core, (1 - k), 1); } }
+    const kf = easeOut(clamp01(T / 380)); if (kf < 1) { ring(ctx, o.x, o.y + size * .45, size * (.2 + .8 * kf), size * .03 * (1 - kf) + 1, pal.glow, .7 * (1 - kf)); }
+    const rf = clamp01(1 - (T - 60) / 220), rk = easeOut(clamp01(T / 110));
+    if (rf > 0) for (const r of rays) { const L = size * .8 * r.L * rk, w = size * .03 * r.w * rf, c = Math.cos(r.a), s = Math.sin(r.a), g = ctx.createLinearGradient(o.x, o.y, o.x + c * L, o.y + s * L);
+      g.addColorStop(0, rgba(pal.core, .8 * rf)); g.addColorStop(.4, rgba(pal.main, .45 * rf)); g.addColorStop(1, rgba(pal.glow, 0)); ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(o.x - s * w, o.y + c * w); ctx.lineTo(o.x + c * L, o.y + s * L); ctx.lineTo(o.x + s * w, o.y - c * w); ctx.closePath(); ctx.fill(); }
+    if (SL && T < 260) speedLines(ctx, o.x, o.y, size, pal, 1 - T / 260, SL);
+    return drawSparkSet(ctx, S, o.x, o.y, T, pal, size) || T < END;
+  }, 8, 'screen', true);
+}
+
+// 地割れ（斧の叩き割り）：着地点から床に沿って走るギザギザの裂け目（暗い下地→光る芯）＋土ぼこり（通常の合成・茶）
+export function crackFX(host, o) {
+  const pal = o.pal || FXPAL.azure, size = o.size, sp = o.speed || 1, gy = o.y;
+  const cracks = Array.from({ length: 8 }, (_, i) => { let th = i / 8 * 6.283 + (Math.random() - .5) * .5, x = 0, y = 0; const n = 5 + Math.floor(Math.random() * 3), L = size * (.06 + Math.random() * .05), pts = [[0, 0]];
+    for (let j = 1; j <= n; j++) { th += (Math.random() - .5) * .9; x += Math.cos(th) * L; y += Math.sin(th) * L; pts.push([x, y]); } return { pts, d: Math.random() * 40 }; }); // 着地点から放射状に、折れながら走る裂け目（縦は床の奥行きで潰す）
+  const dust = Array.from({ length: 14 }, () => ({ x: (Math.random() - .5) * size * 1.2, vx: (Math.random() - .5) * size * .9, vy: -size * (.3 + Math.random() * .5), r: size * (.08 + Math.random() * .1), d: Math.random() * 80 }));
+  return layer(host, sp, (ctx, T) => {
+    ctx.globalCompositeOperation = 'source-over';
+    for (const q of dust) { const t = (T - q.d) / 1000; if (t < 0 || t > .9) continue; const k = 1 - t / .9, x = o.x + q.x + q.vx * t, y = gy + q.vy * t + size * .5 * t * t, r = q.r * (1 + t * 1.6), g = ctx.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, `rgba(110,86,60,${.45 * k})`); g.addColorStop(1, 'rgba(110,86,60,0)'); ctx.fillStyle = g; ctx.fillRect(x - r, y - r, r * 2, r * 2); }
+    for (const c of cracks) { const k = easeOut(clamp01((T - c.d) / 140)), fd = clamp01(1 - (T - 300) / 500); if (k <= 0 || fd <= 0) continue; const m = Math.max(1, Math.ceil(k * (c.pts.length - 1)));
+      for (const [col, w, a, comp] of [[pal.dark, 6, .55, 'source-over'], [pal.glow, 4, .7, 'lighter'], [pal.core, 1.4, 1, 'lighter']]) { ctx.globalCompositeOperation = comp; ctx.strokeStyle = rgba(col, a * fd); ctx.lineWidth = w; ctx.lineJoin = 'round'; ctx.beginPath(); ctx.moveTo(o.x, gy); for (let j = 1; j <= m; j++) ctx.lineTo(o.x + c.pts[j][0], gy + c.pts[j][1] * .35); ctx.stroke(); } }
+    ctx.globalCompositeOperation = 'lighter'; if (T < 140) glow(ctx, o.x, gy, size * .6, pal, 1 - T / 140);
+    return T < 900;
+  }, 6, 'normal');
+}
+
+// 鎖（ミナ）：打つ側から相手へ、たるんだ線が一気に伸びて張り、点線が流れる → 相手に拘束の輪（紫）
+export function chainFX(host, o) {
+  const pal = o.pal || FXPAL.violet, sp = o.speed || 1, END = 620;
+  return layer(host, sp, (ctx, T) => {
+    const k = easeOut(clamp01(T / 120)), fd = clamp01(1 - (T - 260) / 340); if (fd <= 0) return T < END;
+    const ex = o.x0 + (o.x1 - o.x0) * k, ey = o.y0 + (o.y1 - o.y0) * k, sag = (1 - clamp01((T - 120) / 80)) * 40 + 6, mx = (o.x0 + ex) / 2, my = (o.y0 + ey) / 2 + sag;
+    for (const [col, w, a, dash] of [[pal.glow, 7, .5, null], [pal.main, 3, .9, [10, 7]], [pal.core, 1.2, 1, [10, 7]]]) { ctx.strokeStyle = rgba(col, a * fd); ctx.lineWidth = w; ctx.setLineDash(dash || []); ctx.lineDashOffset = -T * .25; ctx.beginPath(); ctx.moveTo(o.x0, o.y0); ctx.quadraticCurveTo(mx, my, ex, ey); ctx.stroke(); }
+    ctx.setLineDash([]);
+    if (T > 100) { const b = clamp01((T - 100) / 200); for (let j = 0; j < 2; j++) ring(ctx, o.x1, o.y1 + o.r * .1 * j, o.r * (1.1 - .35 * b) * (1 - j * .2), 3 - j, j ? pal.core : pal.glow, fd, .35); glow(ctx, o.x1, o.y1, o.r * .9, pal, .6 * fd * (1 - b * .5)); }
+    return T < END;
+  }, 8, 'screen', true);
+}
+
+// 紋様（セラの本の術）：相手の前に、回りながら縮む2重の円と刻み・6つの小さな印 → 閉じた瞬間に光がはじける
+export function glyphFX(host, o) {
+  const pal = o.pal || FXPAL.jade, size = o.size, sp = o.speed || 1, S = sparkSet(22, 0, .6, 2, size), CL = 260;
+  return layer(host, sp, (ctx, T) => {
+    if (T < CL) { const k = easeOut(T / CL), r = size * (.6 - .3 * k), rot = T / 180, a = Math.min(1, T / 80);
+      ctx.globalCompositeOperation = 'source-over'; for (const rr of [1, .78]) { ctx.strokeStyle = rgba(pal.dark, .45 * a); ctx.lineWidth = 7; ctx.beginPath(); ctx.ellipse(o.x, o.y, r * rr, r * rr * .92, 0, 0, 7); ctx.stroke(); } ctx.globalCompositeOperation = 'lighter'; // 明るい背景でも線が残るよう、暗い下地
+      for (const [rr, w, c] of [[1, 3, pal.glow], [1, 1.4, pal.core], [.78, 2, pal.main]]) { ctx.strokeStyle = rgba(c, a); ctx.lineWidth = w; ctx.beginPath(); ctx.ellipse(o.x, o.y, r * rr, r * rr * .92, 0, 0, 7); ctx.stroke(); }
+      for (let i = 0; i < 24; i++) { const th = rot + i / 24 * 6.283, c = Math.cos(th), s = Math.sin(th); ctx.strokeStyle = rgba(pal.main, .8 * a); ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(o.x + c * r * .82, o.y + s * r * .76); ctx.lineTo(o.x + c * r * .92, o.y + s * r * .85); ctx.stroke(); }
+      for (let i = 0; i < 6; i++) { const th = -rot * 1.4 + i / 6 * 6.283; star4(ctx, o.x + Math.cos(th) * r * .62, o.y + Math.sin(th) * r * .57, size * .07, th, pal.spark, a); } return true; }
+    const t = T - CL; if (t < 200) { glow(ctx, o.x, o.y, size * (.4 + t / 400), pal, 1 - t / 200); ring(ctx, o.x, o.y, size * (.45 + t / 300), 2, pal.core, 1 - t / 200, .92); }
+    return drawSparkSet(ctx, S, o.x, o.y, t, pal, size) || t < 420;
+  }, 8, 'normal');
+}
+
+// 闇の煙（黒騎士・大公）：当たりの周りに、縁の柔らかい暗い煙（通常の合成）と赤紫の光の粒
+export function smokeFX(host, o) {
+  const size = o.size, sp = o.speed || 1, P = Array.from({ length: 16 }, () => ({ a: Math.random() * 6.283, v: size * (.35 + Math.random() * .6), r: size * (.06 + Math.random() * .08), d: Math.random() * 90 }));
+  return layer(host, sp, (ctx, T) => { const t = T / 1000; if (t > .8) return false; const k = 1 - t / .8; ctx.globalCompositeOperation = 'source-over';
+    for (const q of P) { const tt = Math.max(0, t - q.d / 1000), x = o.x + Math.cos(q.a) * q.v * tt, y = o.y + Math.sin(q.a) * q.v * tt * .6 - size * .25 * tt, r = q.r * (1 + tt * 3), g = ctx.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, `rgba(30,4,26,${.22 * k * Math.min(1, tt * 12)})`); g.addColorStop(.5, `rgba(30,4,26,${.1 * k})`); g.addColorStop(1, 'rgba(30,4,26,0)'); ctx.fillStyle = g; ctx.fillRect(x - r, y - r, r * 2, r * 2); }
+    return true; }, 6, 'normal');
+}
+
+// 空間の歪み（決着の一撃だけ）：SVG の乱流で舞台を一瞬ゆがめる（PixiJS の ShockwaveFilter の代わり。重いので短く）
+let WARP = null;
+export function warpFX(el, ms = 360, amp = 26) {
+  if (!WARP) { const ns = 'http://www.w3.org/2000/svg', sv = document.createElementNS(ns, 'svg'); sv.setAttribute('width', 0); sv.setAttribute('height', 0); sv.style.position = 'absolute';
+    sv.innerHTML = '<filter id="fxwarp" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.012 0.03" numOctaves="2" seed="3" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="0" xChannelSelector="R" yChannelSelector="G"/></filter>';
+    document.body.appendChild(sv); WARP = sv.querySelector('feDisplacementMap'); }
+  const t0 = performance.now(); el.style.filter = 'url(#fxwarp)';
+  const tick = now => { const u = (now - t0) / ms; if (u >= 1) { el.style.filter = ''; WARP.setAttribute('scale', 0); return; } WARP.setAttribute('scale', (amp * Math.sin(Math.PI * u) * (1 - u * .5)).toFixed(1)); requestAnimationFrame(tick); };
+  requestAnimationFrame(tick);
 }

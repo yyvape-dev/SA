@@ -5,7 +5,7 @@ import * as GM from './game.js?v=1794300000';
 import { createUI } from './ui.js?v=1793650000';
 import { createMorning } from './morning.js?v=1793800000';
 import { createStory } from './story.js?v=1794300000';
-import { slashFX, impactFX, clashFX, chargeFX, rallyFX, starFX } from './fx_slash.js?v=1793640000';
+import { slashFX, impactFX, clashFX, chargeFX, rallyFX, starFX, hitStop, isHeld, shaker, FXPAL, burstFX, crackFX, chainFX, glyphFX, smokeFX, warpFX } from './fx_slash.js?v=1794400000';
 
 const layout = await (await fetch('data/layout.json?v=2')).json();
 const REF_W = layout.world.w, REF_H = layout.world.h, AREA0_W = 941; // 世界の大きさ（基準画像の画素）
@@ -886,6 +886,7 @@ const dCss = document.createElement('style'); dCss.textContent = `
 #duel .L{left:9%}#duel .R{right:8%}
 #duel.pair .L{left:23%}#duel .L2{left:0%}
 #duel .f.rn .sp .sh{display:none}#duel .f.rn .sp{filter:brightness(1.15) saturate(1.1)}#duel .L.rn{left:19%}#duel.pair .L.rn{left:27%}#duel .L2.rn{left:12%}#duel.rn2 .L{left:33%} /* ラナ：黒い鎧が陰の層で沈むので陰を外して明るく。剣が体の左へ長く出るので、右へ寄せる（2026-10-31 ユーザー） */#duel.pair .f.bk{bottom:17%} /* 2人参戦：前に出ている方が手前、もう1人は少し奥（2026-10-31） */
+#duel .f.hf .sp,#duel .f.hf img{filter:brightness(2.6) saturate(.25)!important}#duel .stage.imf .cam{filter:grayscale(1) contrast(2.4) brightness(1.35)}#duel .stage.imf2 .cam{filter:invert(1) grayscale(1) contrast(1.6)} /* 被弾の白い光・決着のインパクトフレーム（2026-10-31） */
 #duel .fw .fc2{position:absolute;right:-16%;bottom:-8%;width:48%;height:48%;border-radius:50%;object-fit:cover;z-index:1}
 #duel .cam{position:absolute;inset:0;transform-origin:50% 72%;transition:transform .26s cubic-bezier(.2,.7,.3,1)}#duel .cam .bg{position:absolute;inset:-2%;background:#222 center 66%/cover no-repeat}
 #duel .f.chg .sp,#duel .f.chg img{animation:dchg .45s ease-in-out infinite alternate}@keyframes dchg{from{filter:drop-shadow(0 0 calc(3*var(--u)) #ff4a2a) drop-shadow(0 0 calc(8*var(--u)) #b0100088)}to{filter:drop-shadow(0 0 calc(5*var(--u)) #ff6a3a) drop-shadow(0 0 calc(14*var(--u)) #c01000aa)}}#duel .f.ko .sp,#duel .f.ko img{filter:grayscale(.7) brightness(.62)!important;transition:filter .9s .3s}#duel .stage.kof::before{content:'';position:absolute;inset:0;background:#fff3d6;z-index:9;pointer-events:none;animation:kof .55s ease-out forwards}@keyframes kof{from{opacity:.7}to{opacity:0}}
@@ -962,6 +963,20 @@ const foeLook = () => G.raid && (G.raid.boss || G.raid.gen) ? 4 : G.raid && G.ra
 const genDuelLook = () => { const g = G.raid && G.raid.gen; if (!g) return null; const k = 'g' + g + (g === 6 ? 'b' : ''); return (FOEDUEL[k] || []).length ? k : g === 6 && (FOEDUEL.g6 || []).length ? 'g6' : null; };
 const dLook = () => genDuelLook() || foeLook(), dHum = l => HUMAN[String(l)[0] === 'g' ? l : 'f' + l] || 178;
 const foeFace = l => String(l)[0] === 'g' ? `assets/npc/bust_${l}.webp` : `assets/npc/foe_${l}.webp`; // 隊長＝槍兵かフードの山賊（週で入れ替え）、副官＝羽飾りの兵、将軍＝斧の山賊
+/* 2026-10-31 技の形と色（形で何の技か読める）。[形, 色, 闇の煙] */
+const STYLE = { rana: ['slash', 'rana'], garou: ['cleave', 'azure'], mina: ['lash', 'violet'], sera: ['glyph', 'jade'], ranka: ['palm', 'sky'], lily: ['kick', 'silver'] };
+const FSTYLE = { g1: ['cleave', 'red'], g2: ['cleave', 'red'], g3: ['slash', 'red'], g4: ['slash', 'abyss', 1], g5: ['slash', 'steel'], g6: ['slash', 'abyss', 1], g6b: ['slash', 'abyss', 1] };
+const HS = { light: 60, heavy: 110, fin: 170 }, TRAUMA = { light: .3, heavy: .55, fin: .9 }; // 重さ3段階：止める ms（Capcom の弱/中/強の考え方）と揺れ
+function strikeFX(stage, st, o) { // o＝{x,y,size,dir,big,speed,fb（相手の足元 y）,ax,ay（打つ側の手元）}
+  const [kind, pn, smoke] = st, pal = FXPAL[pn] || FXPAL.red, big = o.big;
+  if (kind === 'cleave') { slashFX(stage, { ...o, pal, ang: 1.2, len: 1.15, thick: 1.6, bend: .16 }); crackFX(stage, { x: o.x, y: o.fb, size: o.size, pal, speed: o.speed }); }
+  else if (kind === 'palm') burstFX(stage, { ...o, pal, heavy: big });
+  else if (kind === 'kick') { slashFX(stage, { ...o, pal, ang: -.2, len: .95, thick: .85, bend: .38, big: false }); burstFX(stage, { ...o, size: o.size * .8, pal, heavy: big }); }
+  else if (kind === 'lash') { chainFX(stage, { x0: o.ax, y0: o.ay, x1: o.x, y1: o.y, r: o.size * .45, pal, speed: o.speed }); burstFX(stage, { ...o, size: o.size * .7, pal, heavy: false }); }
+  else if (kind === 'glyph') glyphFX(stage, { ...o, pal });
+  else slashFX(stage, { ...o, pal });
+  if (smoke) smokeFX(stage, { x: o.x, y: o.y, size: o.size, speed: o.speed });
+}
 const FOLLOW = 380; // 当たりのあと、振り抜きを見せる長さ（ミリ秒）
 function clipActor(el, sp, clips, base, T, run, runBase) { // 動画由来の連番を、枠(el)の中に出す。立ち姿の中心を揃え、足元は枠の下端。run＝横向きの走り（あれば）
   // 連番ごとに層（div）を最初に全部作り、切り替えは表示/非表示だけ（絵の差し替えで GPU への載せ直しが起きて、つなぎで止まるのを防ぐ）
@@ -982,7 +997,7 @@ function clipActor(el, sp, clips, base, T, run, runBase) { // 動画由来の連
   let curL = null, seq = null, raf = 0;
   const show = Lo => { if (curL === Lo) return; if (curL) curL.L.style.visibility = 'hidden'; curL = Lo; Lo.L.style.visibility = 'visible'; };
   [...lay, runLay].forEach(x => x && (x.L.style.visibility = 'hidden')); show(lay[0]); lay[0].set(0);
-  const tick = now => { raf = 0; if (!seq || !el.isConnected) return; const t = now - seq.t0; // seq：{ Lo, ts（各コマの開始ミリ秒）, end, loop, done }
+  let lastNow = 0; const tick = now => { raf = 0; if (!seq || !el.isConnected) return; const dh = now - (lastNow || now); lastNow = now; if (isHeld(now)) { seq.t0 += dh; if (seq.prev) seq.prev.t0 += dh; } const t = now - seq.t0; // ヒットストップ中は、開始時刻をずらしてコマを止める。seq：{ Lo, ts（各コマの開始ミリ秒）, end, loop, done }
     if (t < 0) { const p = seq.prev; if (p) { show(p.Lo); p.Lo.set(Math.floor((now - p.t0) / p.step) % p.n); } raf = requestAnimationFrame(tick); return; } // 始まるまでは、前の走りを回し続ける
     if (seq.loop) { show(seq.Lo); seq.Lo.set(Math.floor(t / seq.step) % seq.n); }
     else { if (t >= seq.end) { const d = seq.done; seq = null; d && d(); return; } let i = 0; while (i + 1 < seq.ts.length && seq.ts[i + 1] <= t) i++; show(seq.Lo); seq.Lo.set(i); }
@@ -1027,7 +1042,7 @@ function playDuel(kIn, done) { // 画面いっぱいの一騎打ち。五合の�
   duelEl.classList.toggle('pair', pair); duelEl.classList.toggle('rn2', pair && ks[1] === 'rana');
   const $ = q => duelEl.querySelector(q), L = $('.L'), L2 = $('.L2'), Rf = $('.R'), hl = $('.sd:not(.r) .hp b'), hr = $('.sd.r .hp b'), pips = [...duelEl.querySelectorAll('.pips i')], tm = $('.tm b'), gb = $('.go2'), stt = $('.stt'), bal = $('.bal b'), balu = $('.bal u'), stage = $('.stage'), cam = $('.cam');
   let timers = [], spd = 1, hpL = 100, hpR = 100, aw = 0, fw = 0, nextI = 0, left = GM.orders(G), used = left <= 0, armed = false, inWin = false, over = false, winT = null, cur = -1;
-  let chg = null; const stopChg = () => { if (chg) { chg.stop(); chg = null; } }; // 大技の構えの気配（fx_slash.js chargeFX）
+  const shk = shaker(cam); let chg = null; const stopChg = () => { if (chg) { chg.stop(); chg = null; } }; // 大技の構えの気配（fx_slash.js chargeFX）
   const T = (f, ms) => { const t = setTimeout(f, ms); timers.push(t); return t; }, D = ms => ms / spd;
   const actL = clipActor(L, L.querySelector('.sp') || document.createElement('div'), [...(DUEL_CLIP[k] || []), ...((R.boss || R.gen) ? DUEL_CLIP[k + '_ult'] || [] : [])], '../ally/', T, runClipOf(k), '../ally/');
   const actL2 = pair ? clipActor(L2, L2.querySelector('.sp') || document.createElement('div'), [...(DUEL_CLIP[ks[1]] || []), ...((R.boss || R.gen) ? DUEL_CLIP[ks[1] + '_ult'] || [] : [])], '../ally/', T, runClipOf(ks[1]), '../ally/') : null;
@@ -1068,15 +1083,20 @@ function playDuel(kIn, done) { // 画面いっぱいの一騎打ち。五合の�
       pe.style.zIndex = 4; pe.style.transition = `transform ${D(380)}ms ease-in`; pe.style.transform = `translateX(${pdx}px)`;
       const pp = pa ? pa.play(Math.max(0, D(260)), 0) : { hitAt: D(560) }, ph = Math.min(pp.hitAt, P.hitAt - D(220));
       T(() => { const rs2 = stage.getBoundingClientRect(), r2 = df.getBoundingClientRect(), hsz = Math.min(rs2.height * .95, r2.height * 1.05);
-        slashFX(stage, { x: (r2.left + r2.right) / 2 - rs2.left, y: r2.top - rs2.top + r2.height * .42, size: hsz, dir: 1, big: true, speed: spd, color: 'blue' });
+        strikeFX(stage, STYLE[ks[pj]] || ['slash', 'azure'], { x: (r2.left + r2.right) / 2 - rs2.left, y: r2.top - rs2.top + r2.height * .42, size: hsz, dir: 1, big: true, speed: spd, fb: r2.bottom - rs2.top, ax: rp.right + pdx - rs2.left, ay: r2.top - rs2.top + r2.height * .42 }); hitStop(HS.heavy / spd); shk.add(TRAUMA.heavy);
         df.classList.remove('hit'); void df.offsetWidth; df.classList.add('hit'); say('l', pickOf(ALs[pj].hit), 1100); }, ph);
       T(() => { pe.style.zIndex = ''; }, P.hitAt - D(60)); T(() => { pe.style.transition = `transform ${D(420)}ms ease-in-out`; pe.style.transform = ''; }, P.hitAt + D(ultFin ? 1800 : FOLLOW + 140)); }
     T(() => { /* コードの斬撃（fx_slash.js、全戦。2026-10-30 以前は将軍戦だけ）。味方の攻撃は青、敵は赤。カメラの寄りに合わせて、画面上の相手の位置に出す */ stopChg();
       const rs2 = stage.getBoundingClientRect(), r2 = df.getBoundingClientRect(), hx = (r2.left + r2.right) / 2 - rs2.left - dir * r2.width * .05, hy = r2.top - rs2.top + r2.height * .42, hsz = Math.min(rs2.height * .95, r2.height * 1.05);
-      if (ultFin) { starFX(stage, at, df, { speed: spd, onQuake: () => { duelEl.classList.remove('shake'); void duelEl.offsetWidth; duelEl.classList.add('shake'); T(() => duelEl.classList.remove('shake'), 300); } }); } /* 星震の止め：踏み抜き→星の雨→大きな一撃（fx_slash.js starFX） */ else slashFX(stage, { x: hx, y: hy, size: hsz, dir, big, speed: spd, color: r.ally ? 'blue' : 'red' }); const sl = document.createElement('i');
+      const tier = fin ? 'fin' : big ? 'heavy' : 'light', st = r.ally ? STYLE[ks[act0]] || ['slash', 'azure'] : FSTYLE[look] || ['slash', 'red'];
+      if (ultFin) { starFX(stage, at, df, { speed: spd, onQuake: () => { shk.add(.95); warpFX(cam.querySelector('.bg'), 420, 30); } }); } /* 星震の止め：踏み抜き→星の雨→大きな一撃（fx_slash.js starFX） */
+      else { strikeFX(stage, st, { x: hx, y: hy, size: hsz, dir, big: big || fin, speed: spd, fb: r2.bottom - rs2.top - r2.height * .04, ax: (dir > 0 ? ra.right + dx : ra.left + dx) - rs.left - dir * ra.width * .2, ay: hy }); hitStop(HS[tier] / spd); }
+      shk.add(TRAUMA[tier]); df.classList.add('hf'); T(() => df.classList.remove('hf'), D(70)); /* 打たれた側を一瞬白く（そのあと赤） */
+      if (fin && !ultFin) { stage.classList.add('imf'); T(() => { stage.classList.replace('imf', 'imf2'); }, 40); T(() => stage.classList.remove('imf2'), 80); warpFX(cam.querySelector('.bg'), 380, 24); } /* 決着：白黒の1〜2コマ（インパクトフレーム）＋空間の歪み */
+      const sl = document.createElement('i');
       if (r.kind === 'counter') clashFX(stage, { x: (dir > 0 ? r2.left : r2.right) - rs2.left + dir * r2.width * .12, y: hy - hsz * .05, size: hsz * .6, speed: spd }); // 見切り：刃がぶつかる
       if (big || fin) impactFX(stage, { x: hx, y: hy, size: hsz * .7, dir, color: r.ally ? 'blue' : 'red', ko: fin, speed: spd }); // 大技・決着の一撃
-      if (fin) { stage.classList.remove('kof'); void stage.offsetWidth; stage.classList.add('kof'); } df.classList.remove('hit'); void df.offsetWidth; df.classList.add('hit'); df.style.transition = 'transform .18s ease-out'; df.style.transform = `translateX(${dir * sw * .04}px)`; duelEl.classList.add('shake');
+      if (fin) { stage.classList.remove('kof'); void stage.offsetWidth; stage.classList.add('kof'); } df.classList.remove('hit'); void df.offsetWidth; df.classList.add('hit'); df.style.transition = 'transform .18s ease-out'; df.style.transform = `translateX(${dir * sw * .04}px)`;
       if (ultFin) camTo(1, sw / 2, D(260), 'ease-out'); /* 星震の止め：打った瞬間に引いて、舞台全体に星を降らせる（2026-10-30 ユーザー） */ else FOCUS_ATK ? camTo(zAtk * 1.05, fx, 90, undefined, FR) : camTo((big ? zFit * 1.06 : zFit) * 1.05, mid, 90); // 当たりの瞬間、少しだけ寄る
       const n = document.createElement('div'); n.className = 'num'; n.textContent = r.dmg * 7 + Math.round(Math.random() * 9); n.style.left = (clashX / sw * 100 + (r.ally ? 6 : -14)) + '%'; n.style.top = '30%'; cam.appendChild(n); setTimeout(() => { sl.remove(); n.remove(); }, 900);
       apply(i, r); upd(); say(r.ally ? 'l' : 'r', pickOf((r.ally ? AL : FL).hit), 1500); T(() => say(r.ally ? 'r' : 'l', pickOf((r.ally ? FL : AL).hurt), 1400), D(350)); }, P.hitAt);
@@ -1092,7 +1112,7 @@ function playDuel(kIn, done) { // 画面いっぱいの一騎打ち。五合の�
   gb.onclick = e => { e.stopPropagation(); if (used || over || !inWin) return; left--; used = left <= 0; armed = true; rallyFX(stage, L, { speed: spd }); // 鬨の声の金の輪 gb.classList.remove('ready'); if (used) gb.classList.add('used'); gb.querySelector('em').textContent = used ? '使用済み' : `残り${left}回`;
     const heavy = plan.heavy.includes(cur); msg(`<em>鬨の声</em>${heavy ? '見切りの構え' : '次の一合を強化'}`); say('l', pickOf(AL.hit), D(900)); clearTimeout(winT); winT = T(() => goRound(cur), D(650)); };
   $('.sp2').onclick = e => { e.stopPropagation(); spd = spd === 1 ? 2 : 1; e.currentTarget.textContent = `▶▶ 速度 ×${spd}`; };
-  $('.sk').onclick = e => { e.stopPropagation(); if (over) return; timers.forEach(clearTimeout); stopChg(); if (actL) actL.reset(); if (actL2) actL2.reset(); if (actR) actR.reset(); [L, L2, Rf].filter(Boolean).forEach(x => { x.style.transform = ''; x.style.filter = ''; }); camTo(1, stage.clientWidth / 2, 0); duelEl.classList.remove('shake'); $('.cut').classList.remove('on'); pips.forEach(p => p.classList.remove('cur'));
+  $('.sk').onclick = e => { e.stopPropagation(); if (over) return; timers.forEach(clearTimeout); stopChg(); shk.stop(); if (actL) actL.reset(); if (actL2) actL2.reset(); if (actR) actR.reset(); [L, L2, Rf].filter(Boolean).forEach(x => { x.style.transform = ''; x.style.filter = ''; }); camTo(1, stage.clientWidth / 2, 0); duelEl.classList.remove('shake'); $('.cut').classList.remove('on'); pips.forEach(p => p.classList.remove('cur'));
     while (aw < 3 && fw < 3 && nextI < 5) { apply(nextI, GM.duelRound(plan, nextI, armed)); armed = false; } upd(); finish(); };
   duelEl.onclick = null;
   const srcs = [...new Set(ks.flatMap(x => duelSrcs(x, look)))], ld = document.createElement('div'); ld.className = 'ld'; ld.innerHTML = '<b>構えを整えている…</b><i><u></u></i>'; stage.appendChild(ld); // 全部の絵を読み終えてから始める
