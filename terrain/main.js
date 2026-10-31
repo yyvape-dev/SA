@@ -951,7 +951,7 @@ const duelWarm = k => duelSrcs(k, G && G.raid ? dLook() : null).forEach(holdImg)
 const SIDE_ALLY = await fetch('../ally/side_meta.json?v=4').then(r => r.json()).catch(() => ({})); // 仲間の横向きの走り（右向き）
 const SIDE_FOE = await fetch('assets/npc/side_meta.json').then(r => r.json()).catch(() => ({}));  // 敵の横向きの歩き（左向き）
 const runClipOf = k => SIDE_ALLY['run_' + k] || SIDE_ALLY['walk_' + k] || null, foeRunOf = look => SIDE_FOE['walk_' + look] || null;
-const FOEDUEL = await fetch('assets/npc/foeduel_meta.json?v=6').then(r => r.json()).catch(() => ({})); // 敵将の攻撃モーション（見た目の番号ごと）
+const FOEDUEL = await fetch('assets/npc/foeduel_meta.json?v=7').then(r => r.json()).catch(() => ({})); // 敵将の攻撃モーション（見た目の番号ごと）
 const foeLook = () => G.raid && (G.raid.boss || G.raid.gen) ? 4 : G.raid && G.raid.E >= 30 ? 2 : (G.raid && G.raid.w % 2 ? 3 : 1);
 // 2026-10-31 章の将軍の一騎打ちは、その将軍の絵（foeduel_g<章>_A/B、tools/gen_duel_build.py）。第6章は悪魔の姿 g6b。絵が無ければ従来の見た目
 const genDuelLook = () => { const g = G.raid && G.raid.gen; if (!g) return null; const k = 'g' + g + (g === 6 ? 'b' : ''); return (FOEDUEL[k] || []).length ? k : g === 6 && (FOEDUEL.g6 || []).length ? 'g6' : null; };

@@ -9,7 +9,7 @@ from scipy import ndimage as ndi
 import matplotlib.colors as mc
 SRC = sys.argv[1]; KEYS = sys.argv[2:]
 N = 16
-HIT = {('g2', 'B'): 11}  # 当たりのコマを決め打ち（叩きつけは、剣が一番前に出るコマ≠当たり）
+HIT = {('g2', 'B'): 12}  # 当たりのコマを決め打ち（叩きつけは、剣が一番前に出るコマ≠当たり）
 OPT = { # 人ごとの色の直し：purple＝紫の服を守る、pink＝武器のマゼンタかぶりを灰へ、green＝動画の緑かぶり（くすんだ緑も）を灰へ。グレンは緑の布を着ているので触らない
   'g1': dict(purple=False, pink=True, green=False), 'g2': dict(purple=False, pink=True, green=True), 'g3': dict(purple=False, pink=True, green=True),
   'g4': dict(purple=False, pink=True, green=True), 'g5': dict(purple=False, pink=True, green=True), 'g6': dict(purple=True, pink='bright', green=True), 'g6b': dict(purple=True, pink='bright', green=True)}  # bright＝明るいピンク（剣の光）だけ。紫の服（暗い）は残す
