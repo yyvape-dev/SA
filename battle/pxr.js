@@ -73,7 +73,7 @@ var PX = { on: false, ready: false, app: null, stats: { spr: 0, gfx: 0 } };
     if (arguments.length >= 9) { sx = a; sy = b; sw = c; sh = d; dx = e; dy = f; dw = g; dh = h; }
     else if (arguments.length >= 5) { dx = a; dy = b; dw = c; dh = d; } else { dx = a; dy = b; dw = iw; dh = ih; }
     var t = subTex(im, sx, sy, sw, sh); if (!t) return;
-    var s = this.L.sprite(); s.texture = t; s.alpha = this.globalAlpha; s.tint = 0xffffff;
+    var s = this.L.sprite(); s.texture = t; s.alpha = this.globalAlpha; s.tint = this.tint || 0xffffff; // tint：残像の色（Canvas 版では無視）
     this.save(); this.translate(dx, dy); this.scale(dw / sw, dh / sh); this.put(s); this.restore(); PX.stats.spr++;
   };
   C.fillRect = function (x, y, w, h) {

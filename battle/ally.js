@@ -157,7 +157,7 @@ function allySkill(a) {
       hurt(e, 120 * (0.9 + Math.random() * 0.2) * (e.bind > 0 ? 1.5 : 1), a.face, true); n++;
     }
     a.x = clamp(a.x + a.face * 380, heroMinX(), heroMaxX());
-    fxDash(x0, a.x, a.y, a.face);
+    fxDash(x0, a.x, a.y, a.face); G.dashGhost = { a: a, x0: x0, x1: a.x, y: a.y, face: a.face, t0: G.t }; // 残像（drawAllyGhosts）
     G.freeze = Math.max(G.freeze, 0.1 + Math.min(n, 12) * 0.006); G.shake = Math.max(G.shake, 14 + Math.min(n, 12));
   } else { // 星震：画面の敵に、星が1体ずつ落ちる（当たりごとに大ダメージ、拘束中は1.5倍）。演出と進行は battle/fx2.js の startStarfall
     fxStarStomp(a); startStarfall(a); // 踏み抜き（光の柱＋画面いっぱいの流線）→ 星の雨
@@ -165,6 +165,21 @@ function allySkill(a) {
 }
 
 /* ---------- 描画 ---------- */
+// 追星の残像：駆け抜けた道に、走りの絵を青と金で交互に、加算で並べる。先頭ほど明るく、通ったあと 0.4秒で消える（PixiJS 版は色つき、Canvas 版は白い光）
+function drawAllyGhosts() {
+  var a = G.ally, g = G.dashGhost; if (!a || !g || g.a !== a || !ALLY_RUN || !IMG.arun || !IMG.arun.naturalWidth) return; var age = G.t - g.t0; if (age > 0.65) { G.dashGhost = null; return; }
+  var c = ALLY_RUN, H0 = allyH(a), k = H0 / c.ph * (ALLY_DEF[a.k].runK || 1), N = 5;
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  for (var i = 0; i < N; i++) {
+    var u = (i + 1) / (N + 1), born = u * 0.08, al = Math.max(0, 1 - (age - born) / 0.5) * (0.45 + 0.55 * u); if (age < born || al <= 0) continue;
+    var rf = (i * 3) % c.n, sx = (rf % c.cols) * c.cw, sy = Math.floor(rf / c.cols) * c.ch, x = g.x0 + (g.x1 - g.x0) * u, st = 1; // 引き伸ばさない（形をはっきり）
+    ctx.save(); ctx.translate(x, g.y); ctx.scale((g.face < 0 ? -k : k) * st, k);
+    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = al * 0.75; ctx.tint = i % 2 ? 0xffb030 : 0x4a9cff; ctx.drawImage(IMG.arun, sx, sy, c.cw, c.ch, -c.ax, -c.ay, c.cw, c.ch); // 色つきの影（形をはっきり）
+    ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = al * 0.6; ctx.tint = i % 2 ? 0xffe090 : 0xa8dcff; ctx.drawImage(IMG.arun, sx, sy, c.cw, c.ch, -c.ax, -c.ay, c.cw, c.ch); // 光
+    ctx.restore();
+  }
+  ctx.tint = 0; ctx.globalAlpha = 1; ctx.restore();
+}
 function drawAlly() {
   var a = G.ally; if (!a) return;
   var H0 = allyH(a), im, c, k, sx, sy, sw, shh, ox, oy, q, ddx = 0, ddy = 0;
@@ -174,7 +189,8 @@ function drawAlly() {
     k = H0 / c.idle.h; q = cellOf(c, fi); sx = q[0]; sy = q[1]; sw = q[2]; shh = q[3]; ddx = q[4]; ddy = q[5]; ox = c.idle.x + c.idle.w / 2; oy = c.ch - (c.pad == null ? 2.8 : c.pad);
   } else if ((a.state === 'run' || a.state === 'enter') && ALLY_RUN && (im = IMG.arun) && im.naturalWidth) {
     c = ALLY_RUN; var rf = Math.floor(a.anim * 1000 / c.durs[0] * (c.durs[0] > 80 ? 2.2 : 1)) % c.n;
-    k = H0 / c.ph * (ALLY_DEF[a.k].runK || 1); sw = c.cw; shh = c.ch; // runK：走りの絵は前かがみなので、背丈でそろえると拡大されすぎる。頭の大きさを立ち姿に合わせる補正（2026-11-01、並べて目で合わせた値） sx = (rf % c.cols) * c.cw; sy = Math.floor(rf / c.cols) * c.ch; ox = c.ax; oy = c.ay;
+    // runK：走りの絵は前かがみなので、背丈でそろえると拡大されすぎる。頭の大きさを立ち姿に合わせる補正（2026-11-01、並べて目で合わせた値）
+    k = H0 / c.ph * (ALLY_DEF[a.k].runK || 1); sw = c.cw; shh = c.ch; sx = (rf % c.cols) * c.cw; sy = Math.floor(rf / c.cols) * c.ch; ox = c.ax; oy = c.ay;
   } else if (ALLY_CLIP[0] && (im = IMG.aclip0) && im.naturalWidth) { // 待機：攻撃の連番の1コマ目（構え）を、息で少し揺らす
     c = ALLY_CLIP[0]; k = H0 / c.idle.h; q = cellOf(c, 0); sx = q[0]; sy = q[1]; sw = q[2]; shh = q[3]; ddx = q[4]; ddy = q[5]; ox = c.idle.x + c.idle.w / 2; oy = c.ch - (c.pad == null ? 2.8 : c.pad);
   } else return;

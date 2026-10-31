@@ -389,18 +389,20 @@ function cineApply() {
 /* ===== リリィの追星（2026-10-30）：駆け抜けた一直線に、青白の光の帯（暗い下地→光→芯、後ろから消える）＋星の粒＋先端の衝撃 ===== */
 function fxDash(x0, x1, y, face) {
   var st = []; for (var i = 0; i < 26; i++) st.push({ u: Math.random(), oy: (Math.random() - 0.5) * 90, d: Math.random() * 0.12, r: vR(5, 11), vy: -vR(30, 140), life: vR(0.35, 0.7) });
-  G.fx.push({ type: 'vdash', x0: x0, x1: x1, y: y - 95, gy: y, face: face, t: 0, life: 0.6, st: st, sp: vSparks(14, face, 300, 800, 0.4) });
-  fxWake(x0, x1, y, face, VFX_STAR); // 渦を巻く風・巻き上がる砂埃・踏み込みの地割れ（battle/fx3.js）
+  var gs = []; for (i = 0; i < 18; i++) gs.push({ u: Math.random() * 0.8, oy: vR(-90, 90), d: vR(0, 0.12), w: vR(1.5, 4) });
+  G.fx.push({ type: 'vdash', x0: x0, x1: x1, y: y - 95, gy: y, face: face, t: 0, life: 0.6, st: st, gs: gs, sp: vSparks(24, face, 300, 900, 0.4) });
+  fxWake(x0, x1, y, face, VFX_LILY); // 渦を巻く風・巻き上がる砂埃・踏み込みの地割れ（battle/fx3.js）
 }
+var VFX_LILY = { glow: '70,150,255', main: '150,210,255', spark: '255,206,96', gold: '255,190,60', core: '255,248,226', dark: '4,8,34', dk: 0.5 }; // リリィ：青白の帯に金の芯
 FX2.vdash = function (f) {
-  var C = VFX_STAR, t = f.t, head = vEase(t / 0.08), tail = vEase((t - 0.08) / 0.4), xa = f.x0 + (f.x1 - f.x0) * tail, xb = f.x0 + (f.x1 - f.x0) * head, fade = 1 - Math.max(0, t - 0.3) / 0.3;
+  var C = VFX_LILY, t = f.t, head = vEase(t / 0.08), tail = vEase((t - 0.08) / 0.4), xa = f.x0 + (f.x1 - f.x0) * tail, xb = f.x0 + (f.x1 - f.x0) * head, fade = 1 - Math.max(0, t - 0.3) / 0.3;
   var gl = false;
   if (ctx.slashGL) { // WebGL：オーラごと突っ込む太い魔弾の帯（斬撃と同じシェーダー、砕ける素材 smash）。先が太く、後ろが細い
-    var N = 32, pts = [], nrm = [], wl = []; for (var k = 0; k <= N; k++) { var u = k / N; pts.push(f.x0 + (f.x1 - f.x0) * u, f.y); nrm.push(0, -1); wl.push(78 * (0.25 + 0.75 * u) * Math.pow(Math.sin(Math.PI * Math.min(1, u * 1.04)), 0.45)); }
+    var N = 32, pts = [], nrm = [], wl = []; for (var k = 0; k <= N; k++) { var u = k / N; pts.push(f.x0 + (f.x1 - f.x0) * u, f.y); nrm.push(0, -1); wl.push(118 * (0.25 + 0.75 * u) * Math.pow(Math.sin(Math.PI * Math.min(1, u * 1.04)), 0.45)); }
     gl = ctx.slashGL({ pts: pts, nrm: nrm, w: wl, inner: 1, ms: t * 1000, sw: 80, life: 0.55, pal: C, tex: 'smash' });
   }
   if (xb !== xa && fade > 0) {
-    var LY = gl ? [{ c: C.dark, w: 150, a: 0.3, dk: 1 }, { c: C.glow, w: 170, a: 0.32 }] // まとうオーラ（太く柔らかい）。本体は WebGL の帯
+    var LY = gl ? [{ c: C.dark, w: 220, a: 0.3, dk: 1 }, { c: C.glow, w: 250, a: 0.34 }, { c: C.gold, w: 70, a: 0.45 }] // まとうオーラ（太く柔らかい）。本体は WebGL の帯
       : [{ c: C.dark, w: 110, a: 0.4, dk: 1 }, { c: C.glow, w: 120, a: 0.5 }, { c: C.main, w: 44, a: 0.95 }, { c: C.core, w: 12, a: 1 }];
     for (var l = 0; l < LY.length; l++) { var L = LY[l], g = ctx.createLinearGradient(xa, 0, xb, 0); g.addColorStop(0, vrgba(L.c, 0)); g.addColorStop(0.85, vrgba(L.c, L.a * fade)); g.addColorStop(1, vrgba(L.c, L.a * 0.6 * fade));
       ctx.globalCompositeOperation = L.dk ? 'source-over' : 'lighter'; ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(xa, f.y); ctx.quadraticCurveTo((xa + xb) / 2, f.y - L.w * 0.5, xb, f.y); ctx.quadraticCurveTo((xa + xb) / 2, f.y + L.w * 0.5, xa, f.y); ctx.fill(); }
@@ -408,11 +410,12 @@ FX2.vdash = function (f) {
   }
   for (var i = 0; i < f.st.length; i++) { var q = f.st[i], a = t - q.d - q.u * 0.08; if (a < 0 || a > q.life) continue; var al = Math.sin(a / q.life * Math.PI); vStar4(f.x0 + (f.x1 - f.x0) * q.u, f.y + q.oy + q.vy * a, q.r, a * 3, i % 3 ? C.spark : C.core, al); }
   if (t < 0.3 && fade > 0) { // 先頭の衝撃の弧：空気を押しのける「）」の形（時間差の3層）
-    var hx = xb + f.face * 26, hk = 1 - t / 0.3, HH = 95 * (0.8 + 0.4 * head);
-    [[C.glow, 16, 0.5], [C.main, 6, 0.9], [C.core, 2.2, 1]].forEach(function (L) { ctx.strokeStyle = vrgba(L[0], L[2] * hk); ctx.lineWidth = L[1] * (0.5 + 0.5 * hk); ctx.lineCap = 'round';
+    var hx = xb + f.face * 30, hk = 1 - t / 0.3, HH = 140 * (0.8 + 0.4 * head);
+    [[C.glow, 24, 0.5], [C.gold, 10, 0.85], [C.core, 3, 1]].forEach(function (L) { ctx.strokeStyle = vrgba(L[0], L[2] * hk); ctx.lineWidth = L[1] * (0.5 + 0.5 * hk); ctx.lineCap = 'round';
       ctx.beginPath(); ctx.moveTo(hx - f.face * 40, f.y - HH); ctx.quadraticCurveTo(hx + f.face * 34, f.y, hx - f.face * 40, f.y + HH * 0.8); ctx.stroke(); });
   }
-  var bt = t - 0.06; if (bt > 0 && bt < 0.14) { vGlow(f.x1 + f.face * 30, f.y, 120 * (0.5 + bt * 4), C, 1 - bt / 0.14); }
+  for (var gs = 0; gs < f.gs.length; gs++) { var q2 = f.gs[gs], a2 = t - q2.d; if (a2 < 0 || a2 > 0.35) continue; vStreak(f.x0 + (f.x1 - f.x0) * Math.min(1, q2.u + a2 * 0.6), f.y + q2.oy, f.face, 0, 90 + 140 * (1 - a2 / 0.35), q2.w, gs % 2 ? C.gold : C.main, 1 - a2 / 0.35); } // 前へ流れる金と青の筋
+  var bt = t - 0.06; if (bt > 0 && bt < 0.14) { vGlow(f.x1 + f.face * 30, f.y, 170 * (0.5 + bt * 4), { core: C.core, main: C.gold, glow: C.glow }, 1 - bt / 0.14); }
   if (t > 0.06) drawSparks({ t: t - 0.06, sp: f.sp }, f.x1 + f.face * 30, f.y, C, 5, 700);
 };
 
