@@ -6,15 +6,15 @@
    一騎打ちの連番は向きがそろっていない（ガロウの1つ目・セラの1つ目は左向き）ので、右向きのものだけ使う（clips の番号）。
    h＝見た目の背の高さ（core.js の HEIGHT）。pow＝通常攻撃1回のダメージ。 */
 var ALLY_DEF = {
-  mina: { n: 'ミナ', r: '捕縛役', clips: [0, 2], h: HEIGHT.mina, pow: 16, range: 240, sk: '捕縛網', col: '#c9bcff',
+  mina: { runK: 0.85, n: 'ミナ', r: '捕縛役', clips: [0, 2], h: HEIGHT.mina, pow: 16, range: 240, sk: '捕縛網', col: '#c9bcff',
     join: '姫、遅くなった！ ……べ、別に急いで来たわけじゃ、ないけど。', use: 'まとめて縛るよ、姫！' },
-  garou: { n: 'ガロウ', r: '火力役', clips: [1], h: HEIGHT.garou, pow: 26, range: 230, sk: '大薙ぎ', col: '#ffb27a',
+  garou: { runK: 0.8, n: 'ガロウ', r: '火力役', clips: [1], h: HEIGHT.garou, pow: 26, range: 230, sk: '大薙ぎ', col: '#ffb27a',
     join: 'ガハハ！ 姫、加勢に参りましたぜ！', use: 'まとめて吹っ飛べぇ！' },
-  sera: { n: 'セラ', r: '内政役', clips: [2], h: HEIGHT.sera, pow: 9, range: 200, sk: '癒しの頁', col: '#b8f0c0',
+  sera: { runK: 0.9, n: 'セラ', r: '内政役', clips: [2], h: HEIGHT.sera, pow: 9, range: 200, sk: '癒しの頁', col: '#b8f0c0',
     join: '姫さま、お待たせしました！ 手当ては任せてください。', use: '姫さま、いま治します！' },
-  ranka: { n: 'ランカ', r: '将軍', clips: [0, 1, 2, 3], h: HEIGHT.ranka, pow: 34, range: 250, sk: '星震', col: '#9fd8ff',
+  ranka: { runK: 0.8, n: 'ランカ', r: '将軍', clips: [0, 1, 2, 3], h: HEIGHT.ranka, pow: 34, range: 250, sk: '星震', col: '#9fd8ff',
     join: 'お嬢、お待たせ〜。あとはわたしが片付けるじゃん？', use: 'ちょっとだけ本気でいくよ！' },
-  lily: { n: 'リリィ', r: '騎士団長', clips: [0, 1, 2], h: HEIGHT.lily, pow: 28, range: 240, sk: '追星', col: '#cfe0ff', // 蹴り技。連携＝追星（一直線に駆け抜ける蹴り。拘束中1.5倍）
+  lily: { runK: 0.9, n: 'リリィ', r: '騎士団長', clips: [0, 1, 2], h: HEIGHT.lily, pow: 28, range: 240, sk: '追星', col: '#cfe0ff', // 蹴り技。連携＝追星（一直線に駆け抜ける蹴り。拘束中1.5倍）
     join: 'ラナさん、加勢します！ ……ランカばっかりに、いい格好はさせないんだから。', use: 'わたしだって、やれるんだから！' }
 };
 var ALLY_SPD = 2.8, ALLY_RUN = null, ALLY_CLIP = []; // 攻撃の連番は一騎打ちの2.8倍速
@@ -174,7 +174,7 @@ function drawAlly() {
     k = H0 / c.idle.h; q = cellOf(c, fi); sx = q[0]; sy = q[1]; sw = q[2]; shh = q[3]; ddx = q[4]; ddy = q[5]; ox = c.idle.x + c.idle.w / 2; oy = c.ch - (c.pad == null ? 2.8 : c.pad);
   } else if ((a.state === 'run' || a.state === 'enter') && ALLY_RUN && (im = IMG.arun) && im.naturalWidth) {
     c = ALLY_RUN; var rf = Math.floor(a.anim * 1000 / c.durs[0] * (c.durs[0] > 80 ? 2.2 : 1)) % c.n;
-    k = H0 / c.ph; sw = c.cw; shh = c.ch; sx = (rf % c.cols) * c.cw; sy = Math.floor(rf / c.cols) * c.ch; ox = c.ax; oy = c.ay;
+    k = H0 / c.ph * (ALLY_DEF[a.k].runK || 1); sw = c.cw; shh = c.ch; // runK：走りの絵は前かがみなので、背丈でそろえると拡大されすぎる。頭の大きさを立ち姿に合わせる補正（2026-11-01、並べて目で合わせた値） sx = (rf % c.cols) * c.cw; sy = Math.floor(rf / c.cols) * c.ch; ox = c.ax; oy = c.ay;
   } else if (ALLY_CLIP[0] && (im = IMG.aclip0) && im.naturalWidth) { // 待機：攻撃の連番の1コマ目（構え）を、息で少し揺らす
     c = ALLY_CLIP[0]; k = H0 / c.idle.h; q = cellOf(c, 0); sx = q[0]; sy = q[1]; sw = q[2]; shh = q[3]; ddx = q[4]; ddy = q[5]; ox = c.idle.x + c.idle.w / 2; oy = c.ch - (c.pad == null ? 2.8 : c.pad);
   } else return;

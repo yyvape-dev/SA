@@ -394,13 +394,24 @@ function fxDash(x0, x1, y, face) {
 }
 FX2.vdash = function (f) {
   var C = VFX_STAR, t = f.t, head = vEase(t / 0.08), tail = vEase((t - 0.08) / 0.4), xa = f.x0 + (f.x1 - f.x0) * tail, xb = f.x0 + (f.x1 - f.x0) * head, fade = 1 - Math.max(0, t - 0.3) / 0.3;
+  var gl = false;
+  if (ctx.slashGL) { // WebGL：オーラごと突っ込む太い魔弾の帯（斬撃と同じシェーダー、砕ける素材 smash）。先が太く、後ろが細い
+    var N = 32, pts = [], nrm = [], wl = []; for (var k = 0; k <= N; k++) { var u = k / N; pts.push(f.x0 + (f.x1 - f.x0) * u, f.y); nrm.push(0, -1); wl.push(78 * (0.25 + 0.75 * u) * Math.pow(Math.sin(Math.PI * Math.min(1, u * 1.04)), 0.45)); }
+    gl = ctx.slashGL({ pts: pts, nrm: nrm, w: wl, inner: 1, ms: t * 1000, sw: 80, life: 0.55, pal: C, tex: 'smash' });
+  }
   if (xb !== xa && fade > 0) {
-    var LY = [{ c: C.dark, w: 34, a: 0.45, dk: 1 }, { c: C.glow, w: 30, a: 0.6 }, { c: C.main, w: 11, a: 0.95 }, { c: C.core, w: 3.5, a: 1 }];
+    var LY = gl ? [{ c: C.dark, w: 150, a: 0.3, dk: 1 }, { c: C.glow, w: 170, a: 0.32 }] // まとうオーラ（太く柔らかい）。本体は WebGL の帯
+      : [{ c: C.dark, w: 110, a: 0.4, dk: 1 }, { c: C.glow, w: 120, a: 0.5 }, { c: C.main, w: 44, a: 0.95 }, { c: C.core, w: 12, a: 1 }];
     for (var l = 0; l < LY.length; l++) { var L = LY[l], g = ctx.createLinearGradient(xa, 0, xb, 0); g.addColorStop(0, vrgba(L.c, 0)); g.addColorStop(0.85, vrgba(L.c, L.a * fade)); g.addColorStop(1, vrgba(L.c, L.a * 0.6 * fade));
       ctx.globalCompositeOperation = L.dk ? 'source-over' : 'lighter'; ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(xa, f.y); ctx.quadraticCurveTo((xa + xb) / 2, f.y - L.w * 0.5, xb, f.y); ctx.quadraticCurveTo((xa + xb) / 2, f.y + L.w * 0.5, xa, f.y); ctx.fill(); }
     ctx.globalCompositeOperation = 'lighter';
   }
   for (var i = 0; i < f.st.length; i++) { var q = f.st[i], a = t - q.d - q.u * 0.08; if (a < 0 || a > q.life) continue; var al = Math.sin(a / q.life * Math.PI); vStar4(f.x0 + (f.x1 - f.x0) * q.u, f.y + q.oy + q.vy * a, q.r, a * 3, i % 3 ? C.spark : C.core, al); }
+  if (t < 0.3 && fade > 0) { // 先頭の衝撃の弧：空気を押しのける「）」の形（時間差の3層）
+    var hx = xb + f.face * 26, hk = 1 - t / 0.3, HH = 95 * (0.8 + 0.4 * head);
+    [[C.glow, 16, 0.5], [C.main, 6, 0.9], [C.core, 2.2, 1]].forEach(function (L) { ctx.strokeStyle = vrgba(L[0], L[2] * hk); ctx.lineWidth = L[1] * (0.5 + 0.5 * hk); ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(hx - f.face * 40, f.y - HH); ctx.quadraticCurveTo(hx + f.face * 34, f.y, hx - f.face * 40, f.y + HH * 0.8); ctx.stroke(); });
+  }
   var bt = t - 0.06; if (bt > 0 && bt < 0.14) { vGlow(f.x1 + f.face * 30, f.y, 120 * (0.5 + bt * 4), C, 1 - bt / 0.14); }
   if (t > 0.06) drawSparks({ t: t - 0.06, sp: f.sp }, f.x1 + f.face * 30, f.y, C, 5, 700);
 };
@@ -504,6 +515,7 @@ FX2.vsstomp = function (f) {
       vCurveRibbon(p0x, p0y, cx, cy, p1x, p1y, u0, hd, q.w * Lr.w * (0.7 + 0.3 * fd), vCurveGrad(p0x, p0y, cx, cy, p1x, p1y, u0, hd, Lr.c, Lr.a * fd)); }
   }
   // ③ 踏み抜いた点の光と、跳ね上がる火花（上へ）
-  if (ms < 160) { vGlow(x, y - f.h * 0.2, f.h * (0.8 + ms / 120), { core: C.core, main: C.gold, glow: C.glow }, 1 - ms / 160); vStar4(x, y - f.h * 0.15, f.h * 0.9 * (1 - ms / 160), 0, C.core, 0.8 * (1 - ms / 160)); }
+  if (ms < 160) { vGlow(x, y - f.h * 0.2, f.h * (0.8 + ms / 120), { core: C.core, main: C.gold, glow: C.glow }, 1 - ms / 160); }
+  vFlare(x, y - f.h * 0.15, f.h * 0.85, ms / 260, { core: C.core, main: C.main, glow: C.glow }, 0); // 色がにじみ、筋が一気に細る（battle/fx3.js）
   drawSparks(f, x, y - 10, { core: C.core, spark: C.spark }, 3, 900);
 };

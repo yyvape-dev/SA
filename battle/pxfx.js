@@ -257,7 +257,7 @@
     '}';
   var TX = {}, txN = 0, txReady = false;
   function loadTex(name, rep) {
-    var im = new Image(); im.onload = function () { TX[name] = new P.Texture({ source: new P.ImageSource({ resource: im, addressMode: rep ? 'repeat' : 'clamp-to-edge', scaleMode: 'linear' }) }); if (++txN === 5) txReady = true; };
+    var im = new Image(); im.onload = function () { TX[name] = new P.Texture({ source: new P.ImageSource({ resource: im, addressMode: rep ? 'repeat' : 'clamp-to-edge', scaleMode: 'linear' }) }); if (['band_ink', 'band_blade', 'band_smash', 'noise_cloud', 'noise_fiber'].every(function (k) { return TX[k]; })) txReady = true; };
     im.src = 'terrain/assets/fx/' + name + '.png?v=' + TEXV;
   }
   var RAMP = new Map();
@@ -300,9 +300,47 @@
     return true;
   };
 
+  // ---------- 地面に貼る絵（デカール）：地割れ・えぐれ跡。現場の作り方：絵を貼る → 中心からの距離で順に現す → 発光を冷ます → 細らせて閉じる ----------
+  // 素材（battle/tools/crack_tex.py）：R＝深さ（縁0→芯1）、G＝現れる順番、B＝縁の欠け（明るい土のふち）
+  var DVS = 'attribute vec2 aPosition; attribute vec2 aUv; uniform mat3 uProjectionMatrix; uniform mat3 uWorldTransformMatrix; uniform mat3 uTransformMatrix; varying vec2 vUv;\n' +
+    'void main(){ mat3 m = uProjectionMatrix * uWorldTransformMatrix * uTransformMatrix; gl_Position = vec4((m * vec3(aPosition, 1.0)).xy, 0.0, 1.0); vUv = aUv; }';
+  var DFS = 'varying vec2 vUv; uniform sampler2D uTex; uniform sampler2D uRamp; uniform float uProg; uniform float uHeat; uniform float uClose; uniform float uAlpha;\n' +
+    'void main(){\n' +
+    '  if (vUv.x < 0.0 || vUv.x > 1.0 || vUv.y < 0.0 || vUv.y > 1.0) discard;\n' +
+    '  vec3 d = texture2D(uTex, vUv).rgb;\n' +
+    '  float vis = 1.0 - smoothstep(uProg - .06, uProg, d.g);\n' +              // 中心から順に現れる
+    '  float cl = smoothstep(uClose, uClose + .12, d.r);\n' +                    // 閉じる：浅い所（細い枝先・縁）から消える
+    '  float m = smoothstep(.02, .22, d.r) * vis * cl;\n' +
+    '  float ad = m * .8 * uAlpha;\n' +
+    '  float al = d.b * vis * (1.0 - uClose) * .5 * (1.0 - ad) * uAlpha;\n' +    // 縁の欠け（光を受ける土のふち）
+    '  vec3 dark = mix(vec3(.38, .29, .21), vec3(.11, .07, .05), smoothstep(.15, .85, d.r));\n' + // 深いほど暗い
+    '  float front = smoothstep(uProg - .18, uProg - .02, d.g) * vis;\n' +       // 割れが走る先端は熱い
+    '  float e = (uHeat * pow(d.r, 1.3) * (1.15 - d.g * .6) + front * .9 * min(1.0, uHeat * 1.2) * step(uProg, 1.0)) * vis * cl;\n' +
+    '  vec3 em = texture2D(uRamp, vec2(clamp(e, 0.0, 1.0), .5)).rgb * clamp(e * 1.5, 0.0, 1.0);\n' +
+    '  gl_FragColor = vec4(dark * ad + vec3(.86, .78, .64) * al + em * uAlpha, ad + al);\n' +
+    '}';
+  function Decal() {
+    this.uni = new P.UniformGroup({ uProg: { value: 0, type: 'f32' }, uHeat: { value: 0, type: 'f32' }, uClose: { value: 0, type: 'f32' }, uAlpha: { value: 1, type: 'f32' } });
+    this.shader = P.Shader.from({ gl: { vertex: DVS, fragment: DFS }, resources: { uTex: TX.crack_a.source, uRamp: TX.crack_a.source, decU: this.uni } });
+    this.geo = new P.Geometry({ attributes: { aPosition: { buffer: new P.Buffer({ data: new Float32Array(8), usage: P.BufferUsage.VERTEX | P.BufferUsage.COPY_DST }), format: 'float32x2' }, aUv: { buffer: new P.Buffer({ data: new Float32Array(8), usage: P.BufferUsage.VERTEX | P.BufferUsage.COPY_DST }), format: 'float32x2' } }, indexBuffer: new P.Buffer({ data: new Uint32Array([0, 1, 2, 0, 2, 3]), usage: P.BufferUsage.INDEX | P.BufferUsage.COPY_DST }) });
+    this.mesh = new P.Mesh({ geometry: this.geo, shader: this.shader });
+  }
+  // o: { tex, pts:[局所の4隅 x,y,…], uv:[4隅の uv], prog, heat, close, pal }
+  X.decalGL = function (o) {
+    if (NOGL || !this.L || !TX[o.tex] || !txReady) return false;
+    var L = this.L, d = L.decals[L.nd] || (L.decals[L.nd] = new Decal()); L.nd++;
+    var m = this.m, p = o.pts, pos = new Float32Array(8);
+    for (var i = 0; i < 4; i++) { var x = p[i * 2], y = p[i * 2 + 1]; pos[i * 2] = m[0] * x + m[2] * y + m[4]; pos[i * 2 + 1] = m[1] * x + m[3] * y + m[5]; }
+    d.geo.getBuffer('aPosition').data = pos; d.geo.getBuffer('aUv').data = new Float32Array(o.uv);
+    var U = d.uni.uniforms; U.uProg = o.prog; U.uHeat = o.heat; U.uClose = o.close; U.uAlpha = this.globalAlpha;
+    d.shader.resources.uTex = TX[o.tex].source; d.shader.resources.uRamp = rampTex(o.pal).source;
+    this.cut(); L.c.addChild(d.mesh); PX.vstats.arc++;
+    return true;
+  };
+
   // ---------- 層 ----------
-  function Lay() { this.c = new P.Container(); this.segs = []; this.ns = 0; this.arcs = []; this.na = 0; }
-  Lay.prototype.begin = function () { this.c.removeChildren(); this.ns = 0; this.na = 0; };
+  function Lay() { this.c = new P.Container(); this.segs = []; this.ns = 0; this.arcs = []; this.na = 0; this.decals = []; this.nd = 0; }
+  Lay.prototype.begin = function () { this.c.removeChildren(); this.ns = 0; this.na = 0; this.nd = 0; };
   X.cut = function () { // 今の頂点の束を閉じて、次の束を始める（斬撃の弧を挟むとき）
     var L = this.L; if (this.seg && this.seg.nv) { this.seg.flush(); L.c.addChild(this.seg.mesh); PX.vstats.seg++; }
     var s = L.segs[L.ns] || (L.segs[L.ns] = new Seg()); L.ns++; s.nv = 0; s.ni = 0; this.seg = s;
@@ -316,7 +354,7 @@
     vShader = P.Shader.from({ gl: { vertex: VS, fragment: FS } });
     lays.under = new Lay(); lays.fx = new Lay();
     var w = PX.world; w.addChildAt(lays.under.c, w.getChildIndex(PX.chC)); w.addChild(lays.fx.c);
-    if (!NOGL) ['band_ink', 'band_blade', 'band_smash'].forEach(function (k) { loadTex(k, false); }), ['noise_cloud', 'noise_fiber'].forEach(function (k) { loadTex(k, true); });
+    if (!NOGL) ['band_ink', 'band_blade', 'band_smash', 'crack_a', 'crack_b', 'gouge'].forEach(function (k) { loadTex(k, false); }), ['noise_cloud', 'noise_fiber'].forEach(function (k) { loadTex(k, true); });
     PX.vOn = true;
   }
   if (PX.ready) { try { ready(); } catch (e) { PX.err = String(e && e.message || e); } } else (PX.onReady = PX.onReady || []).push(ready); // pxr.js の初期化が先に済むこともある

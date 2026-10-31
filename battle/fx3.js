@@ -86,13 +86,34 @@ function vDrawDust(x, y, D, t, k) {
   ctx.globalCompositeOperation = 'lighter';
 }
 
+// 地面に貼る絵（デカール）の四隅：中心 (x,y)、幅 w・高さ h（床の遠近で h は w の約0.32）、絵を rot だけ回す
+function vDecalQuad(x, y, w, h, rot, tex, prog, heat, close, pal) {
+  var c = Math.cos(rot || 0), s = Math.sin(rot || 0), uv = [];
+  [[0, 0], [1, 0], [1, 1], [0, 1]].forEach(function (q) { var u = q[0] - 0.5, v = q[1] - 0.5; uv.push(0.5 + u * c - v * s, 0.5 + u * s + v * c); });
+  return { tex: tex, pts: [x - w / 2, y - h / 2, x + w / 2, y - h / 2, x + w / 2, y + h / 2, x - w / 2, y + h / 2], uv: uv, prog: prog, heat: heat, close: close, pal: pal };
+}
+// 発光の十字（フレア）：色をにじませて光り、光の筋は一気に細くなりながら伸びる（太い十字を固定で出さない）
+function vFlare(x, y, S, u, C, rot) {
+  if (u >= 1 || u < 0) return; var e = vEase(u), thin = Math.pow(1 - u, 3), fa = Math.pow(1 - u, 1.4), r0 = rot || 0;
+  vGlow(x, y, S * (0.55 + 0.9 * e), { core: C.main, main: C.glow, glow: C.glow }, 0.75 * fa); // 外へにじむ色
+  vGlow(x, y, S * (0.22 + 0.3 * e), C, fa); // 芯の白
+  var RAY = [[0, 1.3], [1.5708, 0.75], [3.1416, 1.3], [4.7124, 0.75], [0.785, 0.42], [2.356, 0.42], [3.927, 0.42], [5.498, 0.42]], LY = [[C.glow, 3.4, 0.4], [C.main, 1.5, 0.85], [C.core, 0.45, 1]];
+  for (var l = 0; l < 3; l++) for (var i = 0; i < RAY.length; i++) {
+    var th = RAY[i][0] + r0, L = S * RAY[i][1] * (0.65 + 0.7 * e), w = Math.max(0.5, S * 0.06 * thin * LY[l][1]), cs = Math.cos(th), sn = Math.sin(th);
+    ctx.fillStyle = vrgba(LY[l][0], LY[l][2] * fa); ctx.beginPath(); ctx.moveTo(x - sn * w * 0.3, y + cs * w * 0.3);
+    ctx.lineTo(x + cs * L * 0.12 - sn * w, y + sn * L * 0.12 + cs * w); ctx.lineTo(x + cs * L, y + sn * L); ctx.lineTo(x + cs * L * 0.12 + sn * w, y + sn * L * 0.12 - cs * w); ctx.lineTo(x + sn * w * 0.3, y - cs * w * 0.3); ctx.closePath(); ctx.fill();
+  }
+}
+
 /* ===== 地を割る一撃（ランカの踏み抜き・星震の締め）：むらのある衝撃の輪×2・地割れ・岩片・砂埃の輪・中心の光 ===== */
 function fxGroundSlam(x, y, R, C, big, lite) { // lite＝小さな当たり用（数を減らす）
   var s = Math.random() * 100, m = lite ? 0.3 : 1;
-  G.fx.push({ type: 'vgslam', x: x, y: y, R: R, C: C || VFX_STAR, t: 0, life: big ? 1.6 : lite ? 0.9 : 1.2, seed: s, cr: vMakeCracks(lite ? 5 : big ? 11 : 8, R * 0.42, s), deb: vMakeDebris(Math.round((big ? 30 : 20) * m), R * 0.25, R * 0.7, s), dust: vMakeDust(Math.round((big ? 46 : 34) * m), R * 0.55, s + 9), big: big, lite: lite });
+  G.fx.push({ type: 'vgslam', x: x, y: y, R: R, C: C || VFX_STAR, t: 0, life: big ? 1.6 : lite ? 0.9 : 1.2, seed: s, rot: Math.random() * 6.283, tex: Math.random() < 0.5 ? 'crack_a' : 'crack_b', cr: vMakeCracks(lite ? 5 : big ? 11 : 8, R * 0.42, s), deb: vMakeDebris(Math.round((big ? 30 : 20) * m), R * 0.25, R * 0.7, s), dust: vMakeDust(Math.round((big ? 46 : 34) * m), R * 0.55, s + 9), big: big, lite: lite });
 }
 FX_UNDER.vgslam = function (f) { // 床の層：地割れ（暗い溝は長く残り、光は早く引く）
-  var t = f.t, grow = vEase(t / 0.12), dark = Math.min(1, (f.life - t) / 0.5), glow = t < 0.05 ? 1 : Math.max(0, 1 - (t - 0.05) / 0.55);
+  var t = f.t, W2 = f.R * (f.lite ? 1.25 : 1.4);
+  if (ctx.decalGL && ctx.decalGL(vDecalQuad(f.x, f.y, W2, W2 * 0.32, f.rot, f.tex, vEase(t / 0.16) * 1.08, t < 0.08 ? 1 : Math.exp(-(t - 0.08) * 3.2), vEase((t - (f.life - 0.55)) / 0.55), f.C))) return; // WebGL：割れの絵を貼る（battle/pxfx.js の decalGL）
+  var grow = vEase(t / 0.12), dark = Math.min(1, (f.life - t) / 0.5), glow = t < 0.05 ? 1 : Math.max(0, 1 - (t - 0.05) / 0.55); // Canvas 版：線で描く
   vDrawCracks(f.x, f.y, f.cr, grow, dark, glow, f.C);
 };
 FX2.vgslam = function (f) {
@@ -104,7 +125,7 @@ FX2.vgslam = function (f) {
   }
   vDrawDust(f.x, f.y, f.dust, t, f.big ? 1.25 : 1);
   vDrawDebris(f.x, f.y, f.deb, t, f.life);
-  if (t < 0.16) { var kk = 1 - t / 0.16; vGlow(f.x, f.y - 30, R * 0.35 * (0.6 + t * 4), C, kk); vStar4(f.x, f.y - 30, R * 0.4 * kk, 0.2, C.core, kk); }
+  vFlare(f.x, f.y - 30, R * (f.lite ? 0.3 : 0.42), t / (f.lite ? 0.22 : 0.32), C, f.rot * 0.05); // 色がにじみ、筋が一気に細る
 };
 
 /* ===== 渦をまとう溜め（ランカ）：足元の砂埃と光の粒が、体のまわりを渦を巻いて集まり、昇る。集まるほど濃く ===== */
@@ -146,12 +167,19 @@ function fxWake(x0, x1, y, face, C) {
   for (var i = 0; i < 34; i++) du.push({ u: Math.random(), up: vR(40, 160), dx: -face * vR(20, 110), r: vR(20, 42), d: vR(0, 0.1), life: vR(0.6, 1.1), c: Math.floor(Math.random() * 3) });
   G.fx.push({ type: 'vwake', x0: x0, x1: x1, y: y, face: face, C: C || VFX_STAR, t: 0, life: 1.2, du: du, seed: s, cr: vMakeCracks(6, 150, s), deb: vMakeDebris(18, 140, 420, s) });
 }
-FX_UNDER.vwake = function (f) { var b = f.t - 0.06; if (b <= 0) return; vDrawCracks(f.x1 + f.face * 20, f.y, f.cr, vEase(b / 0.1), Math.min(1, (f.life - f.t) / 0.4), Math.max(0, 1 - b / 0.45), f.C); };
+FX_UNDER.vwake = function (f) {
+  var t = f.t, xs = f.x0 - f.face * 30, xe = f.x1 + f.face * 60, cl = vEase((t - (f.life - 0.5)) / 0.5), heat = 0.45 * (t < 0.12 ? 1 : Math.exp(-(t - 0.12) * 3)); // 溝は光りすぎない（えぐった跡が主役）
+  if (ctx.decalGL) { // WebGL：通った道をえぐった溝（えぐれ跡の絵）＋踏み込みの地割れ
+    var xl = Math.min(xs, xe), xr = Math.max(xs, xe), uv = f.face > 0 ? [0, 0, 1, 0, 1, 1, 0, 1] : [1, 0, 0, 0, 0, 1, 1, 1];
+    var ok = ctx.decalGL({ tex: 'gouge', pts: [xl, f.y - 40, xr, f.y - 40, xr, f.y + 40, xl, f.y + 40], uv: uv, prog: vEase(t / 0.1) * 1.06, heat: heat, close: cl, pal: f.C });
+    if (ok) { var b2 = t - 0.06; if (b2 > 0) ctx.decalGL(vDecalQuad(f.x1 + f.face * 30, f.y, 380, 380 * 0.32, f.seed, 'crack_b', vEase(b2 / 0.12) * 1.08, b2 < 0.06 ? 1 : Math.exp(-(b2 - 0.06) * 3.2), cl, f.C)); return; }
+  }
+  var b = f.t - 0.06; if (b <= 0) return; vDrawCracks(f.x1 + f.face * 20, f.y, f.cr, vEase(b / 0.1), Math.min(1, (f.life - f.t) / 0.4), Math.max(0, 1 - b / 0.45), f.C); };
 FX2.vwake = function (f) {
   var C = f.C, t = f.t, head = vEase(t / 0.08), tail = vEase((t - 0.1) / 0.5), fade = 1 - Math.max(0, t - 0.35) / 0.4, i;
   // 渦を巻く風の線：進む向きの螺旋（奥と手前で太さが変わる）。2本を逆の位相で
   if (fade > 0) for (var s2 = 0; s2 < 2; s2++) {
-    var N = 40, pts = []; for (i = 0; i <= N; i++) { var u = tail + (head - tail) * i / N, x = f.x0 + (f.x1 - f.x0) * u, ph = u * 14 + s2 * 3.14 - t * 20, amp = 46 * (0.4 + 0.6 * u); pts.push(x, f.y - 95 + Math.sin(ph) * amp, Math.cos(ph)); }
+    var N = 40, pts = []; for (i = 0; i <= N; i++) { var u = tail + (head - tail) * i / N, x = f.x0 + (f.x1 - f.x0) * u, ph = u * 14 + s2 * 3.14 - t * 20, amp = 80 * (0.4 + 0.6 * u); pts.push(x, f.y - 95 + Math.sin(ph) * amp, Math.cos(ph)); }
     for (i = 0; i + 1 <= N; i++) { var z = pts[i * 3 + 2], al = (i / N) * fade; if (al <= 0.02) continue;
       ctx.strokeStyle = vrgba(z > 0 ? C.core : C.main, (z > 0 ? 0.9 : 0.4) * al); ctx.lineWidth = z > 0 ? 3.2 : 1.6; ctx.lineCap = 'round';
       ctx.beginPath(); ctx.moveTo(pts[i * 3], pts[i * 3 + 1]); ctx.lineTo(pts[i * 3 + 3], pts[i * 3 + 4]); ctx.stroke(); }
