@@ -292,7 +292,7 @@ buckets.forEach((arr, ti) => {
   scene.add(m); instMeshes.push(m); total += arr.length;
 });
 status.props = total;
-const bld = await (await fetch('data/bld.json?v=2')).json();
+const bld = await (await fetch('data/bld.json?v=3')).json();
 const bldTex = {};
 async function loadBld(fn) { const im = await loadImage(fn); if (!im) return null; const t = new THREE.Texture(im); t.needsUpdate = true; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; }
 function sprite3D(tex, meta, scale, baseX, baseSy) { // 足元の手前の角(ax,ay)を、地面の(baseX, baseSy)に合わせる
@@ -326,11 +326,11 @@ function select(p) {
 }
 
 // ---------- 施設（区画の状態：0=空き地 1=建築中 2=完成 3=発展後）----------
-const FAC = GM.FAC, STAGE = GM.STAGE, ART = ['smithy', 'tavern', 'farm', 'drill', 'war', 'wall', 'shrine', 'barracks']; // 絵のある施設。畑はコードで描く
-const BEXT = { drill: 'webp', war: 'webp', wall: 'webp', shrine: 'webp', barracks: 'webp' }; // 2026-10-31 の追加分は webp（tools/slice_more.py）
+const FAC = GM.FAC, STAGE = GM.STAGE, ART = ['smithy', 'tavern', 'farm', 'drill', 'war', 'wall', 'shrine', 'barracks', 'banner']; // 絵のある施設。畑はコードで描く
+const BEXT = { drill: 'webp', war: 'webp', wall: 'webp', shrine: 'webp', barracks: 'webp', banner: 'webp' }; // 2026-10-31 の追加分は webp（tools/slice_more.py）
 const bldFn = key => `assets/bld/${key}.${BEXT[key.replace(/_\d$/, '')] || 'png'}`;
 // 絵がまだ無い施設は、既存の絵を色づけして仮置き（本番の絵は tools/bld_src2/ に置いて slice_more.py、ART に足して ARTALIAS から外す）
-const ARTALIAS = { banner: ['war', [1, .62, .55]] };
+const ARTALIAS = {};
 const BS = .38; // 素材シートの画素 → 基準画像の画素
 for (const f of ART) for (let k = 1; k <= 3; k++) bldTex[`${f}_${k}`] = await loadBld(bldFn(`${f}_${k}`));
 plots.forEach(pl => { pl.fac = null; pl.stage = 0; pl.mesh = null; pl.base = pl.poly.reduce((a, q) => q[1] > a[1] ? q : a, pl.poly[0]); pl.cx = pl.poly.reduce((a, q) => a + q[0], 0) / 4; });

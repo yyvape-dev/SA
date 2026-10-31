@@ -36,7 +36,7 @@ def meta_of(a, fp=True):
 meta = json.load(open('data/bld.json'))
 def save(a, fn, fp=True):
     Image.fromarray(a).save(fn, quality=92, method=6); meta[fn] = meta_of(a, fp); print(fn, a.shape[:2])
-for name in ('drill', 'war', 'wall', 'shrine', 'barracks'):
+for name in ('drill', 'war', 'wall', 'shrine', 'barracks', 'banner'):
     parts = cut(*key(SRC + name + '.png')); assert len(parts) == 3, (name, len(parts))
     for k, a in enumerate(parts): save(a, f'assets/bld/{name}_{k + 1}.webp')
 parts = cut(*key(SRC + 'gates.png')); assert len(parts) == 2, len(parts)
