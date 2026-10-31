@@ -3,8 +3,8 @@
 import * as THREE from './vendor/three.module.min.js';
 import * as GM from './game.js?v=1793740000';
 import { createUI } from './ui.js?v=1793650000';
-import { createMorning } from './morning.js?v=1793290034';
-import { createStory } from './story.js?v=1793760000';
+import { createMorning } from './morning.js?v=1793800000';
+import { createStory } from './story.js?v=1793800000';
 import { slashFX, impactFX, clashFX, chargeFX, rallyFX, starFX } from './fx_slash.js?v=1793640000';
 
 const layout = await (await fetch('data/layout.json?v=2')).json();

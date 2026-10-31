@@ -16,21 +16,27 @@ const CSS = `
 #morn .hud .r{display:flex;align-items:center;gap:calc(var(--u)*6);font:700 calc(var(--u)*27)/1 ${SERIF};white-space:nowrap}
 #morn .hud .r img{height:calc(var(--u)*36);width:auto}#morn .hud .r small{font-size:calc(var(--u)*24);color:#d8c8a0}
 #morn .skip{position:absolute;right:calc(var(--u)*36);top:calc(var(--u)*118);font:700 calc(var(--u)*32)/1 ${SERIF};color:#fff;text-shadow:0 1px 3px #000;background:#0003;border:0;padding:calc(var(--u)*10) calc(var(--u)*18);border-radius:calc(var(--u)*30);z-index:3}
-#morn .box{position:absolute;left:calc(var(--u)*30);right:calc(var(--u)*30);bottom:calc(var(--u)*34);border:calc(var(--u)*30) solid transparent;border-image:url(assets/ui/frame_l.png) 90 / calc(var(--u)*30) / 0 stretch;margin:calc(var(--u)*-18);isolation:isolate}
-#morn .box::before{content:"";position:absolute;inset:calc(var(--u)*-14);z-index:-1;background:linear-gradient(#f7ecd0f8,#ead9b0f8);border-radius:calc(var(--u)*10)}
-#morn .nm{position:absolute;left:calc(var(--u)*28);top:calc(var(--u)*-62);padding:calc(var(--u)*10) calc(var(--u)*56) calc(var(--u)*10) calc(var(--u)*26);font:700 calc(var(--u)*40)/1.2 ${SERIF};color:#fff3d0;background:linear-gradient(90deg,#3a2a1e,#4a362a 80%,#4a362a00);border:calc(var(--u)*2) solid #c9a24a;border-right:0;letter-spacing:.2em;text-shadow:0 2px 3px #000}
-#morn .tx{min-height:calc(var(--u)*196);padding:calc(var(--u)*30) calc(var(--u)*30) calc(var(--u)*20);font:600 calc(var(--u)*43)/1.62 ${SERIF};color:#3a2410;letter-spacing:.04em}
-#morn .nx{position:absolute;right:calc(var(--u)*22);bottom:calc(var(--u)*10);font:900 calc(var(--u)*50)/1 ${SERIF};color:#b8862a;animation:mnx 1s ease-in-out infinite}
-@keyframes mnx{50%{transform:translateX(calc(var(--u)*10))}}
-#morn .chg{display:none}#morn.p2 .tx,#morn.p2 .nm{display:none}#morn.p2 .chg{display:block}
-#morn .chg h4{position:absolute;left:calc(var(--u)*28);top:calc(var(--u)*-62);margin:0;padding:calc(var(--u)*10) calc(var(--u)*56) calc(var(--u)*10) calc(var(--u)*26);font:700 calc(var(--u)*40)/1.2 ${SERIF};color:#fff3d0;background:linear-gradient(90deg,#3a2a1e,#4a362a 80%,#4a362a00);border:calc(var(--u)*2) solid #c9a24a;border-right:0;letter-spacing:.1em}
-#morn .chg .row{display:flex;align-items:center;gap:calc(var(--u)*22);padding:calc(var(--u)*14) calc(var(--u)*26);border-bottom:calc(var(--u)*2) solid #a98a5a66;font:600 calc(var(--u)*43)/1.2 ${SERIF};color:#3a2410}
+#morn .box{position:absolute;left:calc(var(--u)*30);right:calc(var(--u)*30);bottom:calc(var(--u)*34);border:calc(var(--u)*30) solid transparent;border-image:url(assets/ui/frame_l.png) 90 / calc(var(--u)*30) / 0 stretch;margin:calc(var(--u)*-18);isolation:isolate;container-type:inline-size}
+#morn .box::before{content:"";position:absolute;inset:calc(var(--u)*-14);z-index:-1;background:linear-gradient(#1b2338f4,#0e1322f6);border-radius:calc(var(--u)*6);box-shadow:0 calc(var(--u)*6) calc(var(--u)*20) #0009}
+#morn .box::after{content:"";position:absolute;inset:calc(var(--u)*-6);z-index:-1;border:calc(var(--u)*2) solid #c9a24a8c;border-radius:calc(var(--u)*4);pointer-events:none}
+#morn .nm{padding:calc(var(--u)*12) calc(var(--u)*30) 0;color:#fff4dc;text-shadow:0 2px 3px #000}
+#morn .nm small{display:block;font:700 calc(var(--u)*27)/1.3 ${SERIF};color:#d6a64a;letter-spacing:.12em}
+#morn .nm small:empty{display:none}
+#morn .nm b{display:block;font:700 calc(var(--u)*48)/1.25 ${SERIF};letter-spacing:.08em}
+#morn .ln{display:block;height:calc(var(--u)*3);width:48%;margin:calc(var(--u)*12) 0 0 calc(var(--u)*26);background:linear-gradient(90deg,#c9a24a00,#c9a24a 12%,#c9a24a 55%,#c9a24a00)}
+#morn .tx{padding:calc(var(--u)*18) calc(var(--u)*30) calc(var(--u)*16);font:600 calc(var(--u)*43)/1.55 ${SERIF};font-size:min(calc(var(--u)*43),calc((100cqi - var(--u)*60)/18.4));color:#f2e8d4;letter-spacing:.04em;white-space:pre-line}
+#morn .nx{position:absolute;right:calc(var(--u)*30);bottom:calc(var(--u)*26);width:calc(var(--u)*16);height:calc(var(--u)*16);border:calc(var(--u)*3) solid #d6a64a;background:#d6a64a55;rotate:45deg;animation:mornnx 1.1s ease-in-out infinite}
+@keyframes mornnx{50%{translate:0 calc(var(--u)*-8)}}
+#morn .tx{min-height:6.2em}
+#morn .chg{display:none}#morn.p2 .tx,#morn.p2 .nm,#morn.p2 .ln,#morn.p2 .nx{display:none}#morn.p2 .chg{display:block}
+#morn .chg h4{margin:0;padding:calc(var(--u)*12) calc(var(--u)*30) 0;font:700 calc(var(--u)*48)/1.25 ${SERIF};color:#fff4dc;letter-spacing:.08em;text-shadow:0 2px 3px #000}#morn .chg h4::after{content:"";display:block;height:calc(var(--u)*3);width:48%;margin:calc(var(--u)*12) 0 0 calc(var(--u)*-4);background:linear-gradient(90deg,#c9a24a00,#c9a24a 12%,#c9a24a 55%,#c9a24a00)}
+#morn .chg .row{display:flex;align-items:center;gap:calc(var(--u)*22);padding:calc(var(--u)*14) calc(var(--u)*26);border-bottom:calc(var(--u)*2) solid #c9a24a40;font:600 calc(var(--u)*43)/1.2 ${SERIF};color:#f2e8d4}
 #morn .chg .row:first-of-type{margin-top:calc(var(--u)*12)}#morn .chg .row:last-of-type{border-bottom:0}
 #morn .chg .row img{height:calc(var(--u)*56);width:auto;flex:none}
 #morn .chg .row b{width:calc(var(--u)*130);font-weight:700}#morn .chg .row span{flex:1}
-#morn .chg .row em{font-style:normal;font-weight:900;font-size:calc(var(--u)*50);min-width:calc(var(--u)*130);text-align:right}#morn .chg .up{color:#2c8a2c}#morn .chg .dn{color:#b02a1a}
-#morn .chg .wn{padding:calc(var(--u)*8) calc(var(--u)*26) calc(var(--u)*4);font:600 calc(var(--u)*34)/1.5 ${SERIF};color:#8a1a10}
-#morn .chg .go{text-align:right;padding:calc(var(--u)*6) calc(var(--u)*20) calc(var(--u)*8) 0;font:600 calc(var(--u)*34)/1 ${SERIF};color:#7a5a2a}`;
+#morn .chg .row em{font-style:normal;font-weight:900;font-size:calc(var(--u)*50);min-width:calc(var(--u)*130);text-align:right}#morn .chg .up{color:#7fdc7f}#morn .chg .dn{color:#ff7d62}
+#morn .chg .wn{padding:calc(var(--u)*8) calc(var(--u)*26) calc(var(--u)*4);font:600 calc(var(--u)*34)/1.5 ${SERIF};color:#ff9a82}
+#morn .chg .go{text-align:right;padding:calc(var(--u)*6) calc(var(--u)*20) calc(var(--u)*8) 0;font:600 calc(var(--u)*34)/1 ${SERIF};color:#d6b878}`;
 const ICON = { sup: 'ic_sup', mor: 'ic_mor', def: 'ic_def', trp: 'ic_trp', hp: 'ic_hp', build: 'ic_build', flag: 'ic_flag' };
 const icon = n => ICON[n] ? `<img src="assets/ui/${ICON[n]}.png" alt="">` : '';
 let frames = null;
@@ -52,7 +58,7 @@ export function createMorning() {
       <div class="hud"><span class="wk">第${o.week}週・朝</span>
         <span class="r">${icon('sup')}物資 ${o.res.sup}</span><span class="r">${icon('mor')}民心 ${o.res.morale}</span><span class="r">${icon('def')}防衛 ${o.res.def}</span></div>
       <button class="skip">スキップ ▶</button>
-      <div class="box"><div class="nm">${o.name}</div><div class="tx"></div><span class="nx">»</span>
+      <div class="box"><div class="nm"><b>${o.name}</b></div><i class="ln"></i><div class="tx"></div><span class="nx"></span>
         <div class="chg"><h4>今朝の変化</h4>${o.rows.map(r => `<div class="row">${icon(r.ic)}<b>${r.label}</b>${r.text !== undefined ? `<span>${r.text}</span>` : `<span>${r.from} → ${r.to}</span><em class="${r.d > 0 ? 'up' : r.d < 0 ? 'dn' : ''}">${r.d > 0 ? '+' : ''}${r.d}</em>`}</div>`).join('')}
           ${o.warns && o.warns.length ? `<div class="wn">${o.warns.map(w => '・' + w).join('<br>')}</div>` : ''}<div class="go">タップで領地へ ›</div></div></div>`;
     const stage = el.querySelector('.st'), lana = el.querySelector('.lana'), spk = el.querySelector('.spk'), tx = el.querySelector('.tx'), nx = el.querySelector('.nx');
