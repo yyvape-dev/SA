@@ -1,10 +1,10 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1794000000';
+import * as GM from './game.js?v=1794100000';
 import { createUI } from './ui.js?v=1793650000';
 import { createMorning } from './morning.js?v=1793800000';
-import { createStory } from './story.js?v=1794000000';
+import { createStory } from './story.js?v=1794100000';
 import { slashFX, impactFX, clashFX, chargeFX, rallyFX, starFX } from './fx_slash.js?v=1793640000';
 
 const layout = await (await fetch('data/layout.json?v=2')).json();
@@ -675,15 +675,16 @@ const sg = n => (n >= 0 ? '+' : '') + n;
 function endWeek() {
   if (G.over) return; if (G.raid) { raidModal(); return; }
   G.repPrev = GM.snap(G); const msg = GM.endWeek(G); select(null);
-  if (G.raid) { ui.toast(msg); raidIntro(() => { writeSave(); refreshUI(); }); commit(null); } else { commit(msg); showReport(); }
+  if (G.raid) { ui.toast(msg); const go = () => raidIntro(() => { writeSave(); refreshUI(); }); if (G.raid.gen) playStory(G.raid.gen, 'pre', go); else go(); commit(null); } /* 章の将軍が攻めてきた：対峙の会話のあとで軍勢が進む（2026-10-31） */ else { commit(msg); showReport(); }
 }
 const morning = createMorning();
 const story = createStory();
 function playStory(c, kind, then) { // 章の始まり／終わりの会話（story.js）
   const C = GM.CHAPTERS[c - 1]; if (!C) { then && then(); return; }
-  try { story.play({ c, kind, title: C.t, desc: C.d, foeName: C.g, foeKey: `g${c}${c === 6 && kind !== 'start' ? 'b' : ''}` }, then); } catch (e) { console.error('章の会話', e); then && then(); }
+  try { story.play({ c, kind, title: C.t, desc: C.d, foeName: C.g, foeKey: `g${c}${c === 6 && kind === 'win' ? 'b' : ''}` }, then); } catch (e) { console.error('章の会話', e); then && then(); }
 }
 function chapterStartScene() { if (!G || !G.chStart || G.raid || G.over) return; const c = G.chStart; G.chStart = 0; writeSave();
+  if (c === 1 && G.week === 1 && !G.proSeen) { G.proSeen = true; writeSave(); playStory(1, 'pro', () => { G.chStart = 1; chapterStartScene(); }); return; } /* 新しいゲーム：序章（処刑からの逃亡）のあとに第1章 */
   playStory(c, 'start', () => { refreshUI(); const nf = G.newFac || []; G.newFac = null; writeSave(); if (nf.length) ui.toast(`新しい施設：${nf.map(f => FAC[f].n).join('・')}（空き地から建てられる）`); }); }
 function chapterEndScene(then) { if (!G.chEnd) { then(); return; } const e = G.chEnd; G.chEnd = null; writeSave(); playStory(e.c, e.win ? 'win' : 'lose', then); }
 function openMorning(prev, R) { // 朝の報告：空の部屋、ラナの歩き、報告役の3文 → タップで「今朝の変化」→ タップで領地へ
@@ -815,7 +816,7 @@ function autoBattle(resolveFn) { // 任せた戦闘：仲間と兵が軍勢と�
 }
 // ---------- 一騎打ちの演出（仮：マップ用の絵を大きく並べ、動きはコード）----------
 const dCss = document.createElement('style'); dCss.textContent = `
-@font-face{font-family:'DMincho';src:url(assets/font/mincho-b.woff2?v=7) format('woff2');font-weight:700;font-display:swap}
+@font-face{font-family:'DMincho';src:url(assets/font/mincho-b.woff2?v=8) format('woff2');font-weight:700;font-display:swap}
 #dsel,#duel{--u:min(.2326vw,.1073dvh);--ink:#2b1d10;--ink2:#5e4728;--gold:#a8833c;--teal:#2c6a64;--red:#a3362b;
   position:fixed;inset:0;display:none;flex-direction:column;overflow:hidden;font-family:'DMincho','Hiragino Mincho ProN','Yu Mincho',serif;font-weight:700;color:var(--ink);
   background:#efe3c8 url(assets/ui2/parch.jpg) 0 0/calc(760*var(--u)) auto repeat;-webkit-font-smoothing:antialiased}
@@ -1007,7 +1008,7 @@ const duelRank = () => G.raid && (G.raid.boss || G.raid.gen) ? 'boss' : G.raid &
 const pickOf = a => a[Math.floor(Math.random() * a.length)];
 function playDuel(kIn, done) { // 画面いっぱいの一騎打ち。五合の勝負（先に3合）。鬨の声は1回（作戦室で増える）：大技の合に使えば見切り、通常の合なら強化
   // 2026-10-31 ⑤2人参戦：kIn が配列なら2人。合ごとに交代で前に出る（敵の攻撃も前に出た方が受ける）。決着の一撃は合わせ技（相方が先に打ち、締め役が決める。将軍戦でランカがいれば星震で締める）
-  const ks = [].concat(kIn), pair = ks.length > 1, k = ks[0], R = G.raid, F = GM.foeGeneral(G), look = dLook(), plan = GM.duelPlan(G, pair ? ks : k), FL = GM.DUEL_LINES[duelRank()];
+  const ks = [].concat(kIn), pair = ks.length > 1, k = ks[0], R = G.raid, F = GM.foeGeneral(G), look = dLook(), plan = GM.duelPlan(G, pair ? ks : k), FL = { ...GM.DUEL_LINES[duelRank()], ...(R.gen ? GM.GEN_LINES[R.gen] || {} : {}) }; /* 章の将軍は専用の台詞 */
   const ALs = ks.map(x => GM.DUEL_LINES[x] || GM.DUEL_LINES.mina), NM = ks.map(GM.nameOf), both = NM.join('と');
   const closer = pair ? ks.indexOf(((R.boss || R.gen) && ks.find(x => (DUEL_CLIP[x + '_ult'] || []).length)) || ks[1]) : 0; // 締め役（ks の番号）
   let act0 = 0, AL = ALs[0], lname = NM[0];
@@ -1097,11 +1098,13 @@ function playDuel(kIn, done) { // 画面いっぱいの一騎打ち。五合の�
   const srcs = [...new Set(ks.flatMap(x => duelSrcs(x, look)))], ld = document.createElement('div'); ld.className = 'ld'; ld.innerHTML = '<b>構えを整えている…</b><i><u></u></i>'; stage.appendChild(ld); // 全部の絵を読み終えてから始める
   let got = 0; const bar = ld.querySelector('u');
   Promise.all(srcs.map(sr => holdImg(sr).then(() => { got++; bar.style.width = (got / srcs.length * 100) + '%'; }))).then(() => { if (over) return; ld.classList.add('out'); setTimeout(() => ld.remove(), 300);
-    say('l', pickOf(AL.open), 2200); say('r', pickOf(FL.open), 2200); T(() => roundStart(0), 2300); });
+    const vj = FL.vs ? ks.findIndex(x => FL.vs[x]) : -1; /* 因縁の組み合わせ（ボルグ×ガロウなど）：開幕の台詞を専用に */
+    if (vj >= 0) { if (pair) setAct(vj); say('l', FL.vs[ks[vj]][0], 2800); say('r', FL.vs[ks[vj]][1], 2800); T(() => roundStart(0), 3000); }
+    else { say('l', pickOf(AL.open), 2200); say('r', pickOf(FL.open), 2200); T(() => roundStart(0), 2300); } });
   if (pair) setAct(0);
 }
 function openSelect(cs, F, onPick, onDecline) { // 一騎打ちに送り出す仲間を選ぶ（モック準拠：上に敵将、下に仲間のカード）。2026-10-31 将軍戦で軍旗の間があれば2人まで（GM.pairOK）
-  const R = G.raid, look = foeLook(), FLo = GM.DUEL_LINES[duelRank()], two = GM.pairOK(G);
+  const R = G.raid, look = foeLook(), FLo = { ...GM.DUEL_LINES[duelRank()], ...(R.gen ? GM.GEN_LINES[R.gen] || {} : {}) }, two = GM.pairOK(G);
   let sel = [cs[0]]; if (two && GM.finalDuel(G) && cs.includes('ranka')) sel = ['rana', 'ranka']; /* 最終章：ラナとランカが最初から並ぶ */
   const por = {}; cs.forEach(k => { por[k] = POR[k] ? pickOf(POR[k]) : standOf(k); });
   duelSel.innerHTML = `<div class="hero" style="background-image:${bustBG(look, 1)},url(assets/field/${R.dir || 'pass'}.jpg);background-size:124% auto,124% auto,cover;background-position:0 0,0 0,center"><div class="tt"><small>第${R.w || G.week}週</small><img class="dv0" src="assets/ui2/divider2.webp"><h1>一騎打ち</h1></div><div class="qt">${FLo.open[0]}<small>${F.n}</small></div></div>

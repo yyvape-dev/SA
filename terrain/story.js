@@ -7,28 +7,40 @@ const NAME = { mina: 'ミナ', garou: 'ガロウ', sera: 'セラ', ranka: 'ラ�
 const splitTitle = n => { const m = /^(.+?)([ァ-ヶー]+)$/.exec(n || ''); return m ? [m[1], m[2]] : ['', n || '']; };
 const NUM = ['', '一', '二', '三', '四', '五', '六'];
 export const SCENES = {
-  1: { start: [['mina', '姫、ここなら追っ手も来ない。\n……しばらくは、ね。'], ['rana', 'ありがとう、ミナ。\nここから始めましょう。\n国を取り戻すために。'], ['mina', '民はまだ、姫を怖がってる。\n処刑されるはずだった女王だもん。\n……でも、わたしは知ってるから。']],
-    win: [['foe', 'ちっ……\nただの小娘じゃなかったか。'], ['mina', 'どこまでも付いてくよ。\n……べ、別に当然でしょ。'], ['rana', '民が、少しだけ笑ってくれた。']] },
+  1: { pro: [['rana', 'はぁ……はぁ……\n……ミナ、どこまで\n走ればいいの。'], ['mina', 'もう少し。\n処刑台の兵は、\n縄を切ったら全部ひるんだ。'],
+      ['rana', '父が亡くなって、\nまだ一月も経たないのに……\n叔父上が、謀反なんて。'], ['mina', '大公は、\n姫が女王じゃ困るんだよ。\n……だから消そうとした。'],
+      ['rana', 'わたしは……\nみんなを置いて、\n逃げてきたのね。'], ['mina', '逃げたんじゃない。\n生き延びたの。\n……生きてれば、取り返せる。'],
+      ['mina', '北の外れに、\n古い家の街がある。\nまずは、そこまで。'], ['rana', '……ええ。\n行きましょう、ミナ。']],
+    pre: [['foe', 'おうおう、こいつが\n噂の逃げ出した女王さまか。'], ['foe', '首を持ってけば、\n大公さまが金貨を\n山ほどくれるって話でな。'], ['mina', '姫には、指一本\n触れさせない。'], ['rana', '民から奪った物を、\n返してもらうわ。']],
+    start: [['mina', '姫、ここなら追っ手も来ない。\n……しばらくは、ね。'], ['rana', 'ありがとう、ミナ。\nここから始めましょう。\n国を取り戻すために。'], ['mina', '民はまだ、姫を怖がってる。\n処刑されるはずだった女王だもん。\n……でも、わたしは知ってるから。']],
+    win: [['foe', 'ちっ……\nただの小娘じゃなかったか。'], ['mina', 'どこまでも付いてくよ。\n……べ、別に当然でしょ。'], ['rana', '民が、少しだけ笑ってくれた。'],
+      ['mina', '……ね、姫。\nパン屋のおばさんが、\n姫にって、これくれた。'], ['rana', '……温かいわね。\n守らなきゃ、この街を。']] },
   2: { start: [['rana', '東の村が、傭兵に\n狙われていると聞いたわ。'], ['garou', 'おっと、そこまでだ。\nこの村に用があるなら、\nまず俺の斧を越えてもらおうか。'], ['rana', '待って。\nわたしたちは、\n村を守りに来たの。'],
       ['garou', '……その赤い襟巻き。\nまさか、処刑台から消えたっていう\n女王さまですかい？'], ['garou', '俺はガロウ。\n元は傭兵でさぁ。\n村を焼けって命令が嫌で、\n団を抜けた半端者で。'],
       ['rana', '半端者なんかじゃないわ。\n民を守るために、\n斧を置かなかったんでしょう。'], ['garou', '……ハッ、\n言ってくれるじゃねえか。\nよし、姫。この斧、預けますぜ。'],
       ['garou', 'ガハハ！\n姫、東の地は俺に任せてくだせえ。'], ['garou', '……ただ、向こうの傭兵団に、\n見覚えのある旗がありやしてね。'], ['rana', 'ガロウ？'], ['garou', 'なに、昔の話でさぁ。']],
-    win: [['foe', '金で振る斧の方が、\nよっぽど楽だったろうに。'], ['garou', '金で振る斧と、\n主のために振る斧の違い……\n見せてやりましたぜ。'], ['garou', '団長、行きな。\nもう二度と、\n姫の前に立つんじゃねえ。']] },
+    pre: [['foe', 'よう、ガロウ。\n生きてやがったか。'], ['garou', '団長……\nあんたが謀反側に付くとはな。'], ['foe', '金払いがいいほうに付く。\nそれが傭兵だろうが。\n教えたのは、俺だぜ。'], ['garou', 'ああ、教わりやした。\n……だから今日は、\nそれを返しに来たんでさぁ。']],
+    win: [['foe', '金で振る斧の方が、\nよっぽど楽だったろうに。'], ['garou', '金で振る斧と、\n主のために振る斧の違い……\n見せてやりましたぜ。'], ['garou', '団長、行きな。\nもう二度と、\n姫の前に立つんじゃねえ。'],
+      ['foe', '……ちっ。\n甘くなりやがって。\n……達者でな、ガロウ。'], ['rana', '見逃して、よかったの？'], ['garou', 'あの人に斧を教わったのは、\n俺でさぁ。\n……これで、貸し借りなしだ。']] },
   3: { start: [['rana', '湖のほとりの修道院……\n誰か、いるの？'], ['sera', 'ひゃっ！？\nご、ごめんなさい、\n兵隊さんかと思って……！'], ['sera', 'わたし、ここで\n古い帳簿や記録を\n守っていたんです。\n戦で、焼かれないように。'],
       ['rana', '一人で？'], ['sera', '……はい。\n本しか、友だちがいなくて。'], ['sera', 'でも、記録で読みました。\n逃げながら、民に麦を\n分けている女王さまのこと。'],
       ['rana', 'わたしたちには、\n数字を読める人が足りないの。\n力を貸してくれる？'],
       ['sera', 'あの、姫さま……\n本日より内政を預かります、\nセラです。帳簿は、得意です。'], ['sera', '……向こうの陣に、\n懐かしい紋章が見えました。\n気のせいだと、いいのですが。']],
-    win: [['foe', '強くなったわね、ラナ。\n……一つだけ教えてあげる。\n大公の軍は、得体の知れないものと\n取引しているわ。'], ['sera', '姉さま……。'], ['sera', '姫さま。\nわたしは、ここに残ります。\nこの国の帳簿は、\nわたしがつけます。']] },
+    pre: [['foe', '久しぶりね、ラナ。\n……それに、セラ。'], ['sera', '姉さま……\nどうして、大公の側に。'], ['foe', '家を立て直すためよ。\n落ちぶれた家の娘に、\n選ぶ道なんて無いの。'], ['rana', 'エルザ。\nあなたの剣を、\n民に向けさせはしない。']],
+    win: [['foe', '強くなったわね、ラナ。\n……一つだけ教えてあげる。\n大公の軍は、得体の知れないものと\n取引しているわ。'], ['sera', '姉さま、一緒に……！'], ['foe', '……いいえ。\nわたしには、まだ\n帰れる顔が無いもの。'], ['sera', '姉さま……。'], ['sera', '姫さま。\nわたしは、ここに残ります。\nこの国の帳簿は、\nわたしがつけます。']] },
   4: { start: [['rana', '黒い鎧の兵……\n数が多すぎる！'], ['mina', '姫、下がって！\nここは、わたしが……！'], ['ranka', 'あれ、困ってる？\n釣りの途中だったんだけどさ……\nお嬢、手、貸そっか？'], ['rana', 'あなたは……？'], ['ranka', 'ランカ。通りすがりの、\nちょっと強い人だよ。'],
       ['ranka', 'よっと。\n……はい、片付いた。'], ['mina', 'い、一撃で……？'], ['ranka', 'この森、最近\n嫌な気配がするんだよね。\n魚も逃げちゃってさ。'],
       ['ranka', 'お嬢の旗の下なら、\nその気配の元まで行けそう。\nしばらく付いてってもいい？'], ['rana', '……ええ。\n歓迎するわ、ランカ。']],
-    win: [['foe', '……グ……ァ……'], ['ranka', '……やっぱり。\nこいつ、中身は悪魔だよ。'], ['ranka', '……お嬢。\nここから先は、\nちょっとだけ真面目にやるよ。']] },
+    pre: [['foe', '……姫……\nコロ……セ……'], ['mina', 'なに、こいつ……\n声が、おかしい。'], ['ranka', '……お嬢、下がってて。\nこいつ、人の匂いがしない。'], ['rana', 'ランカ……？']],
+    win: [['foe', '……グ……ァ……'], ['ranka', '……やっぱり。\nこいつ、中身は悪魔だよ。'], ['rana', '悪魔……？\nおとぎ話じゃ、なかったの。'], ['ranka', '昔、大きな戦があってね。\n人と、悪魔の。\n……その残りかすだよ。'], ['ranka', '……お嬢。\nここから先は、\nちょっとだけ真面目にやるよ。']] },
   5: { start: [['lily', 'ランカ！\nやっと見つけた……！'], ['ranka', 'げ、リリィ。'], ['lily', '「げ」じゃないでしょ！\n黙って国を出て、\nどれだけ探したと思ってるの！'], ['ranka', 'いや〜、\nちょっと釣りの旅にさ……'],
       ['lily', '……もう。\n――失礼しました。\nあなたがラナさんですね。'], ['lily', 'わたしはリリィ。\nランカの戦友です。\n騎士団では、副団長を。'], ['rana', 'ランカには、\nずっと助けられているわ。'],
       ['lily', '強すぎるんです、この子は。\nだから、誰かが隣で\n支えないといけない。'], ['lily', '逃げながらも民を想う\nあなたに、\nわたしの剣を預けます。']],
-    win: [['foe', '……強くなったな、姫。\n大公は悪魔と契約した。\n王都の地下に、封印がある。'], ['foe', 'この剣を持っていけ。\nわしには、もう振る資格がない。'], ['lily', 'ランカ、一人で行く気でしょ。\n……ちょっと！ 何してるの！\n一人で行かせるわけないでしょ。']] },
+    pre: [['foe', '……来たか、姫。'], ['rana', 'ヘルマン先生……\nどうして、あなたが。'], ['foe', 'わしは王国の剣だ。\n剣は、理由を問わぬ。\n……そう教えたはずだ。'], ['lily', 'ラナさん。\nあの人、迷ってる。\n剣の構えで、わかります。'], ['foe', '構えよ、姫。\nわしに勝てぬようでは、\nこの先へは進めん。']],
+    win: [['foe', '……強くなったな、姫。\n大公は悪魔と契約した。\n王都の地下に、封印がある。'], ['foe', 'この剣を持っていけ。\nわしには、もう振る資格がない。'], ['rana', '先生……。'], ['foe', '……行け、姫。\n王都で、決着をつけろ。'], ['ranka', '封印、ね。\n……じゃ、わたしが\n先に行って片付けとくよ。'], ['lily', 'ランカ、一人で行く気でしょ。\n……ちょっと！ 何してるの！\n一人で行かせるわけないでしょ。']] },
   6: { start: [['rana', '王都が見える。\n……帰ってきたわ。'], ['mina', '国なんて取り戻せなくても、\n姫と二人で生きていければよかった。\n……でも、姫が王様になりたいなら、\n隣で見てる。'], ['ranka', 'さ、お嬢。\n最後くらい派手にいこっか。']],
-    win: [['foe', 'バカな……\n我が契約が……！'], ['sera', '姫さま……いえ、陛下。\nお帰りなさいませ。'], ['garou', 'ガハハ！\n近衛の長、拝命しますぜ！'], ['ranka', 'じゃ、わたしは釣りの続きに戻るよ。\nお嬢、また呼んでよ。\n悪魔が出たらね。'], ['lily', 'ちょっと！ 待ちなさいランカ！\n……ラナさん、お元気で！'], ['mina', '……おかえり、姫。']] },
+    pre: [['foe', 'よく来たな、ラナ。\n兄上によく似た目だ。'], ['rana', '叔父上。\n父の玉座を、\n返していただきます。'], ['foe', '玉座は、力ある者が座るもの。\n……見せてやろう、\n我が得た力を。'], ['ranka', '……出たね、\n悪魔の匂いの元。'], ['ranka', 'お嬢、背中は任せて。\n……今日は、手加減なしだよ。']],
+    win: [['foe', 'バカな……\n我が契約が……！'], ['rana', '叔父上……\nあなたも、力に\n呑まれただけなのね。'], ['sera', '姫さま……いえ、陛下。\nお帰りなさいませ。'], ['sera', 'この国の帳簿は、\nわたしが守ります。\n……宰相見習いとして。'], ['garou', 'ガハハ！\n近衛の長、拝命しますぜ！'], ['ranka', 'じゃ、わたしは釣りの続きに戻るよ。\nお嬢、また呼んでよ。\n悪魔が出たらね。'], ['lily', 'ちょっと！ 待ちなさいランカ！\n……ラナさん、お元気で！'], ['mina', '……おかえり、姫。'], ['rana', 'ただいま、ミナ。\n……さあ、始めましょう。\nみんなの国を。']] },
 };
 const LOSE = [['mina', '退けきれなかった……。\nでも、まだ終わってない。'], ['rana', '立て直しましょう。\n次の章で、必ず。']];
 const REF_W = 941, REF_H = 1672, FOOT = 1215;
@@ -42,6 +54,7 @@ const CSS = `
 #story .st{position:absolute;top:0;bottom:0;left:50%;aspect-ratio:${REF_W}/${REF_H};transform:translateX(-50%);background:#000 center/100% 100% no-repeat}
 #story .a{position:absolute;pointer-events:none;filter:drop-shadow(0 calc(var(--u)*8) calc(var(--u)*10) #0007);transition:filter .3s}
 #story .a.dim{filter:drop-shadow(0 calc(var(--u)*8) calc(var(--u)*10) #0007) brightness(.5)}
+#story .st.night .oth{z-index:1}#story .st.night::after{content:'';position:absolute;inset:0;z-index:0;background:linear-gradient(#050a1ee6,#0a1430b3 60%,#0a1430cc);pointer-events:none} /* 序章：逃亡の夜 */
 #story .oth{opacity:0;transition:opacity .45s,transform .45s,filter .3s;transform:translateX(calc(var(--u)*50))}
 #story .oth.on{opacity:1;transform:none}#story .ral{z-index:2}
 #story .card{position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(var(--u)*36);background:#000a;opacity:0;transition:opacity .7s}
@@ -77,7 +90,7 @@ export function createStory() {
     const lines = o.kind === 'lose' ? LOSE : ((SCENES[o.c] || {})[o.kind] || []);
     if (!lines.length && o.kind !== 'start') { onDone && onDone(); return; }
     await genMetaP; done = onDone; el.style.display = 'block'; const fr = loadFrames();
-    el.innerHTML = `<div class="st" style="background-image:url(assets/story/bg_${o.c}.webp?v=1)"><img class="a oth" alt=""><img class="a ral" alt=""></div>${o.kind === 'start' ? `<div class="card"><small>第${NUM[o.c] || o.c}章</small><h2>${o.title}</h2><i></i><p>${o.desc}</p></div>` : ''}<div class="box"><div class="nm"><small></small><b></b></div><i class="ln"></i><div class="tx"></div><span class="nx"></span></div><button class="skip">スキップ ▶</button>`;
+    el.innerHTML = `<div class="st${o.kind === 'pro' ? ' night' : ''}" style="background-image:url(assets/story/bg_${o.c}.webp?v=1)"><img class="a oth" alt=""><img class="a ral" alt=""></div>${o.kind === 'start' ? `<div class="card"><small>第${NUM[o.c] || o.c}章</small><h2>${o.title}</h2><i></i><p>${o.desc}</p></div>` : ''}<div class="box"><div class="nm"><small></small><b></b></div><i class="ln"></i><div class="tx"></div><span class="nx"></span></div><button class="skip">スキップ ▶</button>`;
     const stage = el.querySelector('.st'), ral = el.querySelector('.ral'), oth = el.querySelector('.oth'), card = el.querySelector('.card'), box = el.querySelector('.box'), nm = el.querySelector('.nm'), tx = el.querySelector('.tx');
     const U = () => stage.clientHeight / REF_H;
     onR = () => { el.style.setProperty('--u', U() + 'px'); ralAt(rx); if (cur) placeOth(cur); }; el.style.setProperty('--u', U() + 'px'); window.addEventListener('resize', onR);
