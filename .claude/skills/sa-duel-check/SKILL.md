@@ -13,6 +13,7 @@ node terrain/tools/duel_shot.js <章1〜6> <仲間,仲間> <win|lose|rand> <出�
 - 仲間を空 `""` にすると初期選択のまま（第6章はラナとランカ）。キー：rana（第6章だけ）・mina・garou・sera・ranka・lily。
 - 試しは軍旗の間がなくても2人で挑める（`G.testPair`）。
 - 出力：`sheet.png`（選出画面＋1.5秒ごと14枚＋結果）、`stage.png`（舞台だけを拡大した14枚）。標準出力に選択の文言とページのエラー。
+- 攻撃の瞬間（間合い・寄り・エフェクト）を見るとき：`DS_INT=120 DS_N=30 node terrain/tools/duel_shot.js ...`（0.12秒おき30枚。最初の攻撃は s17〜s26 あたり）。ページの console で `[duel]` から始まる行は標準出力に出る。
 - Bash の timeout は 600000 にする。2本以上撮るときは、続けて実行する（並行させると重い）。
 
 ## 2. 見る（Read で stage.png → 必要なら sheet.png）

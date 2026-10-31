@@ -965,6 +965,7 @@ const genDuelLook = () => { const g = G.raid && G.raid.gen; if (!g) return null;
 const dLook = () => genDuelLook() || foeLook(), dHum = l => HUMAN[String(l)[0] === 'g' ? l : 'f' + l] || 178;
 const foeFace = l => String(l)[0] === 'g' ? `assets/npc/bust_${l}.webp` : `assets/npc/foe_${l}.webp`; // 隊長＝槍兵かフードの山賊（週で入れ替え）、副官＝羽飾りの兵、将軍＝斧の山賊
 /* 2026-10-31 技の形と色（形で何の技か読める）。[形, 色, 闇の煙] */
+const REACH = { palm: .1, kick: .8, slash: .8, cleave: 1, lash: 1, glyph: 1.1 }, ZMAX = 1.45, ZIDLE = 1.15; // 一騎打ちの間合い（背の高さに対する、体の間のあき。攻撃の絵の踏み込み〈約2割〉を見込んだ値）と寄り（2026-10-31）
 const STYLE = { rana: ['slash', 'rana'], garou: ['cleave', 'azure'], mina: ['lash', 'violet'], sera: ['glyph', 'jade'], ranka: ['palm', 'sky'], lily: ['kick', 'silver'] };
 const FSTYLE = { g1: ['cleave', 'red'], g2: ['cleave', 'red'], g3: ['slash', 'red'], g4: ['slash', 'abyss', 1], g5: ['slash', 'steel'], g6: ['slash', 'abyss', 1], g6b: ['slash', 'abyss', 1] };
 const HS = { light: 60, heavy: 110, fin: 170 }, TRAUMA = { light: .3, heavy: .55, fin: .9 }; // 重さ3段階：止める ms（Capcom の弱/中/強の考え方）と揺れ
@@ -1065,23 +1066,28 @@ function playDuel(kIn, done) { // 画面いっぱいの一騎打ち。五合の�
     const sw = stage.clientWidth, sh = stage.clientHeight; z = Math.max(1, z);
     const tx = Math.min(0, Math.max(sw - z * sw, sw * fr - z * wx)), ty = Math.min(0, Math.max(sh - z * sh, sh * (.92 - z * .85)));
     cam.style.transition = `transform ${ms}ms ${ease}`; cam.style.transformOrigin = '0 0'; cam.style.transform = z === 1 ? '' : `translate(${tx}px,${ty}px) scale(${z})`; };
+  const WR = el => { const r = el.getBoundingClientRect(), s0 = stage.getBoundingClientRect(), m = new DOMMatrix(getComputedStyle(cam).transform === 'none' ? undefined : getComputedStyle(cam).transform), z = m.a || 1; // 画面の枠 → 寄りなし（1倍）のときの枠
+    const X = x => s0.left + (x - s0.left - m.e) / z, Y = y => s0.top + (y - s0.top - m.f) / z, l = X(r.left), t = Y(r.top), w = r.width / z, h = r.height / z; return { left: l, right: l + w, top: t, bottom: t + h, width: w, height: h }; };
+  let IV = null; const idleV = () => IV || (IV = (() => { const s0 = stage.getBoundingClientRect(), rr = [...FE.filter(e => e && e.isConnected && e.offsetParent), Rf].map(WR), l = Math.min(...rr.map(r => r.left)), rt = Math.max(...rr.map(r => r.right)); return { x: (l + rt) / 2 - s0.left, z: Math.min(ZIDLE, stage.clientWidth / ((rt - l) * 1.12)) }; })()); // 構え：全員が収まる範囲で少し寄る（立ち位置は変わらないので最初に1回だけ測る）
   const runRound = i => { inWin = false; gb.classList.remove('ready');
     const r = GM.duelRound(plan, i, armed), fin = (r.ally ? aw : fw) + 1 >= 3, link = pair && fin && r.ally; armed = false; // fin＝決着の一撃。link＝2人の合わせ技
     if (link) setAct(closer); const Lc = FE[act0], at = r.ally ? Lc : Rf, df = r.ally ? Rf : Lc, dir = r.ally ? 1 : -1, act = r.ally ? AC()[act0] : actR;
-    const big = r.kind === 'counter' || r.kind === 'heavy', sw = stage.clientWidth, rs = stage.getBoundingClientRect(), ra = at.getBoundingClientRect(), rd = df.getBoundingClientRect();
-    const CLOSE = .03; /* 詰める深さ：絵の枠（余白つき）同士を、舞台の幅のこの割合だけ重ねる（2026-10-31 .10→.03、近すぎたので少し離す） */ at.style.zIndex = 3; df.style.zIndex = 2; /* 攻める側を手前に */ const gap = r.ally ? rd.left - ra.right : ra.left - rd.right, dx = dir * Math.max(0, gap + sw * CLOSE); // 相手の懐まで詰める
+    const big = r.kind === 'counter' || r.kind === 'heavy', sw = stage.clientWidth, rs = stage.getBoundingClientRect(), ra = WR(at), rd = WR(df); /* 構えでも寄っているので、寄りを外した座標で測る */
+    const CLOSE = .03; /* 詰める深さ：絵の枠（余白つき）同士を、舞台の幅のこの割合だけ重ねる（2026-10-31 .10→.03、近すぎたので少し離す） */ at.style.zIndex = 3; df.style.zIndex = 2; /* 攻める側を手前に */
+    const kind0 = (r.ally ? STYLE[ks[act0]] : FSTYLE[look]) || ['slash'], reach = REACH[kind0[0]] ?? REACH.slash, hb = Math.min(ra.height, rd.height) * .8, focus = FOCUS_ATK && reach < 1; /* 離れて打つ技（鎖・紋様）は、2人が収まるまで引く */ // 武器の間合い：体の間を背の高さ×reach だけあける（2026-10-31）
+    const dist = Math.abs((rd.left + rd.right) / 2 - (ra.left + ra.right) / 2), dx = dir * Math.max(0, dist - hb * (.36 + reach));  // 間合いまで詰める（絵の枠の真ん中どうしの距離＝体の幅 .36＋あき。枠の余白は人によって違うので枠の端では測らない）
     const cx0 = (ra.left + ra.right) / 2 - rs.left, cx1 = cx0 + dx; // 走る側の中心（世界の座標。カメラは毎合 引きから始まる）
     const span = Math.max(ra.right + dx, rd.right) - Math.min(ra.left + dx, rd.left), mid = (Math.max(ra.right + dx, rd.right) + Math.min(ra.left + dx, rd.left)) / 2 - rs.left;
-    const zFit = Math.min(1.9, sw / (span + sw * .1)), zRun = Math.max(zFit + .3, 1.7); /* 2026-10-30 寄りを約2割弱く（以前 2.2・+.5・2.1） */ // 攻撃＝二人がぎりぎり収まる／走り＝その人を大きく
+    const zFit = Math.min(1.9, sw / (span + sw * .1)), zRun = Math.min(ZMAX, Math.max(zFit + .15, 1.3)); /* 2026-10-31 寄りの上限 1.45（以前は 1.7 以上） */ /* 2026-10-30 寄りを約2割弱く（以前 2.2・+.5・2.1） */ // 攻撃＝二人がぎりぎり収まる／走り＝その人を大きく
     const runMs = D(dx ? 470 : 160), ran = act && dx ? act.run(runMs, r.ally ? 1 : 2.2) : false, lead = D(140);
     at.style.transition = `transform ${runMs}ms ${ran ? 'linear' : 'ease-in'}`; at.style.transform = `translateX(${dx}px)`;
     const FR = dir > 0 ? .32 : .68; /* 寄るとき、攻める側を中央より後ろに置き、進む先（相手と斬撃）に余白を残す（2026-10-29） */ camTo(zRun, cx0 + dx * .25, lead, undefined, FR); T(() => camTo(zRun, cx1, runMs - lead, 'linear', FR), lead); // 寄ってから、走りに合わせて追う
     const clashX = (r.ally ? ra.right + dx : ra.left + dx) - rs.left + dir * sw * .02, tame = D(big ? 300 : 170);
     const ultFin = fin && r.ally && (R.boss || R.gen) && (DUEL_CLIP[ks[act0] + '_ult'] || []).length; /* 将軍戦の止め：専用の大技 */ const P = act ? act.play(Math.max(0, runMs - D(120)), ultFin ? 'ult' : tame) /* 走りの終わりに重ねて振りかぶり始める（踏み込みながら構える） */ : { c: null, hitAt: runMs + 240 };
-    const zAtk = big ? zRun * 1.08 : zRun, fx = cx1; // 攻撃の間も、走った側に寄ったまま（少しだけ前へ向ける）。二人を収める案は FOCUS_ATK=false
-    T(() => FOCUS_ATK ? camTo(zAtk, fx, D(220), undefined, FR) : camTo(big ? zFit * 1.06 : zFit, mid, D(big ? 320 : 240)), runMs);
+    const zAtk = Math.min(ZMAX, big ? zRun * 1.06 : zRun), fx = cx1; // 攻撃の間も、走った側に寄ったまま（少しだけ前へ向ける）。二人を収める案は FOCUS_ATK=false
+    T(() => focus ? camTo(zAtk, fx, D(220), undefined, FR) : camTo(Math.min(ZMAX, big ? zFit * 1.06 : zFit), mid, D(big ? 320 : 240)), runMs);
     if (r.kind === 'counter') { const c = $('.cut'); c.querySelector('div').innerHTML = `COUNTER<small>見切り　${lname}が大技を受け流す</small>`; T(() => c.classList.add('on'), runMs); T(() => c.classList.remove('on'), P.hitAt + 500); }
-    if (link) { /* 合わせ技：相方が先に飛び込んで一太刀、締め役が決める（2026-10-31） */ const pj = 1 - act0, pe = FE[pj], pa = AC()[pj], rp = pe.getBoundingClientRect(), pdx = Math.max(0, rd.left - rp.right + sw * (CLOSE - .05));
+    if (link) { /* 合わせ技：相方が先に飛び込んで一太刀、締め役が決める（2026-10-31） */ const pj = 1 - act0, pe = FE[pj], pa = AC()[pj], rp = WR(pe), pdx = Math.max(0, rd.left - rp.right + sw * (CLOSE - .05));
       const c = $('.cut'); c.querySelector('div').innerHTML = `LINK<small>合わせ技　${NM[pj]}と${NM[act0]}</small>`; T(() => c.classList.add('on'), D(80)); T(() => c.classList.remove('on'), P.hitAt + 400);
       pe.style.zIndex = 4; pe.style.transition = `transform ${D(380)}ms ease-in`; pe.style.transform = `translateX(${pdx}px)`;
       const pp = pa ? pa.play(Math.max(0, D(260)), 0) : { hitAt: D(560) }, ph = Math.min(pp.hitAt, P.hitAt - D(220));
@@ -1100,16 +1106,16 @@ function playDuel(kIn, done) { // 画面いっぱいの一騎打ち。五合の�
       if (r.kind === 'counter') clashFX(stage, { x: (dir > 0 ? r2.left : r2.right) - rs2.left + dir * r2.width * .12, y: hy - hsz * .05, size: hsz * .6, speed: spd }); // 見切り：刃がぶつかる
       if (big || fin) impactFX(stage, { x: hx, y: hy, size: hsz * .7, dir, color: r.ally ? 'blue' : 'red', ko: fin, speed: spd }); // 大技・決着の一撃
       if (fin) { stage.classList.remove('kof'); void stage.offsetWidth; stage.classList.add('kof'); } df.classList.remove('hit'); void df.offsetWidth; df.classList.add('hit'); df.style.transition = 'transform .18s ease-out'; df.style.transform = `translateX(${dir * sw * .04}px)`;
-      if (ultFin) camTo(1, sw / 2, D(260), 'ease-out'); /* 星震の止め：打った瞬間に引いて、舞台全体に星を降らせる（2026-10-30 ユーザー） */ else FOCUS_ATK ? camTo(zAtk * 1.05, fx, 90, undefined, FR) : camTo((big ? zFit * 1.06 : zFit) * 1.05, mid, 90); // 当たりの瞬間、少しだけ寄る
+      if (ultFin) camTo(1, sw / 2, D(260), 'ease-out'); /* 星震の止め：打った瞬間に引いて、舞台全体に星を降らせる（2026-10-30 ユーザー） */ else focus ? camTo(zAtk * (big || fin ? 1.1 : 1.06), fx, 70, undefined, FR) : camTo(Math.min(ZMAX, big ? zFit * 1.06 : zFit) * (big || fin ? 1.1 : 1.06), mid, 70); // 当たりの瞬間、少しだけ寄る
       const n = document.createElement('div'); n.className = 'num'; n.textContent = r.dmg * 7 + Math.round(Math.random() * 9); n.style.left = (clashX / sw * 100 + (r.ally ? 6 : -14)) + '%'; n.style.top = '30%'; cam.appendChild(n); setTimeout(() => { sl.remove(); n.remove(); }, 900);
       apply(i, r); upd(); say(r.ally ? 'l' : 'r', pickOf((r.ally ? AL : FL).hit), 1500); T(() => say(r.ally ? 'r' : 'l', pickOf((r.ally ? FL : AL).hurt), 1400), D(350)); }, P.hitAt);
     T(() => { df.classList.remove('hit'); duelEl.classList.remove('shake'); df.style.transform = ''; }, P.hitAt + 260);
     const back = ultFin ? D(1800) : D(FOLLOW + (big ? 140 : 40)), backMs = D(420); // 専用の大技は、着地のあとの残心まで寄ったまま
-    T(() => { camTo(1, sw / 2, backMs, 'ease-in-out'); at.style.transition = `transform ${backMs}ms ease-in-out`; at.style.transform = ''; }, P.hitAt + back); // 元の位置へ戻りながら、引きへ
+    T(() => { const v = idleV(); camTo(v.z, v.x, backMs, 'ease-in-out'); at.style.transition = `transform ${backMs}ms ease-in-out`; at.style.transform = ''; }, P.hitAt + back); // 元の位置へ戻りながら、引きへ
     T(() => { if (aw >= 3 || fw >= 3) finish(); else roundStart(i + 1); }, P.hitAt + back + backMs + D(250)); };
   function setAct(j) { act0 = j; AL = ALs[j]; lname = NM[j]; if (pair) { L.style.zIndex = j ? 1 : 2; L2.style.zIndex = j ? 2 : 1; L.classList.toggle('bk', !!j); L2.classList.toggle('bk', !j); } } // 前に出る側
   const goRound = i => { gb.classList.remove('ready'); runRound(i); };
-  const roundStart = i => { if (over) return; cur = i; if (pair) setAct(i % 2); const heavy = plan.heavy.includes(i); pips[i].classList.add('cur'); inWin = true;
+  const roundStart = i => { if (over) return; if (!cam.style.transform) { const v = idleV(); camTo(v.z, v.x, 0); } /* 構えも少し寄る */ cur = i; if (pair) setAct(i % 2); const heavy = plan.heavy.includes(i); pips[i].classList.add('cur'); inWin = true;
     msg(heavy ? `<em>第${i + 1}合</em>大技の構え${used ? '' : '　─　鬨の声で見切れる'}` : `<em>第${i + 1}合</em>${word}`, heavy); if (heavy) { say('r', pickOf(FL.heavy), D(1600), true); stopChg(); chg = chargeFX(stage, Rf, { color: 'red', speed: spd }); }
     const w = D(used ? 700 : 1800); /* 鬨の声を押せる時間（2.6秒→1.8秒、2026-10-29） */ tm.style.transition = 'none'; tm.style.width = '100%'; void tm.offsetWidth; tm.style.transition = `width ${w}ms linear`; tm.style.width = '0%'; if (!used) gb.classList.add('ready'); winT = T(() => goRound(i), w); };
   gb.onclick = e => { e.stopPropagation(); if (used || over || !inWin) return; left--; used = left <= 0; armed = true; rallyFX(stage, L, { speed: spd }); // 鬨の声の金の輪 gb.classList.remove('ready'); if (used) gb.classList.add('used'); gb.querySelector('em').textContent = used ? '使用済み' : `残り${left}回`;

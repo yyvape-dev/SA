@@ -11,7 +11,7 @@ const srv = http.createServer((q, r) => { const f = path.join(ROOT, decodeURICom
   r.writeHead(200, { 'Content-Type': TYPES[path.extname(f)] || 'application/octet-stream' }); fs.createReadStream(f).pipe(r); }).listen(0, async () => {
   const port = srv.address().port, b = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
   const p = await b.newPage({ viewport: { width: 430, height: 900 } }), errs = [];
-  p.on('pageerror', e => errs.push(e.message));
+  p.on('pageerror', e => errs.push(e.message)); p.on('console', m => { if (m.text().startsWith('[duel]')) console.log(m.text()); });
   await p.goto(`http://localhost:${port}/terrain/index.html?duel=${ch}`);
   await p.waitForSelector('#dsel .cd', { timeout: 180000 }); await p.waitForTimeout(1500);
   const want = picks.split(',').filter(Boolean);
@@ -26,12 +26,13 @@ const srv = http.createServer((q, r) => { const f = path.join(ROOT, decodeURICom
   await p.click('#dsel .go');
   const IV = +(process.env.DS_INT || 1500), NS = +(process.env.DS_N || 14); /* 間隔と枚数（既定 1.5秒×14）。攻撃の瞬間を見るときは DS_INT=200 DS_N=40 */
   for (let i = 1; i <= NS; i++) { await p.waitForTimeout(IV); await p.screenshot({ path: `${out}/s${String(i).padStart(2, '0')}.png` }); }
-  await p.waitForTimeout(5000); await p.screenshot({ path: `${out}/s15.png` });
+  await p.waitForTimeout(5000); await p.screenshot({ path: `${out}/s${NS > 14 ? 99 : 15}.png` }); if (NS > 14) fs.copyFileSync(`${out}/s99.png`, `${out}/s15_end.png`);
   console.log('エラー:', errs.length ? errs : 'なし');
   await b.close(); srv.close();
   execFileSync('python3', ['-c', `
 from PIL import Image
-o='${out}'; fs=[f'{o}/s{i:02d}.png' for i in range(16)]
+import os
+o='${out}'; fs=[f for f in [f'{o}/s{i:02d}.png' for i in range(16)] if os.path.exists(f)]
 ims=[Image.open(f).resize((215,450)) for f in fs]; g=Image.new('RGB',(215*8,900))
 for i,im in enumerate(ims): g.paste(im,((i%8)*215,(i//8)*450))
 g.save(f'{o}/sheet.png')
