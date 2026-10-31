@@ -119,7 +119,8 @@ var ALLY_K = (function () { var q = new URLSearchParams(location.search || ''), 
   if (f === 'none') return ''; if (f && ['mina', 'garou', 'sera', 'ranka', 'lily'].indexOf(f) >= 0) return f; return pool.length ? pool[Math.floor(Math.random() * pool.length)] : ''; })();
 /* 戦場の数：領地の wavesOf は「規模÷7（2〜7）＋2」。前半＝雑兵、JOIN の戦場から仲間が参入して強敵が混じる、最後＝敵将 */
 function SEGS() { return BAT.on ? Math.max(3, BAT.waves) : 5; }
-function JOIN() { return Math.max(1, Math.floor(SEGS() * 0.4)); } // 仲間が参入する戦場（0始まり）
+var COTEST = /[?&]cotest=1/.test(location.search); // テスト用：仲間が最初の戦場から参入し、連携の再使用が2秒（技のエフェクトをすぐ何度も試す）
+function JOIN() { return COTEST ? 0 : Math.max(1, Math.floor(SEGS() * 0.4)); } // 仲間が参入する戦場（0始まり）
 function finishBattle(win) {
   if (G.state === 'result') return; G.state = 'result'; G.result = !!win; G.resT = 0;
   try { localStorage.setItem('battle_result', JSON.stringify({ id: BAT.id, win: !!win, kills: G.kills, wave: G.wave, sup: G.sup })); } catch (e) { }
@@ -134,7 +135,7 @@ function newGame() {
     roomNo: 0, seg: 0, phase: 'fight', trans: null,
     state: 'title', t: 0, wave: 0, enemies: [], drops: [], parts: [], fx: [], texts: [], booms: [],
     queue: [], qT: 0, shake: 0, freeze: 0, combo: 0, comboT: 0, bestCombo: 0, kills: 0, gold: 0, rare: 0, sup: 0, paused: false, fieldTotal: 1,
-    ally: null, cutin: null, boss: null, coCD: 0, coMax: 12, skCD: 0, skMax: 3.2, pullCD: 0, pullMax: 6, thrCD: 0, thrMax: 8, ultCD: 0, ultMax: 14, dodgeCD: 0, dodgeMax: 1.1, flash: 0, picks: [], pickOpts: [], upgraded: [],
+    ally: null, cutin: null, boss: null, coCD: 0, coMax: COTEST ? 2 : 12, skCD: 0, skMax: 3.2, pullCD: 0, pullMax: 6, thrCD: 0, thrMax: 8, ultCD: 0, ultMax: 14, dodgeCD: 0, dodgeMax: 1.1, flash: 0, picks: [], pickOpts: [], upgraded: [],
     hero: { x: 340, y: 560, face: 1, hp: 120, max: 120, state: 'idle', t: 0, anim: 0, sk: false, kind: 'atk', fxT: 0, ringT: 0, h1: false, h2: false, h3: false, v: 0, lastAtkEnd: -9, lastAtkKind: '', x0: 0, buf: 0, cancelT: 0, total: 0, inv: 0, flash: 0, kb: 0, dx: 0, dy: 0, dsx: 0, dsy: 0, trail: [], trT: 0 }
   };
 }
