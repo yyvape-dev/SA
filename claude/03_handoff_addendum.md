@@ -2,6 +2,16 @@
 
 プロジェクトの `03` の「引き継ぎ」の先頭に、そのまま貼る用。
 
+## 2026-11-01 ラナのコマをアトラスへ（push 済み）＋ Skill sa-sprite-atlas
+* ユーザーの問い：PixiJS にしてコマを増やせるようになったか。→ 描く重さはコマ数に関係しない。上限はメモリ（事実：ラナ240コマ＝展開で360MB）。→ アトラスにする（ユーザー承認）。
+* `battle/tools/atlas_build.py`：1コマ＝1枚の PNG → 余白（アルファ0の外側）を切り詰めて、技ごとのアトラス（最大2048角、可逆 WebP）＋ `sprites/atlas/rana.json`。`--check` で全コマを元に戻して1画素ずつ比べる（全コマ一致）。
+  * 結果（事実）：展開のメモリ 360MB → 143MB、ダウンロード 24MB → 12MB、ファイル 240 → 15。
+* ゲーム側：core.js が `sprites/atlas/rana.json` を読み、ページを読み込む（`ATL`・`ATL_IMG`・`ATL_V`）。読めないときは従来の1枚ずつ。draw.js の `drawSprite` はアトラスの切り出し＋切った分のずらし。PixiJS 版は起動時に全ページを GPU へ送り、自動で手放す対象から外す（`PX.prewarm`、pxr.js）。
+  * 手放す：戦闘は別のページで、出ると全部消える。1キャラ分なら持ったままでよいと判断（手放すと次の使用で送り直して引っかかる）。キャラが増えたら技ごとに `source.unload()`。
+* 確認：`battle/tools/atlas_check.js`（Canvas 版で全240コマをアトラスと元の PNG で描き比べ）→ 位置のずれ 0、画面に出る色の差は最大 2/255（ほぼ透明な画素の丸め。見分け不能）。PixiJS 版で70回押して遊び、技のコマが正しく出る・エラーなし。実機は未確認。
+* `sprites/*.png` は残す（領地の画面の立ち絵・予備）。仲間と敵はもともとシートなので未対応（増やすときは drawAlly を対応させる）。
+* Skill `sa-sprite-atlas`（`.claude/skills/`）：コマを置く → 詰める → 組み込む → 確かめる。
+
 ## 2026-11-01 実機の感想と、エフェクトの確認の Skill（push 済み）
 * ユーザー（実機）：段階2の2（エフェクトを PixiJS）は「軽い、良い」。
 * Skill `sa-battle-fx-check`（`.claude/skills/`）：アクション戦闘のエフェクトを、従来版（`px=0`）と PixiJS 版で同じ時刻で止めて撮り、並べる。道具は `battle/tools/fx_shot.js`（自前の小さなサーバー付き。場面：arc・ult・lance・hit・boss・under・star、`FX_PLAY=1` で70回押して遊ぶ）と `battle/tools/fx_cmp.py`（左右に並べる）。

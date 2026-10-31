@@ -45,7 +45,7 @@ function onDone() { loaded++; if (loaded >= total) boot(); }
 function loadAll() {
   var names = [];
   Object.keys(M.clips).forEach(function (c) { for (var i = 0; i < M.clips[c]; i++) names.push(c + '_' + pad2(i)); });
-  total = names.length + 2 + FOE_TYPES.length;
+  total = 1 + FOE_TYPES.length;
   if (typeof allyLoad === 'function') allyLoad(one); // 参入する仲間の絵（battle/ally.js）
   function one(key, src) { var im = new Image(); im.onload = onDone; im.onerror = function () { failed++; onDone(); }; im.src = src; IMG[key] = im; }
   one('fbk', 'terrain/assets/field/duel.jpg'); // 昼の草原（上＝奥の背景、土の帯＝床）
@@ -59,11 +59,19 @@ function loadAll() {
     FOE_TYPES.forEach(function (n) { var c = meta['walk_' + n]; if (!c) return; FOE_SW[n] = c; total++; one('sw' + n, 'terrain/assets/npc/' + c.f); });
     onDone();
   }).catch(function () { onDone(); });
-  names.forEach(function (n) {
-    var im = new Image(); im.onload = onDone; im.onerror = function () { failed++; onDone(); };
-    im.src = 'sprites/' + n + '.png'; IMG[n] = im;
+  // ラナの連番：技ごとのアトラス（余白を切り詰めて詰めた可逆 WebP、battle/tools/atlas_build.py）。読めないときは1コマ＝1枚の PNG
+  total++;
+  fetch('sprites/atlas/rana.json?v=' + ATL_V).then(function (r) { if (!r.ok) throw 0; return r.json(); }).then(function (meta) {
+    ATL = meta; total += meta.pages.length;
+    meta.pages.forEach(function (fn, i) { one('@a' + i, 'sprites/atlas/' + fn + '?v=' + ATL_V); ATL_IMG[i] = IMG['@a' + i]; });
+    onDone();
+  }).catch(function () {
+    ATL = null; total += names.length;
+    names.forEach(function (n) { one(n, 'sprites/' + n + '.png'); });
+    onDone();
   });
 }
+var ATL = null, ATL_IMG = [], ATL_V = 1; // アトラスを作り直したら ATL_V を上げる
 
 /* ---------- 敵（赤い兵）：歩き＝4×2のシート（右向き）、攻撃＝一騎打ちの連番（左向き）を速めて流す ---------- */
 var FOE_TYPES = [1, 2, 3, 4]; // 1=槍兵 2=赤マントの騎士（強敵） 3=フードの山賊 4=斧の戦士

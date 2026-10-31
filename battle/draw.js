@@ -9,9 +9,12 @@ function shadow(x, y, w) {
 }
 
 function drawSprite(name, x, y, face, sc, sy, an, rot) {
-  var im = IMG[name]; if (!im || !im.complete || !im.naturalWidth) return;
+  var q = ATL && ATL.f[name], im = q ? ATL_IMG[q[0]] : IMG[name]; if (!im || !im.complete || !im.naturalWidth) return;
   var A = an || M;
-  ctx.save(); ctx.translate(x, y); if (rot) ctx.rotate(rot); var kk = A.k || 1; ctx.scale(face * sc * kk, sc * kk * (sy || 1)); ctx.drawImage(im, -A.ax, -A.ay); ctx.restore();
+  ctx.save(); ctx.translate(x, y); if (rot) ctx.rotate(rot); var kk = A.k || 1; ctx.scale(face * sc * kk, sc * kk * (sy || 1));
+  if (q) ctx.drawImage(im, q[1], q[2], q[3], q[4], q[5] - A.ax, q[6] - A.ay, q[3], q[4]); // アトラス：切り詰めた分だけずらして、元のコマと同じ位置に
+  else ctx.drawImage(im, -A.ax, -A.ay);
+  ctx.restore();
 }
 
 function drawHero() {

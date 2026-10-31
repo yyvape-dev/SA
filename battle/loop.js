@@ -13,6 +13,7 @@ function boot() {
     ? '読み込めない素材が ' + failed + ' 個あります。ページを開き直してください。'
     : '';
   uiShow();
+  if (PX.prewarm && ATL_IMG.length) PX.prewarm(ATL_IMG); // アトラスを先に GPU へ送る（初めて出す技で引っかからない）
   started = true; newGame();
   if (document.fonts && document.fonts.load) document.fonts.load('700 20px "DMincho"').catch(function () {});
 }

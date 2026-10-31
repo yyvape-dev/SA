@@ -119,6 +119,10 @@ var PX = { on: false, ready: false, app: null, stats: { spr: 0, gfx: 0 } };
     var L = layer === 'bg' ? bgL : chL; px.L = L; px.st.length = 0; px.globalAlpha = 1; px.globalCompositeOperation = 'source-over'; sync(px, 1 / RR0);
     var keep = ctx; ctx = px; try { fn(); } finally { ctx = keep; }
   };
+  PX.prewarm = function (ims) { // 絵を先に GPU へ送っておく。自動で手放す（GC）対象から外す：手放すと、次に使う瞬間に送り直しで引っかかるため
+    if (!PX.ready) { (PX.onReady = PX.onReady || []).push(function () { PX.prewarm(ims); }); return; }
+    ims.forEach(function (im) { var b = baseTex(im); if (!b) return; b.tex.source.autoGarbageCollect = false; try { app.renderer.texture.initSource(b.tex.source); } catch (e) { } });
+  };
   PX.sync = function (c) { sync(c, 1 / RR0); }; PX.res = function () { return RR0; };
   PX.under = function (fn) { // fn を足元の下の層（半分の解像度の Canvas）に描く。エフェクトの層（battle/pxfx.js）が使えるときは、そちらで GPU に直接
     if (PX.vOn) return PX.vrun('under', fn);
