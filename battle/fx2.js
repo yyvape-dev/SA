@@ -298,11 +298,12 @@ function starfallTick(dt) {
     if (e && e.state === 'walk') { hurt(e, 150 * (0.9 + Math.random() * 0.2) * (e.bind > 0 ? 1.5 : 1), e.x >= sf.a.x ? 1 : -1, true); }
     var tx = e ? e.x : s.x, ty = e ? e.y - eh(e) * 0.55 : s.y;
     G.fx.push({ type: 'vstar', x: tx, y: ty, h: e ? eh(e) : 200, d: -0.11, full: i < 10, t: 0, life: 0.4, sp: i < 10 ? vSparks(8, 0, 200, 600, 1.2) : [] });
+    if (i < 8) fxGroundSlam(e ? e.x : s.x, e ? e.y : s.y + 300, 220, VFX_SKY, false, true); // 星が落ちた所の砂埃・岩片・小さな地割れ
     G.shake = Math.max(G.shake, 6);
   }
   if (!sf.quaked && sf.t >= SF.quake) { // 大きな一撃：星の輪＋地を走る裂け目（青白・金）＋揺れ
     sf.quaked = true; var a = sf.a, n = sf.stars.length;
-    fxRing(a.x, a.y, W * 0.9, 0.8, VFX_STAR); fxRing(a.x, a.y, W * 0.55, 0.6, VFX_STAR);
+    fxGroundSlam(a.x, a.y, W * 1.0, VFX_SKY, true); // 締めの一撃：大きく地を割る（battle/fx3.js）
     G.fx.push({ type: 'vshock', x: a.x, y: a.y, dir: 1, t: 0, life: 0.6, pal: VFX_STAR }); G.fx.push({ type: 'vshock', x: a.x, y: a.y, dir: -1, t: 0, life: 0.6, pal: VFX_STAR });
     G.flash = 0.3; G.flashRGB = '190,220,255'; G.freeze = Math.max(G.freeze, 0.12); G.shake = Math.max(G.shake, 26);
   }
@@ -389,6 +390,7 @@ function cineApply() {
 function fxDash(x0, x1, y, face) {
   var st = []; for (var i = 0; i < 26; i++) st.push({ u: Math.random(), oy: (Math.random() - 0.5) * 90, d: Math.random() * 0.12, r: vR(5, 11), vy: -vR(30, 140), life: vR(0.35, 0.7) });
   G.fx.push({ type: 'vdash', x0: x0, x1: x1, y: y - 95, gy: y, face: face, t: 0, life: 0.6, st: st, sp: vSparks(14, face, 300, 800, 0.4) });
+  fxWake(x0, x1, y, face, VFX_STAR); // 渦を巻く風・巻き上がる砂埃・踏み込みの地割れ（battle/fx3.js）
 }
 FX2.vdash = function (f) {
   var C = VFX_STAR, t = f.t, head = vEase(t / 0.08), tail = vEase((t - 0.08) / 0.4), xa = f.x0 + (f.x1 - f.x0) * tail, xb = f.x0 + (f.x1 - f.x0) * head, fade = 1 - Math.max(0, t - 0.3) / 0.3;
@@ -426,6 +428,7 @@ function fxStarCharge(a) {
   var sp = []; for (var i = 0; i < 54; i++) sp.push({ a: Math.random() * 6.283, r: vR(200, 420), w: vR(4, 8) * (Math.random() < 0.5 ? 1 : -1), d: Math.random() * 1.2, life: vR(0.45, 0.75), s: vR(1.6, 3.2), gold: i % 3 === 0 });
   var em = []; for (i = 0; i < 26; i++) em.push({ ox: vR(-1, 1), p: Math.random(), v: vR(0.7, 1.3), s: vR(3, 6), gold: i % 2 === 0 });
   G.fx.push({ type: 'vscharge', a: a, at: a.atk, t: 0, life: 4, sp: sp, em: em });
+  fxSwirl(a, VFX_SKY); // 渦をまとう（battle/fx3.js）
 }
 function vsCharge(f) { var a = f.a; if (!a || a.atk !== f.at || f.done) { f.t = f.life; return null; } var H = allyH(a); return { a: a, H: H, cx: a.x, cy: a.y - H * 0.55, fy: a.y, k: Math.min(1, f.t / 0.5), pulse: 0.8 + 0.2 * Math.sin(f.t * 22) }; }
 // 後ろの層（人物より先に描く＝体の後ろで光り、輪郭が浮く）：足元の輪・光の柱・胸の光
@@ -433,11 +436,7 @@ function drawChargeBack() {
   if (!G.fx) return; ctx.save();
   for (var n = 0; n < G.fx.length; n++) { var f = G.fx[n]; if (f.type !== 'vscharge') continue; var o = vsCharge(f); if (!o) continue;
     var C = VFX_SKY, t = f.t, H = o.H, cx = o.cx, cy = o.cy, fy = o.fy, k = o.k, pulse = o.pulse;
-    for (var j = 0; j < 2; j++) {
-      var ph = (t * 1.6 + j * 0.5) % 1, r = (230 - 170 * vEaseIn(ph)) * (0.7 + 0.3 * k), al = Math.sin(ph * Math.PI) * k;
-      ctx.globalCompositeOperation = 'source-over'; ctx.strokeStyle = vrgba(C.dark, 0.4 * al); ctx.lineWidth = 9; ctx.beginPath(); ctx.ellipse(cx, fy + 3, r, r * 0.28, 0, 0, 6.283); ctx.stroke();
-      ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = vrgba(j ? C.gold : C.glow, 0.8 * al); ctx.lineWidth = 6; ctx.stroke(); ctx.strokeStyle = vrgba(C.core, 0.9 * al); ctx.lineWidth = 1.6; ctx.beginPath(); ctx.ellipse(cx, fy, r, r * 0.28, 0, 0, 6.283); ctx.stroke();
-    }
+    // 足元の縮む輪（2026-11-01 まで）は、渦をまとう砂埃と光の粒（battle/fx3.js の vswirl）に置き換えた
     ctx.globalCompositeOperation = 'source-over'; ctx.fillStyle = 'rgba(4,6,22,' + (0.42 * k) + ')'; ctx.fillRect(camX - 20, camY + TOPY - 20, W + 40, CVH() + 40); // ラナの必殺と同じく、背景を暗くして光を立たせる
     vPuff(cx, cy, H * 0.9, C.dark, 0.35 * k);
     ctx.globalCompositeOperation = 'lighter'; vPillar(cx, fy, H * 1.0, H * 1.6 * k, { core: C.main, main: C.glow, glow: C.glow }, 0.95 * k * pulse); vPillar(cx, fy, H * 0.45, H * 1.3 * k, { core: C.core, main: C.gold, glow: C.gold }, 0.75 * k * pulse);
@@ -466,7 +465,7 @@ FX2.vscharge = function (f) {
 };
 // 踏み抜き：足から縦に昇る光の柱 ＋ 画面いっぱいに走る流線 ＋ 地面の衝撃
 function fxStarStomp(a) {
-  G.fx.forEach(function (f) { if (f.type === 'vscharge' && f.a === a) f.done = true; });
+  G.fx.forEach(function (f) { if ((f.type === 'vscharge' || f.type === 'vswirl') && f.a === a) f.done = true; });
   var H = allyH(a), ln = [];
   for (var i = 0; i < 22; i++) { // 流線：足元から扇形に、上と左右へ。画面の外まで
     var side = i % 2 ? 1 : -1, ang = -Math.PI / 2 + side * vR(0.15, 1.45), L = vR(W * 0.8, W * 1.4), bend = vR(0.12, 0.35) * side;
@@ -476,7 +475,7 @@ function fxStarStomp(a) {
   var st = []; // 柱の筋：芯の近くは白く細く速く、外ほど青く太く遅い。金が混じる
   for (i = 0; i < 34; i++) { var o = (Math.random() - 0.5) * 2, ao = Math.abs(o); st.push({ ox: o, d: ao * 40 + Math.random() * 30, sp: 90 + ao * 90 + Math.random() * 40, fo: 280 + Math.random() * 320, hk: 0.75 + Math.random() * 0.3 - ao * 0.2, w: (ao < 0.25 ? 2 : 4) + Math.random() * (ao < 0.25 ? 3 : 9), a: ao < 0.25 ? 1 : 0.55 + Math.random() * 0.35, c: ao < 0.2 ? 2 : Math.random() < 0.3 ? 1 : 0, sw: Math.random() * 4, ph: Math.random() * 6.283 }); }
   G.fx.push({ type: 'vsstomp', x: a.x, y: a.y, h: H, t: 0, life: 0.95, ln: ln, st: st, sp: vSparks(36, 0, 400, 1200, 1.4) });
-  fxRing(a.x, a.y, W * 0.75, 0.6, VFX_STAR);
+  fxGroundSlam(a.x, a.y, W * 0.85, VFX_SKY, false); // 地を割る（むらのある輪・地割れ・岩片・砂埃。battle/fx3.js）
   G.flash = 0.32; G.flashRGB = '170,205,255'; G.shake = Math.max(G.shake, 28); G.freeze = Math.max(G.freeze, 0.09);
 }
 FX2.vsstomp = function (f) {

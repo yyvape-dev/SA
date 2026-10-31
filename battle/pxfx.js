@@ -203,7 +203,7 @@
     this.area([A[0], A[1], B[0], B[1], C[0], C[1], Dd[0], Dd[1]]);
   };
   X.disk = function (g) { // 放射のグラデーション：外の円（x1,y1,r1）を同心の輪で塗る（外の止めは透明の前提）
-    var m = this.m, s = this.sc(), R = g.r1, segs = Math.max(12, Math.min(36, Math.ceil(R * s / 5))), rings = R * s < 40 ? [0.15, 0.4, 0.7, 1] : [0.08, 0.2, 0.33, 0.47, 0.62, 0.78, 0.9, 1];
+    var m = this.m, s = this.sc(), R = g.r1, few = g.s.length <= 6 && g.r0 === 0 && g.x0 === g.x1 && g.y0 === g.y1, segs = Math.max(12, Math.min(few ? 24 : 36, Math.ceil(R * s / (few ? 7 : 5)))), rings = R * s < 40 ? [0.15, 0.4, 0.7, 1] : few ? [0.12, 0.3, 0.55, 0.78, 1] : [0.08, 0.2, 0.33, 0.47, 0.62, 0.78, 0.9, 1]; // 止めが3つまでの同心の光（砂埃・光の丸）は粗くてよい
     if (!(R > 0)) return; var nr = rings.length, b, cx = g.x1, cy = g.y1;
     this.seg.grow(nr * segs + 1, segs * 3 + (nr - 1) * segs * 6);
     b = this.v(m[0] * cx + m[2] * cy + m[4], m[1] * cx + m[3] * cy + m[5], 1);

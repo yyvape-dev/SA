@@ -15,6 +15,9 @@ const SCENES = {
   hit: ['G.fx=[]; G.enemies.slice(0,3).forEach(e=>{fxHit(e,1,true);fxKill(e,1);}); fxRing(G.hero.x,G.hero.y,400,0.55); fxPull(G.hero.x+200,G.hero.y,300,G.enemies.slice(0,3));', [0.04, 0.1, 0.2, 0.35]],
   boss: ['G.fx=[]; var e=G.enemies[0]; fxBossDown(e); fxHeal(G.hero); fxStar(G.enemies[1]||e,0); fxDash(G.hero.x-200,G.hero.x+250,G.hero.y,1); G.fx.push({type:"vshock",x:G.hero.x,y:G.hero.y,dir:1,t:0,life:0.6}); G.fx.push({type:"vsuck",x:G.hero.x,y:G.hero.y,t:0,life:0.6});', [0.05, 0.15, 0.3, 0.5]],
   under: ['G.fx=[]; G.enemies.forEach((e,i)=>{ e.state="walk"; if(i<3){e.bind=2;e.bindMax=3;} }); G.enemies[3]&&(G.enemies[3].elite=true); if (G.ally) fxStarCharge(G.ally); fxPull(G.hero.x+200,G.hero.y,300,G.enemies.slice(0,3));', [0.1, 0.3, 0.5, 0.8]],
+  slam: ['G.fx=[]; fxGroundSlam(G.hero.x+120, G.hero.y, W*0.85, VFX_SKY, false);', [0.05, 0.15, 0.35, 0.8]],
+  wake: ['G.fx=[]; fxDash(G.hero.x-150, G.hero.x+230, G.hero.y, 1);', [0.05, 0.12, 0.3, 0.6]],
+  swirl: ['G.fx=[]; if (!G.ally && typeof allyJoin === "function") { G.allyJoined = false; allyJoin(); } var a = G.ally || null; if (a) { a.state = "idle"; a.x = G.hero.x + 120; a.y = G.hero.y; a.atk = { t: 0 }; fxStarCharge(a); }', [0.3, 0.6, 1.0, 1.5]],
   star: ['G.fx=[]; G.enemies.forEach(e=>{e.bind=0;e.state="walk";}); startStarfall(G.ally||G.hero); G.starfall.t=0;', [0.5, 0.8, 1.0, 1.3]],
 };
 (async () => {

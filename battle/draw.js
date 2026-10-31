@@ -378,6 +378,7 @@ function drawUnder() {
   drawFoeAura(); // 敵将・強敵の足元の気配（battle/fx2.js）
   drawChargeBack(); // ランカの溜めのオーラ（体の後ろ）
   drawBindFloor(); // 拘束の床の印（敵より先＝足元の下）
+  drawGroundFx(); // 地割れ・砂の渦（battle/fx3.js）
 }
 function draw() {
   if (resTick++ % 30 === 0) fitRes();
