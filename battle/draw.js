@@ -374,6 +374,11 @@ function drawUnder() {
   if (G.state === 'play' && h0.state === 'atk' && h0.kind === 'ult' && h0.t < ULT.hit + 0.02) {
     ctx.fillStyle = 'rgba(6,4,14,' + (0.5 * Math.min(1, h0.t / 0.5)) + ')'; ctx.fillRect(camX - 10, camY + TOPY - 10, W + 20, CVH() + 20);
   }
+  var ca = G.ally; // 仲間の連携：溜めの間は暗転して打つ仲間を立たせ、放った瞬間に0.25秒で明るく戻す（ランカは溜めのオーラと夜空で暗くするので除く）。2026-11-01
+  if (G.state === 'play' && ca && ca.k !== 'ranka' && ca.atk && ca.atk.co) {
+    var ck = !ca.atk.done ? Math.min(1, ca.atk.t / 0.3) : Math.max(0, 1 - (ca.atk.t - ca.atk.hitT) / 0.25);
+    if (ck > 0) { ctx.fillStyle = 'rgba(4,6,22,' + (0.5 * ck) + ')'; ctx.fillRect(camX - 10, camY + TOPY - 10, W + 20, CVH() + 20); }
+  }
   drawStarDim(); // 星震の夜空（battle/fx2.js）
   drawFoeAura(); // 敵将・強敵の足元の気配（battle/fx2.js）
   drawChargeBack(); // ランカの溜めのオーラ（体の後ろ）
