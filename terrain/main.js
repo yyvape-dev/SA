@@ -1,7 +1,7 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1793650000';
+import * as GM from './game.js?v=1793740000';
 import { createUI } from './ui.js?v=1793650000';
 import { createMorning } from './morning.js?v=1793290034';
 import { createStory } from './story.js?v=1793650000';
@@ -292,7 +292,7 @@ buckets.forEach((arr, ti) => {
   scene.add(m); instMeshes.push(m); total += arr.length;
 });
 status.props = total;
-const bld = await (await fetch('data/bld.json')).json();
+const bld = await (await fetch('data/bld.json?v=2')).json();
 const bldTex = {};
 async function loadBld(fn) { const im = await loadImage(fn); if (!im) return null; const t = new THREE.Texture(im); t.needsUpdate = true; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; }
 function sprite3D(tex, meta, scale, baseX, baseSy) { // 足元の手前の角(ax,ay)を、地面の(baseX, baseSy)に合わせる
@@ -326,11 +326,13 @@ function select(p) {
 }
 
 // ---------- 施設（区画の状態：0=空き地 1=建築中 2=完成 3=発展後）----------
-const FAC = GM.FAC, STAGE = GM.STAGE, ART = ['smithy', 'tavern', 'farm']; // 絵のある施設。畑はコードで描く
-// 絵がまだ無い施設は、既存の絵を色づけして仮置き（本番の絵は assets/bld/<施設>_1〜3.png を置き、ART に足して ARTALIAS から外す）
-const ARTALIAS = { war: ['tavern', [.5, .66, 1]], drill: ['smithy', [1, .82, .45]], wall: ['smithy', [.55, .56, .62]] };
+const FAC = GM.FAC, STAGE = GM.STAGE, ART = ['smithy', 'tavern', 'farm', 'drill', 'war', 'wall', 'shrine', 'barracks']; // 絵のある施設。畑はコードで描く
+const BEXT = { drill: 'webp', war: 'webp', wall: 'webp', shrine: 'webp', barracks: 'webp' }; // 2026-10-31 の追加分は webp（tools/slice_more.py）
+const bldFn = key => `assets/bld/${key}.${BEXT[key.replace(/_\d$/, '')] || 'png'}`;
+// 絵がまだ無い施設は、既存の絵を色づけして仮置き（本番の絵は tools/bld_src2/ に置いて slice_more.py、ART に足して ARTALIAS から外す）
+const ARTALIAS = { banner: ['war', [1, .62, .55]] };
 const BS = .38; // 素材シートの画素 → 基準画像の画素
-for (const f of ART) for (let k = 1; k <= 3; k++) bldTex[`${f}_${k}`] = await loadBld(`assets/bld/${f}_${k}.png`);
+for (const f of ART) for (let k = 1; k <= 3; k++) bldTex[`${f}_${k}`] = await loadBld(bldFn(`${f}_${k}`));
 plots.forEach(pl => { pl.fac = null; pl.stage = 0; pl.mesh = null; pl.base = pl.poly.reduce((a, q) => q[1] > a[1] ? q : a, pl.poly[0]); pl.cx = pl.poly.reduce((a, q) => a + q[0], 0) / 4; });
 const alphaCache = {};
 function alphaMask(key) { // 絵の透明度（タップ判定用）
@@ -457,11 +459,11 @@ function refreshPlot(pl) {
   pl.hit = null; pl.poly = pl.home;
   const alias = ARTALIAS[pl.fac], key = `${alias ? alias[0] : pl.fac}_${pl.stage}`, t = pl.fac && pl.stage >= 1 ? bldTex[key] : null;
   if (pl.fac === 'farm' && pl.stage >= 1) { // 畑の絵は地面に貼る（真上からの正射影なので、地面の板でも絵どおりに見え、上に立つ仲間を隠さない）
-    if (t) { const meta = bld[`assets/bld/${key}.png`], S = FARM_S, w = meta.w * S, h = meta.h * S, left = pl.cx - meta.ax * w, bot = pl.base[1] + 6, top = bot - meta.ay * h;
+    if (t) { const meta = bld[bldFn(key)], S = FARM_S, w = meta.w * S, h = meta.h * S, left = pl.cx - meta.ax * w, bot = pl.base[1] + 6, top = bot - meta.ay * h;
       pl.pav = groundRect(t, left, top, w, h); scene.add(pl.pav); pl.hit = { key, left, top, w, h }; }
     else { pl.pav = pavingMesh(grow(pl.home, .94), false, cropTexture(pl.stage)); scene.add(pl.pav); }
   } else if (t) {
-    const meta = bld[`assets/bld/${key}.png`];
+    const meta = bld[bldFn(key)];
     pl.mesh = sprite3D(t, meta, BS, pl.cx, pl.base[1] - 4); scene.add(pl.mesh);
     pl.pav = pavingMesh(grow(pl.home, 1.0)); scene.add(pl.pav);
     const bottom = pl.base[1] - 4, w = meta.w * BS, h = meta.h * BS;
@@ -551,6 +553,10 @@ layout.plazas.forEach((pz, n) => { // 広場：石畳＋中央の噴水／井戸
     }); });
 }
 const signs = layout.signs.map(sg => ({ ...sg, mesh: townPiece('sign', sg.x, sg.y, .34, sg.label) }));
+{ // 2026-10-31 区域の門（峠の砦・王都の城門）。目印の奥に建てる（絵は tools/slice_more.py）
+  const GATE = { passgate: ['gate_pass', .30, 70, -40], capgate: ['gate_cap', .30, 70, -40] }; // [絵, 縮尺, 目印からのx, y]
+  for (const sg of signs) { const g = GATE[sg.id]; if (!g) continue; const fn = `assets/bld/${g[0]}.webp`, t = await loadBld(fn); if (t) scene.add(sprite3D(t, bld[fn], g[1], sg.x + g[2], sg.y + g[3])); }
+}
 
 // ---------- 開拓（未開拓の地は霧で覆う）----------
 const areas = layout.areas.map(a => ({ ...a }));
@@ -676,7 +682,8 @@ function playStory(c, kind, then) { // 章の始まり／終わりの会話（st
   const C = GM.CHAPTERS[c - 1]; if (!C) { then && then(); return; }
   try { story.play({ c, kind, title: C.t, desc: C.d, foeName: C.g, foeBust: [`assets/npc/bust_g${c}${c === 6 && kind !== 'start' ? 'b' : ''}.webp`, 'assets/npc/bust_4.webp'], por: POR, ranaSrc: '../sprites/idle_00.png' }, then); } catch (e) { console.error('章の会話', e); then && then(); }
 }
-function chapterStartScene() { if (!G || !G.chStart || G.raid || G.over) return; const c = G.chStart; G.chStart = 0; writeSave(); playStory(c, 'start', () => refreshUI()); }
+function chapterStartScene() { if (!G || !G.chStart || G.raid || G.over) return; const c = G.chStart; G.chStart = 0; writeSave();
+  playStory(c, 'start', () => { refreshUI(); const nf = G.newFac || []; G.newFac = null; writeSave(); if (nf.length) ui.toast(`新しい施設：${nf.map(f => FAC[f].n).join('・')}（空き地から建てられる）`); }); }
 function chapterEndScene(then) { if (!G.chEnd) { then(); return; } const e = G.chEnd; G.chEnd = null; writeSave(); playStory(e.c, e.win ? 'win' : 'lose', then); }
 function openMorning(prev, R) { // 朝の報告：空の部屋、ラナの歩き、報告役の3文 → タップで「今朝の変化」→ タップで領地へ
   const adv = GM.advisorOf(G), who = adv && GM.joined(G, adv) ? adv : 'mina', m = Math.round, rows = [];
@@ -1321,7 +1328,7 @@ function raidModal() { // 襲撃・出撃の決断。選んでから大ボタン
   const duel = P.duel ? '敵将が一騎打ちを挑む' : '';
   const ops = [
     { k: 'auto', t: '任せる', em: '仲間と兵が戦う', im: 'assets/npc/sol_1.webp', ip: '50% 12%/150% auto',
-      l: [`<i>見込み</i><b class="${P.auto.ok ? 'ok' : 'ng'}">${P.auto.res}</b>`], c: [duel, '行動点は減らない'].filter(Boolean).join('・'), go: '仲間に任せる' },
+      l: [`<i>見込み</i><b class="${P.auto.ok ? 'ok' : 'ng'}">${P.auto.res}</b>`], c: [duel, R.dark ? (GM.holyD(G) < 0 ? `穢れ 防衛力${GM.holyD(G)}` : GM.holyD(G) > 0 ? `聖堂の加護 防衛力+${GM.holyD(G)}` : '聖堂が穢れを防ぐ') : '', '行動点は減らない'].filter(Boolean).join('・'), go: '仲間に任せる' },
     { k: 'act', t: '自分で戦う', em: `アクション・WAVE ${P.act.waves}`, im: '../sprites/idle_00.png', ip: '62% 30%/190% auto',
       l: [`<i>勝てば</i><span class="ok">${P.act.win}</span>`, `<i>負ければ</i><span class="ng">${P.act.lose}</span>`], c: [P.act.cost, mods.replace('最大HP', 'HP')].filter(Boolean).join('・'), go: '自ら剣を取る' }];
   if (!ops.some(o => o.k === rdSel)) rdSel = 'auto';
@@ -1361,7 +1368,7 @@ function refreshUI() {
   ui.top({ title: `第${GM.chapterOf(wk)}章　${GM.CHAPTERS[GM.chapterOf(wk) - 1].t}`, week: wk, weeks: GM.WEEKS, raidWeeks: GM.SCHED.map(x => x.w), bossWeek: GM.SCHED.find(x => x.boss).w, genWeeks: GM.SCHED.filter(x => x.gen && !x.boss).map(x => x.w),
     band: { wk, next: r ? (r.inWeeks ? `次の襲撃まであと<b style="font-size:15px"> ${r.inWeeks} </b>週` : '今週末に襲撃') : '襲撃の予定はない', foe: r ? `敵 ${r.known ? r.E : r.lo + '〜' + r.hi}` : '' },
     res: [{ ic: 'sup', lab: '物資', val: G.sup, sub: `${sg(inc)}/週`, cls: inc >= 0 ? 'd' : 'n' }, { ic: 'mor', lab: '民心', val: Math.round(G.morale), bar: G.morale, col: G.morale < 30 ? '#e05a4a' : '#6ac06a' },
-      { ic: 'trp', lab: '兵力', val: G.troops, bar: G.troops / 16 * 100, col: '#7aa8e0' }, { ic: 'def', lab: '防衛', val: Math.round(GM.D(G)) },
+      { ic: 'trp', lab: '兵力', val: G.troops, bar: G.troops / GM.capT(G) * 100, col: '#7aa8e0' }, { ic: 'def', lab: '防衛', val: Math.round(GM.D(G)) },
       { ic: 'hp', lab: '耐久', val: `${G.hp}/3` }, { ic: 'ap', lab: '行動', val: `${G.ap}/${apMax}`, sub: '●'.repeat(G.ap) + '○'.repeat(Math.max(0, apMax - G.ap)), cls: 'd' }] });
   renderActions(); if (G.raid) raidModal(); else { rdec.style.display = 'none'; const h = document.querySelector('#modal h3'); if (h && /^(出撃|襲撃)：/.test(h.textContent)) ui.modal(null); /* 終わった襲撃の窓を残さない */ if (G.over) overModal(); }
 }
@@ -1381,7 +1388,7 @@ function renderActions() {
     for (const [id, c] of Object.entries(GM.CASTLE)) L.push({ label: c.t, act: c.t, sup: id === 'levy' ? 5 : -c.cost, ap: 1, eff: c.d, verb: c.t, can: GM.canCastle(G, id), why: GM.castleWhy(G, id) || why(c.cost), fn: () => act(() => { const ok = GM.doCastle(G, id); if (ok && G.raid) setTimeout(raidModal, 0); return ok; }, c.t + 'を行った') }); }
   else if (selected) { const id = selected.id, p = G.plots[id], here = p && GM.allyAt(G, id); key = 'plot' + id + (p ? p.fac + p.stage + (here || '') : '');
     if (here && lineKey !== here) newLine(here); por = P(here || defaultAlly()); if (here) { bubble = curLine; mode = 'talk'; }
-    if (!p) { title = '建設予定地'; for (const [f, d] of Object.entries(FAC)) L.push({ label: d.n, act: f === 'farm' ? '畑を整備' : `${d.n}を建てる`, sup: -d.cost, ap: 1, eff: (d.d.startsWith('毎週の') ? `毎週 ${d.d.replace('毎週の', '')}` : d.d) + (GM.dimNote(G, f) ? `（${GM.dimNote(G, f)}）` : ''), verb: '建設する', can: GM.canBuild(G, f, id), why: GM.buildWhy(G, f, id) || why(d.cost), fn: () => act(() => GM.build(G, id, f), `${d.n}の建築を始めた（週末に完成）`) }); }
+    if (!p) { title = '建設予定地'; for (const [f, d] of Object.entries(FAC)) if (GM.facOpen(G, f)) L.push({ label: d.n, act: f === 'farm' ? '畑を整備' : `${d.n}を建てる`, sup: -d.cost, ap: 1, eff: (d.d.startsWith('毎週の') ? `毎週 ${d.d.replace('毎週の', '')}` : d.d) + (GM.dimNote(G, f) ? `（${GM.dimNote(G, f)}）` : ''), verb: '建設する', can: GM.canBuild(G, f, id), why: GM.buildWhy(G, f, id) || why(d.cost), fn: () => act(() => GM.build(G, id, f), `${d.n}の建築を始めた（週末に完成）`) }); }
     else { const d = FAC[p.fac]; title = `${d.n}（${p.burnt ? '焼かれた' : STAGE[p.stage]}）${here ? '・' + GM.ALLY[here].n : ''}`;
       if (p.burnt) L.push({ label: '修理', act: `${d.n}を修理する`, sup: -GM.REPAIR, ap: 1, eff: '効果が戻る', verb: '修理する', can: GM.canRepair(G, id), why: why(GM.REPAIR), fn: () => act(() => GM.repair(G, id), `${d.n}を修理した`) });
       if (p.stage === 1 && !here) title += '・週末に完成';
