@@ -1,7 +1,7 @@
 // 領地の地形テスト：地形は three.js（正射影・傾き固定）、小物は切り抜き板、区画はコードのデータ。
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
-import * as GM from './game.js?v=1794300000';
+import * as GM from './game.js?v=1794600000';
 import { createUI } from './ui.js?v=1793650000';
 import { createMorning } from './morning.js?v=1793800000';
 import { createStory } from './story.js?v=1794300000';
@@ -885,7 +885,7 @@ const dCss = document.createElement('style'); dCss.textContent = `
 #duel .ld i{width:50%;height:calc(4*var(--u));background:#0008;border:1px solid #a8833c}#duel .ld u{display:block;height:100%;width:0;background:#d9b878;transition:width .15s}
 #duel .L{left:9%}#duel .R{right:8%}
 #duel.pair .L{left:23%}#duel .L2{left:0%}
-#duel .f.rn .sp .sh{display:none}#duel .f.rn .sp{filter:brightness(1.15) saturate(1.1)}#duel .L.rn{left:19%}#duel.pair .L.rn{left:27%}#duel .L2.rn{left:12%}#duel.rn2 .L{left:33%} /* ラナ：黒い鎧が陰の層で沈むので陰を外して明るく。剣が体の左へ長く出るので、右へ寄せる（2026-10-31 ユーザー） */#duel.pair .f.bk{bottom:17%} /* 2人参戦：前に出ている方が手前、もう1人は少し奥（2026-10-31） */
+#duel .f.rn .sp .sh{display:none}#duel .f.rn .sp{filter:brightness(1.15) saturate(1.1)}#duel .L.rn{left:19%}#duel.pair .L.rn{left:27%}#duel .L2.rn{left:12%}#duel.rn2 .L{left:33%} /* ラナ：黒い鎧が陰の層で沈むので陰を外して明るく。剣が体の左へ長く出るので、右へ寄せる（2026-10-31 ユーザー） */ /* 2人参戦：前に出ている方が手前、もう1人は少し奥（2026-10-31） */
 #duel .f.hf .sp,#duel .f.hf img{filter:brightness(2.6) saturate(.25)!important}#duel .stage.imf .cam{filter:grayscale(1) contrast(2.4) brightness(1.35)}#duel .stage.imf2 .cam{filter:invert(1) grayscale(1) contrast(1.6)} /* 被弾の白い光・決着のインパクトフレーム（2026-10-31） */
 #duel .fw .fc2{position:absolute;right:-16%;bottom:-8%;width:48%;height:48%;border-radius:50%;object-fit:cover;z-index:1}
 #duel .cam{position:absolute;inset:0;transform-origin:50% 72%;transition:transform .26s cubic-bezier(.2,.7,.3,1)}#duel .cam .bg{position:absolute;inset:-2%;background:#222 center 66%/cover no-repeat}
@@ -1030,7 +1030,7 @@ function playDuel(kIn, done) { // 画面いっぱいの一騎打ち。五合の�
   duelEl.style.display = 'flex';
   const pipsHtml = [0, 1, 2, 3, 4].map(i => `<i class="${plan.heavy.includes(i) ? 'h' : ''}"></i>`).join('');
   duelEl.innerHTML = `<div class="hd"><i class="cn tl"></i><i class="cn tr"></i><div class="sd"><div class="fw"><img class="fc" src="${faceRaw[k]}"><i class="rg"></i>${pair ? `<img class="fc2" src="${faceURL[ks[1]]}">` : ''}</div><div class="hb"><div class="nm">${NM.join('・')}</div><div class="hp"><b style="width:100%"></b></div></div></div>
-    <div class="ct"><small>第${R.w || G.week}週</small><img src="assets/ui2/divider2.webp"><h1>一騎打ち</h1></div>
+    <div class="ct"><small>第${R.w || G.week}週</small><img src="assets/ui2/divider2.webp"><h1>${pair ? '将軍戦' : '一騎打ち'}</h1></div>
     <div class="sd r"><div class="fw"><div class="fc foe" style="background-image:url(${foeFace(look)})${String(look)[0] === 'g' ? ';background-size:260%;background-position:50% 12%' : ''}"></div><i class="rg"></i></div><div class="hb"><div class="nm">${F.n}</div><div class="hp"><b style="width:100%"></b></div></div></div></div>
     <div class="stage"><div class="cam"><div class="bg" style="background-image:url(assets/field/duel.jpg),url(assets/field/${R.dir || 'pass'}.jpg)"></div>
       ${ks.map((x, j) => `<div class="f ${j ? 'L2' : 'L'}${x === 'rana' ? ' rn' : ''}" style="height:${27 * (HUMAN[x] || 165) / 170}%">${(DUEL_CLIP[x] || []).length ? `<div class="sp"></div>` : `<img src="${standOf(x)}">`}</div>`).join('')}<div class="f R" style="height:${27 * dHum(look) / 170}%">${(FOEDUEL[look] || []).length ? `<div class="sp"></div>` : `<img src="assets/npc/foe_${look}.webp">`}</div>
@@ -1054,7 +1054,7 @@ function playDuel(kIn, done) { // 画面いっぱいの一騎打ち。五合の�
   const apply = (i, r) => { if (r.ally) { aw++; hpR = Math.max(0, hpR - r.dmg); } else { fw++; hpL = Math.max(0, hpL - r.dmg); } nextI = i + 1; pips[i].classList.remove('cur'); pips[i].classList.add(r.ally ? 'w' : 'l'); };
   const finish = () => { if (over) return; over = true; stopChg(); (aw >= 3 ? [Rf] : FE.filter(Boolean)).forEach(x => x.classList.add('ko')); if (window.__duelLog) console.log('DUEL finish aw=' + aw + ' fw=' + fw + ' pips=' + pips.map(p => p.className).join('|') + ' dom=' + pips[0].isConnected); const win = aw >= 3; GM.duelSet(G, pair ? ks : k, win); if (win) hpR = 0; else hpL = 0; upd(); gb.classList.remove('ready'); msg(win ? '勝負あり' : '勝負あり'); tm.style.width = '0%';
     say(win ? 'l' : 'r', pickOf((win ? AL : FL).win), 2600); say(win ? 'r' : 'l', pickOf((win ? FL : AL).lose), 2600);
-    T(() => { const r = $('.res'); r.innerHTML = `<div class="bd"><div class="k">一騎打ち</div><h2 class="${win ? 'w' : 'l'}">${win ? '勝利' : '敗北'}</h2><img src="assets/ui2/divider2.webp"><p>${win ? `${both}が${F.n}を討ち取った。戦況が有利になる` : `${both}が敗れた。戦況が不利になる`}<small>タップで続ける</small></p></div>`; r.classList.add('on');
+    T(() => { const r = $('.res'); r.innerHTML = `<div class="bd"><div class="k">${pair ? '将軍戦' : '一騎打ち'}</div><h2 class="${win ? 'w' : 'l'}">${win ? '勝利' : '敗北'}</h2><img src="assets/ui2/divider2.webp"><p>${win ? `${both}が${F.n}を討ち取った。戦況が有利になる` : `${both}が敗れた。戦況が不利になる`}<small>タップで続ける</small></p></div>`; r.classList.add('on');
       r.onclick = e => { e.stopPropagation(); if (!r.classList.contains('on')) return; timers.forEach(clearTimeout); if (actL) actL.reset(); if (actL2) actL2.reset(); if (actR) actR.reset(); duelEl.style.display = 'none'; duelEl.innerHTML = ''; srcs.forEach(sr => IMGHOLD.delete(sr)); /* 使い終わった絵を手放す（読み込んだ画像と、画面の層） */ done(); }; }, 1900); };
   // カメラ：走り出した側に寄って追いかける → 攻撃で二人がぎりぎり収まる大きさまで引く → 元の位置へ戻りながら引きへ
   const FOCUS_ATK = true; // true＝攻撃も攻める側に寄ったまま／false＝攻撃で二人が収まるまで引く
@@ -1127,7 +1127,7 @@ function openSelect(cs, F, onPick, onDecline) { // 一騎打ちに送り出す�
   const R = G.raid, look = foeLook(), FLo = { ...GM.DUEL_LINES[duelRank()], ...(R.gen ? GM.GEN_LINES[R.gen] || {} : {}) }, two = GM.pairOK(G);
   let sel = [cs[0]]; if (two && GM.finalDuel(G) && cs.includes('ranka')) sel = ['rana', 'ranka']; /* 最終章：ラナとランカが最初から並ぶ */
   const por = {}; cs.forEach(k => { por[k] = POR[k] ? pickOf(POR[k]) : standOf(k); });
-  duelSel.innerHTML = `<div class="hero" style="background-image:${bustBG(look, 1)},url(assets/field/${R.dir || 'pass'}.jpg);background-size:124% auto,124% auto,cover;background-position:0 0,0 0,center"><div class="tt"><small>第${R.w || G.week}週</small><img class="dv0" src="assets/ui2/divider2.webp"><h1>一騎打ち</h1></div><div class="qt">${FLo.open[0]}<small>${F.n}</small></div></div>
+  duelSel.innerHTML = `<div class="hero" style="background-image:${bustBG(look, 1)},url(assets/field/${R.dir || 'pass'}.jpg);background-size:124% auto,124% auto,cover;background-position:0 0,0 0,center"><div class="tt"><small>第${R.w || G.week}週</small><img class="dv0" src="assets/ui2/divider2.webp"><h1>${two ? '将軍戦' : '一騎打ち'}</h1></div><div class="qt">${FLo.open[0]}<small>${F.n}</small></div></div>
     <div class="pn"><i class="cn tl"></i><i class="cn tr"></i><h2>${two ? '誰を送り出す？（2人まで）' : '誰を送り出す？'}</h2><img class="dv" src="assets/ui2/divider2.webp"><div class="grid">${cs.map(k => { const p = Math.round(GM.duelP(G, k) * 100); return `<div class="cd${k === 'rana' ? ' qn' : ''}" data-k="${k}"><img src="${por[k]}"><div class="tx"><div class="nm">${GM.nameOf(k)}</div><div class="ln"></div><div class="pw">勝率 約<b>${p}</b>%</div></div><div class="ck">✓</div></div>`; }).join('')}</div>
       <div class="hint dline"></div>${cs.length ? '<button class="go"></button>' : ''}<div class="no">挑戦に応じない</div></div>`;
   const go = duelSel.querySelector('.go'), hint = duelSel.querySelector('.hint'), mark = () => { duelSel.querySelectorAll('.cd').forEach(c => { const i = sel.indexOf(c.dataset.k); c.classList.toggle('on', i >= 0); c.querySelector('.ck').textContent = sel.length > 1 && i >= 0 ? i + 1 : '✓'; });

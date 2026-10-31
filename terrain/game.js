@@ -319,7 +319,7 @@ export const duelP = (s, k) => { if (Array.isArray(k)) return k.length > 1 ? Mat
   if (k === 'rana') p = Math.max(.5, p); // ラナ（最終章だけ出られる）は最低50%
   if (k === 'lily') p = Math.max(.4, p); // リリィも英雄：相手が誰でも最低40%（2026-10-30、ユーザー）
   return clamp(p, .1, k === 'ranka' ? .95 : .9); };
-export function duelSet(s, k, win) { const ks = [].concat(k); s.raid.duel = win; s.raid.champ = ks.find(x => x !== 'rana') || ks[0]; s.raid.champs = ks; s.log.push(`一騎打ち：${ks.map(nameOf).join('と')}が${win ? '勝った' : '敗れた'}`); return win; }
+export function duelSet(s, k, win) { const ks = [].concat(k); s.raid.duel = win; s.raid.champ = ks.find(x => x !== 'rana') || ks[0]; s.raid.champs = ks; s.log.push(`${ks.length > 1 ? '将軍戦' : '一騎打ち'}：${ks.map(nameOf).join('と')}が${win ? '勝った' : '敗れた'}`); return win; }
 export function duel(s, k, rnd = Math.random) { return duelSet(s, k, rnd() < duelP(s, k)); } // 演出なしで決めるとき
 
 // 五合の勝負（先に3合取った方が勝ち）。基本勝率＝duelP になるよう、1合ごとの勝率を逆算する。
