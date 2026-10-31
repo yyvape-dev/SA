@@ -112,6 +112,8 @@ function fxGroundSlam(x, y, R, C, big, lite) { // lite＝小さな当たり用�
 }
 FX_UNDER.vgslam = function (f) { // 床の層：地割れ（暗い溝は長く残り、光は早く引く）
   var t = f.t, W2 = f.R * (f.lite ? 1.25 : 1.4);
+  var tC = vEase(t / 0.18) * 1.1, hC = t < 0.1 ? 1 : Math.exp(-(t - 0.1) * 2.6), cC = vEase((t - (f.life - 0.55)) / 0.55), q = vDecalQuad(f.x, f.y, W2 * 0.95, W2 * 0.95 * 0.34, f.rot * 0.05, 'crater_dat', tC, hC, cC, f.C); q.col = 'crater_col';
+  if (ctx.decalGL && ctx.decalGL(q)) return; // WebGL：画像AIの手描きのクレーター（色の絵。光は割れの溝から）。回すのは少しだけ（絵の陰影の向きが崩れない）
   if (ctx.decalGL && ctx.decalGL(vDecalQuad(f.x, f.y, W2, W2 * 0.32, f.rot, f.tex, vEase(t / 0.16) * 1.08, t < 0.08 ? 1 : Math.exp(-(t - 0.08) * 3.2), vEase((t - (f.life - 0.55)) / 0.55), f.C))) return; // WebGL：割れの絵を貼る（battle/pxfx.js の decalGL）
   var grow = vEase(t / 0.12), dark = Math.min(1, (f.life - t) / 0.5), glow = t < 0.05 ? 1 : Math.max(0, 1 - (t - 0.05) / 0.55); // Canvas 版：線で描く
   vDrawCracks(f.x, f.y, f.cr, grow, dark, glow, f.C);
@@ -171,8 +173,8 @@ FX_UNDER.vwake = function (f) {
   var t = f.t, xs = f.x0 - f.face * 30, xe = f.x1 + f.face * 60, cl = vEase((t - (f.life - 0.5)) / 0.5), heat = 0.45 * (t < 0.12 ? 1 : Math.exp(-(t - 0.12) * 3)); // 溝は光りすぎない（えぐった跡が主役）
   if (ctx.decalGL) { // WebGL：通った道をえぐった溝（えぐれ跡の絵）＋踏み込みの地割れ
     var xl = Math.min(xs, xe), xr = Math.max(xs, xe), uv = f.face > 0 ? [0, 0, 1, 0, 1, 1, 0, 1] : [1, 0, 0, 0, 0, 1, 1, 1];
-    var ok = ctx.decalGL({ tex: 'gouge', pts: [xl, f.y - 40, xr, f.y - 40, xr, f.y + 40, xl, f.y + 40], uv: uv, prog: vEase(t / 0.1) * 1.06, heat: heat, close: cl, pal: f.C });
-    if (ok) { var b2 = t - 0.06; if (b2 > 0) ctx.decalGL(vDecalQuad(f.x1 + f.face * 30, f.y, 380, 380 * 0.32, f.seed, 'crack_b', vEase(b2 / 0.12) * 1.08, b2 < 0.06 ? 1 : Math.exp(-(b2 - 0.06) * 3.2), cl, f.C)); return; }
+    var ok = ctx.decalGL({ tex: 'gouge2_dat', col: 'gouge2_col', pts: [xl, f.y - 105, xr, f.y - 105, xr, f.y + 105, xl, f.y + 105], uv: uv, prog: vEase(t / 0.1) * 1.08, heat: Math.min(1, heat * 1.6), close: cl, pal: f.C }) || ctx.decalGL({ tex: 'gouge', pts: [xl, f.y - 40, xr, f.y - 40, xr, f.y + 40, xl, f.y + 40], uv: uv, prog: vEase(t / 0.1) * 1.06, heat: heat, close: cl, pal: f.C });
+    if (ok) { var b2 = t - 0.06; if (b2 > 0) { var q2 = vDecalQuad(f.x1 + f.face * 40, f.y, 300, 300 * 0.34, 0, 'crater_dat', vEase(b2 / 0.14) * 1.1, b2 < 0.08 ? 1 : Math.exp(-(b2 - 0.08) * 2.6), cl, f.C); q2.col = 'crater_col'; ctx.decalGL(q2) || ctx.decalGL(vDecalQuad(f.x1 + f.face * 30, f.y, 380, 380 * 0.32, f.seed, 'crack_b', vEase(b2 / 0.12) * 1.08, b2 < 0.06 ? 1 : Math.exp(-(b2 - 0.06) * 3.2), cl, f.C)); } return; }
   }
   var b = f.t - 0.06; if (b <= 0) return; vDrawCracks(f.x1 + f.face * 20, f.y, f.cr, vEase(b / 0.1), Math.min(1, (f.life - f.t) / 0.4), Math.max(0, 1 - b / 0.45), f.C); };
 FX2.vwake = function (f) {
