@@ -24,7 +24,8 @@ const srv = http.createServer((q, r) => { const f = path.join(ROOT, decodeURICom
   await p.screenshot({ path: `${out}/s00.png` });
   if (mode !== 'rand') await p.evaluate(m => { Math.random = () => (m === 'win' ? 0.02 : 0.98); }, mode);
   await p.click('#dsel .go');
-  for (let i = 1; i <= 14; i++) { await p.waitForTimeout(1500); await p.screenshot({ path: `${out}/s${String(i).padStart(2, '0')}.png` }); }
+  const IV = +(process.env.DS_INT || 1500), NS = +(process.env.DS_N || 14); /* 間隔と枚数（既定 1.5秒×14）。攻撃の瞬間を見るときは DS_INT=200 DS_N=40 */
+  for (let i = 1; i <= NS; i++) { await p.waitForTimeout(IV); await p.screenshot({ path: `${out}/s${String(i).padStart(2, '0')}.png` }); }
   await p.waitForTimeout(5000); await p.screenshot({ path: `${out}/s15.png` });
   console.log('エラー:', errs.length ? errs : 'なし');
   await b.close(); srv.close();
