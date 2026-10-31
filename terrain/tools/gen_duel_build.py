@@ -9,6 +9,7 @@ from scipy import ndimage as ndi
 import matplotlib.colors as mc
 SRC = sys.argv[1]; KEYS = sys.argv[2:]
 N = 16
+HIT = {('g2', 'B'): 11}  # 当たりのコマを決め打ち（叩きつけは、剣が一番前に出るコマ≠当たり）
 OPT = { # 人ごとの色の直し：purple＝紫の服を守る、pink＝武器のマゼンタかぶりを灰へ、green＝動画の緑かぶり（くすんだ緑も）を灰へ。グレンは緑の布を着ているので触らない
   'g1': dict(purple=False, pink=True, green=False), 'g2': dict(purple=False, pink=True, green=True), 'g3': dict(purple=False, pink=True, green=True),
   'g4': dict(purple=False, pink=True, green=True), 'g5': dict(purple=False, pink=True, green=True), 'g6': dict(purple=True, pink='bright', green=True), 'g6b': dict(purple=True, pink='bright', green=True)}  # bright＝明るいピンク（剣の光）だけ。紫の服（暗い）は残す
@@ -48,6 +49,8 @@ for k in KEYS:
         raw = [clean(key_soft(np.array(Image.open(f).convert('RGB')).astype(np.float32), keep_purple=OPT[k]['purple']), OPT[k]) for f in fs]
         # 当たり＝武器が一番左（前）へ伸びたコマ。そこまでを細かく、後ろを粗く、16コマ選ぶ
         reach = [np.where((r[..., 3] > 128).any(0))[0].min() for r in raw]; hi = int(np.argmin(reach[:int(len(raw) * .8)]))
+        if (k, v) in HIT: hi = HIT[(k, v)]
+        if len(raw) < N: raw = raw + [raw[i] for i in range(N - len(raw) - 1, -1, -1)]  # コマが足りない（zip の途中で切れた）ときは、最初の構えへ逆再生で戻す
         if len(raw) == N: idx = list(range(N))  # GPT が選んだ16コマ（zip）はそのまま使う
         else:
             pre = np.linspace(0, hi, 10).round().astype(int).tolist(); post = np.linspace(hi, len(raw) - 1, 7).round().astype(int).tolist()[1:]
