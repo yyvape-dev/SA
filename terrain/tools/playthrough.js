@@ -21,7 +21,7 @@ const logF = path.join(out, 'log.txt'); fs.writeFileSync(logF, ''); const log = 
       while (s.ap > 0 && g--) { const r = GM.nextRaid(s), lack = r ? r.E - GM.D(s) - GM.darkD(s, r) : -99, wk = r ? r.w - s.week : 99;
         if (s.morale < 35 && GM.canCastle(s, 'feast')) { GM.doCastle(s, 'feast'); continue; }
         const bt = Object.keys(s.plots).find(id => GM.canRepair(s, id)); if (bt) { GM.repair(s, bt); continue; }
-        if (wk <= 1 && lack > 2 && GM.canCastle(s, 'merc')) { GM.doCastle(s, 'merc'); continue; }
+        if (wk <= 1 && lack - (s.merc || 0) > -4 && GM.canCastle(s, 'merc')) { GM.doCastle(s, 'merc'); continue; }
         if (wk <= 2 && lack > -2 && GM.canCastle(s, 'troops')) { GM.doCastle(s, 'troops'); continue; }
         const cnt = {}; let done = false; for (const f of want) { cnt[f] = (cnt[f] || 0) + 1; if (!GM.facOpen(s, f) || GM.facCount(s, f) >= cnt[f]) continue; const id = open.find(id => !s.plots[id] && GM.canBuild(s, f, id)); if (id && GM.build(s, id, f)) { done = true; break; } } if (done) continue;
         const up = Object.keys(s.plots).find(id => GM.canUpgrade(s, id)); if (up && GM.upgrade(s, up)) continue;

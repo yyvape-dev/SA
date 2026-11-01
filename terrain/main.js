@@ -2,7 +2,7 @@
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
 import { createGL } from './fx_gl.js?v=1794800000';
-import * as GM from './game.js?v=1797600000';
+import * as GM from './game.js?v=1797700000';
 import { createUI } from './ui.js?v=1793650000';
 import { createMorning } from './morning.js?v=1793800000';
 import { createStory } from './story.js?v=1794300000';

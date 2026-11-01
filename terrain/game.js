@@ -45,7 +45,7 @@ export const WEEKS = CH_LEN * CHAPTERS.length;
 export const chapterOf = w => Math.min(CHAPTERS.length, Math.max(1, Math.ceil(w / CH_LEN)));
 const DARK_CH = [4, 6]; // 黒い軍勢（穢れ）の章。聖堂が無いと防衛力-8
 const RAID_N = [['野盗の襲撃', '山賊の大群'], ['傭兵の斥候', '傭兵団の先遣隊'], ['謀反軍の偵察隊', '騎士団の突撃隊'], ['黒い軍勢の斥候', '黒い軍勢の討伐隊'], ['砦の守備隊', '王国軍の精鋭'], ['王都の近衛', '大公の本隊']];
-export const E_MUL = [1, 1, 1.15, 1.8, 2.5, 3.0]; // 2026-11-01 後半の敵の規模（防衛力と比べる値）。一騎打ちの強さ・格（隊長／副官）は元の値 E0 のまま（36週の自動の検証で、第3章から楽になりすぎたため）
+export const E_MUL = [1, 1, 1.15, 1.8, 2.5, 2.8]; // 2026-11-01 後半の敵の規模（防衛力と比べる値）。一騎打ちの強さ・格（隊長／副官）は元の値 E0 のまま（36週の自動の検証で、第3章から楽になりすぎたため）
 const eOf = (c, i, k) => Math.round(c.E[k] * E_MUL[i]);
 export const SCHED = CHAPTERS.flatMap((c, i) => { const w0 = i * CH_LEN, last = i === CHAPTERS.length - 1;
   return [{ w: w0 + 2, E: eOf(c, i, 0), E0: c.E[0], name: RAID_N[i][0], dir: 'river' }, { w: w0 + 4, E: eOf(c, i, 1), E0: c.E[1], name: RAID_N[i][1], dir: 'pass' },
@@ -143,7 +143,7 @@ export const CASTLE = { // 城でできること
   troops: { t: '兵を募る', cost: 3, d: '兵力+2（物資の維持費が増える）', can: s => s.troops < capT(s), ap: s => { s.troops = Math.min(capT(s), s.troops + 2); } },
   levy:   { t: '徴発',     cost: 0, d: '物資+5 民心-8', can: () => true, ap: s => { s.sup += 5; s.morale = clamp(s.morale - 8, 0, 100); } },
   feast:  { t: '炊き出し', cost: 3, d: '民心+10', can: () => true, ap: s => { s.morale = clamp(s.morale + (bond(s, 'sera') >= 3 ? 15 : 10), 0, 100); } },
-  merc:   { t: '傭兵を雇う', cost: 8, d: '次の襲撃だけ防衛力+8', can: s => !s.merc && !!nextRaid(s), ap: s => { s.merc = 8; } }, // 2026-11-01 余った物資の使い道
+  merc:   { t: '傭兵を雇う', cost: 8, d: '次の襲撃だけ防衛力+8（3回まで重ねられる）', can: s => (s.merc || 0) < 24 && !!nextRaid(s), ap: s => { s.merc = (s.merc || 0) + 8; } }, // 2026-11-01 余った物資の使い道
   invest: { t: '街に投資', cost: 6, d: '民心+3・本拠の街が育つ', can: s => (s.invest || 0) < 6, ap: s => { s.invest = (s.invest || 0) + 1; s.morale = clamp(s.morale + 3, 0, 100); } },
   scout:  { t: '偵察',     cost: 0, d: '次の襲撃の規模が確定', can: s => { const r = nextRaid(s); return !!r && !s.scouted[r.w]; }, ap: s => { s.scouted[nextRaid(s).w] = true; } },
   sortie2: sortieAct(2), sortie4: sortieAct(4), sortie6: sortieAct(6),

@@ -23,7 +23,7 @@ function weekAI(s, strat, R) {
     if (s.morale < 35 && GM.canCastle(s, 'feast')) { GM.doCastle(s, 'feast'); continue; }
     const burnt = Object.keys(s.plots).find(id => GM.canRepair(s, id)); if (burnt) { GM.repair(s, burnt); continue; }
     if (r && r.dark && GM.holyD(s) < 0 && GM.facOpen(s, 'shrine')) { const id = plotFor(s, 'shrine', strat); if (id && GM.build(s, id, 'shrine')) continue; }
-    if (wk <= 1 && lack + (s.merc || 0) > -2 && lack > 2 && GM.canCastle(s, 'merc')) { GM.doCastle(s, 'merc'); continue; } /* 足りない直前は傭兵 */
+    if (wk <= 1 && lack - (s.merc || 0) > -4 && GM.canCastle(s, 'merc')) { GM.doCastle(s, 'merc'); continue; } /* 足りない直前は傭兵 */
     if (wk <= 2 && lack > -2) { if (GM.canCastle(s, 'troops')) { GM.doCastle(s, 'troops'); continue; } const id = plotFor(s, 'wall', strat); if (id && GM.build(s, id, 'wall')) continue; }
     let done = false;
     const cnt = {}; for (const f of STRAT[strat]) { cnt[f] = (cnt[f] || 0) + 1; if (!GM.facOpen(s, f) || GM.facCount(s, f) >= cnt[f]) continue; /* 一覧に書いた数まで（farm が2回なら2つ） */ const id = plotFor(s, f, strat); if (id && GM.build(s, id, f)) { done = true; break; } }
