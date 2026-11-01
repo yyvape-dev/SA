@@ -28,6 +28,7 @@ var FOE_SWING = {
   'g6_0': { t: 'thr', x0: 0.1, L: 1.4, y: 0.6, w: 0.14 },   // ヴァルド：細剣の突き
   'g6_1': { t: 'thr', x0: 0.1, L: 1.1, y: 0.55, w: 0.13 },  // ヴァルド：短い突き
 };
+['0', '1'].forEach(function (i) { if (FOE_SWING['g6_' + i] && !FOE_SWING['g6b_' + i]) FOE_SWING['g6b_' + i] = FOE_SWING['g6_' + i]; }); // 2026-11-01 悪魔の姿は、前の姿の軌跡を借りる
 var FOE_SWING_DEF = { t: 'arc', cx: 0.15, cy: 0.55, rx: 0.75, ry: 0.45, a0: -2.2, a1: 0.7, w: 0.16 };
 // 細い閃き（星形の代わり）：横に長く・縦に短い、髪の毛ほどの光の筋。先へ細って消える（敵の予兆・突きの先）
 function vGlint(x, y, L, rot, col, core, a) {

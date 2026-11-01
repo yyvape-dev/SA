@@ -317,6 +317,8 @@ function hurt(e, d, dir, strong) {
 }
 
 function kill(e, dir) {
+  if (e.boss && e.kind === 'g6' && (FOE_CLIP.g6b || []).length) { // 2026-11-01 大公の二段目：悪魔の姿になって立ち上がる（HPは8割）
+    e.kind = 'g6b'; e.hp = Math.round(e.max * 0.8); e.state = 'walk'; e.atk = null; e.stun = 0; e.bind = 0; e.flash = 0.6; G.freeze = Math.max(G.freeze, 0.6); G.shake = Math.max(G.shake, 30); G.boss = e; fxBossIn(e); return; }
   e.state = 'dying'; e.dt = 0; e.dir = dir;
   G.kills++; G.combo++; G.comboT = 2.4; if (G.combo > G.bestCombo) G.bestCombo = G.combo;
   if (e.boss) fxBossDown(e); else fxKill(e, dir); // 撃破のエフェクト（battle/fx2.js）

@@ -324,7 +324,7 @@ export const pairOK = s => !!s.raid && (s.raid.boss || !!s.raid.gen) && (finalDu
 export const e0 = R => R.E0 ?? R.E; // 格と一騎打ちの強さに使う元の規模
 export const duelDue = s => !!s.raid && (s.raid.boss || !!s.raid.gen || e0(s.raid) >= 30 || Math.abs(raidD(s) - s.raid.E) <= 4); // 副官と将軍は必ず一騎打ちに出てくる
 export const champions = s => [...(finalDuel(s) ? ['rana'] : []), ...Object.keys(ALLY).filter(k => fighter(k) && joined(s, k) && !(k === 'ranka' && (s.rankaAway || !s.raid.ranka)))];
-export const foeGeneral = s => ({ n: s.raid.gen ? CHAPTERS[s.raid.gen - 1].g : e0(s.raid) >= 30 ? '敵の副官' : '敵の隊長', pow: e0(s.raid) / 3 + (s.raid.boss ? 6 : s.raid.gen ? 4 : e0(s.raid) >= 30 ? 2 : 0) });
+export const foeGeneral = s => s.raid.vice === 'g1' ? { n: '山賊頭グレン', pow: e0(s.raid) / 3 + 2 } : s.raid.vice === 'cap' ? { n: 'グレンの子分頭', pow: e0(s.raid) / 3 } : ({ n: s.raid.gen ? CHAPTERS[s.raid.gen - 1].g : e0(s.raid) >= 30 ? '敵の副官' : '敵の隊長', pow: e0(s.raid) / 3 + (s.raid.boss ? 6 : s.raid.gen ? 4 : e0(s.raid) >= 30 ? 2 : 0) });
 export const duelPow = (s, k) => DUEL_POW[k] + bond(s, k) * 1.5;
 export const duelP = (s, k) => { if (Array.isArray(k)) return k.length > 1 ? Math.min(.95, Math.max(...k.map(x => duelP(s, x))) + .12) : duelP(s, k[0]); // 2人参戦
   // ミナは絆2・3で勝率が上がる。ランカは相手が誰でも7割は勝つ（最強の将）
@@ -398,6 +398,14 @@ const GEN_ALLY = {
 };
 for (const [g, m] of Object.entries(GEN_ALLY)) { const L = GEN_LINES[g]; L.rival = Object.keys(L.vs || {})[0] || null; L.vs = L.vs || {}; L.vsWin = L.vsWin || {}; L.vsLose = L.vsLose || {};
   for (const [k, [o, w, l]] of Object.entries(m)) { if (L.vs[k]) continue; L.vs[k] = o; L.vsWin[k] = w; L.vsLose[k] = l; } } // 因縁（rival）を優先
+// 2026-11-01 将軍戦の三段の②：副将グレン（第2〜6章、章ごとに態度が変わる）
+export const GLENN_LINES = {
+  2: { open: ['借りを返しに来たぜ、女王さまの犬ども！'], heavy: ['山賊の意地、見せてやらぁ！'], win: ['へっ、ざまあみろ！'], lose: ['ちくしょう……また負けかよ！'] },
+  3: { open: ['騎士さまの用心棒だ。今度は手加減しねえぜ！'], heavy: ['盗まねえで、勝ってやる……！'], win: ['どうだ、まっとうに勝ったぜ！'], lose: ['……ちっ。まっとうにやっても、負けか。'] },
+  4: { open: ['あ、あの黒いのよりは、てめえらの方がマシだ……行くぜ！'], heavy: ['怖くなんか、ねえぞ……！'], win: ['へ、へへ……勝っちまった。'], lose: ['……借りが、増えちまったな。'] },
+  5: { open: ['じいさんに言われたんだ。あんたらを、よく見とけってな！'], heavy: ['これが、グレンさまの全力だ！'], win: ['見たか、じいさん！'], lose: ['……なるほどな。こりゃ、王の器ってやつか。'] },
+  6: { open: ['最後の手合わせだ。手加減したら承知しねえぞ！'], heavy: ['民を逃がす時間くらい、稼いでやらぁ！'], win: ['……へっ。これで心置きなく、民の盾になれるぜ。'], lose: ['……行けよ、女王さま。大公の野郎を、ぶっ飛ばしてこい。'] },
+};
 export const DUEL_LINES = {
   mina: { open: ['姫のために……負けない。', '……本気で、やるから。'], hit: ['そこっ！', '当たれ！', 'これでどう！'], hurt: ['くっ……まだ！', 'いったぁ……！'], win: ['姫……見てた？ やったよ。'], lose: ['ごめん、姫……。'] },
   garou: { open: ['ガハハ！ 姫の前で、斧を振るいますぜ！', 'いざ、尋常に！'], hit: ['おらァ！', 'でさぁ！', 'まだまだァ！'], hurt: ['ぐぅ……効いたぜ！', 'やりますな！'], win: ['見てくだせえ、姫！'], lose: ['面目ねえ……姫……。'] },

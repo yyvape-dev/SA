@@ -52,7 +52,8 @@ function loadAll() {
   FOE_TYPES.forEach(function (n) { one('fw' + n, 'terrain/assets/npc/foewalk_' + n + '.webp'); });
   fetch('terrain/assets/npc/foeduel_meta.json?v=2').then(function (r) { return r.json(); }).then(function (meta) { // 攻撃の連番（一騎打ちと同じ絵。左向き）
     FOE_TYPES.forEach(function (n) { FOE_CLIP[n] = (meta[n] || []).map(function (c, i) { total++; one('fd' + n + '_' + i, 'terrain/assets/npc/' + c.f); return c; }); });
-    if (BAT.gen && meta[BAT.gen]) FOE_CLIP[BAT.gen] = meta[BAT.gen].map(function (c, i) { total++; one('fd' + BAT.gen + '_' + i, 'terrain/assets/npc/' + c.f); return c; }); // 章の将軍（?gen=g1〜g6。一騎打ちの絵を流用、歩きは構えの揺れ）
+    if (BAT.gen && meta[BAT.gen]) FOE_CLIP[BAT.gen] = meta[BAT.gen].map(function (c, i) { total++; one('fd' + BAT.gen + '_' + i, 'terrain/assets/npc/' + c.f); return c; });
+    if (BAT.gen === 'g6' && meta.g6b) FOE_CLIP.g6b = meta.g6b.map(function (c, i) { total++; one('fdg6b_' + i, 'terrain/assets/npc/' + c.f); return c; }); // 2026-11-01 大公は二段：悪魔化の前（g6）→ 倒すと悪魔の姿（g6b） // 章の将軍（?gen=g1〜g6。一騎打ちの絵を流用、歩きは構えの揺れ）
     onDone();
   }).catch(function () { failed++; onDone(); });
   total++; // 横向きの歩き（ユーザー作成、左向き12コマ）。ある種類だけ使い、無い種類は構えの揺れで代用

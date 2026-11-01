@@ -2,11 +2,11 @@
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
 import { createGL } from './fx_gl.js?v=1794800000';
-import * as GM from './game.js?v=1797800000';
+import * as GM from './game.js?v=1798200000';
 import { createUI } from './ui.js?v=1793650000';
 import { createMorning } from './morning.js?v=1793800000';
-import { createStory, SCENES } from './story.js?v=1798100000';
-import * as EV from './events.js?v=1798100000';
+import { createStory, SCENES } from './story.js?v=1798200000';
+import * as EV from './events.js?v=1798200000';
 import { slashFX, impactFX, clashFX, chargeFX, rallyFX, starFX, hitStop, isHeld, shaker, FXPAL, burstFX, crackFX, chainFX, glyphFX, smokeFX, warpFX } from './fx_slash.js?v=1794700000';
 
 const layout = await (await fetch('data/layout.json?v=2')).json();
@@ -899,8 +899,16 @@ function chapterStartScene(cb) { if (!G || G.raid || G.over) return; if (!G.chSt
 // 週の出来事（events.js）：朝の報告のあと、その週の場面を順に出す。選択肢で物資・民心・絆と、選び方（慈悲／厳格）が変わる
 function weekEvents(done) { if (!G || G.raid || G.over) { done && done(); return; } G.evSeen = G.evSeen || {}; const q = (EV.WEEK[G.week] || []).filter(e => !G.evSeen[e.id]);
   const next = () => { const e = q.shift(); if (!e) { refreshUI(); done && done(); return; } G.evSeen[e.id] = 1; writeSave(); const c = GM.chapterOf(G.week);
-    try { story.play({ c, kind: 'ev', lines: e.lines, choices: e.choices, foeName: GM.CHAPTERS[c - 1].g, foeKey: 'g' + c, onPick: j => applyChoice(e.choices[j]) }, next); } catch (er) { console.error('週の出来事', er); next(); } };
+    try { story.play({ c, kind: 'ev', lines: e.lines, choices: e.choices, foeName: GM.CHAPTERS[c - 1].g, foeKey: 'g' + c, onPick: j => applyChoice(e.choices[j]) }, e.battle ? () => goSkirmish(e) : next); } catch (er) { console.error('週の出来事', er); next(); } };
   next(); }
+// 2026-11-01 章の中盤の強制のラナ戦：場面の途中でアクション戦闘へ。戻ったら勝ち負けで少し変わり、after の台詞の続き → 残りの出来事
+function goSkirmish(e) { const b = e.battle, id = String(Date.now()), m = GM.battleMods(G); G.skirm = { id, ev: e.id }; writeSave();
+  const q = new URLSearchParams({ battle: '1', id, waves: b.waves || 2, name: b.name || '', dmg: m.dmg, bind: m.bind, hp: m.hp, al: b.al || '', boss: 1, gen: b.gen || '', ret: 'terrain/index.html' }); location.href = '../index.html?' + q.toString(); }
+let skirmPlaying = false;
+function takeSkirmish(r) { const ev = Object.values(EV.WEEK).flat().find(x => x.id === G.skirm.ev); G.skirm = null; try { localStorage.removeItem('battle_result'); } catch (e) { }
+  const win = !!r.win; if (win) { G.sup += 3; G.morale = Math.min(100, G.morale + 3); } else G.morale = Math.max(0, G.morale - 2); writeSave(); refreshUI(); ui.toast(win ? '退けた（物資+3・民心+3）' : '押し負けた（民心-2）');
+  if (!ev || !ev.after) { weekEvents(); return; } skirmPlaying = true; const c = GM.chapterOf(G.week);
+  story.play({ c, kind: 'ev', lines: [...(win ? [] : [['rana', '……っ、まだ届かない。\nでも……！']]), ...ev.after], foeName: GM.CHAPTERS[c - 1].g, foeKey: 'g' + c }, () => { skirmPlaying = false; weekEvents(); }); }
 function applyChoice(ch) { if (!ch) return; const f = ch.eff || {}; G.virtue = G.virtue || { mercy: 0, rigor: 0 }; if (ch.v) G.virtue[ch.v] = (G.virtue[ch.v] || 0) + 1;
   if (f.sup) G.sup = Math.max(0, G.sup + f.sup); if (f.mor) G.morale = Math.max(0, Math.min(100, G.morale + f.mor)); if (f.troops) G.troops = Math.max(0, Math.min(GM.capT(G), G.troops + f.troops)); for (const [k, n] of Object.entries(f.bond || {})) G.bond[k] = Math.min(3, (G.bond[k] || 0) + n); writeSave(); }
 function bondScene(k) { const b = G.bond[k], L = EV.BOND[k] && EV.BOND[k][b]; G.bondSeen = G.bondSeen || {}; if (!L || G.bondSeen[k + b]) return; G.bondSeen[k + b] = 1; writeSave(); try { story.play({ c: GM.chapterOf(G.week), kind: 'ev', lines: L, foeName: '', foeKey: 'g1' }, () => refreshUI()); } catch (e) { console.error('絆の話', e); } }
@@ -1179,7 +1187,7 @@ const runClipOf = k => SIDE_ALLY['run_' + k] || SIDE_ALLY['walk_' + k] || null, 
 const FOEDUEL = await fetch('assets/npc/foeduel_meta.json?v=7').then(r => r.json()).catch(() => ({})); // 敵将の攻撃モーション（見た目の番号ごと）
 const foeLook = () => G.raid && (G.raid.boss || G.raid.gen) ? 4 : G.raid && GM.e0(G.raid) >= 30 ? 2 : (G.raid && G.raid.w % 2 ? 3 : 1);
 // 2026-10-31 章の将軍の一騎打ちは、その将軍の絵（foeduel_g<章>_A/B、tools/gen_duel_build.py）。第6章は悪魔の姿 g6b。絵が無ければ従来の見た目
-const genDuelLook = () => { const g = G.raid && G.raid.gen; if (!g) return null; const k = 'g' + g + (g === 6 ? 'b' : ''); return (FOEDUEL[k] || []).length ? k : g === 6 && (FOEDUEL.g6 || []).length ? 'g6' : null; };
+const genDuelLook = () => { if (G.raid && G.raid.vice) return G.raid.vice === 'g1' && (FOEDUEL.g1 || []).length ? 'g1' : null; const g = G.raid && G.raid.gen; if (!g) return null; const k = 'g' + g + (g === 6 ? 'b' : ''); return (FOEDUEL[k] || []).length ? k : g === 6 && (FOEDUEL.g6 || []).length ? 'g6' : null; };
 const dLook = () => genDuelLook() || foeLook(), dHum = l => HUMAN[String(l)[0] === 'g' ? l : 'f' + l] || 178;
 const foeFace = l => String(l)[0] === 'g' ? `assets/npc/bust_${l}.webp` : `assets/npc/foe_${l}.webp`; // 隊長＝槍兵かフードの山賊（週で入れ替え）、副官＝羽飾りの兵、将軍＝斧の山賊
 /* 2026-10-31 技の形と色（形で何の技か読める）。[形, 色, 闇の煙] */
@@ -1240,12 +1248,12 @@ function clipActor(el, sp, clips, base, T, run, runBase) { // 動画由来の連
 }
 const HUMAN = { rana: 176, mina: 181, sera: 181, ranka: 174, garou: 196, lily: 162, sol: 200, f1: 200, f2: 182, f3: 194, f4: 182, g1: 200, g2: 196, g3: 178, g4: 205, g5: 186, g6: 182, g6b: 186 }; /* 2026-10-30 ゲーム全体の背の高さ（battle/core.js の HEIGHT と同じ比。×0.86 で、一騎打ち・任せた戦闘の画面の大きさは従来並み） */ // 見た目の背の高さ：一騎打ちと戦場の大きさをこれで揃える。槍の穂先・兜の飾りが測った高さに入る絵は大きめの値（並べて目で合わせた値）
 const duelSel = document.createElement('div'); duelSel.id = 'dsel'; document.body.appendChild(duelSel);
-const bustBG = (look, duel) => { const g = G.raid && G.raid.gen; const n = g ? 'g' + g + (g === 6 && duel ? 'b' : '') : look; return `url(assets/npc/bust_${n}.webp),url(assets/npc/bust_${look}.webp)`; }; /* 大公（第6章）は、一騎打ちで悪魔の姿（g6b） */ /* 章の将軍は bust_g<章>.webp（無ければ従来の胸像） */
+const bustBG = (look, duel) => { if (G.raid && G.raid.vice) return G.raid.vice === 'g1' ? 'url(assets/npc/bust_g1.webp)' : `url(assets/npc/bust_${look}.webp)`; const g = G.raid && G.raid.gen; const n = g ? 'g' + g + (g === 6 && duel ? 'b' : '') : look; return `url(assets/npc/bust_${n}.webp),url(assets/npc/bust_${look}.webp)`; }; /* 大公（第6章）は、一騎打ちで悪魔の姿（g6b） */ /* 章の将軍は bust_g<章>.webp（無ければ従来の胸像） */
 const duelRank = () => G.raid && (G.raid.boss || G.raid.gen) ? 'boss' : G.raid && GM.e0(G.raid) >= 30 ? 'vice' : 'cap';
 const pickOf = a => a[Math.floor(Math.random() * a.length)];
 function playDuel(kIn, done) { // 画面いっぱいの一騎打ち。五合の勝負（先に3合）。鬨の声は1回（作戦室で増える）：大技の合に使えば見切り、通常の合なら強化
   // 2026-10-31 ⑤2人参戦：kIn が配列なら2人。合ごとに交代で前に出る（敵の攻撃も前に出た方が受ける）。決着の一撃は合わせ技（相方が先に打ち、締め役が決める。将軍戦でランカがいれば星震で締める）
-  const ks = [].concat(kIn), pair = ks.length > 1, k = ks[0], R = G.raid, F = GM.foeGeneral(G), look = dLook(), plan = GM.duelPlan(G, pair ? ks : k), FL = { ...GM.DUEL_LINES[duelRank()], ...(R.gen ? GM.GEN_LINES[R.gen] || {} : {}) }; /* 章の将軍は専用の台詞 */
+  const ks = [].concat(kIn), pair = ks.length > 1, k = ks[0], R = G.raid, F = GM.foeGeneral(G), look = dLook(), plan = GM.duelPlan(G, pair ? ks : k), FL = { ...GM.DUEL_LINES[duelRank()], ...(R.vice === 'g1' ? GM.GLENN_LINES[GM.chapterOf(G.week)] || GM.GEN_LINES[1] : R.vice ? {} : R.gen ? GM.GEN_LINES[R.gen] || {} : {}) }; /* 2026-11-01 三段の②は副将（グレン） */ /* 章の将軍は専用の台詞 */
   const ALs = ks.map(x => GM.DUEL_LINES[x] || GM.DUEL_LINES.mina), NM = ks.map(GM.nameOf), both = NM.join('と');
   const closer = pair ? ks.indexOf(((R.boss || R.gen) && ks.find(x => (DUEL_CLIP[x + '_ult'] || []).length)) || ks[1]) : 0; // 締め役（ks の番号）
   let act0 = 0, AL = ALs[0], lname = NM[0];
@@ -1437,6 +1445,7 @@ function fbKinds() {
   for (const k of Object.keys(GM.ALLY)) K[k] = { walk: `../ally/walk_${k}.webp`, wc: 4, wr: 4, wn: 16, wp: (WALK_BBH[k] || 430) / 512, wr0: true, clips: (DUEL_CLIP[k] || []).map(c => ({ ...c, base: '../ally/' })), cr: true, h: 1.2 };
   const FW = FOEWALK_META || [];
   K.sol = { walk: 'assets/npc/solwalk_1.webp', wc: 4, wr: 2, wn: 8, wp: FW[0] ? FW[0].h / FW[0].ch : .9, wr0: true, clips: (FOEDUEL.sol || (FOEDUEL[1] || []).map(c => ({ ...c, f: c.f.replace('foeduel', 'solduel') }))).map(c => ({ ...c, base: 'assets/npc/' })), cr: false, h: 1 };
+  for (const g of ['g1', 'g2', 'g3', 'g4', 'g5', 'g6']) if ((FOEDUEL[g] || []).length) K[g] = { walk: null, wc: 1, wr: 1, wn: 1, wp: 1, wr0: true, clips: FOEDUEL[g].map(c => ({ ...c, base: 'assets/npc/' })), cr: false, h: 1 }; /* 2026-11-01 章の将軍（歩きの絵は無いので構えのまま動く） */
   for (const n of [1, 2, 3, 4]) K['f' + n] = { walk: `assets/npc/foewalk_${n}.webp`, wc: 4, wr: 2, wn: 8, wp: FW[n - 1] ? FW[n - 1].h / FW[n - 1].ch : .9, wr0: true, clips: (FOEDUEL[n] || []).map(c => ({ ...c, base: 'assets/npc/' })), cr: false, h: 1 };
   return K;
 }
@@ -1445,7 +1454,7 @@ function fbUnit(stage, kind, K, side, x, y, H) { // x,y＝足元（舞台の％�
   el.innerHTML = '<i class="sh"></i><div class="s"></div>'; stage.appendChild(el); const s = el.lastChild, k = K[kind];
   const face = side === 'us' ? 1 : -1; // 味方は右向き、敵は左向き
   const u = { el, s, kind, side, x, y, H, face, alive: true, busy: false, f: Math.floor(Math.random() * 16) };
-  u.setWalk = async (frame) => { const sz = await fbSize(k.walk); if (!sz) return; const fw = sz[0] / k.wc, fh = sz[1] / k.wr, sc = H / (fh * k.wp);
+  u.setWalk = async (frame) => { if (!k.walk) { u.idle(); return; } const sz = await fbSize(k.walk); if (!sz) return; const fw = sz[0] / k.wc, fh = sz[1] / k.wr, sc = H / (fh * k.wp);
     const i = frame % k.wn, cx = i % k.wc, cy = Math.floor(i / k.wc), flip = (k.wr0 ? 1 : -1) * u.face < 0;
     Object.assign(s.style, { width: fw * sc + 'px', height: fh * sc + 'px', left: -fw * sc / 2 + 'px', top: -fh * sc * .985 + 'px', backgroundImage: `url(${k.walk})`, backgroundSize: `${sz[0] * sc}px ${sz[1] * sc}px`, backgroundPosition: `${-cx * fw * sc}px ${-cy * fh * sc}px`, transform: flip ? 'scaleX(-1)' : '' }); };
   u.clipFrame = (c, i) => { const sc = H / c.idle.h, cw = c.cw * sc, ch = c.ch * sc, cx = (c.idle.x + c.idle.w / 2) * sc, flip = (k.cr ? 1 : -1) * u.face < 0, rows = Math.ceil(c.n / c.cols);
@@ -1460,12 +1469,14 @@ function fbUnit(stage, kind, K, side, x, y, H) { // x,y＝足元（舞台の％�
   u.die = () => { u.alive = false; el.classList.add('dead'); el.style.transform = `translate(${-face * 12}px,6px) rotate(${-face * 14}deg)`; };
   return u;
 }
-function fieldBattle(mode, onEnd) { // onEnd：試しのとき、結果を記録せずに呼ぶ // mode：'auto'（任せる）。'hand' は旧「確率で決める」（画面からは外した）
+function fieldBattle(mode, onEnd, opts = {}) { // opts.prelude＝将軍戦の三段の①（結果を決めず、opts.next へ） // onEnd：試しのとき、結果を記録せずに呼ぶ // mode：'auto'（任せる）。'hand' は旧「確率で決める」（画面からは外した）
   if (!G.raid) { ui.modal(null); return; }
+  const resF = () => { if (!opts.prelude) return GM.resolve(G, mode); const R0 = G.raid, m = GM.raidD(G) - R0.E * (0.9 + Math.random() * 0.2) + (R0.duel === true ? 7 : R0.duel === false ? -7 : 0); R0.pre = m >= 4 ? 2 : m >= 0 ? 1 : 0; writeSave();
+    return ['前哨戦：敗北 押し込まれたまま、ボス戦へ', '前哨戦：苦戦 互角のまま、ボス戦へ', '前哨戦：勝利 ボス戦の敵が減り、体力も増える'][R0.pre]; };
   const R = G.raid, usD = Math.round(GM.raidD(G)), E = R.E, fr = GM.FRONT[R.dir], K = fbKinds(), rank = duelRank(), FL = GM.DUEL_LINES[rank], F = GM.foeGeneral(G), look = foeLook();
   const team = Object.keys(GM.ALLY).filter(k => GM.fighter(k) && GM.joined(G, k) && !(k === 'ranka' && (G.rankaAway || !R.ranka))).slice(0, 4);
   abt.className = 'fb'; abt.style.backgroundImage = ''; abt.onclick = null;
-  abt.innerHTML = `<div class="fh"><i class="cn tl"></i><i class="cn tr"></i><div class="tag">${R.kind === 'sortie' ? '出撃' : '防衛戦'}</div><h1>${R.name}</h1><img src="assets/ui2/divider2.webp">
+  abt.innerHTML = `<div class="fh"><i class="cn tl"></i><i class="cn tr"></i><div class="tag">${opts.prelude ? '将軍戦　前哨戦' : R.kind === 'sortie' ? '出撃' : '防衛戦'}</div><h1>${R.name}</h1><img src="assets/ui2/divider2.webp">
       <div class="sub"><span>${R.kind === 'sortie' ? `戦力（兵${R.sent}）` : '防衛力'}<b>${usD}</b></span><span class="md">${fr ? fr.n : ''}</span><span>敵の規模<b>${E}</b></span></div></div>
     <div class="fs${FB_TOP ? '' : ' nobg'}"><div class="ban"></div></div>
     <div class="ff"><i class="cn bl"></i><i class="cn br"></i><h3>戦況</h3><div class="bal"><b style="width:50%"></b><u style="left:50%"></u></div><div class="stt">両軍、前へ</div>
@@ -1484,7 +1495,8 @@ function fieldBattle(mode, onEnd) { // onEnd：試しのとき、結果を記録
   team.forEach((k, i) => us.push(fbUnit(st, k, K, 'us', 9 + (i % 2) * 3, 34 + i * 52 / Math.max(1, team.length - 1 || 1), hu(k))));
   for (let i = 0; i < nSol; i++) { const col = i % 3, row = Math.floor(i / 3), rows = Math.ceil(nSol / 3); us.push(fbUnit(st, 'sol', K, 'us', 19 + col * 8 + jit(), rowY(row, rows) + (col % 2) * 3 + jit(), hu('sol'))); }
   const fk = ['f1', 'f2', 'f3']; for (let i = 0; i < nFoe; i++) { const col = i % 4, row = Math.floor(i / 4), rows = Math.ceil(nFoe / 4), kd = fk[(i * 7 + row) % 3]; foe.push(fbUnit(st, kd, K, 'foe', 57 + col * 8 + jit(), rowY(row, rows) + (col % 2) * 3 + jit(), hu(kd))); }
-  const gen = fbUnit(st, 'f' + look, K, 'foe', 91, 58, hu('f' + look) * 1.06); gen.gen = true; foe.push(gen);
+  const gk = R.vice === 'g1' ? 'g1' : R.vice ? null : 'g' + GM.chapterOf(Math.min(G.week, GM.WEEKS)), gkind = gk && K[gk] ? gk : 'f' + look; /* 2026-11-01 敵の大将＝章の将軍（三段の①は副将グレン） */
+  const gen = fbUnit(st, gkind, K, 'foe', 91, 58, hu(gkind) * 1.06); gen.gen = true; foe.push(gen);
   if (rank !== 'boss') { foe.push(fbUnit(st, 'f3', K, 'foe', 92, 36, hu('f3'))); foe.push(fbUnit(st, 'f3', K, 'foe', 90, 80, hu('f3'))); }
   [...us, ...foe].forEach(u => u.idle());
   // 行進（歩きのコマで少し前へ）
@@ -1531,25 +1543,31 @@ function fieldBattle(mode, onEnd) { // onEnd：試しのとき、結果を記録
     else if (r === false) { const c = us.find(u => u.kind === G.raid.champ); if (c) c.die(); banner('一騎打ちに敗れた', '敵の勢いが増す', 1500 * spd); setG(gauge - 14); }
     T(finale, r === undefined || r === null ? 0 : 1300); }
   function finale() { // ここで結果を決め、演出を合わせる
-    phase = 'end'; const t = GM.resolve(G, mode); const good = /被害なし|完勝|勝利/.test(t) && !/敗北/.test(t), mid = /小被害|苦戦/.test(t);
+    phase = 'end'; const t = resF(); const good = /被害なし|完勝|勝利/.test(t) && !/敗北/.test(t), mid = /小被害|苦戦/.test(t);
     const fin = good ? 84 : mid ? 58 : 22; clash(2600, fin, good ? 3 : mid ? 5 : 8, good ? 11 : mid ? 6 : 3);
     T(() => { if (good) live(foe).forEach((u, i) => T(() => { u.busy = false; moveTo(u, 112, u.y + (Math.random() - .5) * 10, 1400); }, i * 40)); else if (!mid) live(us).filter(u => !GM.ALLY[u.kind]).forEach((u, i) => T(() => { u.busy = false; moveTo(u, Math.max(18, u.x - 18), u.y, 1200); }, i * 50)); }, 2700);
     T(() => result(t, good, mid), 3400); }
   function result(t, good, mid) { if (done) return; done = true; timers.forEach(clearTimeout); const label = good ? '勝利' : mid ? '辛勝' : '敗北', cls = good ? 'w' : mid ? 'm' : 'l';
     const fr2 = $('.fr'); fr2.innerHTML = `<div class="bd"><div class="k">${R.kind === 'sortie' ? '出撃' : '防衛戦'}</div><h2 class="${cls}">${label}</h2><img src="assets/ui2/divider2.webp"><p>${(t.split('：')[1] || '').replace(/ /g, '　')}<small>タップで続ける</small></p></div>`; fr2.classList.add('on');
-    fr2.onclick = e => { e.stopPropagation(); abt.style.display = 'none'; abt.className = ''; abt.innerHTML = ''; endRaidFx(); if (onEnd) { onEnd(); return; } commit(t); showReport(); }; }
+    fr2.onclick = e => { e.stopPropagation(); abt.style.display = 'none'; abt.className = ''; abt.innerHTML = ''; endRaidFx(); if (opts.prelude) { opts.next && opts.next(); return; } if (onEnd) { onEnd(); return; } commit(t); showReport(); }; }
   $('.spd').onclick = e => { e.stopPropagation(); spd = spd === 1 ? 2 : 1; e.currentTarget.textContent = `速度 ×${spd}`; };
   $('.sk').onclick = e => { e.stopPropagation(); if (done) return; if (phase === 'duel') { dbtn.click(); return; }
-    timers.forEach(clearTimeout); timers = []; if (wantDuel && G.raid && G.raid.duel === undefined) { challenge(); return; } if (phase !== 'end') { const t = GM.resolve(G, mode); const good = /被害なし|完勝|勝利/.test(t) && !/敗北/.test(t), mid = /小被害|苦戦/.test(t); setG(good ? 84 : mid ? 58 : 22); result(t, good, mid); } };
+    timers.forEach(clearTimeout); timers = []; if (wantDuel && G.raid && G.raid.duel === undefined) { challenge(); return; } if (phase !== 'end') { const t = resF(); const good = /被害なし|完勝|勝利/.test(t) && !/敗北/.test(t), mid = /小被害|苦戦/.test(t); setG(good ? 84 : mid ? 58 : 22); result(t, good, mid); } };
 }
-function goBattle() { // アクション戦闘へ移る。結果は battle_result に書かれ、戻ってきたときに反映する
+// 2026-11-01 将軍戦の三段：③のボス戦でラナの隣に立つ仲間（章の因縁。第1章と第6章はミナ）
+function finalAlly() { const R = G.raid, c = R && R.gen, L = c && GM.GEN_LINES[c], k = c === 1 || c === 6 ? 'mina' : L && L.rival; return k && GM.ALLY[k] && GM.joined(G, k) && GM.fighter(k) && !(k === 'ranka' && G.rankaAway) ? k : null; }
+function startFinal() { const R = G.raid; if (!R) return; R.vice = GM.chapterOf(G.week) > 1 ? 'g1' : 'cap'; writeSave();
+  fieldBattle('auto', null, { prelude: true, next: () => { delete R.vice; writeSave(); goBattle({ final: true }); } }); }
+function goBattle(opt = {}) { // アクション戦闘へ移る。結果は battle_result に書かれ、戻ってきたときに反映する
   const R = G.raid, id = String(Date.now()), m = GM.battleMods(G); G.battle = { id }; writeSave();
-  const al = Object.keys(GM.ALLY).filter(k => GM.fighter(k) && GM.joined(G, k) && !(k === 'ranka' && !R.ranka)).join(','); // 途中で参入する仲間の候補（戦闘の側でランダムに1人。ランカは街にいる週だけ）
-  const q = new URLSearchParams({ battle: '1', id, waves: GM.wavesOf(GM.e0(R)), name: R.name, dmg: m.dmg, bind: m.bind, hp: m.hp, al, boss: (R.boss || R.gen) ? 1 : 0, gen: R.gen ? 'g' + R.gen : R.boss ? 'g6' : '', ret: 'terrain/index.html' }); // gen＝章の将軍（アクション戦闘の敵将の絵と大技の性格）
+  if (opt.final) { const fa = finalAlly(); m.hp = (m.hp || 0) + (R.pre >= 1 ? 20 : 0) + (R.pre >= 2 ? 20 : 0); m.dmg = +(m.dmg * (R.duel === true ? 1.1 : 1)).toFixed(2); R.fa = fa; }
+  const al = opt.final ? (R.fa || '') : Object.keys(GM.ALLY).filter(k => GM.fighter(k) && GM.joined(G, k) && !(k === 'ranka' && !R.ranka)).join(','); // 途中で参入する仲間の候補（戦闘の側でランダムに1人。ランカは街にいる週だけ）
+  const q = new URLSearchParams({ battle: '1', id, waves: Math.max(2, GM.wavesOf(GM.e0(R)) - (opt.final ? 1 + (R.pre >= 2 ? 1 : 0) : 0)), name: R.name, dmg: m.dmg, bind: m.bind, hp: m.hp, al, boss: (R.boss || R.gen) ? 1 : 0, gen: R.gen ? 'g' + R.gen : R.boss ? 'g6' : '', ret: 'terrain/index.html' }); // gen＝章の将軍（アクション戦闘の敵将の絵と大技の性格）
   location.href = '../index.html?' + q.toString();
 }
 function takeBattleResult() {
   let r = null; try { r = JSON.parse(localStorage.getItem('battle_result') || 'null'); } catch (e) { }
+  if (r && G.skirm && r.id === G.skirm.id) { takeSkirmish(r); return; }
   if (!r || !G.battle || !G.raid || r.id !== G.battle.id) return;
   try { localStorage.removeItem('battle_result'); } catch (e) { }
   G.battle = null; const t = GM.resolve(G, 'hand', Math.random, !!r.win); const sup = Math.max(0, Math.floor(+r.sup || 0)); if (sup) G.sup += sup; /* 戦場で拾った物資 */ endRaidFx(); commit(`${t}（撃破${r.kills}${sup ? `・物資+${sup}` : ''}）`); ui.modal(null); /* 出撃は週の報告がなく、起動時に開いた出撃の窓が残って止まっていた */ showReport();
@@ -1613,7 +1631,10 @@ function raidModal() { // 襲撃・出撃の決断。選んでから大ボタン
       l: [`<i>見込み</i><b class="${P.auto.ok ? 'ok' : 'ng'}">${P.auto.res}</b>`], c: [duel, R.dark ? (GM.holyD(G) < 0 ? `穢れ 防衛力${GM.holyD(G)}` : GM.holyD(G) > 0 ? `聖堂の加護 防衛力+${GM.holyD(G)}` : '聖堂が穢れを防ぐ') : '', '行動点は減らない'].filter(Boolean).join('・'), go: '仲間に任せる' },
     { k: 'act', t: '自分で戦う', em: `アクション・WAVE ${P.act.waves}`, im: '../sprites/idle_00.png', ip: '62% 30%/190% auto',
       l: [`<i>勝てば</i><span class="ok">${P.act.win}</span>`, `<i>負ければ</i><span class="ng">${P.act.lose}</span>`], c: [P.act.cost, mods.replace('最大HP', 'HP')].filter(Boolean).join('・'), go: '自ら剣を取る' }];
-  if (!ops.some(o => o.k === rdSel)) rdSel = 'auto';
+  if (R.gen && R.kind === 'raid') { const rv = finalAlly(); ops.length = 0; ops.push({ k: 'final', t: '決戦に臨む', em: '前哨戦 → 一騎打ち → ボス戦', im: '../sprites/idle_00.png', ip: '62% 30%/190% auto', /* 2026-11-01 将軍戦は三段で戦う */
+    l: [`<i>①</i><span>仲間と兵の前哨戦（任せる）</span>`, `<i>②</i><span>${GM.chapterOf(G.week) > 1 ? '副将グレン' : '敵の副将'}と一騎打ち</span>`, `<i>③</i><span class="ok">${rv ? GM.nameOf(rv) + 'と並んで' : ''}${GM.CHAPTERS[R.gen - 1].g}と戦う</span>`],
+    c: '①②の結果で、③が楽になる', go: '決戦へ' }); }
+  if (!ops.some(o => o.k === rdSel)) rdSel = ops[0].k;
   let rk = '';
   if (GM.joined(G, 'ranka')) { const ready = GM.rankaReady(G), why = G.rankaAway ? '今週は街にいない（出られない）' : '';
     rk = `<div class="rk${ready ? '' : ' off'}"><img src="${porOf('ranka')}"><span>ランカ<small>${ready ? `防衛力+${GM.rankaD(G)}・ダメージ+${Math.round(GM.rankaDmg(G) * 100)}%` : why}</small></span>${ready ? '<b>出撃</b>' : ''}</div>`; }
@@ -1627,7 +1648,7 @@ function raidModal() { // 襲撃・出撃の決断。選んでから大ボタン
       ${rk}<button class="go"></button></div>`;
   const go = rdec.querySelector('.go'), mark = () => { rdec.querySelectorAll('.oc').forEach(c => c.classList.toggle('on', c.dataset.k === rdSel)); go.textContent = ops.find(o => o.k === rdSel).go; }; mark();
   rdec.querySelectorAll('.oc').forEach(c => { c.onclick = e => { e.stopPropagation(); rdSel = c.dataset.k; mark(); }; });
-  go.onclick = e => { e.stopPropagation(); rdec.style.display = 'none'; const k = rdSel; rdSel = 'auto'; if (k === 'act') goBattle(); else fieldBattle(k); };
+  go.onclick = e => { e.stopPropagation(); rdec.style.display = 'none'; const k = rdSel; rdSel = 'auto'; if (k === 'final') startFinal(); else if (k === 'act') goBattle(); else fieldBattle(k); };
   if (!shown) { rdec.classList.remove('in'); void rdec.offsetWidth; rdec.classList.add('in'); }
   rdec.style.display = 'flex';
 }
@@ -1773,5 +1794,5 @@ window.__t.setView = (zoom, sx, sy) => { view.zoom = zoom; view.cx = sx; view.cz
 window.__t.playDuel = playDuel; window.__t.fieldBattle = fieldBattle; window.__t.maybeDuel = maybeDuel; window.__t.raidIntro = raidIntro; window.__t.allyMesh = allyMesh; window.__t.select = id => select(plots.find(p => p.id === id) || null);
 window.__t.plots = plots; window.__t.G = () => G; window.__t.playDuel = playDuel; window.__t.fieldBattle = fieldBattle; window.__t.maybeDuel = maybeDuel; window.__t.raidIntro = raidIntro; window.__t.camp = () => camp && camp.map(c => [c.position.x|0, c.position.y|0, c.position.z|0, c.visible]); window.__t.faces = () => faceURL; window.__t.raidIntro = raidIntro; window.__t.raidModal = raidModal; window.__t.showReport = showReport; window.__t.openMorning = openMorning; window.__t.GM = GM; window.__t.commit = () => commit(); window.__t.reset = () => { try { localStorage.removeItem(SAVE_KEY); } catch (e) { } }; window.__t.pickAt = (cx, cy) => pickAt(cx, cy); window.__t.view = view; window.__t.sel = () => selected && selected.id; window.__t.build = (id, fac, stage) => { if (stage) G.plots[id] = { fac, stage }; else delete G.plots[id]; commit(); };
 requestAnimationFrame(frame);
-if (!params.has('duel') && !params.has('field') && !params.has('dev')) setTimeout(() => { if (!G.repPrev) chapterStartScene(() => weekEvents()); }, 400); /* 2026-11-01 アクション戦闘から戻って章の終わりの会話・朝の報告を出している間は、章の始まりを重ねない（朝の報告を閉じた時に出る）。不具合：将軍に自分で勝つと、終わりの会話が次の章の始まりに上書きされていた */ /* ?dev（発展度の確かめ）は会話を出さない */ // 新しいゲームの第1章、または保存の途中の章の始まり
+if (!params.has('duel') && !params.has('field') && !params.has('dev')) setTimeout(() => { if (!G.repPrev && !skirmPlaying) chapterStartScene(() => weekEvents()); }, 400); /* 2026-11-01 アクション戦闘から戻って章の終わりの会話・朝の報告を出している間は、章の始まりを重ねない（朝の報告を閉じた時に出る）。不具合：将軍に自分で勝つと、終わりの会話が次の章の始まりに上書きされていた */ /* ?dev（発展度の確かめ）は会話を出さない */ // 新しいゲームの第1章、または保存の途中の章の始まり
 window.__t.story = (c, kind) => playStory(c, kind || 'start', () => refreshUI());
