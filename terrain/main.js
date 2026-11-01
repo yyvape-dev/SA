@@ -5,8 +5,8 @@ import { createGL } from './fx_gl.js?v=1794800000';
 import * as GM from './game.js?v=1797800000';
 import { createUI } from './ui.js?v=1793650000';
 import { createMorning } from './morning.js?v=1793800000';
-import { createStory } from './story.js?v=1798000000';
-import * as EV from './events.js?v=1798000000';
+import { createStory, SCENES } from './story.js?v=1798100000';
+import * as EV from './events.js?v=1798100000';
 import { slashFX, impactFX, clashFX, chargeFX, rallyFX, starFX, hitStop, isHeld, shaker, FXPAL, burstFX, crackFX, chainFX, glyphFX, smokeFX, warpFX } from './fx_slash.js?v=1794700000';
 
 const layout = await (await fetch('data/layout.json?v=2')).json();
@@ -885,6 +885,9 @@ const morning = createMorning();
 const story = createStory();
 function playStory(c, kind, then) { // 章の始まり／終わりの会話（story.js）
   const C = GM.CHAPTERS[c - 1]; if (!C) { then && then(); return; }
+  if (c === 6 && kind === 'win' && EV.JUDGE) { const base = SCENES[6].win; /* 2026-11-01 結末：大公の処遇をラナが選び、選び方の積み重ねで民と仲間の言葉が変わる */
+    const choices = EV.JUDGE.choices.map(x => ({ ...x, reply: [...x.reply] }));
+    try { story.play({ c, kind: 'ev', lines: [...base.slice(0, 2), ...EV.JUDGE.lines], choices, foeName: C.g, foeKey: 'g6b', onPick: j => { applyChoice(choices[j]); const v = G.virtue || {}, d = (v.mercy || 0) - (v.rigor || 0), voice = EV.ENDING[d >= 2 ? 'mercy' : d <= -2 ? 'rigor' : 'both']; choices[j].reply.push(...voice, ...base.slice(2)); } }, then); } catch (e) { console.error('結末', e); then && then(); } return; }
   try { story.play({ c, kind, title: C.t, desc: C.d, foeName: C.g, foeKey: `g${c}${c === 6 && kind === 'win' ? 'b' : ''}` }, then); } catch (e) { console.error('章の会話', e); then && then(); }
 }
 const CH_KEY = 'territory_v2_ch'; // 2026-11-01 章の始まりの保存（ゲームオーバーから、その章の最初へ戻れる）
@@ -899,7 +902,7 @@ function weekEvents(done) { if (!G || G.raid || G.over) { done && done(); return
     try { story.play({ c, kind: 'ev', lines: e.lines, choices: e.choices, foeName: GM.CHAPTERS[c - 1].g, foeKey: 'g' + c, onPick: j => applyChoice(e.choices[j]) }, next); } catch (er) { console.error('週の出来事', er); next(); } };
   next(); }
 function applyChoice(ch) { if (!ch) return; const f = ch.eff || {}; G.virtue = G.virtue || { mercy: 0, rigor: 0 }; if (ch.v) G.virtue[ch.v] = (G.virtue[ch.v] || 0) + 1;
-  if (f.sup) G.sup = Math.max(0, G.sup + f.sup); if (f.mor) G.morale = Math.max(0, Math.min(100, G.morale + f.mor)); for (const [k, n] of Object.entries(f.bond || {})) G.bond[k] = Math.min(3, (G.bond[k] || 0) + n); writeSave(); }
+  if (f.sup) G.sup = Math.max(0, G.sup + f.sup); if (f.mor) G.morale = Math.max(0, Math.min(100, G.morale + f.mor)); if (f.troops) G.troops = Math.max(0, Math.min(GM.capT(G), G.troops + f.troops)); for (const [k, n] of Object.entries(f.bond || {})) G.bond[k] = Math.min(3, (G.bond[k] || 0) + n); writeSave(); }
 function bondScene(k) { const b = G.bond[k], L = EV.BOND[k] && EV.BOND[k][b]; G.bondSeen = G.bondSeen || {}; if (!L || G.bondSeen[k + b]) return; G.bondSeen[k + b] = 1; writeSave(); try { story.play({ c: GM.chapterOf(G.week), kind: 'ev', lines: L, foeName: '', foeKey: 'g1' }, () => refreshUI()); } catch (e) { console.error('絆の話', e); } }
 function chapterEndScene(then) { if (!G.chEnd) { then(); return; } const e = G.chEnd; G.chEnd = null; writeSave(); playStory(e.c, e.win ? 'win' : 'lose', then); }
 function openMorning(prev, R) { // 朝の報告：空の部屋、ラナの歩き、報告役の3文 → タップで「今朝の変化」→ タップで領地へ
