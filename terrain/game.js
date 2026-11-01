@@ -45,9 +45,11 @@ export const WEEKS = CH_LEN * CHAPTERS.length;
 export const chapterOf = w => Math.min(CHAPTERS.length, Math.max(1, Math.ceil(w / CH_LEN)));
 const DARK_CH = [4, 6]; // 黒い軍勢（穢れ）の章。聖堂が無いと防衛力-8
 const RAID_N = [['野盗の襲撃', '山賊の大群'], ['傭兵の斥候', '傭兵団の先遣隊'], ['謀反軍の偵察隊', '騎士団の突撃隊'], ['黒い軍勢の斥候', '黒い軍勢の討伐隊'], ['砦の守備隊', '王国軍の精鋭'], ['王都の近衛', '大公の本隊']];
+export const E_MUL = [1, 1, 1.15, 1.8, 2.5, 3.0]; // 2026-11-01 後半の敵の規模（防衛力と比べる値）。一騎打ちの強さ・格（隊長／副官）は元の値 E0 のまま（36週の自動の検証で、第3章から楽になりすぎたため）
+const eOf = (c, i, k) => Math.round(c.E[k] * E_MUL[i]);
 export const SCHED = CHAPTERS.flatMap((c, i) => { const w0 = i * CH_LEN, last = i === CHAPTERS.length - 1;
-  return [{ w: w0 + 2, E: c.E[0], name: RAID_N[i][0], dir: 'river' }, { w: w0 + 4, E: c.E[1], name: RAID_N[i][1], dir: 'pass' },
-    { w: w0 + 6, E: c.E[2], name: last ? '大公の侵攻' : c.g + 'の侵攻', gen: i + 1, boss: last, dir: i % 2 ? 'river' : 'pass' }].map(r => ({ ...r, dark: DARK_CH.includes(i + 1) })); });
+  return [{ w: w0 + 2, E: eOf(c, i, 0), E0: c.E[0], name: RAID_N[i][0], dir: 'river' }, { w: w0 + 4, E: eOf(c, i, 1), E0: c.E[1], name: RAID_N[i][1], dir: 'pass' },
+    { w: w0 + 6, E: eOf(c, i, 2), E0: c.E[2], name: last ? '大公の侵攻' : c.g + 'の侵攻', gen: i + 1, boss: last, dir: i % 2 ? 'river' : 'pass' }].map(r => ({ ...r, dark: DARK_CH.includes(i + 1) })); });
 const CAP_TROOPS = 16;
 export const capT = s => CAP_TROOPS + Math.round(effSum(s, 'cap')); // 兵の上限（兵舎で増える）
 // 戦場（敵が来る方角）。前線＝街の外で迎え撃つ場所
@@ -85,7 +87,7 @@ export const sortieD = (s, n) => Math.round((n * troopStr(s) + 2 + garouD(s)) * 
 // 聖堂：黒い軍勢の襲撃は、聖堂（完成）が無いと防衛力-8。発展後は+4
 export const holyD = s => { const h = effSum(s, 'holy'); return h >= 2 ? 4 : h >= 1 ? 0 : -8; };
 export const darkD = (s, r) => (r && r.dark ? holyD(s) : 0);
-export const raidD = s => (s.raid && s.raid.kind === 'sortie' ? sortieD(s, s.raid.sent || 0) : D(s) + darkD(s, s.raid)) + (s.raid && s.raid.ranka ? rankaD(s) : 0);
+export const raidD = s => (s.raid && s.raid.kind === 'sortie' ? sortieD(s, s.raid.sent || 0) : D(s) + darkD(s, s.raid) + (s.raid ? s.merc || 0 : 0)) + (s.raid && s.raid.ranka ? rankaD(s) : 0);
 export function setRanka(s, on) { if (s.raid) s.raid.ranka = !!on && rankaReady(s); }
 export function battleMods(s) { // アクション戦闘へ渡す補正
   const m = bond(s, 'mina'), g = bond(s, 'garou'), r = bond(s, 'sera'), k = bond(s, 'ranka');
@@ -141,6 +143,8 @@ export const CASTLE = { // 城でできること
   troops: { t: '兵を募る', cost: 3, d: '兵力+2（物資の維持費が増える）', can: s => s.troops < capT(s), ap: s => { s.troops = Math.min(capT(s), s.troops + 2); } },
   levy:   { t: '徴発',     cost: 0, d: '物資+5 民心-8', can: () => true, ap: s => { s.sup += 5; s.morale = clamp(s.morale - 8, 0, 100); } },
   feast:  { t: '炊き出し', cost: 3, d: '民心+10', can: () => true, ap: s => { s.morale = clamp(s.morale + (bond(s, 'sera') >= 3 ? 15 : 10), 0, 100); } },
+  merc:   { t: '傭兵を雇う', cost: 8, d: '次の襲撃だけ防衛力+8', can: s => !s.merc && !!nextRaid(s), ap: s => { s.merc = 8; } }, // 2026-11-01 余った物資の使い道
+  invest: { t: '街に投資', cost: 6, d: '民心+3・本拠の街が育つ', can: s => (s.invest || 0) < 6, ap: s => { s.invest = (s.invest || 0) + 1; s.morale = clamp(s.morale + 3, 0, 100); } },
   scout:  { t: '偵察',     cost: 0, d: '次の襲撃の規模が確定', can: s => { const r = nextRaid(s); return !!r && !s.scouted[r.w]; }, ap: s => { s.scouted[nextRaid(s).w] = true; } },
   sortie2: sortieAct(2), sortie4: sortieAct(4), sortie6: sortieAct(6),
 };
@@ -167,7 +171,7 @@ export function endWeek(s) {
   const msg = `週末：物資${i >= 0 ? '+' : ''}${i} 民心${d >= 0 ? '+' : ''}${d}${drafted ? ' 兵+1' : ''}${done.length ? '／完成：' + done.join('・') : ''}`;
   s.log.push(msg);
   const r = SCHED.find(x => x.w === s.week);
-  if (r) s.raid = { kind: 'raid', E: r.E, name: r.name, boss: !!r.boss, gen: r.gen || 0, w: r.w, dir: r.dir, dark: !!r.dark }; else afterWeek(s);
+  if (r) s.raid = { kind: 'raid', E: r.E, E0: r.E0, name: r.name, boss: !!r.boss, gen: r.gen || 0, w: r.w, dir: r.dir, dark: !!r.dark }; else afterWeek(s);
   return msg;
 }
 function afterWeek(s) {
@@ -202,6 +206,8 @@ export function resolve(s, mode, rnd = Math.random, forced) { // forced: アク�
   if (mode === 'auto') { tier = at; ok = tier === 0; } else { ok = forced === undefined ? rnd() < handP(s, E) : !!forced; tier = ok ? 0 : clamp(at + 1, 1, 3); if (R.kind === 'sortie') s.ap = Math.max(0, s.ap - 1); else s.tired = true; }
   s.raid = null;
   if (R.gen) s.chEnd = { c: R.gen, win: !!ok }; // 章の終わりの会話（main.js が出す）
+  if (R.boss && mode !== 'auto' && !ok && m - 7 >= 4) { ok = true; t += '押し返されたが、守りの厚さで持ちこたえた・'; } // 2026-11-01 自分で戦って負けても、防衛力の差が大きければ持ちこたえる（一騎打ちと同じく約1段の不利）
+  if (R.kind === 'raid') s.merc = 0; // 傭兵は1回の襲撃で去る
   if (R.boss) { s.over = ok ? 'win' : 'lose'; s.why = ok ? '大公を討ち、国を取り戻した' : '大公の軍に城を落とされた'; s.log.push(t + (ok ? '勝利' : '敗北')); return t + (ok ? '勝利' : '敗北'); }
   if (R.kind === 'sortie') { const n = R.sent || 0; let lost = 0;
     if (ok) { const g = sortieGain(n) + (mode === 'hand' ? 2 : 0); s.sup += g; s.morale += 3; t += `勝利 物資+${g}`; }
@@ -224,7 +230,7 @@ export function raidPlan(s) {
   const n = R.sent || 0, g = sortieGain(n);
   const fx = t => R.boss ? (t === 0 ? '将軍を退け、国を取り戻す' : '城を落とされる（敗北）') : R.kind === 'sortie' ? (t === 0 ? `勝利 物資+${g} 民心+3` : t === 1 ? '苦戦 兵力-1 民心-5' : `敗走 兵力-${Math.ceil(n / 2)} 民心-8`) : (t === 0 ? '被害なし' : TIER_N[t] + ' ' + TIER_FX[t]);
   const win = R.boss ? '将軍を退け、国を取り戻す' : R.kind === 'sortie' ? `勝利 物資+${g + 2} 民心+3` : '完勝 物資+4 民心+5', cost = R.kind === 'sortie' ? '行動点-1' : '来週の行動点-1';
-  return { at, tier: R.boss ? (at === 0 ? '優勢' : '劣勢') : TIER_N[at], duel: duelDue(s), auto: { ok: at === 0, res: fx(at) }, act: { waves: wavesOf(R.E), win, lose: fx(bad), cost } };
+  return { at, tier: R.boss ? (at === 0 ? '優勢' : '劣勢') : TIER_N[at], duel: duelDue(s), auto: { ok: at === 0, res: fx(at) }, act: { waves: wavesOf(e0(R)), win, lose: fx(bad), cost } };
 }
 // 結果の見込み（任せた場合の被害の段階）
 export function autoTier(s, E) { const m = raidD(s) - E; return m >= 4 ? '被害なし' : m >= 0 ? '小被害' : m >= -4 ? '中被害' : '大被害'; }
@@ -315,9 +321,10 @@ export const NAMES = { rana: 'ラナ' };
 export const nameOf = k => (ALLY[k] || {}).n || NAMES[k] || k;
 export const finalDuel = s => !!s.raid && (s.raid.boss || s.raid.gen === 6);
 export const pairOK = s => !!s.raid && (s.raid.boss || !!s.raid.gen) && (finalDuel(s) || s.testPair || Object.values(s.plots).some(p => p.fac === 'banner' && p.stage >= 2 && !p.burnt));
-export const duelDue = s => !!s.raid && (s.raid.boss || !!s.raid.gen || s.raid.E >= 30 || Math.abs(raidD(s) - s.raid.E) <= 4); // 副官と将軍は必ず一騎打ちに出てくる
+export const e0 = R => R.E0 ?? R.E; // 格と一騎打ちの強さに使う元の規模
+export const duelDue = s => !!s.raid && (s.raid.boss || !!s.raid.gen || e0(s.raid) >= 30 || Math.abs(raidD(s) - s.raid.E) <= 4); // 副官と将軍は必ず一騎打ちに出てくる
 export const champions = s => [...(finalDuel(s) ? ['rana'] : []), ...Object.keys(ALLY).filter(k => fighter(k) && joined(s, k) && !(k === 'ranka' && (s.rankaAway || !s.raid.ranka)))];
-export const foeGeneral = s => ({ n: s.raid.gen ? CHAPTERS[s.raid.gen - 1].g : s.raid.E >= 30 ? '敵の副官' : '敵の隊長', pow: s.raid.E / 3 + (s.raid.boss ? 6 : s.raid.gen ? 4 : s.raid.E >= 30 ? 2 : 0) });
+export const foeGeneral = s => ({ n: s.raid.gen ? CHAPTERS[s.raid.gen - 1].g : e0(s.raid) >= 30 ? '敵の副官' : '敵の隊長', pow: e0(s.raid) / 3 + (s.raid.boss ? 6 : s.raid.gen ? 4 : e0(s.raid) >= 30 ? 2 : 0) });
 export const duelPow = (s, k) => DUEL_POW[k] + bond(s, k) * 1.5;
 export const duelP = (s, k) => { if (Array.isArray(k)) return k.length > 1 ? Math.min(.95, Math.max(...k.map(x => duelP(s, x))) + .12) : duelP(s, k[0]); // 2人参戦
   // ミナは絆2・3で勝率が上がる。ランカは相手が誰でも7割は勝つ（最強の将）
@@ -350,15 +357,25 @@ export function duelRound(plan, i, order, rnd = Math.random) { // order: 鬨の�
 export const GEN_LINES = {
   1: { open: ['首はもらったぜ、女王さまよ！'], heavy: ['ぶった斬ってやらぁ！'], win: ['へっ、他愛もねえ。'], lose: ['ちくしょう……割に合わねえ……！'] },
   2: { open: ['来い。教えた斧で、俺を割れるか？'], heavy: ['団長の一撃、忘れたか！'], win: ['まだまだだな。'], lose: ['……ちっ、腕を上げやがって。'],
-    vs: { garou: ['金で振る斧と、主のために振る斧の違いを見せてやりまさぁ。', 'ガロウ、てめえか。……いいだろう、来い。'] } },
+    vs: { garou: ['金で振る斧と、主のために振る斧の違いを見せてやりまさぁ。', 'ガロウ、てめえか。……いいだろう、来い。'] },
+    vsWin: { garou: ['あんたに教わった斧でさぁ。……振る理由が違うだけで。', 'ちっ……主持ちの斧ってのは、重てえもんだな。'] },
+    vsLose: { garou: ['理由じゃ斧は重くならねえ。出直してこい、ガロウ。', '……まだ、あんたの背中は遠いか。'] } },
   3: { open: ['剣を抜きなさい。手加減はしない。'], heavy: ['これで、終わりよ！'], win: ['ここまでよ。'], lose: ['……見事、ね。'],
-    vs: { sera: ['姉さま。……本で覚えた剣でも、退きません！', '……セラ。あなたが、わたしの前に立つの？'] } },
+    vs: { sera: ['姉さま。……本で覚えた剣でも、退きません！', '……セラ。あなたが、わたしの前に立つの？'] },
+    vsWin: { sera: ['本に無い剣も……今、ここで覚えました。', '……生意気になったわね、セラ。'] },
+    vsLose: { sera: ['本の剣では、ここまでよ。……下がりなさい、セラ。', 'まだ……まだ、終わってません……！'] } },
   4: { open: ['……ウ……ガ……'], heavy: ['グ……ォォォ……！'], hit: ['ガァッ！', 'ギ……ィ……！'], hurt: ['グ……', 'ゴ……ァ……'], win: ['…………'], lose: ['ガ……ァ……'],
-    vs: { ranka: ['……その中身、引きずり出してあげるよ。', '……ニ……ン……ゲ……ン……'] } },
+    vs: { ranka: ['……その中身、引きずり出してあげるよ。', '……ニ……ン……ゲ……ン……'] },
+    vsWin: { ranka: ['ほらね。鎧の中身、空っぽじゃない。', '……ガ……ァ……'] },
+    vsLose: { ranka: ['……グ……ォ……ォ……', '……っ、これが悪魔の力ってやつ？ 次は外さないよ。'] } },
   5: { open: ['構えよ。剣に情けは要らぬ。'], heavy: ['受けてみよ、王国の剣を！'], win: ['まだ届かぬか。'], lose: ['……見事だ。'],
-    vs: { lily: ['迷いのある剣には、負けません！', '異国の騎士か。……良い構えだ。'] } },
+    vs: { lily: ['迷いのある剣には、負けません！', '異国の騎士か。……良い構えだ。'] },
+    vsWin: { lily: ['あなたの剣、最後まで迷っていました。', '……見抜かれたか。良い目だ、異国の騎士よ。'] },
+    vsLose: { lily: ['迷いを見抜く目はある。だが、剣がまだ軽い。', '……っ、ラナさん、ごめんなさい……！'] } },
   6: { open: ['跪け。我は王となる者ぞ。'], heavy: ['この力の前に、消え失せよ！'], win: ['所詮は、人の身よ。'], lose: ['バカな……この力が……！'],
-    vs: { rana: ['叔父上。……これで、終わりにします。', 'ラナ……兄上の娘よ、ここで果てよ。'] } }
+    vs: { rana: ['叔父上。……これで、終わりにします。', 'ラナ……兄上の娘よ、ここで果てよ。'] },
+    vsWin: { rana: ['これが……民と歩いてきた、わたしの剣です。', 'バカな……兄上の娘ごときに……！'] },
+    vsLose: { rana: ['所詮は兄上と同じ、甘い娘よ。', 'まだ……倒れるわけには、いかない……！'] } }
 };
 export const DUEL_LINES = {
   mina: { open: ['姫のために……負けない。', '……本気で、やるから。'], hit: ['そこっ！', '当たれ！', 'これでどう！'], hurt: ['くっ……まだ！', 'いったぁ……！'], win: ['姫……見てた？ やったよ。'], lose: ['ごめん、姫……。'] },

@@ -2,7 +2,7 @@
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
 import { createGL } from './fx_gl.js?v=1794800000';
-import * as GM from './game.js?v=1797300000';
+import * as GM from './game.js?v=1797600000';
 import { createUI } from './ui.js?v=1793650000';
 import { createMorning } from './morning.js?v=1793800000';
 import { createStory } from './story.js?v=1794300000';
@@ -582,14 +582,20 @@ function animateWater(mesh) { // 噴水の水だけを動かす：青い画素�
         diffuseColor.rgb += w * (vec3(.18, .24, .28) * fall + vec3(.6) * sp); }`); };
   mat.needsUpdate = true; waterMats.push(mat); return mesh; }
 const onLotOrRoad = (x, y) => layout.plots.some(p => pointInPoly(x, y, p.poly)) || splatAt(x, y)[0] > .25 || splatAt(x, y)[2] > .2;
+const halos = []; /* 灯りの光 { m, ph, a（揺れの幅）} */
+// 煙突の位置（絵の中の割合 u,v。石の色から探し、絵を見て直した）。煙突の無い絵は書かない
+const CHIM = { house1_3: [.65, .05], house2_1: [.23, .06], house2_2: [.73, .05], house2_3: [.73, .04], house3_1: [.68, .01], house3_2: [.71, .01], house3_3: [.74, .01], shop_1: [.25, .08], shop_2: [.3, .05] };
+const chims = []; /* 煙突の煙 { m, x, y, lift, next } */
+const lampGlowTex = canvasSprite(64, 64, g => { const r = g.createRadialGradient(32, 32, 0, 32, 32, 32); r.addColorStop(0, 'rgba(255,236,170,.95)'); r.addColorStop(.3, 'rgba(255,190,90,.45)'); r.addColorStop(1, 'rgba(255,150,40,0)'); g.fillStyle = r; g.fillRect(0, 0, 64, 64); });
+function lampGlow(m, x, y, dx, lift) { const g = fxSprite(lampGlowTex, 22, 22, x + dx, y, lift, true); g.renderOrder = 23; m.userData.glow = g; halos.push({ m: g, ph: x * .37, a: .12 }); return m; }
 const deco = []; // 発展度で出し入れする街の小物 { m, pi, lo, hi }
-function lvd(m, pi, lo, hi = 9) { deco.push({ m, pi, lo, hi }); return m; }
+function lvd(m, pi, lo, hi = 9) { deco.push({ m, pi, lo, hi }); if (m.userData.glow) deco.push({ m: m.userData.glow, pi, lo, hi }); return m; }
 function devDeco() { for (const d of deco) d.m.visible = devLv[d.pi] >= d.lo && devLv[d.pi] <= d.hi; }
 layout.plazas.forEach((pz, n) => { // 広場：石畳（村から）＋中央の井戸→噴水（町から）＋四隅の街灯（町から）＋屋台・樽（集落から）・ベンチ（村から）・花壇（町から）
   const [T, R, B, L] = pz.poly; const pav = pavingMesh([T, R, B, L], true); scene.add(pav); lvd(pav, n, 2);
   const [cx, cy] = pz.center;
   if (pz.kind === 'fountain') { lvd(animateWater(townPiece('fountain', cx, cy + 34, .44)), n, 3); lvd(townPiece('well', cx, cy + 24, .27), n, 0, 2); } else townPiece('well', cx, cy + 34, .42);
-  [T, R, B, L].forEach(([x, y]) => lvd(townPiece('lamp', x + (cx - x) * .12, y + (cy - y) * .12, .2), n, 3));
+  [T, R, B, L].forEach(([x, y]) => lvd(lampGlow(townPiece('lamp', x + (cx - x) * .12, y + (cy - y) * .12, .2), x + (cx - x) * .12, y + (cy - y) * .12, 0, 56), n, 3));
   const mid = (p, q, k = .3) => [(p[0] + q[0]) / 2 + (cx - (p[0] + q[0]) / 2) * k, (p[1] + q[1]) / 2 + (cy - (p[1] + q[1]) / 2) * k];
   const d = [['stall', T, R, .3, 1], ['flowerbed', L, T, .34, 3], ['bench', B, L, .34, 2], ['barrels', R, B, .3, 1]];
   d.forEach(([kd, p, q, sc, lo], i) => { const [x, y] = mid(p, q, .34); lvd(townPiece(kd, x, y + 4, sc * .62, null, (i + n) % 2 === 1), n, lo); });
@@ -597,7 +603,7 @@ layout.plazas.forEach((pz, n) => { // 広場：石畳（村から）＋中央の
 { // 交差点と道の曲がり角に街灯、広場の外の通り沿いにたいまつ
   const pts = [];
   layout.roads.forEach(rd => rd.pts.forEach(([x, y], i) => { if (i > 0 && i < rd.pts.length - 1 && x > 0 && x < REF_W) pts.push([x, y]); }));
-  pts.forEach(([x, y]) => { if (!layout.plazas.some(pz => pointInPoly(x, y, pz.poly))) { const [pi, dd] = nearPz(x, y); lvd(townPiece('lamp', x + 26, y - 6, .2), pi, dd < 420 ? 3 : 4); } }); /* 街灯は町から（遠い角は街から） */
+  pts.forEach(([x, y]) => { if (!layout.plazas.some(pz => pointInPoly(x, y, pz.poly))) { const [pi, dd] = nearPz(x, y); lvd(lampGlow(townPiece('lamp', x + 26, y - 6, .2), x + 26, y - 6, 0, 56), pi, dd < 420 ? 3 : 4); } }); /* 街灯は町から（遠い角は街から） */
 }
 { // 街の外れ：荷馬車・干し草・柵（区画・道・水の上は避ける）
   const R2 = rng(77);
@@ -646,19 +652,19 @@ const flies = [];  /* 魔法の森の光の粒 { m, x, y, ph, pi, lv } */
 const P2M = await fetch('assets/props2/meta.json?v=1').then(r => r.json()).catch(() => ({}));
 const P2 = {}; await Promise.all(Object.keys(P2M).map(async k => { P2[k] = await loadBld(`assets/props2/${k}.webp`); }));
 function art(k, x, y, h, flip) { const t = P2[k]; if (!t) return null; const mt = P2M[k], m = sprite3D(t, { w: mt.w, h: mt.h, ax: .5, ay: mt.ay }, h / mt.h, x, y); if (flip) m.scale.x *= -1; scene.add(m); return m; }
-const halos = []; /* 魔法の灯りの光 { m, ph } */
 let magicCircle = null;
 layout.plazas.forEach((pz, pi) => { const th = pzTheme[pi], [cx, cy] = pz.center;
   const B = (keys, n, sc, tint, los) => takeSlots(pi, n, 150, 60, 34).forEach((s, i) => { const k = keys[i % keys.length], m = decoBld(k, sc, s.x, s.y, tint); if (!m) return; const lo = los ? los[i] : lvFor(pi, s.d); lvd(m, pi, lo); bldClear.push({ ...m.userData.clr, pi, lo }); });
-  const S = (kind, n, sc, gap, lo, dMax) => takeSlots(pi, n, gap, 18, 10, dMax).forEach(s => lvd(townPiece(kind, s.x, s.y, sc, null, hash2(s.x, s.y) < .5), pi, lo || lvFor(pi, s.d)));
+  const S = (kind, n, sc, gap, lo, dMax) => takeSlots(pi, n, gap, 18, 10, dMax).forEach(s => { const m = townPiece(kind, s.x, s.y, sc, null, hash2(s.x, s.y) < .5); if (kind === 'lamp') lampGlow(m, s.x, s.y, 0, 56); lvd(m, pi, lo || lvFor(pi, s.d)); });
   // 民家（2026-11-01 発注票 A1〜A3）：置き場ごとに、小屋 → 木造 → 石と漆喰の二階家と建て替わる。w＝木造になる段階のずらし、s＝石の二階家になる段階（9＝ならない）
   const HW = { house1: 92, house2: 104, house3: 112, shop: 116 }; /* 画面での幅（基準画像の画素） */
   const hk = (k, v) => `${k}_${v}`, hsc = key => HW[key.replace(/_\d$/, '')] / bld[bldFn(key)].w;
+  const smoke = (key, m, x, y) => { const c = CHIM[key]; if (!c || !m) return; const mt = bld[bldFn(key)], sc = hsc(key), w = mt.w * sc, h = mt.h * sc; chims.push({ m, x: x + (c[0] - mt.ax) * w, y, lift: (mt.ay - c[1]) * h + 1, next: 0 }); };
   const Hs = (n, w0, s0, dMax = 720) => takeSlots(pi, n, 112, 50, 30, dMax).forEach((sl, i) => { const lo = lvFor(pi, sl.d - 90), w = Math.max(lo + 1, w0), st = s0 >= 9 ? 9 : Math.max(lo + 2, s0), v = 1 + Math.floor(hash2(sl.x * .13, sl.y * .11) * 3) % 3;
-    [['house1', lo, w - 1], ['house2', w, st - 1], ['house3', st, 9]].forEach(([k, a, b]) => { if (a > b || a > 5) return; const key = hk(k, v), m = decoBld(key, hsc(key), sl.x, sl.y); if (m) lvd(m, pi, a, b); });
+    [['house1', lo, w - 1], ['house2', w, st - 1], ['house3', st, 9]].forEach(([k, a, b]) => { if (a > b || a > 5) return; const key = hk(k, v), m = decoBld(key, hsc(key), sl.x, sl.y); if (m) { lvd(m, pi, a, b); smoke(key, m, sl.x, sl.y); } });
     bldClear.push({ x: sl.x, y: sl.y - 14, r: 56, pi, lo }); });
-  const Sh = (n, lo, vs = [1, 2, 3]) => takeSlots(pi, n, 120, 54, 32, 470).forEach((sl, i) => { const key = hk('shop', vs[i % vs.length]), m = decoBld(key, hsc(key), sl.x, sl.y); if (!m) return; lvd(m, pi, lo + Math.floor(i / 2)); bldClear.push({ x: sl.x, y: sl.y - 14, r: 58, pi, lo }); });
-  const A = (k, n, h, gap, lo, hi = 9, dMax = 720, dMin = 0, glow) => takeSlots(pi, n, gap, 18, 10, dMax, dMin).forEach(sl => { const L = lo === undefined ? lvFor(pi, sl.d) : lo, m = art(k, sl.x, sl.y, h, hash2(sl.x, sl.y) < .5); if (!m) return; lvd(m, pi, L, hi === 'f' ? L + 1 : hi);
+  const Sh = (n, lo, vs = [1, 2, 3]) => takeSlots(pi, n, 120, 54, 32, 470).forEach((sl, i) => { const key = hk('shop', vs[i % vs.length]), m = decoBld(key, hsc(key), sl.x, sl.y); if (!m) return; smoke(key, m, sl.x, sl.y); lvd(m, pi, lo + Math.floor(i / 2)); bldClear.push({ x: sl.x, y: sl.y - 14, r: 58, pi, lo }); });
+  const A = (k, n, h, gap, lo, hi = 9, dMax = 720, dMin = 0, glow) => takeSlots(pi, n, gap, 18, 10, dMax, dMin).forEach(sl => { const L = lo === undefined ? lvFor(pi, sl.d) : lo, m = art(k, sl.x, sl.y, h, hash2(sl.x, sl.y) < .5); if (!m) return; if (k === 'c_lamp') lampGlow(m, sl.x, sl.y, (m.scale.x < 0 ? -1 : 1) * h * .27, h * .68); lvd(m, pi, L, hi === 'f' ? L + 1 : hi);
     if (glow) { const g = fxSprite(TEX.fly, glow[0], glow[0], sl.x + (m.scale.x < 0 ? -glow[1] : glow[1]), sl.y, glow[2], true); g.renderOrder = 24; lvd(g, pi, L, hi === 'f' ? L + 1 : hi); halos.push({ m: g, ph: sl.x }); } });
   const K = DEV_K[th] || 1, F = (k, n, h, gap) => { for (let b = 1; b <= 4; b++) A(k, n, h, gap, b, b + 1, DEV_R[b] * K - 10, DEV_R[b] * K - 120); }; /* 開拓の小物：切り開いた境目の内側にだけ、2段階のあいだ置く */
   if (th !== 'royal') { F('logs', 1, 32, 140); F('sawbench', 1, 34, 160); F('stones', 1, 30, 140); F('stump_l', 1, 30, 90); F('stump_axe', 1, 30, 120); }
@@ -735,7 +741,8 @@ function stepVils(dt, now) {
     else { dx = v.tx - v.x; dy = v.ty - v.y; const d = Math.hypot(dx, dy * 1.6); if (d < 1.5) { if (v.mode === 'toRoad') { v.mode = 'road'; v.ts = v.s; vilNext(v); } else v.wait = v.buy ? 2.2 + Math.random() * 2 : 1 + Math.random() * 3; continue; } v.x += dx / d * Math.min(sp, d); v.y += dy / d * Math.min(sp, d); }
     if (Math.abs(dx) > .01) v.m.scale.x = Math.abs(v.sw) * (dx < 0 ? -1 : 1);
     vilPlace(v, Math.abs(Math.sin(now / 130 + v.ph)) * 2.2); /* 歩く間は小さく弾む */ }
-  for (const h of halos) h.m.material.opacity = .55 + .35 * Math.sin(now / 600 + h.ph);
+  for (const h of halos) h.m.material.opacity = h.a ? .7 + h.a * Math.sin(now / 230 + h.ph) + .06 * Math.sin(now / 71 + h.ph) : .55 + .35 * Math.sin(now / 600 + h.ph);
+  burnTexInit(); for (const c of chims) { if (!c.m.visible || now < c.next) continue; c.next = now + 700 + Math.random() * 900; spawnPart({ tex: steamTex, w0: 6, w1: 20, a0: .5, life: 2.8, x: c.x, sy: c.y, lift: c.lift, vx: 4 + Math.random() * 3, vy: 10 }); } /* 煙突の煙 */
   if (magicCircle) magicCircle.material.map.rotation = now / 9000, magicCircle.material.opacity = .55 + .25 * Math.sin(now / 700);
   for (const f of flies) { const on = devLv[f.pi] >= f.lv && (pzArea[f.pi] === 'home' || (G && G.open.includes(pzArea[f.pi]))) || DEV_FORCE !== null && params.has('open'); f.m.visible = on; if (!on) continue;
     const x = f.x + Math.sin(now / 1700 + f.ph) * 14, y = f.y + Math.cos(now / 2100 + f.ph * 1.3) * 8, z = zOf(y); f.m.position.set(x, hgt(x, z) + (14 + Math.sin(now / 800 + f.ph) * 6) / COS, z); f.m.material.opacity = .45 + .55 * Math.max(0, Math.sin(now / 420 + f.ph * 3)); }
@@ -847,6 +854,7 @@ function writeSave() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(G)); 
 function devOf(st, area) { // 区域の発展度：完成した施設1点・発展後さらに1点（焼けた施設は数えない）＋民心70以上で1点。民心30未満は1段下がる
   if (area !== 'home' && !st.open.includes(area)) return 0;
   let pt = 0; for (const p of layout.plots) { if (p.area !== area) continue; const q = st.plots[p.id]; if (!q || q.burnt) continue; pt += (q.stage >= 2) + (q.stage >= 3); }
+  if (area === 'home') pt += st.invest || 0; /* 城の「街に投資」 */
   if (pt > 0 && st.morale >= 70) pt++;
   let lv = 0; DEV_TH.forEach((t, i) => { if (pt >= t) lv = i; }); if (st.morale < 30) lv = Math.max(0, lv - 1); return lv; }
 function applyDev(instant) {
@@ -1153,7 +1161,7 @@ const SIDE_ALLY = await fetch('../ally/side_meta.json?v=6').then(r => r.json()).
 const SIDE_FOE = await fetch('assets/npc/side_meta.json').then(r => r.json()).catch(() => ({}));  // 敵の横向きの歩き（左向き）
 const runClipOf = k => SIDE_ALLY['run_' + k] || SIDE_ALLY['walk_' + k] || null, foeRunOf = look => SIDE_FOE['walk_' + look] || null;
 const FOEDUEL = await fetch('assets/npc/foeduel_meta.json?v=7').then(r => r.json()).catch(() => ({})); // 敵将の攻撃モーション（見た目の番号ごと）
-const foeLook = () => G.raid && (G.raid.boss || G.raid.gen) ? 4 : G.raid && G.raid.E >= 30 ? 2 : (G.raid && G.raid.w % 2 ? 3 : 1);
+const foeLook = () => G.raid && (G.raid.boss || G.raid.gen) ? 4 : G.raid && GM.e0(G.raid) >= 30 ? 2 : (G.raid && G.raid.w % 2 ? 3 : 1);
 // 2026-10-31 章の将軍の一騎打ちは、その将軍の絵（foeduel_g<章>_A/B、tools/gen_duel_build.py）。第6章は悪魔の姿 g6b。絵が無ければ従来の見た目
 const genDuelLook = () => { const g = G.raid && G.raid.gen; if (!g) return null; const k = 'g' + g + (g === 6 ? 'b' : ''); return (FOEDUEL[k] || []).length ? k : g === 6 && (FOEDUEL.g6 || []).length ? 'g6' : null; };
 const dLook = () => genDuelLook() || foeLook(), dHum = l => HUMAN[String(l)[0] === 'g' ? l : 'f' + l] || 178;
@@ -1217,7 +1225,7 @@ function clipActor(el, sp, clips, base, T, run, runBase) { // 動画由来の連
 const HUMAN = { rana: 176, mina: 181, sera: 181, ranka: 174, garou: 196, lily: 162, sol: 200, f1: 200, f2: 182, f3: 194, f4: 182, g1: 200, g2: 196, g3: 178, g4: 205, g5: 186, g6: 182, g6b: 186 }; /* 2026-10-30 ゲーム全体の背の高さ（battle/core.js の HEIGHT と同じ比。×0.86 で、一騎打ち・任せた戦闘の画面の大きさは従来並み） */ // 見た目の背の高さ：一騎打ちと戦場の大きさをこれで揃える。槍の穂先・兜の飾りが測った高さに入る絵は大きめの値（並べて目で合わせた値）
 const duelSel = document.createElement('div'); duelSel.id = 'dsel'; document.body.appendChild(duelSel);
 const bustBG = (look, duel) => { const g = G.raid && G.raid.gen; const n = g ? 'g' + g + (g === 6 && duel ? 'b' : '') : look; return `url(assets/npc/bust_${n}.webp),url(assets/npc/bust_${look}.webp)`; }; /* 大公（第6章）は、一騎打ちで悪魔の姿（g6b） */ /* 章の将軍は bust_g<章>.webp（無ければ従来の胸像） */
-const duelRank = () => G.raid && (G.raid.boss || G.raid.gen) ? 'boss' : G.raid && G.raid.E >= 30 ? 'vice' : 'cap';
+const duelRank = () => G.raid && (G.raid.boss || G.raid.gen) ? 'boss' : G.raid && GM.e0(G.raid) >= 30 ? 'vice' : 'cap';
 const pickOf = a => a[Math.floor(Math.random() * a.length)];
 function playDuel(kIn, done) { // 画面いっぱいの一騎打ち。五合の勝負（先に3合）。鬨の声は1回（作戦室で増える）：大技の合に使えば見切り、通常の合なら強化
   // 2026-10-31 ⑤2人参戦：kIn が配列なら2人。合ごとに交代で前に出る（敵の攻撃も前に出た方が受ける）。決着の一撃は合わせ技（相方が先に打ち、締め役が決める。将軍戦でランカがいれば星震で締める）
@@ -1251,7 +1259,9 @@ function playDuel(kIn, done) { // 画面いっぱいの一騎打ち。五合の�
   let word = '拮抗'; const msg = (html, hv = false) => { stt.innerHTML = html; stt.classList.toggle('hv', hv); };
   const apply = (i, r) => { if (r.ally) { aw++; hpR = Math.max(0, hpR - r.dmg); } else { fw++; hpL = Math.max(0, hpL - r.dmg); } nextI = i + 1; pips[i].classList.remove('cur'); pips[i].classList.add(r.ally ? 'w' : 'l'); };
   const finish = () => { if (over) return; over = true; stopChg(); (aw >= 3 ? [Rf] : FE.filter(Boolean)).forEach(x => x.classList.add('ko')); if (window.__duelLog) console.log('DUEL finish aw=' + aw + ' fw=' + fw + ' pips=' + pips.map(p => p.className).join('|') + ' dom=' + pips[0].isConnected); const win = aw >= 3; GM.duelSet(G, pair ? ks : k, win); if (win) hpR = 0; else hpL = 0; upd(); gb.classList.remove('ready'); msg(win ? '勝負あり' : '勝負あり'); tm.style.width = '0%';
-    say(win ? 'l' : 'r', pickOf((win ? AL : FL).win), 2600); say(win ? 'r' : 'l', pickOf((win ? FL : AL).lose), 2600);
+    { const vk = FL.vs ? ks.find(x => FL.vs[x]) : null, vw = vk && (win ? FL.vsWin : FL.vsLose); /* 2026-11-01 因縁の組み合わせは、決着の台詞も専用に */
+      if (vw && vw[vk]) { say(win ? 'l' : 'r', vw[vk][0], 3000); say(win ? 'r' : 'l', vw[vk][1], 3000); }
+      else { say(win ? 'l' : 'r', pickOf((win ? AL : FL).win), 2600); say(win ? 'r' : 'l', pickOf((win ? FL : AL).lose), 2600); } }
     T(() => { const r = $('.res'); r.innerHTML = `<div class="bd"><div class="k">${pair ? '将軍戦' : '一騎打ち'}</div><h2 class="${win ? 'w' : 'l'}">${win ? '勝利' : '敗北'}</h2><img src="assets/ui2/divider2.webp"><p>${win ? `${both}が${F.n}を討ち取った。戦況が有利になる` : `${both}が敗れた。戦況が不利になる`}<small>タップで続ける</small></p></div>`; r.classList.add('on');
       r.onclick = e => { e.stopPropagation(); if (!r.classList.contains('on')) return; timers.forEach(clearTimeout); if (actL) actL.reset(); if (actL2) actL2.reset(); if (actR) actR.reset(); if (GLFX) { GLFX.destroy(); GLFX = null; } duelEl.style.display = 'none'; duelEl.innerHTML = ''; srcs.forEach(sr => IMGHOLD.delete(sr)); /* 使い終わった絵を手放す（読み込んだ画像と、画面の層） */ done(); }; }, 1900); };
   // カメラ：走り出した側に寄って追いかける → 攻撃で二人がぎりぎり収まる大きさまで引く → 元の位置へ戻りながら引きへ
@@ -1519,7 +1529,7 @@ function fieldBattle(mode, onEnd) { // onEnd：試しのとき、結果を記録
 function goBattle() { // アクション戦闘へ移る。結果は battle_result に書かれ、戻ってきたときに反映する
   const R = G.raid, id = String(Date.now()), m = GM.battleMods(G); G.battle = { id }; writeSave();
   const al = Object.keys(GM.ALLY).filter(k => GM.fighter(k) && GM.joined(G, k) && !(k === 'ranka' && !R.ranka)).join(','); // 途中で参入する仲間の候補（戦闘の側でランダムに1人。ランカは街にいる週だけ）
-  const q = new URLSearchParams({ battle: '1', id, waves: GM.wavesOf(R.E), name: R.name, dmg: m.dmg, bind: m.bind, hp: m.hp, al, boss: (R.boss || R.gen) ? 1 : 0, gen: R.gen ? 'g' + R.gen : R.boss ? 'g6' : '', ret: 'terrain/index.html' }); // gen＝章の将軍（アクション戦闘の敵将の絵と大技の性格）
+  const q = new URLSearchParams({ battle: '1', id, waves: GM.wavesOf(GM.e0(R)), name: R.name, dmg: m.dmg, bind: m.bind, hp: m.hp, al, boss: (R.boss || R.gen) ? 1 : 0, gen: R.gen ? 'g' + R.gen : R.boss ? 'g6' : '', ret: 'terrain/index.html' }); // gen＝章の将軍（アクション戦闘の敵将の絵と大技の性格）
   location.href = '../index.html?' + q.toString();
 }
 function takeBattleResult() {
@@ -1737,7 +1747,7 @@ if (params.has('duel')) { const sv = JSON.stringify(G); for (const a of Object.v
   const gq = params.get('duel'), gn = /^[1-6]$/.test(gq) ? +gq : 1 + Math.floor(Math.random() * 6); /* 2026-10-31 ?duel＝章の将軍をランダム、?duel=3＝第3章の将軍 */
   G.raid = { kind: 'raid', E: GM.CHAPTERS[gn - 1].E[2], name: GM.CHAPTERS[gn - 1].g + 'の侵攻（試し）', boss: gn === 6, gen: gn, w: gn * GM.CH_LEN, dir: gn % 2 ? 'pass' : 'river', ranka: true }; maybeDuel(() => { G = JSON.parse(sv); writeSave(); refreshUI(); ui.toast('試しの一騎打ちを終えた（記録は残らない）'); }); } // ?duel で一騎打ちだけ見る
 resize(); apply(); renderer.render(scene, camera); status.ok = true; if (window.__bootDone) window.__bootDone();
-window.__t.dev = () => devLv.slice(); window.__t.devOf = a => devOf(G, a);
+window.__t.dev = () => devLv.slice(); window.__t.fxN = () => ({ chims: chims.length, vis: chims.filter(c => c.m.visible).length, parts: bparts.length }); window.__t.devOf = a => devOf(G, a);
 window.__t.castle = () => { select(null); selCastle = true; refreshUI(); }; // 試験：城を選ぶ
 window.__t.selAlly = k => { select(null); selAlly = k; newLine(k); refreshUI(); }; window.__t.sync = () => { syncMap(); refreshUI(); writeSave(); }; // 試験：仲間を選ぶ／状態を画面へ
 window.__t.setView = (zoom, sx, sy) => { view.zoom = zoom; view.cx = sx; view.cz = zOf(sy); clampView(); apply(); renderer.render(scene, camera); };

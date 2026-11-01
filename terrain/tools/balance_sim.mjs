@@ -23,6 +23,7 @@ function weekAI(s, strat, R) {
     if (s.morale < 35 && GM.canCastle(s, 'feast')) { GM.doCastle(s, 'feast'); continue; }
     const burnt = Object.keys(s.plots).find(id => GM.canRepair(s, id)); if (burnt) { GM.repair(s, burnt); continue; }
     if (r && r.dark && GM.holyD(s) < 0 && GM.facOpen(s, 'shrine')) { const id = plotFor(s, 'shrine', strat); if (id && GM.build(s, id, 'shrine')) continue; }
+    if (wk <= 1 && lack + (s.merc || 0) > -2 && lack > 2 && GM.canCastle(s, 'merc')) { GM.doCastle(s, 'merc'); continue; } /* 足りない直前は傭兵 */
     if (wk <= 2 && lack > -2) { if (GM.canCastle(s, 'troops')) { GM.doCastle(s, 'troops'); continue; } const id = plotFor(s, 'wall', strat); if (id && GM.build(s, id, 'wall')) continue; }
     let done = false;
     const cnt = {}; for (const f of STRAT[strat]) { cnt[f] = (cnt[f] || 0) + 1; if (!GM.facOpen(s, f) || GM.facCount(s, f) >= cnt[f]) continue; /* 一覧に書いた数まで（farm が2回なら2つ） */ const id = plotFor(s, f, strat); if (id && GM.build(s, id, f)) { done = true; break; } }
@@ -30,6 +31,7 @@ function weekAI(s, strat, R) {
     const up = Object.keys(s.plots).filter(id => GM.canUpgrade(s, id)).sort((a, b) => GM.FAC[s.plots[a].fac].up - GM.FAC[s.plots[b].fac].up)[0]; if (up && GM.upgrade(s, up)) continue;
     const k = Object.keys(GM.ALLY).find(k => GM.canTalk(s, k)); if (k && GM.talk(s, k)) continue;
     if (GM.canCastle(s, 'troops') && s.sup > 8) { GM.doCastle(s, 'troops'); continue; }
+    if (s.sup > 25 && GM.canCastle(s, 'invest')) { GM.doCastle(s, 'invest'); continue; }
     if (s.sup < 3 && s.morale > 65) { GM.doCastle(s, 'levy'); continue; }
     break;
   }
