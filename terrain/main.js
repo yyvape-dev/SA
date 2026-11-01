@@ -21,6 +21,8 @@ window.__t = { status };
 const DEV_N = ['開拓地', '集落', '村', '町', '街', '城下町'];
 const DEV_R = [140, 250, 360, 460, 560, 680];   // 発展度ごとの「切り開いた半径」（広場からの townDist）
 const DEV_TH = [0, 1, 3, 6, 9, 12];               // 点数のしきい値（完成1点・発展後さらに1点・民心70以上で1点）
+const THEME = { home: { n: '本拠の街', k: 'town' }, east: { n: '穀倉地帯', k: 'farm' }, lake: { n: '湖畔の漁村', k: 'lake' }, forest: { n: '魔法の森', k: 'magic' }, pass2: { n: '軍事拠点', k: 'mil' }, capital: { n: '王都', k: 'royal' } };
+const DEV_K = { magic: .55 };                      // 切り開く半径の倍率（魔法の森は木を多く残す）
 const pzArea = layout.plazas.map(pz => { const a = layout.areas.find(a => pz.center[0] >= a.x0 && pz.center[0] < (a.x1 || 1e9)); return a ? a.id : 'home'; });
 const DEV_FORCE = params.has('dev') ? Math.max(0, Math.min(5, +params.get('dev') || 0)) : null; // ?dev=0〜5 で全区域を固定（確かめ用）
 const devLv = layout.plazas.map(() => DEV_FORCE ?? 0);
@@ -207,6 +209,7 @@ const groundMat = new THREE.ShaderMaterial({
         cR = mix(cR, gvC, gv); cR = mix(cR, stC, st); }
       vec3 cG = at(tG,uv) * vec3(1.16,1.14,.92); vec3 col = cG*wG + at(tF,uv)*wF + cR*wR + cP*wP + at(tK,uv*1.3)*wK + at(tW,uvw)*wW;
       float sum = wG+wF+wR+wP+wK+wW; col /= max(sum,.001);
+      { float mg = smoothstep(2750., 2930., vW.x) * (1. - smoothstep(3620., 3800., vW.x)); col = mix(col, col * vec3(.7,.84,1.14) + vec3(.01,.03,.06) * smoothstep(.6,.9,vn(vW/18.)), mg * (1.-wW)); } // 魔法の森の地面は青みがかる
       col *= mix(.98,1.38, clamp(vSh,0.,1.)) * 1.08;
       float a = smoothstep(300.,380., vSy);
       gl_FragColor = vec4(col, a);
@@ -302,9 +305,9 @@ function townDist(x, sy) { let d = 1e9; for (const pz of layout.plazas) d = Math
 }
 const dummy = new THREE.Object3D();
 function instSet(m, i, o) { const k = o.k; dummy.position.set(o.x, o.y, o.z); dummy.quaternion.copy(baseQ); dummy.scale.set(o.ww * (o.flip ? -1 : 1) * Math.max(.001, k), o.hh * Math.max(.001, k), 1); dummy.updateMatrix(); m.setMatrixAt(i, dummy.matrix); }
-function propVis(o) { const lv = devLv[o.pi], R = DEV_R[lv];
+function propVis(o) { const lv = devLv[o.pi], R = DEV_R[lv] * (DEV_K[(THEME[pzArea[o.pi]] || THEME.home).k] || 1);
   if (o.stump) return lv < 5 && o.d < R && o.d > R - 150 ? 1 : 0;   /* 切り株は、切り開いた境目の内側だけ */
-  if (o.keep) return 1; if (o.plant) return lv >= o.plant ? 1 : 0; return o.d > R ? 1 : 0; }
+  if (o.keep) return 1; if (bldClear.some(c => c.pi === o.pi && lv >= c.lo && Math.abs(o.x - c.x) < c.r && Math.abs(syOf(o.z) - c.y) < c.r * .6)) return 0; if (o.plant) return lv >= o.plant ? 1 : 0; return o.d > R ? 1 : 0; }
 let propAnim = [];  /* 消える・現れる途中の板 [m, i, o] */
 function devProps(instant) { propAnim = [];
   for (const m of instMeshes) { const arr = m.userData.arr; let ch = false;
@@ -332,7 +335,7 @@ buckets.forEach((arr, ti) => {
   arr.forEach((o, i) => {
     const hh = def.h * o.sc, ww = hh * st.aspect;
     o.ww = ww; o.hh = hh; instSet(m, i, o);
-    col.setScalar(o.tint); m.setColorAt(i, col);
+    if (pzArea[o.pi] === 'forest' && !o.keep) { const gl = hash2(o.x * .07, o.z * .05) < .12; col.setRGB(o.tint * (gl ? 1.05 : .64), o.tint * (gl ? 1.25 : .84), o.tint * (gl ? 1.6 : 1.08)); } else col.setScalar(o.tint); m.setColorAt(i, col); /* 魔法の森の木は青みがかり、ところどころ光る */
   });
   m.userData.arr = arr;
   m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true;
@@ -608,6 +611,112 @@ const signs = layout.signs.map(sg => ({ ...sg, mesh: townPiece('sign', sg.x, sg.
   for (const sg of signs) { const g = GATE[sg.id]; if (!g) continue; const fn = `assets/bld/${g[0]}.webp`, t = await loadBld(fn); if (t) scene.add(sprite3D(t, bld[fn], g[1], sg.x + g[2], sg.y + g[3])); }
 }
 
+// ---------- 区域の性格（2026-11-01）：街が続くだけにせず、区域ごとに顔を変える。発展度で小物・建物・住民が増える ----------
+// town＝本拠の街（商いと住まい）／farm＝穀倉地帯／lake＝湖畔の漁村／magic＝魔法の森（木は残り、光る）／mil＝峠の軍事拠点／royal＝王都
+const pzTheme = pzArea.map(a => (THEME[a] || THEME.home).k);
+const freeAt = (x, y, hw, hh) => !nearLayout(x, y, 26) && [[-hw, 0], [hw, 0], [0, -hh], [0, hh], [-hw * .7, -hh * .7], [hw * .7, hh * .7]].every(([dx, dy]) => !nearLayout(x + dx, y + dy, 8)) && !layout.plazas.some(q => pointInPoly(x, y, q.poly)) && !CAMP_CLEAR.some(([cx, cy]) => Math.abs(x - cx) < 90 && Math.abs(y - cy) < 120) && !(x > 110 && x < 540 && y < 790); /* 城の台地は除く */
+const SLOTS = layout.plazas.map((pz, pi) => { const [cx, cy] = pz.center, Rr = rng(900 + pi), out = [];
+  for (let gy = 600; gy < 1560; gy += 30) for (let gx = cx - 460; gx < cx + 460; gx += 34) { const x = gx + (Rr() - .5) * 24, y = gy + (Rr() - .5) * 18, d = Math.hypot(x - cx, (y - cy) * 1.6); if (d > 230 && d < 720) out.push({ x, y, d }); }
+  return out.sort((a, b) => a.d - b.d); });
+const usedAt = layout.plazas.map(() => []);
+function takeSlots(pi, n, gap, hw, hh, dMax = 720) { const got = [];
+  for (const s of SLOTS[pi]) { if (got.length >= n) break; if (s.d > dMax || !freeAt(s.x, s.y, hw, hh)) continue;
+    if (usedAt[pi].some(u => Math.hypot(u.x - s.x, (u.y - s.y) * 1.7) < Math.max(gap, u.g))) continue; usedAt[pi].push({ x: s.x, y: s.y, g: gap }); got.push(s); }
+  return got; }
+const lvFor = (pi, d) => { const k = DEV_K[pzTheme[pi]] || 1, i = DEV_R.findIndex(r => r * k > d + 40); return i < 0 ? 6 : Math.max(1, i); };
+const bldClear = []; /* 飾りの建物の足元：木を除く { x, y, r, pi, lo } */
+function decoBld(key, sc, x, y, tint) { const t = bldTex[key]; if (!t) return null; const meta = bld[bldFn(key)], m = sprite3D(t, meta, sc, x, y); m.userData.clr = { x, y: y - meta.h * sc * .18, r: meta.w * sc * .62 }; if (tint) m.material.color.setRGB(...tint); scene.add(m); return m; }
+const glowMat = m => { m.material.alphaTest = .02; m.material.transparent = true; m.material.depthWrite = false; return m; };
+const TEX = {
+  tent: canvasSprite(120, 96, g => { ell(g, 60, 88, 50, 8, 'rgba(0,0,0,.3)'); g.fillStyle = '#cdbb94'; g.beginPath(); g.moveTo(14, 86); g.lineTo(52, 18); g.lineTo(80, 86); g.fill(); g.fillStyle = '#a8946c'; g.beginPath(); g.moveTo(52, 18); g.lineTo(104, 30); g.lineTo(110, 80); g.lineTo(80, 86); g.fill();
+    g.fillStyle = '#8a2a22'; g.beginPath(); g.moveTo(40, 40); g.lineTo(46, 30); g.lineTo(98, 40); g.lineTo(96, 48); g.fill(); g.fillStyle = '#3a2a1a'; g.beginPath(); g.moveTo(40, 86); g.lineTo(52, 50); g.lineTo(62, 86); g.fill(); g.fillStyle = '#5a4026'; g.fillRect(50, 6, 4, 14); g.fillStyle = '#b8322a'; g.fillRect(54, 6, 14, 8); }),
+  pier: canvasSprite(220, 130, g => { g.fillStyle = '#4a3220'; for (const [x, y] of [[30, 112], [70, 92], [110, 72], [150, 52], [190, 32], [58, 124], [98, 104], [138, 84], [178, 64]]) g.fillRect(x - 3, y - 6, 6, 22);
+    for (let i = 0; i < 14; i++) { const x = 20 + i * 13, y = 108 - i * 6.5; g.fillStyle = i % 2 ? '#8a6640' : '#9c7448'; g.beginPath(); g.moveTo(x, y); g.lineTo(x + 30, y + 14); g.lineTo(x + 41, y + 8.5); g.lineTo(x + 11, y - 5.5); g.fill(); } g.fillStyle = '#6a4a2a'; g.fillRect(186, 14, 5, 22); }),
+  boat: canvasSprite(110, 60, g => { ell(g, 55, 44, 46, 9, 'rgba(10,40,70,.35)'); g.fillStyle = '#6a4424'; g.beginPath(); g.moveTo(8, 30); g.quadraticCurveTo(55, 56, 102, 30); g.lineTo(92, 26); g.quadraticCurveTo(55, 44, 18, 26); g.fill(); g.fillStyle = '#8a5a30'; g.beginPath(); g.moveTo(18, 26); g.quadraticCurveTo(55, 44, 92, 26); g.quadraticCurveTo(55, 30, 18, 26); g.fill(); g.strokeStyle = '#d8c8a0'; g.lineWidth = 2; g.beginPath(); g.moveTo(40, 30); g.lineTo(70, 6); g.stroke(); }),
+  shroom: canvasSprite(64, 56, g => { const r = g.createRadialGradient(32, 26, 2, 32, 26, 30); r.addColorStop(0, 'rgba(140,240,255,.55)'); r.addColorStop(1, 'rgba(120,120,255,0)'); g.fillStyle = r; g.fillRect(0, 0, 64, 56);
+    for (const [x, h, c] of [[24, 18, '#7fe8ff'], [40, 12, '#c69cff'], [32, 24, '#a8f4ff']]) { g.fillStyle = '#e8f0f0'; g.fillRect(x - 1.5, 50 - h, 3, h); g.fillStyle = c; g.beginPath(); g.ellipse(x, 50 - h, 7, 4, 0, Math.PI, 0); g.fill(); g.fillStyle = '#fff'; g.fillRect(x - 3, 48 - h, 2, 1.5); } }),
+  stone: canvasSprite(120, 120, g => { g.translate(60, 60); for (let i = 0; i < 3; i++) { g.strokeStyle = `rgba(150,230,255,${.9 - i * .25})`; g.lineWidth = 3 - i * .7; g.beginPath(); g.arc(0, 0, 54 - i * 14, 0, 7); g.stroke(); }
+    for (let i = 0; i < 12; i++) { g.save(); g.rotate(i * Math.PI / 6); g.fillStyle = 'rgba(190,240,255,.9)'; g.fillRect(-2, -50, 4, 8); g.restore(); } g.strokeStyle = 'rgba(200,170,255,.85)'; g.lineWidth = 2; g.beginPath(); for (let i = 0; i <= 6; i++) { const a = i * Math.PI * 4 / 6; g[i ? 'lineTo' : 'moveTo'](Math.cos(a) * 38, Math.sin(a) * 38); } g.stroke(); }),
+  fly: canvasSprite(32, 32, g => { const r = g.createRadialGradient(16, 16, 0, 16, 16, 16); r.addColorStop(0, 'rgba(255,255,220,1)'); r.addColorStop(.25, 'rgba(180,255,200,.8)'); r.addColorStop(1, 'rgba(120,255,200,0)'); g.fillStyle = r; g.fillRect(0, 0, 32, 32); }),
+  coin: canvasSprite(32, 32, g => { const r = g.createRadialGradient(16, 16, 0, 16, 16, 16); r.addColorStop(0, 'rgba(255,250,200,1)'); r.addColorStop(.3, 'rgba(255,200,60,.9)'); r.addColorStop(1, 'rgba(255,170,0,0)'); g.fillStyle = r; g.fillRect(0, 0, 32, 32); }),
+};
+const flies = [];  /* 魔法の森の光の粒 { m, x, y, ph, pi, lv } */
+let magicCircle = null;
+layout.plazas.forEach((pz, pi) => { const th = pzTheme[pi], [cx, cy] = pz.center;
+  const B = (keys, n, sc, tint, los) => takeSlots(pi, n, 150, 60, 34).forEach((s, i) => { const k = keys[i % keys.length], m = decoBld(k, sc, s.x, s.y, tint); if (!m) return; const lo = los ? los[i] : lvFor(pi, s.d); lvd(m, pi, lo); bldClear.push({ ...m.userData.clr, pi, lo }); });
+  const S = (kind, n, sc, gap, lo, dMax) => takeSlots(pi, n, gap, 18, 10, dMax).forEach(s => lvd(townPiece(kind, s.x, s.y, sc, null, hash2(s.x, s.y) < .5), pi, lo || lvFor(pi, s.d)));
+  const P = (tex, n, sc, gap, lo, glow) => takeSlots(pi, n, gap, 20, 12).forEach(s => { const m = piece0(tex, s.x, s.y, sc); if (glow) glowMat(m); lvd(m, pi, lo === undefined ? lvFor(pi, s.d) : lo); });
+  if (th === 'farm') { // 穀倉地帯：畑の絵を地面に並べ、干し草・荷車・柵。実りは街になると増える
+    takeSlots(pi, 12, 170, 80, 46).forEach((s, i) => { const key = i % 3 === 2 ? 'farm_2' : 'farm_3', t = bldTex[key]; if (!t) return; const meta = bld[bldFn(key)], w = meta.w * .24, h = meta.h * .24;
+      const m = groundRect(t, s.x - w / 2, s.y - h / 2, w, h); scene.add(m); lvd(m, pi, Math.min(5, 1 + Math.floor(i / 2.4))); });
+    S('hay', 8, .16, 70); S('cart', 2, .17, 200); S('fence', 6, .18, 60);
+  } else if (th === 'lake') { // 湖畔の漁村：桟橋・小舟・樽・魚の屋台
+    for (const lk of layout.lakes) { const xs = lk.map(p => p[0]); if (Math.max(...xs) < cx - 470 || Math.min(...xs) > cx + 470) continue;
+      const sh = lk.reduce((a, p) => p[1] > a[1] ? p : a), [px, py] = [sh[0] - 30, sh[1] - 4];
+      lvd(piece0(TEX.pier, px, py + 34, .85), pi, 1); lvd(piece0(TEX.boat, px - 90, py - 30, .9), pi, 2); lvd(piece0(TEX.boat, px + 50, py - 70, .82), pi, 3); lvd(piece0(TEX.boat, px - 170, py - 80, .8), pi, 4); }
+    S('barrels', 6, .17, 70); S('stall', 3, .19, 120); S('cart', 2, .17, 200);
+  } else if (th === 'magic') { // 魔法の森：木は残し（DEV_K）、光る茸・光の粒・聖堂・魔法陣
+    P(TEX.shroom, 36, .8, 36, undefined, true);
+    B(['shrine_2', 'shrine_3'], 2, .28, [.9, .96, 1.1], [2, 4]);
+    const tex = TEX.stone; tex.center.set(.5, .5); const cs = takeSlots(pi, 1, 160, 80, 44, 420)[0] || { x: cx, y: cy + 150 }; magicCircle = groundRect(tex, cs.x - 90, cs.y - 50, 180, 100); magicCircle.material.polygonOffsetUnits = -6; magicCircle.renderOrder = 5; bldClear.push({ x: cs.x, y: cs.y, r: 100, pi, lo: 3 }); magicCircle.material.transparent = true; magicCircle.material.alphaTest = 0; magicCircle.material.depthWrite = false; magicCircle.material.blending = THREE.AdditiveBlending; scene.add(magicCircle); lvd(magicCircle, pi, 3);
+    const Rr = rng(4242); for (let i = 0; i < 70; i++) { const a = Rr() * 7, r = 120 + Rr() * 640, x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r / 1.6; const m = fxSprite(TEX.fly, 11, 11, x, y, 10, true); m.renderOrder = 25; flies.push({ m, x, y, ph: Rr() * 7, pi, lv: Math.floor(i / 14) }); }
+  } else if (th === 'mil') { // 峠の軍事拠点：兵舎・訓練場・軍旗・作戦の館、天幕と柵
+    B(['barracks_2', 'drill_2', 'banner_2', 'barracks_3', 'war_2', 'drill_3'], 6, .28);
+    P(TEX.tent, 10, .55, 70); S('fence', 8, .18, 50); S('torch', 6, .18, 80);
+  } else if (th === 'royal') { // 王都：大きな館・軍旗・宿、街灯と花壇
+    B(['war_3', 'banner_3', 'tavern_3', 'shrine_3', 'smithy_3'], 5, .3);
+    S('flowerbed', 8, .2, 60); S('lamp', 10, .2, 70); S('bench', 4, .2, 70); S('stall', 4, .19, 90);
+  } else { // 本拠の街：市場の屋台が並び、ベンチ・花壇・樽が増える（民家は外部AIの絵が届いたら）
+    S('stall', 5, .19, 80, 0, 420); S('barrels', 5, .17, 60); S('bench', 4, .2, 60); S('flowerbed', 5, .2, 60); S('lamp', 6, .2, 80);
+  }
+});
+function piece0(tex, x, sy, sc) { const im = tex.image, m = sprite3D(tex, { w: im.width, h: im.height, ax: .5, ay: .92 }, sc, x, sy); scene.add(m); return m; }
+
+// ---------- 住民（assets/npc/ man・woman・work、兵は sol）：道を歩き、広場の屋台で買い物をする ----------
+const VIL_K = ['man_1', 'man_2', 'man_3', 'man_4', 'woman_1', 'woman_2', 'woman_3', 'woman_4', 'work_1', 'work_2', 'work_3', 'work_4', 'sol_1'];
+const VIL_T = {}; for (const k of VIL_K) VIL_T[k] = await loadBld(`assets/npc/${k}.webp`);
+const VMIX = { town: ['man_1', 'man_2', 'man_3', 'woman_1', 'woman_2', 'woman_3', 'woman_4', 'man_4', 'work_3'], farm: ['work_1', 'work_1', 'work_1', 'woman_1', 'woman_4', 'man_1'], lake: ['work_2', 'work_2', 'woman_2', 'man_2', 'woman_3', 'work_2'],
+  magic: ['woman_2', 'man_4', 'woman_1'], mil: ['sol_1', 'sol_1', 'sol_1', 'sol_1', 'work_4', 'man_2'], royal: ['man_4', 'man_3', 'woman_3', 'woman_2', 'man_1', 'man_4', 'sol_1', 'woman_1'] };
+const VN = [2, 4, 7, 10, 14, 18], VH = 66; // 発展度ごとの人数、背の高さ（仲間は76）
+const roadL = layout.roads.map(rd => { const c = [0]; for (let i = 1; i < rd.pts.length; i++) c.push(c[i - 1] + Math.hypot(rd.pts[i][0] - rd.pts[i - 1][0], rd.pts[i][1] - rd.pts[i - 1][1])); return c; });
+function roadPt(ri, s) { const p = layout.roads[ri].pts, c = roadL[ri]; s = Math.max(0, Math.min(c[c.length - 1], s)); let i = 1; while (i < c.length - 1 && c[i] < s) i++; const t = (s - c[i - 1]) / (c[i] - c[i - 1] || 1); return [p[i - 1][0] + (p[i][0] - p[i - 1][0]) * t, p[i - 1][1] + (p[i][1] - p[i - 1][1]) * t]; }
+function roadS(ri, x, y) { let b = 0, bd = 1e9; const c = roadL[ri]; for (let s = 0; s <= c[c.length - 1]; s += 10) { const [px, py] = roadPt(ri, s), d = Math.hypot(px - x, py - y); if (d < bd) { bd = d; b = s; } } return [b, bd]; }
+const pzRoad = layout.plazas.map(pz => [0, 1].map(ri => roadS(ri, ...pz.center)).map(([s, d], ri) => ({ ri, s, ok: d < 20 })).filter(r => r.ok));
+const stallAt = layout.plazas.map(pz => { const [T, R] = pz.poly, [cx, cy] = pz.center, mx = (T[0] + R[0]) / 2, my = (T[1] + R[1]) / 2; return [mx + (cx - mx) * .34 - 10, my + (cy - my) * .34 + 22]; });
+const vils = layout.plazas.map(() => []);
+function quadPt(q, r1, r2) { const [a, b, c, d] = q, u = .15 + r1 * .7, v = .15 + r2 * .7; const x0 = a[0] + (b[0] - a[0]) * u, y0 = a[1] + (b[1] - a[1]) * u, x1 = d[0] + (c[0] - d[0]) * u, y1 = d[1] + (c[1] - d[1]) * u; return [x0 + (x1 - x0) * v, y0 + (y1 - y0) * v]; }
+function newVil(pi, i) { const th = pzTheme[pi], mix = VMIX[th], k = mix[(i * 7 + pi * 3) % mix.length], t = VIL_T[k]; if (!t) return null; const im = t.image, sc = VH * (k === 'sol_1' ? 1.04 : 1) / im.height;
+  const [cx, cy] = layout.plazas[pi].center, m = sprite3D(t, { w: im.width, h: im.height, ax: .5, ay: .97 }, sc, cx, cy); scene.add(m);
+  const v = { m, pi, k, x: cx, y: cy, mode: 'plaza', tx: cx, ty: cy, wait: Math.random() * 3, ph: Math.random() * 7, off: (Math.random() - .5) * 18, sw: m.scale.x, n: 0 };
+  if (i === 0 && (th === 'town' || th === 'royal' || th === 'lake')) { v.mode = 'shop'; [v.x, v.y] = [stallAt[pi][0] + 4, stallAt[pi][1] - 22]; v.k = 'work_3'; m.material.map = VIL_T.work_3 || t; } /* 1人目は屋台の商人（店番） */
+  else if (pzRoad[pi].length) { const r = pzRoad[pi][i % pzRoad[pi].length]; v.mode = 'road'; v.ri = r.ri; v.s = r.s + (Math.random() - .5) * 400; v.ts = v.s; [v.x, v.y] = roadPt(v.ri, v.s); }
+  vilPlace(v); return v; }
+function vilPlace(v, bob = 0) { const z = zOf(v.y); v.m.position.set(v.x, hgt(v.x, z) + bob, z); }
+function vilNext(v) { const pz = layout.plazas[v.pi], lv = devLv[v.pi], span = 160 + DEV_R[lv] * .9 * (DEV_K[pzTheme[v.pi]] || 1);
+  if (v.mode === 'road') { const home = pzRoad[v.pi].find(r => r.ri === v.ri);
+    if (home && Math.abs(v.s - home.s) < 8 && Math.random() < .3) { v.mode = 'plaza'; v.n = 0; } else v.ts = home ? (Math.random() < .4 ? home.s : home.s + (Math.random() * 2 - 1) * span) : v.s; }
+  if (v.mode === 'road' && pzRoad[v.pi].length > 1 && Math.random() < .15) { const r = pzRoad[v.pi].find(q => q.ri !== v.ri), home = pzRoad[v.pi].find(q => q.ri === v.ri); if (home && Math.abs(v.s - home.s) < 8) { v.ri = r.ri; v.s = r.s; v.ts = r.s + (Math.random() * 2 - 1) * span; } } /* 広場で別の道へ曲がる */
+  if (v.mode === 'plaza') { v.n++;
+    if (v.n > 1 + Math.random() * 3 && pzRoad[v.pi].length) { const r = pzRoad[v.pi][Math.floor(Math.random() * pzRoad[v.pi].length)]; v.mode = 'toRoad'; v.ri = r.ri; v.s = r.s; [v.tx, v.ty] = pz.center; return; }
+    const shop = devLv[v.pi] >= 1 && Math.random() < .35; v.buy = shop; if (shop) [v.tx, v.ty] = [stallAt[v.pi][0] + 26 + Math.random() * 20, stallAt[v.pi][1] + 8 + Math.random() * 10]; else [v.tx, v.ty] = quadPt(pz.poly, Math.random(), Math.random()); }
+}
+function refreshVils() { layout.plazas.forEach((pz, pi) => { const open = pzArea[pi] === 'home' || (G && G.open.includes(pzArea[pi])) || DEV_FORCE !== null && params.has('open'), n = open ? VN[devLv[pi]] : 0;
+  while (vils[pi].length < n) { const v = newVil(pi, vils[pi].length); if (!v) break; vils[pi].push(v); }
+  vils[pi].forEach((v, i) => { v.m.visible = i < n; }); }); }
+function stepVils(dt, now) {
+  for (const arr of vils) for (const v of arr) { if (!v.m.visible) continue;
+    if (v.mode === 'shop') { vilPlace(v, Math.abs(Math.sin(now / 900 + v.ph)) * 1.2); continue; }
+    if (v.wait > 0) { v.wait -= dt; vilPlace(v); if (v.buy && Math.random() < dt * 1.6) spawnPart({ tex: TEX.coin, w0: 9, w1: 3, a0: 1, life: .8, x: v.x - 8, sy: v.y, lift: VH * .8, vx: (Math.random() - .5) * 10, vy: -22, add: true }); if (v.wait <= 0) { v.buy = false; vilNext(v); } continue; }
+    const sp = 17 * dt; let dx, dy;
+    if (v.mode === 'road') { const ds = v.ts - v.s; if (Math.abs(ds) < 1) { v.wait = .6 + Math.random() * 2.5; continue; } const [x0] = roadPt(v.ri, v.s); v.s += Math.sign(ds) * Math.min(sp * 1.15, Math.abs(ds)); const [x1, y1] = roadPt(v.ri, v.s); dx = x1 - x0; v.x = x1 + v.off * .6; v.y = y1 + v.off * .3; }
+    else { dx = v.tx - v.x; dy = v.ty - v.y; const d = Math.hypot(dx, dy * 1.6); if (d < 1.5) { if (v.mode === 'toRoad') { v.mode = 'road'; v.ts = v.s; vilNext(v); } else v.wait = v.buy ? 2.2 + Math.random() * 2 : 1 + Math.random() * 3; continue; } v.x += dx / d * Math.min(sp, d); v.y += dy / d * Math.min(sp, d); }
+    if (Math.abs(dx) > .01) v.m.scale.x = Math.abs(v.sw) * (dx < 0 ? -1 : 1);
+    vilPlace(v, Math.abs(Math.sin(now / 130 + v.ph)) * 2.2); /* 歩く間は小さく弾む */ }
+  if (magicCircle) magicCircle.material.map.rotation = now / 9000, magicCircle.material.opacity = .55 + .25 * Math.sin(now / 700);
+  for (const f of flies) { const on = devLv[f.pi] >= f.lv && (pzArea[f.pi] === 'home' || (G && G.open.includes(pzArea[f.pi]))) || DEV_FORCE !== null && params.has('open'); f.m.visible = on; if (!on) continue;
+    const x = f.x + Math.sin(now / 1700 + f.ph) * 14, y = f.y + Math.cos(now / 2100 + f.ph * 1.3) * 8, z = zOf(y); f.m.position.set(x, hgt(x, z) + (14 + Math.sin(now / 800 + f.ph) * 6) / COS, z); f.m.material.opacity = .45 + .55 * Math.max(0, Math.sin(now / 420 + f.ph * 3)); }
+}
+
 // ---------- 開拓（未開拓の地は霧で覆う）----------
 const areas = layout.areas.map(a => ({ ...a }));
 // 霧は1枚：未開拓のうち一番手前の区域の左端から、世界の右端まで。開拓すると古い霧が消え、新しい霧が次の区域から始まる
@@ -718,9 +827,9 @@ function devOf(st, area) { // 区域の発展度：完成した施設1点・発�
   let lv = 0; DEV_TH.forEach((t, i) => { if (pt >= t) lv = i; }); if (st.morale < 30) lv = Math.max(0, lv - 1); return lv; }
 function applyDev(instant) {
   const up = [];
-  layout.plazas.forEach((pz, i) => { const lv = DEV_FORCE ?? devOf(G, pzArea[i]); if (lv > devLv[i]) up.push([i, lv]); devLv[i] = lv; groundMat.uniforms.pzc.value[i].set(pz.center[0], pz.center[1], DEV_R[lv], lv); });
-  devProps(instant); devDeco();
-  if (!instant) for (const [i, lv] of up) { const nm = pzArea[i] === 'home' ? '本拠の街' : (layout.areas.find(a => a.id === pzArea[i]) || {}).name; ui.toast(`${nm}が「${DEV_N[lv]}」に育った`); }
+  layout.plazas.forEach((pz, i) => { const lv = DEV_FORCE ?? devOf(G, pzArea[i]); if (lv > devLv[i]) up.push([i, lv]); devLv[i] = lv; const th = (THEME[pzArea[i]] || THEME.home).k; groundMat.uniforms.pzc.value[i].set(pz.center[0], pz.center[1], DEV_R[lv] * (DEV_K[th] || 1), th === 'magic' ? Math.min(lv, 2) : lv); }); /* 魔法の森の道は砂利まで */
+  devProps(instant); devDeco(); refreshVils();
+  if (!instant) for (const [i, lv] of up) { const nm = pzArea[i] === 'home' ? '本拠の街' : (layout.areas.find(a => a.id === pzArea[i]) || {}).name; const th = THEME[pzArea[i]] || THEME.home; ui.toast(`${nm === th.n ? nm : nm + '（' + th.n + '）'}が「${DEV_N[lv]}」に育った`); }
 }
 function syncMap(instant) { // 状態 → 区画の絵と霧
   applyDev(instant);
@@ -1590,7 +1699,7 @@ function frame(now) {
   const dt = now - last; last = now; acc += dt; frames++;
   if (duelEl.style.display === 'flex' || duelSel.style.display === 'flex') { requestAnimationFrame(frame); return; } // 一騎打ちの全画面の間は、裏の地図を描かない（重さ対策）
   groundMat.uniforms.time.value = now / 1000; selGlow.opacity = .38 + .2 * Math.sin(now / 260);
-  walkAllies(Math.min(.05, dt / 1000)); stepProps(Math.min(.05, dt / 1000)); badges.forEach((b, i) => { b.position.y = b.userData.y0 + Math.sin(now / 400 + i) * 2; }); fireMeshes.forEach(f => { if (!f.parent) { fireMeshes.delete(f); return; } if (!f.userData.s) f.userData.s = f.scale.clone(); const k = 1 + Math.sin(now / 90 + f.id) * .06, g = f.userData.ign ? Math.min(1, (now - f.userData.ign) / 1200) : 1, ge = Math.max(.1, g * (2 - g)); f.scale.set(f.userData.s.x * (2 - k) * (.5 + .5 * ge), f.userData.s.y * k * ge, 1); }); burnUpdate(now);
+  walkAllies(Math.min(.05, dt / 1000)); stepProps(Math.min(.05, dt / 1000)); stepVils(Math.min(.05, dt / 1000), now); badges.forEach((b, i) => { b.position.y = b.userData.y0 + Math.sin(now / 400 + i) * 2; }); fireMeshes.forEach(f => { if (!f.parent) { fireMeshes.delete(f); return; } if (!f.userData.s) f.userData.s = f.scale.clone(); const k = 1 + Math.sin(now / 90 + f.id) * .06, g = f.userData.ign ? Math.min(1, (now - f.userData.ign) / 1200) : 1, ge = Math.max(.1, g * (2 - g)); f.scale.set(f.userData.s.x * (2 - k) * (.5 + .5 * ge), f.userData.s.y * k * ge, 1); }); burnUpdate(now);
   waterMats.forEach(mt => { if (mt.userData.sh) mt.userData.sh.uniforms.time.value = now / 1000; }); fx.forEach(f => f(now)); fx = fx.filter(f => !f.done);
   apply(); renderer.render(scene, camera);
   if (acc > 500) { st.textContent = `3D: ${status.ok ? 'OK' : status.reason} / 地面:${status.ground} 小物:${status.sprites}(${status.props}) / ${(frames * 1000 / acc).toFixed(0)}fps / 拡大 ${view.zoom.toFixed(2)}`; frames = 0; acc = 0; }

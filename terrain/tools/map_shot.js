@@ -1,7 +1,8 @@
 // 領地マップを発展度ごとに同じ視点で撮って並べる（Skill sa-map-check）
 // 使い方: node terrain/tools/map_shot.js "<発展度,…>" <出力フォルダ> [拡大 x y]
 //   例: node terrain/tools/map_shot.js 0,2,3,5 /tmp/mapc      … 本拠の街（既定の視点）
-//       node terrain/tools/map_shot.js 0,5 /tmp/mapc 1.6 470 1000  … 広場に寄る
+//       node terrain/tools/map_shot.js 0,5 /tmp/mapc 1.6 470 1000  … 広場に寄る（広場は x=470+930k, y=1000：本拠・穀倉・漁村・魔法の森・軍事拠点・王都）
+//       全区域を開いて霧を消す（MS_OPEN=0 で開かない）
 const { chromium } = require('playwright');
 const { execFileSync } = require('child_process');
 const fs = require('fs'), path = require('path');
@@ -18,6 +19,7 @@ fs.mkdirSync(out, { recursive: true });
     p.on('console', m => { if (m.type() === 'error') console.log(`[dev${lv}] console`, m.text()); });
     await p.goto(`${base}?dev=${lv}&v=${Date.now()}`, { waitUntil: 'load' });
     await p.waitForFunction(() => window.__t && window.__t.status && window.__t.status.ok, null, { timeout: 180000 });
+    if (process.env.MS_OPEN !== '0') await p.evaluate(() => { const T = window.__t, G = T.G(); for (const id of ['east', 'lake', 'forest', 'pass2', 'capital']) if (!G.open.includes(id)) G.open.push(id); T.sync(); }); /* 全区域を開いて霧を消す（MS_OPEN=0 で開かない） */
     if (view) await p.evaluate(v => window.__t.setView(...v), view);
     await p.waitForTimeout(2500);
     const f = path.join(out, `dev${lv}.png`); await p.screenshot({ path: f }); files.push(f);
