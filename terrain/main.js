@@ -318,13 +318,13 @@ function stepProps(dt) { if (!propAnim.length) return; const touched = new Set()
   touched.forEach(m => m.instanceMatrix.needsUpdate = true); }
 const instMeshes = []; let total = 0;
 // 切り株：退いた森の境目に残る（絵が無ければコードで描く。外部AIの絵は assets/props/stump.png）
-const stumpIm = await loadImage('assets/props/stump.png');
+const stumpIm = await loadImage('assets/props2/stump_s.webp'); /* 2026-11-01 外部AIの切り株（tools/slice_props2.py） */
 const stumpTex = stumpIm ? (() => { const t = new THREE.Texture(stumpIm); t.needsUpdate = true; t.colorSpace = THREE.SRGBColorSpace; return { t, real: true, aspect: stumpIm.width / stumpIm.height }; })()
   : { t: canvasSprite(64, 44, g => { const e = (x, y, rx, ry, c) => { g.fillStyle = c; g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, 7); g.fill(); };
       e(32, 38, 26, 6, 'rgba(0,0,0,.28)'); g.fillStyle = '#4a3220'; g.fillRect(14, 16, 36, 22); g.fillStyle = '#5c3e26'; g.fillRect(14, 16, 12, 22); e(32, 38, 18, 5, '#3c2818');
       g.fillStyle = '#4a3220'; g.beginPath(); g.moveTo(10, 38); g.lineTo(16, 28); g.lineTo(20, 38); g.fill(); g.beginPath(); g.moveTo(54, 38); g.lineTo(48, 27); g.lineTo(44, 38); g.fill();
       e(32, 16, 18, 7, '#c9a46a'); e(32, 16, 12, 4.5, '#b08850'); e(32, 16, 6, 2.2, '#c9a46a'); }), real: false, aspect: 64 / 44 };
-SPR.push({ id: 'stump', w: 20, h: 14 }); stex.push(stumpTex); buckets.push([]);
+SPR.push({ id: 'stump', w: 20, h: 20 }); stex.push(stumpTex); buckets.push([]);
 buckets.slice(0, 4).forEach(arr => arr.forEach(o => { if (!o.keep && !o.plant && hash2(o.x * .3, o.z * .3) < .55) buckets[SPR.length - 1].push({ ...o, sc: o.sc * (.8 + hash2(o.z, o.x) * .5), stump: 1, k: 0, tk: 0 }); }));
 buckets.forEach((arr, ti) => {
   if (!arr.length) return;
@@ -620,8 +620,8 @@ const SLOTS = layout.plazas.map((pz, pi) => { const [cx, cy] = pz.center, Rr = r
   for (let gy = 600; gy < 1560; gy += 30) for (let gx = cx - 460; gx < cx + 460; gx += 34) { const x = gx + (Rr() - .5) * 24, y = gy + (Rr() - .5) * 18, d = Math.hypot(x - cx, (y - cy) * 1.6); if (d > 230 && d < 720) out.push({ x, y, d }); }
   return out.sort((a, b) => a.d - b.d); });
 const usedAt = layout.plazas.map(() => []);
-function takeSlots(pi, n, gap, hw, hh, dMax = 720) { const got = [];
-  for (const s of SLOTS[pi]) { if (got.length >= n) break; if (s.d > dMax || !freeAt(s.x, s.y, hw, hh)) continue;
+function takeSlots(pi, n, gap, hw, hh, dMax = 720, dMin = 0) { const got = [];
+  for (const s of SLOTS[pi]) { if (got.length >= n) break; if (s.d > dMax || s.d < dMin || !freeAt(s.x, s.y, hw, hh)) continue;
     if (usedAt[pi].some(u => Math.hypot(u.x - s.x, (u.y - s.y) * 1.7) < Math.max(gap, u.g))) continue; usedAt[pi].push({ x: s.x, y: s.y, g: gap }); got.push(s); }
   return got; }
 const lvFor = (pi, d) => { const k = DEV_K[pzTheme[pi]] || 1, i = DEV_R.findIndex(r => r * k > d + 40); return i < 0 ? 6 : Math.max(1, i); };
@@ -642,6 +642,11 @@ const TEX = {
   coin: canvasSprite(32, 32, g => { const r = g.createRadialGradient(16, 16, 0, 16, 16, 16); r.addColorStop(0, 'rgba(255,250,200,1)'); r.addColorStop(.3, 'rgba(255,200,60,.9)'); r.addColorStop(1, 'rgba(255,170,0,0)'); g.fillStyle = r; g.fillRect(0, 0, 32, 32); }),
 };
 const flies = [];  /* 魔法の森の光の粒 { m, x, y, ph, pi, lv } */
+// 外部AIの小物（2026-11-01、tools/slice_props2.py）：開拓の小物（切り株・丸太・製材台・石材）、魔法の森、都市
+const P2M = await fetch('assets/props2/meta.json?v=1').then(r => r.json()).catch(() => ({}));
+const P2 = {}; await Promise.all(Object.keys(P2M).map(async k => { P2[k] = await loadBld(`assets/props2/${k}.webp`); }));
+function art(k, x, y, h, flip) { const t = P2[k]; if (!t) return null; const mt = P2M[k], m = sprite3D(t, { w: mt.w, h: mt.h, ax: .5, ay: mt.ay }, h / mt.h, x, y); if (flip) m.scale.x *= -1; scene.add(m); return m; }
+const halos = []; /* 魔法の灯りの光 { m, ph } */
 let magicCircle = null;
 layout.plazas.forEach((pz, pi) => { const th = pzTheme[pi], [cx, cy] = pz.center;
   const B = (keys, n, sc, tint, los) => takeSlots(pi, n, 150, 60, 34).forEach((s, i) => { const k = keys[i % keys.length], m = decoBld(k, sc, s.x, s.y, tint); if (!m) return; const lo = los ? los[i] : lvFor(pi, s.d); lvd(m, pi, lo); bldClear.push({ ...m.userData.clr, pi, lo }); });
@@ -653,6 +658,10 @@ layout.plazas.forEach((pz, pi) => { const th = pzTheme[pi], [cx, cy] = pz.center
     [['house1', lo, w - 1], ['house2', w, st - 1], ['house3', st, 9]].forEach(([k, a, b]) => { if (a > b || a > 5) return; const key = hk(k, v), m = decoBld(key, hsc(key), sl.x, sl.y); if (m) lvd(m, pi, a, b); });
     bldClear.push({ x: sl.x, y: sl.y - 14, r: 56, pi, lo }); });
   const Sh = (n, lo, vs = [1, 2, 3]) => takeSlots(pi, n, 120, 54, 32, 470).forEach((sl, i) => { const key = hk('shop', vs[i % vs.length]), m = decoBld(key, hsc(key), sl.x, sl.y); if (!m) return; lvd(m, pi, lo + Math.floor(i / 2)); bldClear.push({ x: sl.x, y: sl.y - 14, r: 58, pi, lo }); });
+  const A = (k, n, h, gap, lo, hi = 9, dMax = 720, dMin = 0, glow) => takeSlots(pi, n, gap, 18, 10, dMax, dMin).forEach(sl => { const L = lo === undefined ? lvFor(pi, sl.d) : lo, m = art(k, sl.x, sl.y, h, hash2(sl.x, sl.y) < .5); if (!m) return; lvd(m, pi, L, hi === 'f' ? L + 1 : hi);
+    if (glow) { const g = fxSprite(TEX.fly, glow[0], glow[0], sl.x + (m.scale.x < 0 ? -glow[1] : glow[1]), sl.y, glow[2], true); g.renderOrder = 24; lvd(g, pi, L, hi === 'f' ? L + 1 : hi); halos.push({ m: g, ph: sl.x }); } });
+  const K = DEV_K[th] || 1, F = (k, n, h, gap) => { for (let b = 1; b <= 4; b++) A(k, n, h, gap, b, b + 1, DEV_R[b] * K - 10, DEV_R[b] * K - 120); }; /* 開拓の小物：切り開いた境目の内側にだけ、2段階のあいだ置く */
+  if (th !== 'royal') { F('logs', 1, 32, 140); F('sawbench', 1, 34, 160); F('stones', 1, 30, 140); F('stump_l', 1, 30, 90); F('stump_axe', 1, 30, 120); }
   const P = (tex, n, sc, gap, lo, glow) => takeSlots(pi, n, gap, 20, 12).forEach(s => { const m = piece0(tex, s.x, s.y, sc); if (glow) glowMat(m); lvd(m, pi, lo === undefined ? lvFor(pi, s.d) : lo); });
   if (th === 'farm') { // 穀倉地帯：畑の絵を地面に並べ、干し草・荷車・柵。実りは街になると増える
     Hs(7, 3, 9); Sh(1, 4, [3]); /* 農家（小屋→木造）と倉庫 */
@@ -667,7 +676,8 @@ layout.plazas.forEach((pz, pi) => { const th = pzTheme[pi], [cx, cy] = pz.center
     S('barrels', 6, .17, 70); S('stall', 3, .19, 120); S('cart', 2, .17, 200);
   } else if (th === 'magic') { // 魔法の森：木は残し（DEV_K）、光る茸・光の粒・聖堂・魔法陣
     Hs(4, 3, 9, 480); /* 森の小屋 */
-    P(TEX.shroom, 36, .8, 36, undefined, true);
+    A('m_shroom', 26, 44, 46, undefined, 9, 720, 0); A('m_lantern', 8, 62, 100, 2, 9, 560, 0, [26, 12, 50]); A('m_rune', 4, 44, 130, 1); A('m_spring', 1, 30, 100, 3, 9, 420); A('m_orb', 2, 40, 140, 4, 9, 520, 0, [30, 0, 34]);
+    A('m_bench', 3, 34, 90, 2, 9, 480); A('m_fence', 5, 34, 70, 2); A('m_basket', 3, 24, 70, 1, 9, 480);
     B(['shrine_2', 'shrine_3'], 2, .28, [.9, .96, 1.1], [2, 4]);
     const tex = TEX.stone; tex.center.set(.5, .5); const cs = takeSlots(pi, 1, 160, 80, 44, 420)[0] || { x: cx, y: cy + 150 }; magicCircle = groundRect(tex, cs.x - 90, cs.y - 50, 180, 100); magicCircle.material.polygonOffsetUnits = -6; magicCircle.renderOrder = 5; bldClear.push({ x: cs.x, y: cs.y, r: 100, pi, lo: 3 }); magicCircle.material.transparent = true; magicCircle.material.alphaTest = 0; magicCircle.material.depthWrite = false; magicCircle.material.blending = THREE.AdditiveBlending; scene.add(magicCircle); lvd(magicCircle, pi, 3);
     const Rr = rng(4242); for (let i = 0; i < 70; i++) { const a = Rr() * 7, r = 120 + Rr() * 640, x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r / 1.6; const m = fxSprite(TEX.fly, 11, 11, x, y, 10, true); m.renderOrder = 25; flies.push({ m, x, y, ph: Rr() * 7, pi, lv: Math.floor(i / 14) }); }
@@ -676,9 +686,10 @@ layout.plazas.forEach((pz, pi) => { const th = pzTheme[pi], [cx, cy] = pz.center
     P(TEX.tent, 10, .55, 70); S('fence', 8, .18, 50); S('torch', 6, .18, 80);
   } else if (th === 'royal') { // 王都：大きな館・軍旗・宿、街灯と花壇
     Sh(4, 2); B(['war_3', 'banner_3', 'shrine_3'], 3, .3); Hs(18, 2, 3); /* 王都は早く石造りになる */
-    S('flowerbed', 8, .2, 60); S('lamp', 10, .2, 70); S('bench', 4, .2, 70); S('stall', 4, .19, 90);
+    A('c_statue', 2, 64, 170, 4, 9, 520); A('c_cart', 3, 44, 110, 3); A('c_lamp', 10, 62, 80, 3); A('c_bench', 4, 34, 70, 3); A('c_flowerbed', 7, 34, 60, 3); A('c_fence', 6, 36, 60, 4); S('stall', 4, .19, 90); /* 王都：都市の小物（外部AI） */
   } else { // 本拠の街：市場の屋台が並び、ベンチ・花壇・樽が増える（民家は外部AIの絵が届いたら）
     Sh(3, 3); Hs(20, 2, 4); /* 本拠の街：パン屋・宿・倉庫と、住まい */
+    A('c_statue', 1, 64, 170, 5, 9, 520); A('c_cart', 2, 44, 110, 4, 9, 520); A('c_lamp', 4, 62, 90, 5); A('c_flowerbed', 3, 34, 70, 4); /* 育った本拠は都市の小物も */
     S('stall', 5, .19, 80, 0, 420); S('barrels', 5, .17, 60); S('bench', 4, .2, 60); S('flowerbed', 5, .2, 60); S('lamp', 6, .2, 80);
   }
 });
@@ -724,6 +735,7 @@ function stepVils(dt, now) {
     else { dx = v.tx - v.x; dy = v.ty - v.y; const d = Math.hypot(dx, dy * 1.6); if (d < 1.5) { if (v.mode === 'toRoad') { v.mode = 'road'; v.ts = v.s; vilNext(v); } else v.wait = v.buy ? 2.2 + Math.random() * 2 : 1 + Math.random() * 3; continue; } v.x += dx / d * Math.min(sp, d); v.y += dy / d * Math.min(sp, d); }
     if (Math.abs(dx) > .01) v.m.scale.x = Math.abs(v.sw) * (dx < 0 ? -1 : 1);
     vilPlace(v, Math.abs(Math.sin(now / 130 + v.ph)) * 2.2); /* 歩く間は小さく弾む */ }
+  for (const h of halos) h.m.material.opacity = .55 + .35 * Math.sin(now / 600 + h.ph);
   if (magicCircle) magicCircle.material.map.rotation = now / 9000, magicCircle.material.opacity = .55 + .25 * Math.sin(now / 700);
   for (const f of flies) { const on = devLv[f.pi] >= f.lv && (pzArea[f.pi] === 'home' || (G && G.open.includes(pzArea[f.pi]))) || DEV_FORCE !== null && params.has('open'); f.m.visible = on; if (!on) continue;
     const x = f.x + Math.sin(now / 1700 + f.ph) * 14, y = f.y + Math.cos(now / 2100 + f.ph * 1.3) * 8, z = zOf(y); f.m.position.set(x, hgt(x, z) + (14 + Math.sin(now / 800 + f.ph) * 6) / COS, z); f.m.material.opacity = .45 + .55 * Math.max(0, Math.sin(now / 420 + f.ph * 3)); }
