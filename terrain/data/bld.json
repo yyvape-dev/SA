@@ -538,5 +538,77 @@
     508.0
    ]
   }
+ },
+ "assets/bld/house1_1.webp": {
+  "w": 454,
+  "h": 375,
+  "ax": 0.46,
+  "ay": 0.989
+ },
+ "assets/bld/house1_2.webp": {
+  "w": 428,
+  "h": 333,
+  "ax": 0.447,
+  "ay": 0.985
+ },
+ "assets/bld/house1_3.webp": {
+  "w": 440,
+  "h": 355,
+  "ax": 0.517,
+  "ay": 0.989
+ },
+ "assets/bld/house2_1.webp": {
+  "w": 460,
+  "h": 408,
+  "ax": 0.44,
+  "ay": 0.99
+ },
+ "assets/bld/house2_2.webp": {
+  "w": 458,
+  "h": 463,
+  "ax": 0.413,
+  "ay": 0.991
+ },
+ "assets/bld/house2_3.webp": {
+  "w": 479,
+  "h": 454,
+  "ax": 0.434,
+  "ay": 0.991
+ },
+ "assets/bld/house3_1.webp": {
+  "w": 505,
+  "h": 606,
+  "ax": 0.507,
+  "ay": 0.993
+ },
+ "assets/bld/house3_2.webp": {
+  "w": 461,
+  "h": 629,
+  "ax": 0.409,
+  "ay": 0.994
+ },
+ "assets/bld/house3_3.webp": {
+  "w": 491,
+  "h": 612,
+  "ax": 0.502,
+  "ay": 0.993
+ },
+ "assets/bld/shop_1.webp": {
+  "w": 500,
+  "h": 431,
+  "ax": 0.452,
+  "ay": 0.991
+ },
+ "assets/bld/shop_2.webp": {
+  "w": 439,
+  "h": 524,
+  "ax": 0.502,
+  "ay": 0.992
+ },
+ "assets/bld/shop_3.webp": {
+  "w": 501,
+  "h": 417,
+  "ax": 0.422,
+  "ay": 0.99
  }
 }

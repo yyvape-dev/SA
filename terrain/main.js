@@ -342,7 +342,7 @@ buckets.forEach((arr, ti) => {
   scene.add(m); instMeshes.push(m); total += arr.length;
 });
 status.props = total;
-const bld = await (await fetch('data/bld.json?v=3')).json();
+const bld = await (await fetch('data/bld.json?v=4')).json();
 const bldTex = {};
 async function loadBld(fn) { const im = await loadImage(fn); if (!im) return null; const t = new THREE.Texture(im); t.needsUpdate = true; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; }
 function sprite3D(tex, meta, scale, baseX, baseSy) { // 足元の手前の角(ax,ay)を、地面の(baseX, baseSy)に合わせる
@@ -377,12 +377,13 @@ function select(p) {
 
 // ---------- 施設（区画の状態：0=空き地 1=建築中 2=完成 3=発展後）----------
 const FAC = GM.FAC, STAGE = GM.STAGE, ART = ['smithy', 'tavern', 'farm', 'drill', 'war', 'wall', 'shrine', 'barracks', 'banner']; // 絵のある施設。畑はコードで描く
-const BEXT = { drill: 'webp', war: 'webp', wall: 'webp', shrine: 'webp', barracks: 'webp', banner: 'webp' }; // 2026-10-31 の追加分は webp（tools/slice_more.py）
+const BEXT = { drill: 'webp', war: 'webp', wall: 'webp', shrine: 'webp', barracks: 'webp', banner: 'webp', house1: 'webp', house2: 'webp', house3: 'webp', shop: 'webp' }; // 2026-10-31 の追加分は webp（tools/slice_more.py）
 const bldFn = key => `assets/bld/${key}.${BEXT[key.replace(/_\d$/, '')] || 'png'}`;
 // 絵がまだ無い施設は、既存の絵を色づけして仮置き（本番の絵は tools/bld_src2/ に置いて slice_more.py、ART に足して ARTALIAS から外す）
 const ARTALIAS = {};
 const BS = .38; // 素材シートの画素 → 基準画像の画素
 for (const f of ART) for (let k = 1; k <= 3; k++) bldTex[`${f}_${k}`] = await loadBld(bldFn(`${f}_${k}`));
+await Promise.all(['house1', 'house2', 'house3', 'shop'].flatMap(f => [1, 2, 3].map(async k => { bldTex[`${f}_${k}`] = await loadBld(bldFn(`${f}_${k}`)); }))); /* 2026-11-01 民家・商家（マップの飾り。tools/slice_houses.py） */
 plots.forEach(pl => { pl.fac = null; pl.stage = 0; pl.mesh = null; pl.base = pl.poly.reduce((a, q) => q[1] > a[1] ? q : a, pl.poly[0]); pl.cx = pl.poly.reduce((a, q) => a + q[0], 0) / 4; });
 const alphaCache = {};
 function alphaMask(key) { // 絵の透明度（タップ判定用）
@@ -645,28 +646,39 @@ let magicCircle = null;
 layout.plazas.forEach((pz, pi) => { const th = pzTheme[pi], [cx, cy] = pz.center;
   const B = (keys, n, sc, tint, los) => takeSlots(pi, n, 150, 60, 34).forEach((s, i) => { const k = keys[i % keys.length], m = decoBld(k, sc, s.x, s.y, tint); if (!m) return; const lo = los ? los[i] : lvFor(pi, s.d); lvd(m, pi, lo); bldClear.push({ ...m.userData.clr, pi, lo }); });
   const S = (kind, n, sc, gap, lo, dMax) => takeSlots(pi, n, gap, 18, 10, dMax).forEach(s => lvd(townPiece(kind, s.x, s.y, sc, null, hash2(s.x, s.y) < .5), pi, lo || lvFor(pi, s.d)));
+  // 民家（2026-11-01 発注票 A1〜A3）：置き場ごとに、小屋 → 木造 → 石と漆喰の二階家と建て替わる。w＝木造になる段階のずらし、s＝石の二階家になる段階（9＝ならない）
+  const HW = { house1: 92, house2: 104, house3: 112, shop: 116 }; /* 画面での幅（基準画像の画素） */
+  const hk = (k, v) => `${k}_${v}`, hsc = key => HW[key.replace(/_\d$/, '')] / bld[bldFn(key)].w;
+  const Hs = (n, w0, s0, dMax = 720) => takeSlots(pi, n, 112, 50, 30, dMax).forEach((sl, i) => { const lo = lvFor(pi, sl.d - 90), w = Math.max(lo + 1, w0), st = s0 >= 9 ? 9 : Math.max(lo + 2, s0), v = 1 + Math.floor(hash2(sl.x * .13, sl.y * .11) * 3) % 3;
+    [['house1', lo, w - 1], ['house2', w, st - 1], ['house3', st, 9]].forEach(([k, a, b]) => { if (a > b || a > 5) return; const key = hk(k, v), m = decoBld(key, hsc(key), sl.x, sl.y); if (m) lvd(m, pi, a, b); });
+    bldClear.push({ x: sl.x, y: sl.y - 14, r: 56, pi, lo }); });
+  const Sh = (n, lo, vs = [1, 2, 3]) => takeSlots(pi, n, 120, 54, 32, 470).forEach((sl, i) => { const key = hk('shop', vs[i % vs.length]), m = decoBld(key, hsc(key), sl.x, sl.y); if (!m) return; lvd(m, pi, lo + Math.floor(i / 2)); bldClear.push({ x: sl.x, y: sl.y - 14, r: 58, pi, lo }); });
   const P = (tex, n, sc, gap, lo, glow) => takeSlots(pi, n, gap, 20, 12).forEach(s => { const m = piece0(tex, s.x, s.y, sc); if (glow) glowMat(m); lvd(m, pi, lo === undefined ? lvFor(pi, s.d) : lo); });
   if (th === 'farm') { // 穀倉地帯：畑の絵を地面に並べ、干し草・荷車・柵。実りは街になると増える
+    Hs(7, 3, 9); Sh(1, 4, [3]); /* 農家（小屋→木造）と倉庫 */
     takeSlots(pi, 12, 170, 80, 46).forEach((s, i) => { const key = i % 3 === 2 ? 'farm_2' : 'farm_3', t = bldTex[key]; if (!t) return; const meta = bld[bldFn(key)], w = meta.w * .24, h = meta.h * .24;
       const m = groundRect(t, s.x - w / 2, s.y - h / 2, w, h); scene.add(m); lvd(m, pi, Math.min(5, 1 + Math.floor(i / 2.4))); });
     S('hay', 8, .16, 70); S('cart', 2, .17, 200); S('fence', 6, .18, 60);
   } else if (th === 'lake') { // 湖畔の漁村：桟橋・小舟・樽・魚の屋台
+    Hs(9, 3, 5); Sh(2, 3, [3, 2]); /* 漁師の家と倉庫・宿 */
     for (const lk of layout.lakes) { const xs = lk.map(p => p[0]); if (Math.max(...xs) < cx - 470 || Math.min(...xs) > cx + 470) continue;
       const sh = lk.reduce((a, p) => p[1] > a[1] ? p : a), [px, py] = [sh[0] - 30, sh[1] - 4];
       lvd(piece0(TEX.pier, px, py + 34, .85), pi, 1); lvd(piece0(TEX.boat, px - 90, py - 30, .9), pi, 2); lvd(piece0(TEX.boat, px + 50, py - 70, .82), pi, 3); lvd(piece0(TEX.boat, px - 170, py - 80, .8), pi, 4); }
     S('barrels', 6, .17, 70); S('stall', 3, .19, 120); S('cart', 2, .17, 200);
   } else if (th === 'magic') { // 魔法の森：木は残し（DEV_K）、光る茸・光の粒・聖堂・魔法陣
+    Hs(4, 3, 9, 480); /* 森の小屋 */
     P(TEX.shroom, 36, .8, 36, undefined, true);
     B(['shrine_2', 'shrine_3'], 2, .28, [.9, .96, 1.1], [2, 4]);
     const tex = TEX.stone; tex.center.set(.5, .5); const cs = takeSlots(pi, 1, 160, 80, 44, 420)[0] || { x: cx, y: cy + 150 }; magicCircle = groundRect(tex, cs.x - 90, cs.y - 50, 180, 100); magicCircle.material.polygonOffsetUnits = -6; magicCircle.renderOrder = 5; bldClear.push({ x: cs.x, y: cs.y, r: 100, pi, lo: 3 }); magicCircle.material.transparent = true; magicCircle.material.alphaTest = 0; magicCircle.material.depthWrite = false; magicCircle.material.blending = THREE.AdditiveBlending; scene.add(magicCircle); lvd(magicCircle, pi, 3);
     const Rr = rng(4242); for (let i = 0; i < 70; i++) { const a = Rr() * 7, r = 120 + Rr() * 640, x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r / 1.6; const m = fxSprite(TEX.fly, 11, 11, x, y, 10, true); m.renderOrder = 25; flies.push({ m, x, y, ph: Rr() * 7, pi, lv: Math.floor(i / 14) }); }
   } else if (th === 'mil') { // 峠の軍事拠点：兵舎・訓練場・軍旗・作戦の館、天幕と柵
-    B(['barracks_2', 'drill_2', 'banner_2', 'barracks_3', 'war_2', 'drill_3'], 6, .28);
+    B(['barracks_2', 'drill_2', 'banner_2', 'barracks_3', 'war_2', 'drill_3'], 6, .28); Hs(4, 3, 9); Sh(1, 3, [3]); /* 兵の家族の小屋と補給の倉庫 */
     P(TEX.tent, 10, .55, 70); S('fence', 8, .18, 50); S('torch', 6, .18, 80);
   } else if (th === 'royal') { // 王都：大きな館・軍旗・宿、街灯と花壇
-    B(['war_3', 'banner_3', 'tavern_3', 'shrine_3', 'smithy_3'], 5, .3);
+    Sh(4, 2); B(['war_3', 'banner_3', 'shrine_3'], 3, .3); Hs(18, 2, 3); /* 王都は早く石造りになる */
     S('flowerbed', 8, .2, 60); S('lamp', 10, .2, 70); S('bench', 4, .2, 70); S('stall', 4, .19, 90);
   } else { // 本拠の街：市場の屋台が並び、ベンチ・花壇・樽が増える（民家は外部AIの絵が届いたら）
+    Sh(3, 3); Hs(20, 2, 4); /* 本拠の街：パン屋・宿・倉庫と、住まい */
     S('stall', 5, .19, 80, 0, 420); S('barrels', 5, .17, 60); S('bench', 4, .2, 60); S('flowerbed', 5, .2, 60); S('lamp', 6, .2, 80);
   }
 });
