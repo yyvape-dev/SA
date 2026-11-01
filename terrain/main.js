@@ -5,7 +5,8 @@ import { createGL } from './fx_gl.js?v=1794800000';
 import * as GM from './game.js?v=1797800000';
 import { createUI } from './ui.js?v=1793650000';
 import { createMorning } from './morning.js?v=1793800000';
-import { createStory } from './story.js?v=1797800000';
+import { createStory } from './story.js?v=1798000000';
+import * as EV from './events.js?v=1798000000';
 import { slashFX, impactFX, clashFX, chargeFX, rallyFX, starFX, hitStop, isHeld, shaker, FXPAL, burstFX, crackFX, chainFX, glyphFX, smokeFX, warpFX } from './fx_slash.js?v=1794700000';
 
 const layout = await (await fetch('data/layout.json?v=2')).json();
@@ -887,9 +888,19 @@ function playStory(c, kind, then) { // 章の始まり／終わりの会話（st
   try { story.play({ c, kind, title: C.t, desc: C.d, foeName: C.g, foeKey: `g${c}${c === 6 && kind === 'win' ? 'b' : ''}` }, then); } catch (e) { console.error('章の会話', e); then && then(); }
 }
 const CH_KEY = 'territory_v2_ch'; // 2026-11-01 章の始まりの保存（ゲームオーバーから、その章の最初へ戻れる）
-function chapterStartScene() { if (!G || !G.chStart || G.raid || G.over) return; const c = G.chStart; try { localStorage.setItem(CH_KEY, JSON.stringify({ c, s: G })); } catch (e) { } G.chStart = 0; writeSave();
-  if (c === 1 && G.week === 1 && !G.proSeen) { G.proSeen = true; writeSave(); playStory(1, 'pro', () => { G.chStart = 1; chapterStartScene(); }); return; } /* 新しいゲーム：序章（処刑からの逃亡）のあとに第1章 */
-  playStory(c, 'start', () => { refreshUI(); const nf = G.newFac || []; G.newFac = null; writeSave(); if (nf.length) ui.toast(`新しい施設：${nf.map(f => FAC[f].n).join('・')}（空き地から建てられる）`); }); }
+function chapterStartScene(cb) { if (!G || G.raid || G.over) return; if (!G.chStart) { cb && cb(); return; } const c = G.chStart; try { localStorage.setItem(CH_KEY, JSON.stringify({ c, s: G })); } catch (e) { } G.chStart = 0; writeSave();
+  if (c === 1 && G.week === 1 && !G.proSeen) { G.proSeen = true; writeSave(); playStory(1, 'pro', () => { G.chStart = 1; chapterStartScene(cb); }); return; } /* 新しいゲーム：序章（処刑からの逃亡）のあとに第1章 */
+  const nf = G.newFac || [], ar = GM.CHAPTERS[c - 1].area, an = ar && (G.areaDefs.find(a => a.id === ar) || {}).name, joinK = Object.keys(GM.ALLY).filter(k => (GM.ALLY[k].join === ar && ar) || (k === 'lily' && c === 5)); /* 2026-11-01 冒頭の報告：区域・仲間・施設 */
+  const ann = [...(an ? [['@記録', `「${an}」へ進んだ。\n（${(THEME[ar] || {}).n || ''}として、地図に加わった）`]] : []), ...joinK.map(k => ['@記録', `${GM.ALLY[k].n}が、仲間に加わった。\n（${GM.ALLY[k].r}）`]), ...(nf.length ? [['@記録', `新しい施設：${nf.map(f => FAC[f].n).join('・')}\n（空き地から建てられる）`]] : [])];
+  playStory(c, 'start', () => { refreshUI(); G.newFac = null; writeSave(); if (ann.length) story.play({ c, kind: 'ev', lines: ann, foeName: '', foeKey: 'g' + c }, () => cb && cb()); else cb && cb(); }); }
+// 週の出来事（events.js）：朝の報告のあと、その週の場面を順に出す。選択肢で物資・民心・絆と、選び方（慈悲／厳格）が変わる
+function weekEvents(done) { if (!G || G.raid || G.over) { done && done(); return; } G.evSeen = G.evSeen || {}; const q = (EV.WEEK[G.week] || []).filter(e => !G.evSeen[e.id]);
+  const next = () => { const e = q.shift(); if (!e) { refreshUI(); done && done(); return; } G.evSeen[e.id] = 1; writeSave(); const c = GM.chapterOf(G.week);
+    try { story.play({ c, kind: 'ev', lines: e.lines, choices: e.choices, foeName: GM.CHAPTERS[c - 1].g, foeKey: 'g' + c, onPick: j => applyChoice(e.choices[j]) }, next); } catch (er) { console.error('週の出来事', er); next(); } };
+  next(); }
+function applyChoice(ch) { if (!ch) return; const f = ch.eff || {}; G.virtue = G.virtue || { mercy: 0, rigor: 0 }; if (ch.v) G.virtue[ch.v] = (G.virtue[ch.v] || 0) + 1;
+  if (f.sup) G.sup = Math.max(0, G.sup + f.sup); if (f.mor) G.morale = Math.max(0, Math.min(100, G.morale + f.mor)); for (const [k, n] of Object.entries(f.bond || {})) G.bond[k] = Math.min(3, (G.bond[k] || 0) + n); writeSave(); }
+function bondScene(k) { const b = G.bond[k], L = EV.BOND[k] && EV.BOND[k][b]; G.bondSeen = G.bondSeen || {}; if (!L || G.bondSeen[k + b]) return; G.bondSeen[k + b] = 1; writeSave(); try { story.play({ c: GM.chapterOf(G.week), kind: 'ev', lines: L, foeName: '', foeKey: 'g1' }, () => refreshUI()); } catch (e) { console.error('絆の話', e); } }
 function chapterEndScene(then) { if (!G.chEnd) { then(); return; } const e = G.chEnd; G.chEnd = null; writeSave(); playStory(e.c, e.win ? 'win' : 'lose', then); }
 function openMorning(prev, R) { // 朝の報告：空の部屋、ラナの歩き、報告役の3文 → タップで「今朝の変化」→ タップで領地へ
   const adv = GM.advisorOf(G), who = adv && GM.joined(G, adv) ? adv : 'mina', m = Math.round, rows = [];
@@ -899,8 +910,9 @@ function openMorning(prev, R) { // 朝の報告：空の部屋、ラナの歩き
   if (prev.hp !== G.hp) rows.push({ ic: 'hp', label: '城の耐久', from: prev.hp, to: G.hp, d: G.hp - prev.hp });
   for (const t of [...new Set(R.changes)]) { if (t.startsWith('完成：')) rows.push({ ic: 'build', label: '完成', text: t.slice(3) }); else if (/：/.test(t)) rows.push({ ic: 'flag', label: '襲撃', text: t.split('：').slice(1).join('：') }); }
   const warns = (who === 'mina' ? R.warns : R.warns.filter(w => !/週後|今週末|来週末|敵の陣/.test(w))).slice(0, 2);
-  morning.show({ week: Math.min(G.week, GM.WEEKS), res: { sup: G.sup, morale: m(G.morale), def: m(GM.D(G)) }, who, name: GM.ALLY[who].n, lines: GM.morningLines(G, who), rows, warns,
-    onClose: () => { advisorMsg = null; select(null); ui.modal(null); refreshUI(); chapterStartScene(); } });
+  const ml = EV.MORNING[G.week], mlS = ml && (ml[0] === who ? [ml[1]] : [`${GM.nameOf(ml[0])}「${ml[1]}」`]); /* 朝の一幕 */
+  morning.show({ week: Math.min(G.week, GM.WEEKS), res: { sup: G.sup, morale: m(G.morale), def: m(GM.D(G)) }, who, name: GM.ALLY[who].n, lines: [...GM.morningLines(G, who), ...(mlS || [])], rows, warns,
+    onClose: () => { advisorMsg = null; select(null); ui.modal(null); refreshUI(); chapterStartScene(() => weekEvents()); } });
 }
 function showReport() { // 週末の報告。朝の場面（報告役が3文）。出せないときは、吹き出しか羊皮紙
   if (!G.repPrev || G.raid) return; if (G.over) { G.repPrev = null; return; } if (G.chEnd) { chapterEndScene(showReport); return; } const prev = G.repPrev, R = GM.weekReport(prev, G); G.repPrev = null; writeSave();
@@ -1652,7 +1664,7 @@ function renderActions() {
     else bubble = ad ? 'この地はもう姫の領地です。' : 'この先は、まだ道が拓けていません。'; }
   else if (selAlly) { const k = selAlly, A = GM.ALLY[k], b = G.bond[k] || 0, at = G.assign[k]; if (lineKey !== k) newLine(k); key = 'ally' + k; icon = 'ally'; por = P(k); bubble = curLine; mode = 'talk';
     title = `${A.n}　絆 ${'●'.repeat(b)}${'○'.repeat(3 - b)}`;
-    if (b < 3) L.push({ label: '過ごす', act: `${A.n}と過ごす`, ap: 1, eff: `絆${b + 1}${A.lv[b + 1] ? '：' + A.lv[b + 1] : ''}`, verb: '過ごす', can: GM.canTalk(G, k), why: why(), fn: () => act(() => GM.talk(G, k), `${A.n}と過ごした`) });
+    if (b < 3) L.push({ label: '過ごす', act: `${A.n}と過ごす`, ap: 1, eff: `絆${b + 1}${A.lv[b + 1] ? '：' + A.lv[b + 1] : ''}`, verb: '過ごす', can: GM.canTalk(G, k), why: why(), fn: () => { act(() => GM.talk(G, k), `${A.n}と過ごした`); bondScene(k); } });
     if (at) L.push({ label: '配置を外す', act: `${FAC[G.plots[at].fac].n}（${at}）から外す`, eff: '広場へ戻る', verb: '外す', fn: () => act(() => GM.unassign(G, k), `${A.n}を広場へ戻した`) }); }
   else if (selCastle) { key = 'castle'; icon = 'castle'; title = '城'; por = P(defaultAlly());
     for (const [id, c] of Object.entries(GM.CASTLE)) L.push({ label: c.t, act: c.t, sup: id === 'levy' ? 5 : -c.cost, ap: 1, eff: c.d, verb: c.t, can: GM.canCastle(G, id), why: GM.castleWhy(G, id) || why(c.cost), fn: () => act(() => { const ok = GM.doCastle(G, id); if (ok && G.raid) setTimeout(raidModal, 0); return ok; }, c.t + 'を行った') }); }
@@ -1751,12 +1763,12 @@ if (params.has('duel')) { const sv = JSON.stringify(G); for (const a of Object.v
   const gq = params.get('duel'), gn = /^[1-6]$/.test(gq) ? +gq : 1 + Math.floor(Math.random() * 6); /* 2026-10-31 ?duel＝章の将軍をランダム、?duel=3＝第3章の将軍 */
   G.raid = { kind: 'raid', E: GM.CHAPTERS[gn - 1].E[2], name: GM.CHAPTERS[gn - 1].g + 'の侵攻（試し）', boss: gn === 6, gen: gn, w: gn * GM.CH_LEN, dir: gn % 2 ? 'pass' : 'river', ranka: true }; maybeDuel(() => { G = JSON.parse(sv); writeSave(); refreshUI(); ui.toast('試しの一騎打ちを終えた（記録は残らない）'); }); } // ?duel で一騎打ちだけ見る
 resize(); apply(); renderer.render(scene, camera); status.ok = true; if (window.__bootDone) window.__bootDone();
-window.__t.dev = () => devLv.slice(); window.__t.fxN = () => ({ chims: chims.length, vis: chims.filter(c => c.m.visible).length, parts: bparts.length }); window.__t.devOf = a => devOf(G, a);
+window.__t.dev = () => devLv.slice(); window.__t.weekEvents = () => weekEvents(); window.__t.bondScene = k => bondScene(k); window.__t.fxN = () => ({ chims: chims.length, vis: chims.filter(c => c.m.visible).length, parts: bparts.length }); window.__t.devOf = a => devOf(G, a);
 window.__t.castle = () => { select(null); selCastle = true; refreshUI(); }; // 試験：城を選ぶ
 window.__t.selAlly = k => { select(null); selAlly = k; newLine(k); refreshUI(); }; window.__t.sync = () => { syncMap(); refreshUI(); writeSave(); }; // 試験：仲間を選ぶ／状態を画面へ
 window.__t.setView = (zoom, sx, sy) => { view.zoom = zoom; view.cx = sx; view.cz = zOf(sy); clampView(); apply(); renderer.render(scene, camera); };
 window.__t.playDuel = playDuel; window.__t.fieldBattle = fieldBattle; window.__t.maybeDuel = maybeDuel; window.__t.raidIntro = raidIntro; window.__t.allyMesh = allyMesh; window.__t.select = id => select(plots.find(p => p.id === id) || null);
 window.__t.plots = plots; window.__t.G = () => G; window.__t.playDuel = playDuel; window.__t.fieldBattle = fieldBattle; window.__t.maybeDuel = maybeDuel; window.__t.raidIntro = raidIntro; window.__t.camp = () => camp && camp.map(c => [c.position.x|0, c.position.y|0, c.position.z|0, c.visible]); window.__t.faces = () => faceURL; window.__t.raidIntro = raidIntro; window.__t.raidModal = raidModal; window.__t.showReport = showReport; window.__t.openMorning = openMorning; window.__t.GM = GM; window.__t.commit = () => commit(); window.__t.reset = () => { try { localStorage.removeItem(SAVE_KEY); } catch (e) { } }; window.__t.pickAt = (cx, cy) => pickAt(cx, cy); window.__t.view = view; window.__t.sel = () => selected && selected.id; window.__t.build = (id, fac, stage) => { if (stage) G.plots[id] = { fac, stage }; else delete G.plots[id]; commit(); };
 requestAnimationFrame(frame);
-if (!params.has('duel') && !params.has('field') && !params.has('dev')) setTimeout(() => { if (!G.repPrev) chapterStartScene(); }, 400); /* 2026-11-01 アクション戦闘から戻って章の終わりの会話・朝の報告を出している間は、章の始まりを重ねない（朝の報告を閉じた時に出る）。不具合：将軍に自分で勝つと、終わりの会話が次の章の始まりに上書きされていた */ /* ?dev（発展度の確かめ）は会話を出さない */ // 新しいゲームの第1章、または保存の途中の章の始まり
+if (!params.has('duel') && !params.has('field') && !params.has('dev')) setTimeout(() => { if (!G.repPrev) chapterStartScene(() => weekEvents()); }, 400); /* 2026-11-01 アクション戦闘から戻って章の終わりの会話・朝の報告を出している間は、章の始まりを重ねない（朝の報告を閉じた時に出る）。不具合：将軍に自分で勝つと、終わりの会話が次の章の始まりに上書きされていた */ /* ?dev（発展度の確かめ）は会話を出さない */ // 新しいゲームの第1章、または保存の途中の章の始まり
 window.__t.story = (c, kind) => playStory(c, kind || 'start', () => refreshUI());

@@ -6,6 +6,7 @@ const NAME = { mina: 'ミナ', garou: 'ガロウ', sera: 'セラ', ranka: 'ラ�
 // 敵将の名前を肩書きと名前に分ける（「女騎士エルザ」→「女騎士」「エルザ」。カタカナの名前が無ければ全体を名前に）
 const splitTitle = n => { const m = /^(.+?)([ァ-ヶー]+)$/.exec(n || ''); return m ? [m[1], m[2]] : ['', n || '']; };
 const NUM = ['', '一', '二', '三', '四', '五', '六'];
+const GEN_NAME = { g1: '山賊頭グレン', g2: '傭兵団長ボルグ', g3: '女騎士エルザ', g4: '黒騎士', g5: '総大将ヘルマン', g6: '大公ヴァルド', g6b: '大公ヴァルド' }; // 台詞の話し手に 'g2' などと書くと、その将軍として出す。'@村の老人' は絵なしの話し手
 export const SCENES = {
   1: { pro: [['rana', 'はぁ……はぁ……\nミナ、待って……\nもう、足が……'],
       ['mina', 'あと少し。\n森を抜ければ、\n追っ手もまける。'],
@@ -160,6 +161,8 @@ const CSS = `
 #story .nx{position:absolute;right:calc(var(--u)*30);bottom:calc(var(--u)*26);width:calc(var(--u)*16);height:calc(var(--u)*16);border:calc(var(--u)*3) solid #d6a64a;background:#d6a64a55;rotate:45deg;animation:storynx 1.1s ease-in-out infinite}
 @keyframes storynx{50%{translate:0 calc(var(--u)*-8)}}
 #story .box.on{display:block}
+#story .chs{position:absolute;z-index:7;left:6%;right:6%;bottom:calc(var(--u)*480);display:flex;flex-direction:column;gap:calc(var(--u)*18)}
+#story .chs button{font:700 calc(var(--u)*36)/1.4 ${SERIF};color:#f6ecd6;background:linear-gradient(#2a3346ee,#1a2030ee);border:calc(var(--u)*3) solid #c9a24a;border-radius:calc(var(--u)*14);padding:calc(var(--u)*20) calc(var(--u)*28);text-align:left;box-shadow:0 calc(var(--u)*6) calc(var(--u)*18) #0008}
 #story .tx{height:6.2em;box-sizing:content-box}
 #story .skip{position:absolute;z-index:6;right:calc(var(--u)*36);top:calc(var(--u)*40);font:700 calc(var(--u)*32)/1 ${SERIF};color:#fff;text-shadow:0 1px 3px #000;background:#0005;border:0;padding:calc(var(--u)*10) calc(var(--u)*18);border-radius:calc(var(--u)*30)}`;
 let frames = null;
@@ -172,7 +175,7 @@ export function createStory() {
   const close = () => { clearTimeout(typing); cancelAnimationFrame(raf); if (onR) window.removeEventListener('resize', onR); el.style.display = 'none'; el.innerHTML = ''; el.onclick = null; const f = done; done = null; f && f(); };
   // o = { c, kind: 'start'|'win'|'lose', title, desc, foeName, foeKey:'g1'…'g6b' }
   async function play(o, onDone) {
-    const lines = o.kind === 'lose' ? (LOSE_C[o.c] || LOSE) : ((SCENES[o.c] || {})[o.kind] || []);
+    const lines = [...(o.lines || (o.kind === 'lose' ? (LOSE_C[o.c] || LOSE) : ((SCENES[o.c] || {})[o.kind] || [])))]; let picked = false; // 2026-11-01 o.lines＝週の出来事など任意の台詞、o.choices＝最後に選択肢（{t, reply:[台詞]}）、o.onPick(i)
     if (!lines.length && o.kind !== 'start') { onDone && onDone(); return; }
     await genMetaP; done = onDone; el.style.display = 'block'; const fr = loadFrames();
     el.innerHTML = `<div class="st${o.kind === 'pro' ? ' night' : ''}" style="background-image:url(assets/story/bg_${o.c}.webp?v=1)"><img class="a oth" alt=""><img class="a ral" alt=""></div>${o.kind === 'start' ? `<div class="card"><small>第${NUM[o.c] || o.c}章</small><h2>${o.title}</h2><i></i><p>${o.desc}</p></div>` : ''}<div class="box"><div class="nm"><small></small><b></b></div><i class="ln"></i><div class="tx"></div><span class="nx"></span></div><button class="skip">スキップ ▶</button>`;
@@ -183,11 +186,12 @@ export function createStory() {
     let rx = LANA.from; const ralAt = x => place(ral, LANA.w, LANA.h, LANA.ax, LANA.ay, x, FOOT, LANA.scale);
     // 右の相手：仲間は全身の立ち姿（左右反転でラナの方を向く）、敵将は全身（もともと左向き）
     let cur = null;
+    const fk = k => k === 'foe' ? o.foeKey : k; // 'g2' など＝その将軍として出す
     const placeOth = k => { const u = U();
-      if (k === 'foe') { const m = genMeta[o.foeKey]; if (!m) return; const s = (GEN_BODY[o.foeKey] || 520) / m.body; oth.style.scale = ''; place(oth, m.w, m.h, m.ax, m.ay, OTHER_X + 40 + (GEN_DX[o.foeKey] || 0), FOOT, s); }
+      if (k === 'foe' || GEN_NAME[k]) { const K = fk(k), m = genMeta[K]; if (!m) return; const s = (GEN_BODY[K] || 520) / m.body; oth.style.scale = ''; place(oth, m.w, m.h, m.ax, m.ay, OTHER_X + 40 + (GEN_DX[K] || 0), FOOT, s); }
       else { const w = oth.naturalWidth || 300, h = oth.naturalHeight || 640; place(oth, w, h, w / 2, h - 1, OTHER_X, FOOT, ALLY_S); oth.style.scale = '-1 1'; } };
-    const setOth = k => { if (cur === k) return; cur = k; oth.classList.remove('on');
-      const src = k === 'foe' ? `assets/npc/gen_${o.foeKey}.webp?v=1` : `../ally/${k}.png`;
+    const setOth = k => { if (k[0] === '@') return; /* 村人など（絵なし）：今の相手を残す */ if (cur === k) return; cur = k; oth.classList.remove('on');
+      const src = (k === 'foe' || GEN_NAME[k]) ? `assets/npc/gen_${fk(k)}.webp?v=1` : `../ally/${k}.png`;
       setTimeout(() => { oth.onload = () => { placeOth(k); requestAnimationFrame(() => oth.classList.add('on')); }; oth.src = src; if (oth.complete && oth.naturalWidth) oth.onload(); }, cur ? 180 : 0); };
     // ラナ：左から歩いて入り、立ち止まる
     const t0 = performance.now() + (card ? 400 : 0), WALK = 1500;
@@ -199,15 +203,19 @@ export function createStory() {
     let i = -1, full = '', step = card ? 'card' : 'line';
     if (card) requestAnimationFrame(() => card.classList.add('on'));
     const show = () => {
-      i++; if (i >= lines.length) { close(); return; }
-      const [k, t] = lines[i], foe = k === 'foe';
+      i++; if (i >= lines.length) { if (o.choices && !picked) { choose(); return; } close(); return; }
+      const [k, t] = lines[i], foe = k === 'foe' || !!GEN_NAME[k];
       if (k !== 'rana') setOth(k);
       ral.classList.toggle('dim', k !== 'rana'); oth.classList.toggle('dim', k === 'rana');
-      { const [ti, na] = foe ? splitTitle(o.foeName) : ['', NAME[k] || k]; nm.firstChild.textContent = ti; nm.lastChild.textContent = na; } box.classList.add('on');
+      { const [ti, na] = foe ? splitTitle(k === 'foe' ? o.foeName : GEN_NAME[k]) : k[0] === '@' ? ['', k.slice(1)] : ['', NAME[k] || k]; nm.firstChild.textContent = ti; nm.lastChild.textContent = na; } box.classList.add('on');
       full = t; let n = 0; tx.textContent = ''; clearTimeout(typing);
       const ty = () => { n++; tx.textContent = full.slice(0, n); if (n < full.length) typing = setTimeout(ty, 32); else typing = 0; }; ty();
     };
+    const choose = () => { step = 'choice'; const ch = document.createElement('div'); ch.className = 'chs'; // 選択肢：押すと、その返しの台詞へ続く
+      ch.innerHTML = o.choices.map((c, j) => `<button data-j="${j}">${c.t}</button>`).join(''); el.appendChild(ch);
+      ch.querySelectorAll('button').forEach(b => b.onclick = e => { e.stopPropagation(); const j = +b.dataset.j; picked = true; ch.remove(); step = 'line'; o.onPick && o.onPick(j); lines.push(...(o.choices[j].reply || [])); show(); }); };
     el.onclick = () => {
+      if (step === 'choice') return;
       if (step === 'card') { step = 'line'; card.classList.remove('on'); if (!lines.length) { setTimeout(close, 300); return; } setTimeout(show, 350); return; }
       if (typing) { clearTimeout(typing); typing = 0; tx.textContent = full; return; }
       show();
