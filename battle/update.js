@@ -110,6 +110,7 @@ function update(dt) {
       continue;
     }
     if (e.stun > 0) { e.atk = null; e.stun -= dt; e.x += e.kx * dt; e.kx *= Math.pow(0.0005, dt); }
+    else if (e.atk && e.atk.mv) bossMoveTick(e, dt); // 敵将の大技（battle/boss.js）
     else if (e.atk) { // 攻撃の連番を流す。山場（hit のコマ）で、まだ間合いにいれば当たる
       var ak = e.atk; ak.t += dt;
       if (!ak.done && ak.t >= ak.hitT) { ak.done = true;
@@ -126,7 +127,8 @@ function update(dt) {
       var tgy = clamp(h.y + e.yo * fk, LANE_Y0, LANE_Y1), ddy2 = tgy - e.y;
       if (Math.abs(ddy2) > 6) e.y += Math.sign(ddy2) * e.sp * 0.55 * dt;
       e.atkCD -= dt;
-      if (Math.abs(dx) < 95 * e.size && Math.abs(dy) < 30 && e.atkCD <= 0) startFoeAtk(e); // 必殺技と、突きの溜め〜突きの間は、当たりの瞬間に無敵で外れる
+      if (e.boss && bossPick(e, dx, dy, dt)) {}
+      else if (Math.abs(dx) < 95 * e.size && Math.abs(dy) < 30 && e.atkCD <= 0) startFoeAtk(e); // 必殺技と、突きの溜め〜突きの間は、当たりの瞬間に無敵で外れる
     }
     e.y = clamp(e.y, LANE_Y0 - 6, LANE_Y1 + 6);
   }
@@ -170,9 +172,9 @@ function startFoeAtk(e) {
   for (var i = 0; i < c.n; i++) { starts.push(acc / 1000 / FOE_SPD); if (i === c.hit) hitT = acc / 1000 / FOE_SPD; acc += c.durs[i]; }
   e.atk = { t: 0, hitT: hitT, endT: acc / 1000 / FOE_SPD, ci: ci, starts: starts, done: false }; fxWarn(e, hitT); fxFoeAtk(e, hitT); // 予兆と武器の軌跡（battle/fx4.js）
 }
-function hitHero(e) {
-  var h = G.hero; h.hp -= e.dmg; h.inv = 0.45; h.flash = 0.25; G.shake = Math.max(G.shake, e.boss ? 12 : 6); fxHurt(h, e); G.freeze = Math.max(G.freeze, e.boss ? 0.08 : 0.04);
-  addText(h.x, h.y - 230, '-' + e.dmg, 26, '#ff6b6b', 0.7);
+function hitHero(e, mul) {
+  var h = G.hero, dmg = Math.round(e.dmg * (mul || 1)); h.hp -= dmg; h.inv = 0.45; h.flash = 0.25; G.shake = Math.max(G.shake, e.boss ? 12 : 6); fxHurt(h, e); G.freeze = Math.max(G.freeze, e.boss ? 0.08 : 0.04);
+  addText(h.x, h.y - 230, '-' + dmg, mul > 1.5 ? 32 : 26, '#ff6b6b', 0.7);
   if (h.state !== 'atk' && h.hp > 0) { h.state = 'hurt'; h.t = 0; h.buf = 0; h.kb = (h.x >= e.x ? 1 : -1) * 240; }
   if (h.hp <= 0) { h.hp = 0; G.state = 'dead'; G.deadT = 0; if (BAT.on) finishBattle(false); }
 }

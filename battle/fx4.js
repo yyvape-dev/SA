@@ -99,7 +99,7 @@ FX2.vfswing = function (f) {
 // 斧の振り下ろし：刃の落ちた所の床を割る（小さな地割れ・砂埃・岩片・むらの輪）。強敵・敵将は大きく
 function foeSlam(f) {
   var x = f.x + f.face * f.g.slam * f.H, R = f.H * (f.big > 1 ? 1.9 : 1.35);
-  fxGroundSlam(x, f.y + 4, R, VFX_FOE_S, false, true);
+  fxGroundSlam(x, f.y + 4, R, VFX_FOE_S, false, true); G.fx[G.fx.length - 1].thin = 1;
   G.shake = Math.max(G.shake, f.big > 1 ? 7 : 3.5);
 }
 

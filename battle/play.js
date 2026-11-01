@@ -303,7 +303,11 @@ function doPull(c) {
 
 function hurt(e, d, dir, strong) {
   var bound = e.bind > 0; // 拘束中は、吹き飛ばず、その場に固まったまま
-  e.hp -= d; e.flash = 0.1; e.stun = bound ? 0 : (strong ? 0.5 : 0.13) * (e.boss ? 0.25 : e.elite ? 0.5 : 1); e.kx = dir * (strong ? 460 : 190) /* 通常の当たりのひるみを短く（以前0.28秒・280）：連打だけで封じられないように */ * (e.elite ? 0.3 : 1) * (bound ? 0.12 : 1);
+  if (e.atk && e.atk.mv) { // 敵将の大技の最中は、ひるまない（スーパーアーマー。止めるのはジャストガードだけ。battle/boss.js）
+    e.hp -= d; e.flash = 0.1; addText(e.x + rnd(-14, 14), e.y - eh(e) - 10, String(Math.round(d)), strong ? 30 : 22, strong ? '#ffe28a' : '#ffffff', 0.7);
+    fxHit(e, dir, strong); if (e.hp <= 0) kill(e, dir); return;
+  }
+  e.hp -= d; e.flash = 0.1; e.stun = bound ? 0 : Math.max(e.stun || 0, (strong ? 0.5 : 0.13) * (e.boss ? 0.25 : e.elite ? 0.5 : 1)); /* 長いひるみ（ジャストガードの崩し）を、後の当たりで短くしない */ e.kx = dir * (strong ? 460 : 190) /* 通常の当たりのひるみを短く（以前0.28秒・280）：連打だけで封じられないように */ * (e.elite ? 0.3 : 1) * (bound ? 0.12 : 1);
   addText(e.x + rnd(-14, 14), e.y - eh(e) - 10, String(Math.round(d)), strong ? 30 : 22, strong ? '#ffe28a' : '#ffffff', 0.7);
   e.atk = null;
   fxHit(e, dir, strong); // 当たりの衝撃（battle/fx.js）

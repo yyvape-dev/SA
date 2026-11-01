@@ -127,6 +127,7 @@ FX2.vgslam = function (f) {
   }
   vDrawDust(f.x, f.y, f.dust, t, f.big ? 1.25 : 1);
   vDrawDebris(f.x, f.y, f.deb, t, f.life);
+  if (f.thin) { vGlow(f.x, f.y - 30, R * 0.3 * (1 + t * 2), C, Math.max(0, 1 - t / 0.25) * 0.7); if (typeof vGlint === 'function') vGlint(f.x, f.y - 30, R * 0.45 * vEase(t / 0.05), 0, C.main, C.core, Math.max(0, 1 - t / 0.2)); return; } // 敵の床割れ：星形でなく細い閃き（battle/fx4.js）
   vFlare(f.x, f.y - 30, R * (f.lite ? 0.3 : 0.42), t / (f.lite ? 0.22 : 0.32), C, f.rot * 0.05); // 色がにじみ、筋が一気に細る
 };
 
