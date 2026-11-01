@@ -2,10 +2,10 @@
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
 import { createGL } from './fx_gl.js?v=1794800000';
-import * as GM from './game.js?v=1797700000';
+import * as GM from './game.js?v=1797800000';
 import { createUI } from './ui.js?v=1793650000';
 import { createMorning } from './morning.js?v=1793800000';
-import { createStory } from './story.js?v=1794300000';
+import { createStory } from './story.js?v=1797800000';
 import { slashFX, impactFX, clashFX, chargeFX, rallyFX, starFX, hitStop, isHeld, shaker, FXPAL, burstFX, crackFX, chainFX, glyphFX, smokeFX, warpFX } from './fx_slash.js?v=1794700000';
 
 const layout = await (await fetch('data/layout.json?v=2')).json();
@@ -886,7 +886,8 @@ function playStory(c, kind, then) { // 章の始まり／終わりの会話（st
   const C = GM.CHAPTERS[c - 1]; if (!C) { then && then(); return; }
   try { story.play({ c, kind, title: C.t, desc: C.d, foeName: C.g, foeKey: `g${c}${c === 6 && kind === 'win' ? 'b' : ''}` }, then); } catch (e) { console.error('章の会話', e); then && then(); }
 }
-function chapterStartScene() { if (!G || !G.chStart || G.raid || G.over) return; const c = G.chStart; G.chStart = 0; writeSave();
+const CH_KEY = 'territory_v2_ch'; // 2026-11-01 章の始まりの保存（ゲームオーバーから、その章の最初へ戻れる）
+function chapterStartScene() { if (!G || !G.chStart || G.raid || G.over) return; const c = G.chStart; try { localStorage.setItem(CH_KEY, JSON.stringify({ c, s: G })); } catch (e) { } G.chStart = 0; writeSave();
   if (c === 1 && G.week === 1 && !G.proSeen) { G.proSeen = true; writeSave(); playStory(1, 'pro', () => { G.chStart = 1; chapterStartScene(); }); return; } /* 新しいゲーム：序章（処刑からの逃亡）のあとに第1章 */
   playStory(c, 'start', () => { refreshUI(); const nf = G.newFac || []; G.newFac = null; writeSave(); if (nf.length) ui.toast(`新しい施設：${nf.map(f => FAC[f].n).join('・')}（空き地から建てられる）`); }); }
 function chapterEndScene(then) { if (!G.chEnd) { then(); return; } const e = G.chEnd; G.chEnd = null; writeSave(); playStory(e.c, e.win ? 'win' : 'lose', then); }
@@ -1259,7 +1260,7 @@ function playDuel(kIn, done) { // 画面いっぱいの一騎打ち。五合の�
   let word = '拮抗'; const msg = (html, hv = false) => { stt.innerHTML = html; stt.classList.toggle('hv', hv); };
   const apply = (i, r) => { if (r.ally) { aw++; hpR = Math.max(0, hpR - r.dmg); } else { fw++; hpL = Math.max(0, hpL - r.dmg); } nextI = i + 1; pips[i].classList.remove('cur'); pips[i].classList.add(r.ally ? 'w' : 'l'); };
   const finish = () => { if (over) return; over = true; stopChg(); (aw >= 3 ? [Rf] : FE.filter(Boolean)).forEach(x => x.classList.add('ko')); if (window.__duelLog) console.log('DUEL finish aw=' + aw + ' fw=' + fw + ' pips=' + pips.map(p => p.className).join('|') + ' dom=' + pips[0].isConnected); const win = aw >= 3; GM.duelSet(G, pair ? ks : k, win); if (win) hpR = 0; else hpL = 0; upd(); gb.classList.remove('ready'); msg(win ? '勝負あり' : '勝負あり'); tm.style.width = '0%';
-    { const vk = FL.vs ? ks.find(x => FL.vs[x]) : null, vw = vk && (win ? FL.vsWin : FL.vsLose); /* 2026-11-01 因縁の組み合わせは、決着の台詞も専用に */
+    { const vk = !FL.vs ? null : ks.includes(FL.rival) ? FL.rival : ks.find(x => FL.vs[x]), vw = vk && (win ? FL.vsWin : FL.vsLose); /* 2026-11-01 因縁の組み合わせは、決着の台詞も専用に */
       if (vw && vw[vk]) { say(win ? 'l' : 'r', vw[vk][0], 3000); say(win ? 'r' : 'l', vw[vk][1], 3000); }
       else { say(win ? 'l' : 'r', pickOf((win ? AL : FL).win), 2600); say(win ? 'r' : 'l', pickOf((win ? FL : AL).lose), 2600); } }
     T(() => { const r = $('.res'); r.innerHTML = `<div class="bd"><div class="k">${pair ? '将軍戦' : '一騎打ち'}</div><h2 class="${win ? 'w' : 'l'}">${win ? '勝利' : '敗北'}</h2><img src="assets/ui2/divider2.webp"><p>${win ? `${both}が${F.n}を討ち取った。戦況が有利になる` : `${both}が敗れた。戦況が不利になる`}<small>タップで続ける</small></p></div>`; r.classList.add('on');
@@ -1331,7 +1332,7 @@ function playDuel(kIn, done) { // 画面いっぱいの一騎打ち。五合の�
   const srcs = [...new Set(ks.flatMap(x => duelSrcs(x, look)))], ld = document.createElement('div'); ld.className = 'ld'; ld.innerHTML = '<b>構えを整えている…</b><i><u></u></i>'; stage.appendChild(ld); // 全部の絵を読み終えてから始める
   let got = 0; const bar = ld.querySelector('u');
   Promise.all(srcs.map(sr => holdImg(sr).then(() => { got++; bar.style.width = (got / srcs.length * 100) + '%'; }))).then(() => { if (over) return; ld.classList.add('out'); setTimeout(() => ld.remove(), 300);
-    const vj = FL.vs ? ks.findIndex(x => FL.vs[x]) : -1; /* 因縁の組み合わせ（ボルグ×ガロウなど）：開幕の台詞を専用に */
+    const vj = !FL.vs ? -1 : ks.indexOf(FL.rival) >= 0 ? ks.indexOf(FL.rival) : ks.findIndex(x => FL.vs[x]); /* 2026-11-01 因縁を優先、無ければ仲間ごとの掛け合い */ /* 因縁の組み合わせ（ボルグ×ガロウなど）：開幕の台詞を専用に */
     if (vj >= 0) { if (pair) setAct(vj); say('l', FL.vs[ks[vj]][0], 2800); say('r', FL.vs[ks[vj]][1], 2800); T(() => roundStart(0), 3000); }
     else { say('l', pickOf(AL.open), 2200); say('r', pickOf(FL.open), 2200); T(() => roundStart(0), 2300); } });
   if (pair) setAct(0);
@@ -1615,9 +1616,12 @@ function raidModal() { // 襲撃・出撃の決断。選んでから大ボタン
   if (!shown) { rdec.classList.remove('in'); void rdec.offsetWidth; rdec.classList.add('in'); }
   rdec.style.display = 'flex';
 }
+function chRetry() { // 負けたとき：その章の最初からやり直す（章の始まりの保存があれば）
+  if (G.over !== 'lose') return []; let v = null; try { v = JSON.parse(localStorage.getItem(CH_KEY) || 'null'); } catch (e) { } if (!v || !v.s) return [];
+  return [{ label: `第${v.c}章の最初からやり直す`, fn: () => { G = v.s; G.chStart = v.c; ui.modal(null); select(null); syncMap(true); commit(`第${v.c}章の最初に戻った`); setTimeout(chapterStartScene, 300); } }]; }
 function overModal() {
   if (!G.over) return; if (G.chEnd) { chapterEndScene(overModal); return; }
-  ui.modal(G.over === 'win' ? '勝利' : '敗北', `${G.why}（第${Math.min(G.week, GM.WEEKS)}週・第${GM.chapterOf(Math.min(G.week, GM.WEEKS))}章）<br>開拓した区域：${G.open.length}／${areas.length} ／ 施設：${Object.keys(G.plots).length}`, [{ label: '最初から', fn: () => { G = GM.newState(layout.areas); ui.modal(null); select(null); syncMap(true); commit('最初からやり直した'); setTimeout(chapterStartScene, 300); } }]);
+  ui.modal(G.over === 'win' ? '勝利' : '敗北', `${G.why}（第${Math.min(G.week, GM.WEEKS)}週・第${GM.chapterOf(Math.min(G.week, GM.WEEKS))}章）<br>開拓した区域：${G.open.length}／${areas.length} ／ 施設：${Object.keys(G.plots).length}`, [...chRetry(), { label: '最初から', fn: () => { try { localStorage.removeItem(CH_KEY); } catch (e) { } G = GM.newState(layout.areas); ui.modal(null); select(null); syncMap(true); commit('最初からやり直した'); setTimeout(chapterStartScene, 300); } }]);
 }
 // せりふ用の立ち絵（バストアップ、1人3枚まで）。せりふが変わるたびにランダムに選ぶ。なければ全身の立ち絵
 const POR = {};
