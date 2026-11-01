@@ -37,6 +37,12 @@ python3 battle/tools/fx_cmp.py /tmp/fx/cv /tmp/fx/gl /tmp/fx   # → /tmp/fx/cmp
 - 突進の技は「線」でなく、体ごと包む太い帯（slashGL の直線、素材 smash）＋まとうオーラ＋先頭の衝撃の弧＋えぐれ跡。
 - 重さ：むらの輪のような短い線の連なりは丸い端にしない（頂点が数倍）。頂点の最大は 3.5万／コマ程度まで（PX.vstats）。
 
+## 敵将・将軍・ジャストガードの確認（遊びの仕組みを変えたとき）
+- `node battle/tools/boss_test.js [gen=g1〜g6]`（2〜4分）：敵将の大技（大振り・連撃・突進）が立ったままだと当たる／大振りと連撃の最後をジャストガードで無傷＋崩し／突進はジャストガード不可・回避で抜ける／大技中はひるまない／突進を抜けられる回避の押す時刻の幅（charge_window）。撮影は /tmp/bst。将軍を足したり大技の数値を変えたら、その将軍で回す。
+- `node battle/tools/gen_shot.js [g1,g2,…]`：将軍の大きさ・歩き・攻撃の軌跡を撮る（/tmp/gen）。
+- `node battle/tools/jg_test.js`：ジャストガードの受付（早すぎ・遅すぎ）とスロー。
+- 実機の確認 URL：`index.html?battle=1&waves=3&boss=1&al=mina&gen=g1`（g1〜g6＝章の将軍。付けないと雑兵の大きい版）。
+
 ## 3. 終わったら
 - 結果をユーザーに一言で。ヘッドレスはソフトウェア描画なので、速さは比べられない（実機は未確認と明記）。
 - 変えた js の `?v=` を index.html で上げる。CLAUDE.md の手順（引き継ぎに追記 → push → Pages の build が success → 試す URL を送る）。

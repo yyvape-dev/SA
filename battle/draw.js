@@ -203,7 +203,7 @@ function drawHud() {
     ctx.fillStyle = 'rgba(8,6,10,0.8)'; ctx.fillRect(bx - 3, by - 3, bw + 6, 20);
     ctx.fillStyle = '#5a1712'; ctx.fillRect(bx, by, bw, 14); ctx.fillStyle = '#d9483b'; ctx.fillRect(bx, by, bw * bk, 14);
     ctx.strokeStyle = '#d9b878'; ctx.lineWidth = 1.5; ctx.strokeRect(bx - 3, by - 3, bw + 6, 20);
-    txt(BAT.boss ? '将軍' : '敵将', bx, by + 44, 24, '#ffb3a8', 'left', 4);
+    txt(G.boss.gen && BOSS_GEN[G.boss.gen] ? BOSS_GEN[G.boss.gen].n : BAT.boss ? '将軍' : '敵将', bx, by + 44, 24, '#ffb3a8', 'left', 4);
   }
   if (G.combo >= 2) {
     var s = 34 + Math.min(G.combo, 40) * 0.9;

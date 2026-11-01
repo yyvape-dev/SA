@@ -5,6 +5,16 @@
 //   e.atk に mv を付け、段（seg）ごとに starts・hitT・endT を作り直す（draw.js の drawFoe はそのまま段の絵を流す）。jguard.js は ak.hitT・ak.done・ak.rx を見る。
 'use strict';
 var BOSS = { cd0: 2.5, cd: [4.5, 6.5] };
+// 章の将軍ごとの性格：n＝名前、w＝近い時の大振り:三連撃の重み、ch＝離れた時に突進する割合、cd＝大技の間隔、hv＝大振りに使う攻撃の絵、co＝連撃の絵の並び（最後が重い一撃）、tele＝突進の構え、hw＝大振りの溜め
+var BOSS_GEN = {
+  g1: { n: '山賊頭グレン', w: [1, 2], ch: 0.6, cd: [5, 7], hv: 1, co: [0, 0, 1], tele: 0.8, hw: 0.95 },           // 荒っぽい連撃、棍棒の振り下ろし
+  g2: { n: '傭兵団長ボルグ', w: [3, 1], ch: 0.3, cd: [5, 7], hv: 0, co: [1, 0, 0], tele: 0.85, hw: 1.1 },         // 重い大振りが中心、溜めが長い
+  g3: { n: '女騎士エルザ', w: [1, 3], ch: 0.9, cd: [4, 6], hv: 1, co: [0, 1, 0, 1], tele: 0.65, hw: 0.85 },       // 速い突きの4連撃と突進
+  g4: { n: '黒騎士', w: [2, 1], ch: 0.8, cd: [4, 6], hv: 1, co: [0, 1, 0], tele: 0.7, hw: 0.95 },                // 床を這う突き、突進
+  g5: { n: '総大将ヘルマン', w: [2, 2], ch: 0.6, cd: [3.5, 5.5], hv: 0, co: [1, 0, 1, 0], tele: 0.7, hw: 0.9 },    // 剣の師：何でも出す、間隔が短い
+  g6: { n: '大公ヴァルド', w: [2, 2], ch: 0.8, cd: [3, 5], hv: 0, co: [0, 1, 0, 1], tele: 0.6, hw: 0.85 },        // 最後の敵：最も速く、多い
+  g6b: { n: '大公ヴァルド', w: [2, 2], ch: 0.8, cd: [3, 5], hv: 0, co: [0, 1, 0, 1], tele: 0.6, hw: 0.85 }
+};
 var VFX_NOJG = { glow: '190,40,255', main: '230,130,255', core: '255,235,255', spark: '240,170,255', dark: '30,0,45' }; // ガード不可（紫）
 // 攻撃の絵 ci を、当たりまでを pre 倍・当たりの後を post 倍の速さで流す段
 function bmSeg(e, ci, pre, post, o) {
@@ -18,16 +28,17 @@ function bmClipN(e) { return Math.max(1, (FOE_CLIP[e.kind] || []).length); }
 function bossPick(e, dx, dy, dt) {
   if (e.bmCD == null) e.bmCD = BOSS.cd0;
   e.bmCD -= dt; if (e.bmCD > 0 || G.state !== 'play') return false;
-  var ax = Math.abs(dx), n = bmClipN(e), mv;
+  var ax = Math.abs(dx), n = bmClipN(e), mv, P = BOSS_GEN[e.gen] || { w: [1, 1], ch: 1, cd: BOSS.cd, hv: 1, co: [0, 1, 0], tele: 0.75, hw: 0.95 };
+  var ci = function (i) { return Math.min(n - 1, i); };
   var onS = e.x > camX + 60 && e.x < camX + W - 60;
-  if (ax > 240 && ax < 560 && onS) mv = 'charge';
-  else if (ax < 230 && Math.abs(dy) < 70) mv = Math.random() < 0.5 ? 'heavy' : 'combo';
+  if (ax > 240 && ax < 560 && onS) { if (Math.random() < P.ch) mv = 'charge'; else { e.bmCD = 0.8; return false; } } // 突進しないときは歩いて詰める
+  else if (ax < 230 && Math.abs(dy) < 70) mv = Math.random() < P.w[0] / (P.w[0] + P.w[1]) ? 'heavy' : 'combo';
   else return false;
-  e.bmCD = BOSS.cd[0] + Math.random() * (BOSS.cd[1] - BOSS.cd[0]); e.face = dx >= 0 ? 1 : -1;
+  e.bmCD = P.cd[0] + Math.random() * (P.cd[1] - P.cd[0]); e.face = dx >= 0 ? 1 : -1;
   var segs;
-  if (mv === 'heavy') segs = [bmSeg(e, n > 1 ? 1 : 0, 1, 1.4, { rx: 330, ry: 85, mul: 2.2, wind: 0.95 })];
-  else if (mv === 'combo') segs = [bmSeg(e, 0, 0.85, 0.45, { rx: 190, ry: 50, mul: 0.8, cut: 0.14 }), bmSeg(e, n > 1 ? 1 : 0, 0.75, 0.45, { rx: 190, ry: 50, mul: 0.8, cut: 0.14, step: 45 }), bmSeg(e, 0, 1.7, 1.2, { rx: 220, ry: 55, mul: 1.6, step: 55 })];
-  else segs = [{ ci: 0, charge: 1, nojg: 1, tele: 0.75, dash: 0.42, rec: 0.6, dist: Math.min(640, ax + 180), mul: 1.8 }];
+  if (mv === 'heavy') segs = [bmSeg(e, ci(P.hv), 1, 1.4, { rx: 330, ry: 85, mul: 2.2, wind: P.hw })];
+  else if (mv === 'combo') segs = P.co.map(function (c, i) { var last = i === P.co.length - 1; return last ? bmSeg(e, ci(c), 1.7, 1.2, { rx: 220, ry: 55, mul: 1.6, step: 55 }) : bmSeg(e, ci(c), i ? 0.75 : 0.85, 0.45, { rx: 190, ry: 50, mul: 0.8, cut: 0.14, step: i ? 45 : 0 }); });
+  else segs = [{ ci: 0, charge: 1, nojg: 1, tele: P.tele, dash: 0.42, rec: 0.6, dist: Math.min(640, ax + 180), mul: 1.8 }];
   e.atk = { mv: mv, segs: segs, si: -1, t: 0, done: true }; bmNext(e);
   return true;
 }

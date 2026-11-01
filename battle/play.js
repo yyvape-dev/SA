@@ -52,7 +52,9 @@ function spawn(q) {
     state: 'walk', t: rnd(0, 6), atkCD: rnd(0.05, 0.35), bind: 0, /* bind を 0 で持たないと「拘束でない」の判定が外れ、歩きの絵が出なかった */ stun: 0, kx: 0, flash: 0, dt: 0, dmg: 7 + n * (q.elite ? 2 : 1)
   };
   if (q.boss) { // 敵将：大きく硬い。引き寄せと拘束はほとんど効かない（e.boss）。HPは上の帯に出す
-    e.boss = true; e.size = 1.38; e.max = (22 + n * 5) * 42; e.sp *= 0.75; e.dmg = 10 + n * 3; e.x = cl + W + 60; e.y = (LANE_Y0 + LANE_Y1) / 2;
+    e.boss = true; e.size = 1.38;
+    e.max = (22 + n * 5) * 42; e.sp *= 0.75; e.dmg = 10 + n * 3; e.x = cl + W + 60; e.y = (LANE_Y0 + LANE_Y1) / 2;
+    if (BAT.gen && (FOE_CLIP[BAT.gen] || []).length) { e.kind = BAT.gen; e.size = 1.12; e.gen = BAT.gen; } // 章の将軍（battle/boss.js の BOSS_GEN で大技の性格）
     G.boss = e; fxBossIn(e); G.shake = Math.max(G.shake, 8);
   }
   e.hp = e.max; G.enemies.push(e);

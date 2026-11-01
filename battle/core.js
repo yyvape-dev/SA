@@ -52,6 +52,7 @@ function loadAll() {
   FOE_TYPES.forEach(function (n) { one('fw' + n, 'terrain/assets/npc/foewalk_' + n + '.webp'); });
   fetch('terrain/assets/npc/foeduel_meta.json?v=2').then(function (r) { return r.json(); }).then(function (meta) { // 攻撃の連番（一騎打ちと同じ絵。左向き）
     FOE_TYPES.forEach(function (n) { FOE_CLIP[n] = (meta[n] || []).map(function (c, i) { total++; one('fd' + n + '_' + i, 'terrain/assets/npc/' + c.f); return c; }); });
+    if (BAT.gen && meta[BAT.gen]) FOE_CLIP[BAT.gen] = meta[BAT.gen].map(function (c, i) { total++; one('fd' + BAT.gen + '_' + i, 'terrain/assets/npc/' + c.f); return c; }); // 章の将軍（?gen=g1〜g6。一騎打ちの絵を流用、歩きは構えの揺れ）
     onDone();
   }).catch(function () { failed++; onDone(); });
   total++; // 横向きの歩き（ユーザー作成、左向き12コマ）。ある種類だけ使い、無い種類は構えの揺れで代用
@@ -81,6 +82,8 @@ var FOE_WALK = { 1: { cw: 145, ch: 257, h: 240 }, 2: { cw: 146, ch: 220, h: 210 
    FOE_HK＝FOE_H(200)に掛ける比。絵ごとの実測（歩きの絵で 槍兵201・騎士207・山賊182・斧198）から逆算した値 */
 var HEIGHT = { rana: 205, mina: 210, sera: 210, ranka: 202, garou: 228, lily: 188, /* 2026-10-31 224→188：新しい元絵は構え（腰を落とす）で頭が大きく見えた。並べて頭の大きさをそろえた値 */ f1: 233, f2: 212, f3: 225, f4: 212 };
 var FOE_HK = { 1: 233 / 201, 2: 1.04 * 212 / 207, 3: 0.91 * 225 / 182, 4: 1.04 * 212 / 198 };
+// 将軍の背の高さ：terrain/main.js の HUMAN（g1 200 …）を、この画面の比（f1 233／HUMAN 200）に直した値。絵ごとの実測は一騎打ちの meta の idle.h
+(function () { var HU = { g1: 200, g2: 196, g3: 178, g4: 205, g5: 186, g6: 182, g6b: 186 }; for (var k in HU) FOE_HK[k] = HU[k] * (233 / 200) / 200; })(); // FOE_H（200）はこの後で定義されるので数で書く
 var HERO_K = HEIGHT.rana / 219; // ラナの絵は0.6倍で219（実測）。当たり判定はそのまま
 var FOE_H = 200, FOE_SPD = 3.3, FOE_CLIP = {}, FOE_SW = {}; // FOE_H＝槍兵の見た目の背の高さ（世界座標。主人公は約220）。攻撃は一騎打ちの2.6倍速
 // 一騎打ちの連番の1コマ：詰め直したシート（c.fr、terrain/tools/pack_trim.py）なら、その矩形と元のコマの中でのずれ。なければ格子のマス
@@ -113,7 +116,7 @@ var keys = {}, pad = { x: 0, y: 0, mag: 0 };
 var G, S;
 /* ---------- 領地からの出撃（?battle=1）：WAVE waves まで生き残れば勝利。結果を localStorage の battle_result に書いて、領地へ戻る ---------- */
 var BAT = (function () { var q = new URLSearchParams(location.search || ''); if (q.get('battle') !== '1') return { on: false };
-  return { on: true, id: q.get('id') || '', waves: Math.max(1, +q.get('waves') || 3), name: q.get('name') || '出撃', dmg: +q.get('dmg') || 1, bind: +q.get('bind') || 0, hp: +q.get('hp') || 0, al: (q.get('al') || '').split(',').filter(Boolean), boss: q.get('boss') === '1', ret: q.get('ret') || 'terrain/index.html' }; })();
+  return { on: true, id: q.get('id') || '', waves: Math.max(1, +q.get('waves') || 3), name: q.get('name') || '出撃', dmg: +q.get('dmg') || 1, bind: +q.get('bind') || 0, hp: +q.get('hp') || 0, al: (q.get('al') || '').split(',').filter(Boolean), boss: q.get('boss') === '1', gen: /^g[1-6]b?$/.test(q.get('gen') || '') ? q.get('gen') : '', ret: q.get('ret') || 'terrain/index.html' }; })();
 /* 途中で参入する仲間（battle/ally.js）：領地から渡された候補（al）からランダムに1人。試し（?battle なし）は4人から。?ally=mina で固定。候補が無ければ参入なし */
 var ALLY_K = (function () { var q = new URLSearchParams(location.search || ''), f = q.get('ally'), pool = BAT.on ? BAT.al : ['mina', 'garou', 'sera', 'ranka', 'lily'];
   if (f === 'none') return ''; if (f && ['mina', 'garou', 'sera', 'ranka', 'lily'].indexOf(f) >= 0) return f; return pool.length ? pool[Math.floor(Math.random() * pool.length)] : ''; })();

@@ -1325,7 +1325,7 @@ function fieldBattle(mode, onEnd) { // onEnd：試しのとき、結果を記録
 function goBattle() { // アクション戦闘へ移る。結果は battle_result に書かれ、戻ってきたときに反映する
   const R = G.raid, id = String(Date.now()), m = GM.battleMods(G); G.battle = { id }; writeSave();
   const al = Object.keys(GM.ALLY).filter(k => GM.fighter(k) && GM.joined(G, k) && !(k === 'ranka' && !R.ranka)).join(','); // 途中で参入する仲間の候補（戦闘の側でランダムに1人。ランカは街にいる週だけ）
-  const q = new URLSearchParams({ battle: '1', id, waves: GM.wavesOf(R.E), name: R.name, dmg: m.dmg, bind: m.bind, hp: m.hp, al, boss: (R.boss || R.gen) ? 1 : 0, ret: 'terrain/index.html' });
+  const q = new URLSearchParams({ battle: '1', id, waves: GM.wavesOf(R.E), name: R.name, dmg: m.dmg, bind: m.bind, hp: m.hp, al, boss: (R.boss || R.gen) ? 1 : 0, gen: R.gen ? 'g' + R.gen : R.boss ? 'g6' : '', ret: 'terrain/index.html' }); // gen＝章の将軍（アクション戦闘の敵将の絵と大技の性格）
   location.href = '../index.html?' + q.toString();
 }
 function takeBattleResult() {
