@@ -89,7 +89,7 @@ function beginAttack(kind) {
 }
 /* 回避：入力の向き（なければ向いている方）へ短く踏み込む。最中は無敵。攻撃の途中・のけぞりの途中でも出せる（必殺技の最中は除く）
    絵は走りのコマ＋残像（専用の絵は無い）。DODGE.dist＝進む距離、dur＝長さ、inv＝無敵の長さ（踏み込みより少し長い） */
-var DODGE = { dist: 250, dur: 0.24, inv: 0.32 };
+var DODGE = { dist: 340, dur: 0.27, inv: 0.36 }; /* 2026-11-01 広げた（以前 250・0.24・0.32）：敵将の突進を抜けやすく */
 function tryDodge() {
   var h = G.hero;
   if (G.dodgeCD <= 0 && typeof tryJustGuard === 'function' && tryJustGuard()) return; // 当たりの直前ならジャストガード（battle/jguard.js）

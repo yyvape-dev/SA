@@ -27,7 +27,7 @@ function bossPick(e, dx, dy, dt) {
   var segs;
   if (mv === 'heavy') segs = [bmSeg(e, n > 1 ? 1 : 0, 1, 1.4, { rx: 330, ry: 85, mul: 2.2, wind: 0.95 })];
   else if (mv === 'combo') segs = [bmSeg(e, 0, 0.85, 0.45, { rx: 190, ry: 50, mul: 0.8, cut: 0.14 }), bmSeg(e, n > 1 ? 1 : 0, 0.75, 0.45, { rx: 190, ry: 50, mul: 0.8, cut: 0.14, step: 45 }), bmSeg(e, 0, 1.7, 1.2, { rx: 220, ry: 55, mul: 1.6, step: 55 })];
-  else segs = [{ ci: 0, charge: 1, nojg: 1, tele: 0.75, dash: 0.42, rec: 0.6, dist: Math.min(680, ax + 260), mul: 1.8 }];
+  else segs = [{ ci: 0, charge: 1, nojg: 1, tele: 0.75, dash: 0.42, rec: 0.6, dist: Math.min(640, ax + 180), mul: 1.8 }];
   e.atk = { mv: mv, segs: segs, si: -1, t: 0, done: true }; bmNext(e);
   return true;
 }
