@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SA キャラの大きさ比べ（会話の舞台）</title>
+<style>
+body{margin:0;background:#1b1712;color:#eee6d6;font-family:system-ui,"Noto Sans JP",sans-serif}
+header{padding:10px 12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;position:sticky;top:0;background:#1b1712ee;z-index:5}
+header b{font-size:16px;margin-right:8px}
+button,select{font-size:14px;padding:7px 10px;border-radius:8px;border:1px solid #6a5a3a;background:#2a241c;color:#eee6d6}
+button.on{background:#c9a24a;color:#1b1206;font-weight:bold}
+#wrap{overflow-x:auto;padding:0 8px 8px}
+#stage{position:relative;height:620px;background:linear-gradient(#3a4a5a,#6a7a6a 70%,#5a4a32 70%)}
+.gl{position:absolute;left:0;right:0;border-top:1px solid #0ff8}.gl.s{border-top-style:dashed;border-color:#0ff4}
+.gl i{position:absolute;left:2px;top:-14px;font:700 11px monospace;color:#0ff;font-style:normal;text-shadow:0 0 2px #000}
+.ch{position:absolute;bottom:0}.ch img{position:absolute;pointer-events:none}
+.hd{position:absolute;border-top:2px solid #f0f;height:0}
+.lb{position:absolute;bottom:-46px;width:150px;text-align:center;font-size:12px;line-height:1.3}
+.lb b{display:block;font-size:13px}
+#panel{padding:10px 12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px}
+.row{background:#2a241c;border:1px solid #4a3c28;border-radius:8px;padding:6px 10px;font-size:13px}
+.row input{width:100%}
+pre{white-space:pre-wrap;background:#14110d;padding:10px;border-radius:8px;font-size:13px;margin:10px 12px}
+.n{color:#f0c070;font-size:12px;padding:0 12px}
+</style></head><body>
+<header><b>キャラの大きさ比べ</b>
+  <button id="all" class="on">全員</button><button id="two">2人</button>
+  <select id="a"></select><select id="b"></select>
+  <button id="copy">数値をコピー</button>
+</header>
+<p class="n">会話の舞台と同じ縮尺（足元＝0、線は50ごと、数字は基準画素）。紫の線＝頭の高さ。下の倍率を動かすとその場で変わる。決まったら「数値をコピー」で送ってください（story.js の SIZE に入れる）。</p>
+<div id="wrap"><div id="stage"></div></div>
+<div id="panel"></div>
+<pre id="out"></pre>
+<script type="module">
+import { SIZE, LANA, ALLY_S, GEN_BODY, FOOT, GEN_NAME, NAME } from './story.js?v=1798300000';
+const meta = await fetch('assets/npc/gen_meta.json?v=1').then(r => r.json()).catch(() => ({}));
+const KEYS = ['rana', 'mina', 'garou', 'sera', 'ranka', 'lily', 'g1', 'g2', 'g3', 'g4', 'g5', 'g6', 'g6b'];
+const nameOf = k => NAME[k] || GEN_NAME[k] || k;
+const S = { ...SIZE }, PX = .55; // 画面の縮尺（基準画素→画面）
+const srcOf = k => k === 'rana' ? '../sprites/idle_00.png' : /^g\d/.test(k) ? `assets/npc/gen_${k}.webp?v=1` : `../ally/${k}.png`;
+const imgs = {}; await Promise.all(KEYS.map(k => new Promise(r => { const im = new Image(); im.onload = im.onerror = () => r(); im.src = srcOf(k); imgs[k] = im; })));
+function headTop(im) { const c = document.createElement('canvas'), w = c.width = 200, h = c.height = Math.round(im.naturalHeight * 200 / im.naturalWidth), g = c.getContext('2d'); g.drawImage(im, 0, 0, w, h);
+  const d = g.getImageData(0, 0, w, h).data; for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (d[(y * w + x) * 4 + 3] > 60) return y * im.naturalHeight / h; return 0; }
+const HT = {}; KEYS.forEach(k => { if (imgs[k].naturalWidth) HT[k] = headTop(imgs[k]); });
+const m = k => { const im = imgs[k]; if (k === 'rana') return { w: LANA.w, h: LANA.h, ax: LANA.ax, ay: LANA.ay, s: LANA.scale };
+  if (/^g\d/.test(k)) { const g = meta[k]; return g ? { w: g.w, h: g.h, ax: g.ax, ay: g.ay, s: (GEN_BODY[k] || 520) / g.body } : null; }
+  return { w: im.naturalWidth, h: im.naturalHeight, ax: im.naturalWidth / 2, ay: im.naturalHeight - 1, s: ALLY_S }; };
+const head = k => { const q = m(k); return q ? Math.round((q.ay - HT[k]) * q.s * (S[k] || 1)) : 0; };
+let mode = 'all';
+const selA = document.getElementById('a'), selB = document.getElementById('b');
+KEYS.forEach(k => { selA.add(new Option(nameOf(k) + '（' + k + '）', k)); selB.add(new Option(nameOf(k) + '（' + k + '）', k)); }); selA.value = 'rana'; selB.value = 'garou';
+function draw() { const st = document.getElementById('stage'), list = mode === 'all' ? KEYS : [selA.value, selB.value];
+  const gap = mode === 'all' ? 260 : 380, W = list.length * gap + 120, base = 560; st.style.width = W * PX + 'px';
+  let h = ''; for (let y = 0; y <= 1000; y += 50) { const top = base - y * PX; if (top < 0) break; h += `<div class="gl${y % 100 ? ' s' : ''}" style="top:${top}px"><i>${y}</i></div>`; }
+  list.forEach((k, i) => { const q = m(k); if (!q) return; const sc = q.s * (S[k] || 1) * PX, x = 80 + i * gap + gap / 2, flip = /^g\d/.test(k) ? '' : 'scaleX(-1)'; /* 全員を左向きにそろえる */
+    const hy = head(k);
+    h += `<div class="ch" style="left:${x * PX}px;top:${base}px"><img src="${srcOf(k)}" style="width:${q.w * sc}px;height:${q.h * sc}px;left:${-q.ax * sc}px;top:${-q.ay * sc}px;transform:${flip};transform-origin:${q.ax * sc}px ${q.ay * sc}px"></div>
+      <div class="hd" style="left:${(x - 100) * PX}px;width:${200 * PX}px;top:${base - hy * PX}px"></div>
+      <div class="lb" style="left:${x * PX - 75}px;top:${base + 6}px"><b>${nameOf(k)}</b>頭 ${hy}・×${(S[k] || 1).toFixed(2)}</div>`; });
+  st.innerHTML = h;
+  document.getElementById('out').textContent = 'export const SIZE = { ' + KEYS.map(k => `${k}: ${+(S[k] || 1).toFixed(3)}`).join(', ') + ' };';
+  document.querySelectorAll('.row').forEach(r => { r.querySelector('span').textContent = `頭 ${head(r.dataset.k)}・×${(S[r.dataset.k] || 1).toFixed(2)}`; }); }
+document.getElementById('panel').innerHTML = KEYS.map(k => `<div class="row" data-k="${k}"><b>${nameOf(k)}</b>（${k}）　<span></span><input type="range" min="0.7" max="1.4" step="0.01" value="${S[k] || 1}"></div>`).join('');
+document.querySelectorAll('.row input').forEach(inp => inp.oninput = () => { S[inp.closest('.row').dataset.k] = +inp.value; draw(); });
+document.getElementById('all').onclick = () => { mode = 'all'; document.getElementById('all').classList.add('on'); document.getElementById('two').classList.remove('on'); draw(); };
+document.getElementById('two').onclick = () => { mode = 'two'; document.getElementById('two').classList.add('on'); document.getElementById('all').classList.remove('on'); draw(); };
+selA.onchange = selB.onchange = () => { if (mode !== 'two') document.getElementById('two').click(); else draw(); };
+document.getElementById('copy').onclick = async () => { const t = document.getElementById('out').textContent; try { await navigator.clipboard.writeText(t); alert('コピーした'); } catch (e) { prompt('コピーしてください', t); } };
+draw();
+</script></body></html>

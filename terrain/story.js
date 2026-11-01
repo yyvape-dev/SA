@@ -252,3 +252,4 @@ export function createStory() {
   }
   return { play, close };
 }
+export { LANA, ALLY_S, GEN_BODY, FOOT, REF_H, GEN_NAME, NAME }; // 2026-11-01 lineup.html（大きさを比べる資料のページ）用
