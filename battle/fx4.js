@@ -16,6 +16,15 @@ var FOE_SWING = {
   '4_1': { t: 'arc', cx: 0.15, cy: 0.52, rx: 0.72, ry: 0.6, a0: -2.0, a1: 0.9, w: 0.2, slam: 0.8 }
 };
 var FOE_SWING_DEF = { t: 'arc', cx: 0.15, cy: 0.55, rx: 0.75, ry: 0.45, a0: -2.2, a1: 0.7, w: 0.16 };
+// 細い閃き（星形の代わり）：横に長く・縦に短い、髪の毛ほどの光の筋。先へ細って消える（敵の予兆・突きの先）
+function vGlint(x, y, L, rot, col, core, a) {
+  if (a <= 0.01 || L < 1) return; var c = Math.cos(rot), s = Math.sin(rot);
+  var RAY = [[c, s, 1, 1.4], [-c, -s, 1, 1.4], [-s, c, 0.38, 1], [s, -c, 0.38, 1]];
+  for (var i = 0; i < 4; i++) { var r = RAY[i], l = L * r[2], w = r[3];
+    ctx.fillStyle = vrgba(col, 0.55 * a); ctx.beginPath(); ctx.moveTo(x - r[1] * w, y + r[0] * w); ctx.lineTo(x + r[0] * l, y + r[1] * l); ctx.lineTo(x + r[1] * w, y - r[0] * w); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = vrgba(core, a); ctx.beginPath(); ctx.moveTo(x - r[1] * w * 0.45, y + r[0] * w * 0.45); ctx.lineTo(x + r[0] * l * 0.7, y + r[1] * l * 0.7); ctx.lineTo(x + r[1] * w * 0.45, y - r[0] * w * 0.45); ctx.closePath(); ctx.fill();
+  }
+}
 function foeSwingOf(e) { return FOE_SWING[e.kind + '_' + (e.atk ? e.atk.ci : -1)] || FOE_SWING_DEF; }
 
 // 攻撃の始まり（update.js の startFoeAtk）：予兆と、当たりの少し前から出る軌跡を積む。止められたら（拘束・ひるみ）消える
@@ -31,8 +40,8 @@ FX2.vfwind = function (f) {
   var C = VFX_FOE_S, k = Math.min(1, f.t / f.end), a = vEaseIn(Math.max(0, (k - 0.35) / 0.65)); if (a <= 0) return;
   var H = eh(e), g = f.g, big = e.boss ? 1.5 : e.elite ? 1.2 : 1;
   var hx = e.x - e.face * H * 0.12, hy = e.y - H * (g.t === 'thr' ? g.y : 0.78), r = H * 0.09 * big * (0.6 + 0.6 * a);
-  vGlow(hx, hy, r * 2.4, C, 0.55 * a);
-  vStar4(hx, hy, r * 1.7, 0.785 + f.t * 3, C.spark, 0.75 * a); vStar4(hx, hy, r * 0.8, f.t * 3, C.core, a);
+  vGlow(hx, hy, r * 1.6, C, 0.4 * a);
+  vGlint(hx, hy, r * 2.6, -0.12, C.main, C.core, a);
 };
 // 頂点：武器の軌跡。WebGL（pxfx.js の slashGL）なら侵食・色の帯・流れるすじ、使えないときは Canvas の層
 FX2.vfswing = function (f) {
@@ -59,7 +68,7 @@ FX2.vfswing = function (f) {
       var px = x0 + L * 0.3 + q.v * 1.6 * a * (1 - a / (q.life * 2)), al = 1 - a / q.life;
       vStreak(px, q.y * H * 0.6, 1, 0, 30 + q.v * 0.08, q.s, i % 3 ? C.spark : C.core, al * fade);
     }
-    var tipK = vEase(ms / SW); if (ms < SW + 80) vFlare(x0 + L * tipK, y, H * 0.16 * big, Math.max(0, (ms - SW * 0.6) / 140), C); // 先端の閃き
+    var tipK = vEase(ms / SW); if (ms < SW + 90) vGlint(x0 + L * tipK, 0, H * 0.22 * big * (1 - Math.max(0, ms - SW) / 90), 0, C.main, C.core, 1 - Math.max(0, ms - SW) / 90); // 先端の細い閃き
     ctx.restore();
   } else {
     var rx = g.rx * H, ry = g.ry * H, a0 = g.a0, a1 = g.a1, Wa = g.w * H * big;

@@ -68,7 +68,7 @@ FX2.vhurt = function (f) {
   }
   ctx.restore();
   if (t < 0.12) vGlow(x, y, f.s * (0.35 + t * 2), C, 1 - t / 0.12);
-  vFlare(x, y, f.s * 0.3, t / 0.22, C, f.rot * 0.3); // にじむ赤い閃光
+  vGlow(x, y, f.s * 0.3 * (1 + t * 3), C, Math.max(0, 1 - t / 0.2) * 0.6); vGlint(x, y, f.s * 0.42 * vEase(t / 0.05), f.rot * 0.5, C.main, C.core, Math.max(0, 1 - t / 0.16)); // にじむ赤い光＋細い閃き
   if (typeof vRingN === 'function') vRingN(f.gx || x, f.gy || y + f.s * 0.58, f.s * (0.25 + 1.4 * vEase(t / 0.3)), 4 * (1 - t / f.life), C.glow, 0.7 * (1 - t / f.life), f.rot * 50, 0.25); // 足元の輪
   drawSparks(f, x, y, C, 6, 900);
 };
@@ -209,7 +209,7 @@ FX2.vwarn = function (f) {
   // 武器の高さ：火の粉が吸い込まれて集まり、きらめきが育つ
   var gx = e.x + e.face * 40 * s, gy = e.y - H * 0.78, gr = (10 + 16 * k) * s * big;
   for (var i = 0; i < 10; i++) { var ph = (f.t * 2.6 + i * 0.1) % 1, th = i * 0.628 + sd, d = gr * (5 - 4.2 * ph); vStreak(gx + Math.cos(th) * d, gy + Math.sin(th) * d * 0.8, -Math.cos(th), -Math.sin(th), 10 + 12 * ph, 2, i % 2 ? C.spark : C.main, Math.sin(ph * 3.1416) * (0.4 + 0.5 * k)); }
-  vGlow(gx, gy, gr * 2.4, C, 0.4 + 0.5 * k); vStar4(gx, gy, gr * 1.7, 0.785 + f.t * 2, C.spark, 0.5 + 0.5 * k); vStar4(gx, gy, gr * 0.75, f.t * 2, C.core, 0.6 + 0.4 * k);
+  vGlow(gx, gy, gr * 1.8, C, 0.35 + 0.4 * k); vGlint(gx, gy, gr * 2.6, -0.12, C.main, C.core, 0.5 + 0.5 * k);
 };
 // 撃破：放射の光線＋金の輪＋黒煙の柱＋火の粉
 function fxBossDown(e) {
