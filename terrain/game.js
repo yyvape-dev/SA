@@ -15,6 +15,16 @@ export const FAC = { // 施設。stage 1=建築中（効果なし、週末に完
 };
 export const facOpen = (s, f) => chapterOf(s.week) >= (FAC[f].ch || 1); // 章で解放されているか
 export const PLOT_AREA = {}; // 区画→区域（main.js が layout.json から入れる）。城壁の「区域ごとに1つ」に使う
+// 2026-11-01 適地：区域の性格に合う施設は、効果の素の値に上乗せ（完成×1・発展×2）。数字は控えめ（36週のバランス未検証）
+export const FIT = {
+  home:    { tavern: ['mor', 1, '民心+1'], smithy: ['arm', .25, '兵の強さ+0.25'] },                      // 本拠の街：商いと職人
+  east:    { farm: ['sup', 1, '物資+1'] },                                                                // 穀倉地帯
+  lake:    { tavern: ['mor', 2, '民心+2'], farm: ['sup', 1, '物資+1'] },                                  // 湖畔の漁村：魚料理・漁
+  forest:  { shrine: ['holy', 1, '穢れを防ぐ力が発展後と同じ'] },                                         // 魔法の森
+  pass2:   { barracks: ['cap', 2, '兵の上限+2'], drill: ['duel', .04, '一騎打ちの勝率+4%'], wall: ['def', 2, '防衛力+2'] }, // 軍事拠点
+  capital: { banner: ['rally', .05, '将軍戦の勝率+5%'], tavern: ['mor', 1, '民心+1'] }, // 王都
+};
+export const fitOf = (fac, id) => { const f = FIT[PLOT_AREA[id]]; const v = f && f[fac]; return v && v[1] ? v : null; };
 const wallIn = (s, area) => Object.entries(s.plots).some(([id, p]) => p.fac === 'wall' && PLOT_AREA[id] === area);
 // 同じ種類の施設は、2つ目から効きが落ちる（大きい順に並べて掛ける）。並べるだけでは伸びない。上位の施設（劇場など、次の段階）はこの外
 export const DIM = [1, .7, .5, .35, .25];
@@ -90,7 +100,7 @@ export function newState(areaDefs) {
 
 // ---------- 指標（全部ここから計算） ----------
 function facVal(s, id, p, key) { const f = FAC[p.fac]; if (!f || !f.eff[key] || p.burnt) return null;
-  let v = (f.eff[key] + (key === 'sup' && bond(s, 'sera') >= 2 ? 1 : 0)) * mult(p.stage);
+  const ft = fitOf(p.fac, id); let v = (f.eff[key] + (key === 'sup' && bond(s, 'sera') >= 2 ? 1 : 0) + (ft && ft[0] === key ? ft[1] : 0)) * mult(p.stage);
   const k = allyAt(s, id); if (k && p.stage >= 2 && !(k === 'ranka' && s.rankaAway)) v += assignBonus(p.fac, k) * (k === 'ranka' && lilyPair(s) ? 1.5 : 1); return v; }
 // リリィがランカと同じ区域の施設にいる（ランカの配置の効果+50%）
 export const lilyPair = s => joined(s, 'lily') && !!s.assign && !!s.assign.lily && !!s.assign.ranka && PLOT_AREA[s.assign.lily] === PLOT_AREA[s.assign.ranka];

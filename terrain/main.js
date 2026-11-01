@@ -2,7 +2,7 @@
 // 座標の約束：基準画像（①）の画素座標 (sx, sy) を使う。地面 (x, z) は x=sx、z=(sy-SY0)/sinE。
 import * as THREE from './vendor/three.module.min.js';
 import { createGL } from './fx_gl.js?v=1794800000';
-import * as GM from './game.js?v=1794600000';
+import * as GM from './game.js?v=1797300000';
 import { createUI } from './ui.js?v=1793650000';
 import { createMorning } from './morning.js?v=1793800000';
 import { createStory } from './story.js?v=1794300000';
@@ -1620,7 +1620,7 @@ function renderActions() {
     for (const [id, c] of Object.entries(GM.CASTLE)) L.push({ label: c.t, act: c.t, sup: id === 'levy' ? 5 : -c.cost, ap: 1, eff: c.d, verb: c.t, can: GM.canCastle(G, id), why: GM.castleWhy(G, id) || why(c.cost), fn: () => act(() => { const ok = GM.doCastle(G, id); if (ok && G.raid) setTimeout(raidModal, 0); return ok; }, c.t + 'を行った') }); }
   else if (selected) { const id = selected.id, p = G.plots[id], here = p && GM.allyAt(G, id); key = 'plot' + id + (p ? p.fac + p.stage + (here || '') : '');
     if (here && lineKey !== here) newLine(here); por = P(here || defaultAlly()); if (here) { bubble = curLine; mode = 'talk'; }
-    if (!p) { title = '建設予定地'; for (const [f, d] of Object.entries(FAC)) if (GM.facOpen(G, f)) L.push({ label: d.n, act: f === 'farm' ? '畑を整備' : `${d.n}を建てる`, sup: -d.cost, ap: 1, eff: (d.d.startsWith('毎週の') ? `毎週 ${d.d.replace('毎週の', '')}` : d.d) + (GM.dimNote(G, f) ? `（${GM.dimNote(G, f)}）` : ''), verb: '建設する', can: GM.canBuild(G, f, id), why: GM.buildWhy(G, f, id) || why(d.cost), fn: () => act(() => GM.build(G, id, f), `${d.n}の建築を始めた（週末に完成）`) }); }
+    if (!p) { title = '建設予定地'; for (const [f, d] of Object.entries(FAC)) if (GM.facOpen(G, f)) L.push({ label: d.n, act: f === 'farm' ? '畑を整備' : `${d.n}を建てる`, sup: -d.cost, ap: 1, eff: (d.d.startsWith('毎週の') ? `毎週 ${d.d.replace('毎週の', '')}` : d.d) + (GM.fitOf(f, id) ? `（適地：${GM.fitOf(f, id)[2]}）` : '') + (GM.dimNote(G, f) ? `（${GM.dimNote(G, f)}）` : ''), /* 2026-11-01 区域の性格に合う施設 */ verb: '建設する', can: GM.canBuild(G, f, id), why: GM.buildWhy(G, f, id) || why(d.cost), fn: () => act(() => GM.build(G, id, f), `${d.n}の建築を始めた（週末に完成）`) }); }
     else { const d = FAC[p.fac]; title = `${d.n}（${p.burnt ? '焼かれた' : STAGE[p.stage]}）${here ? '・' + GM.ALLY[here].n : ''}`;
       if (p.burnt) L.push({ label: '修理', act: `${d.n}を修理する`, sup: -GM.REPAIR, ap: 1, eff: '効果が戻る', verb: '修理する', can: GM.canRepair(G, id), why: why(GM.REPAIR), fn: () => act(() => GM.repair(G, id), `${d.n}を修理した`) });
       if (p.stage === 1 && !here) title += '・週末に完成';
