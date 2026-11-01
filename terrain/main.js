@@ -17,6 +17,14 @@ const zOf = sy => (sy - SY0) / SIN;
 const params = new URLSearchParams(location.search);
 const status = { ok: false, reason: '', props: 0, ground: 'proc', sprites: 'proc' };
 window.__t = { status };
+// ---------- 発展度（2026-11-01）：区域ごとに 0〜5。森が退き、道が舗装され、街の小物が増える ----------
+const DEV_N = ['開拓地', '集落', '村', '町', '街', '城下町'];
+const DEV_R = [140, 250, 360, 460, 560, 680];   // 発展度ごとの「切り開いた半径」（広場からの townDist）
+const DEV_TH = [0, 1, 3, 6, 9, 12];               // 点数のしきい値（完成1点・発展後さらに1点・民心70以上で1点）
+const pzArea = layout.plazas.map(pz => { const a = layout.areas.find(a => pz.center[0] >= a.x0 && pz.center[0] < (a.x1 || 1e9)); return a ? a.id : 'home'; });
+const DEV_FORCE = params.has('dev') ? Math.max(0, Math.min(5, +params.get('dev') || 0)) : null; // ?dev=0〜5 で全区域を固定（確かめ用）
+const devLv = layout.plazas.map(() => DEV_FORCE ?? 0);
+function nearPz(x, sy) { let b = 0, d = 1e9; layout.plazas.forEach((pz, i) => { const e = Math.hypot(x - pz.center[0], (sy - pz.center[1]) * 1.6); if (e < d) { d = e; b = i; } }); return [b, d]; }
 
 // ---------- 乱数・ノイズ ----------
 function rng(seed) { let s = seed >>> 0; return () => { s = (s + 0x6D2B79F5) >>> 0; let t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
@@ -154,7 +162,8 @@ const groundMat = new THREE.ShaderMaterial({
   transparent: true,
   uniforms: {
     tG: { value: gt[0].t }, tF: { value: gt[1].t }, tR: { value: gt[2].t }, tP: { value: gt[3].t }, tK: { value: gt[4].t }, tW: { value: gt[5].t },
-    splat: { value: splatTex }, zone: { value: zoneTex }, time: { value: 0 }, tile: { value: TILE }
+    splat: { value: splatTex }, zone: { value: zoneTex }, time: { value: 0 }, tile: { value: TILE },
+    pzc: { value: layout.plazas.map(pz => new THREE.Vector4(pz.center[0], pz.center[1], DEV_R[0], 0)) } // 広場ごと：中心x,y・切り開いた半径・発展度
   },
   vertexShader: `
     varying vec2 vW; varying vec2 vS; varying float vSh; varying float vSl; varying float vSy;
@@ -164,7 +173,7 @@ const groundMat = new THREE.ShaderMaterial({
       gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
   fragmentShader: `
     precision highp float;
-    uniform sampler2D tG,tF,tR,tP,tK,tW,splat,zone; uniform float time, tile;
+    uniform sampler2D tG,tF,tR,tP,tK,tW,splat,zone; uniform float time, tile; uniform vec4 pzc[${layout.plazas.length}];
     varying vec2 vW; varying vec2 vS; varying float vSh; varying float vSl; varying float vSy;
     float h2(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
     float vn(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.-2.*f);
@@ -177,12 +186,25 @@ const groundMat = new THREE.ShaderMaterial({
       float oth = max(max(wR,wP),wW);
       float wK = smoothstep(.22,.55,vSl + (vn(vW/60.)-.5)*.25) * (1.-oth);
       float zn = texture2D(zone, vS).r; float fo = smoothstep(.38,.62, vn(vW/260.)*.6+vn(vW/90.)*.4) * (1.-smoothstep(.06,.4,zn));
-      float wF = fo*(1.-oth)*(1.-wK)*.9;
+      float dm = 1e9; vec4 P = vec4(0.);
+      for (int i = 0; i < ${layout.plazas.length}; i++) { float d = length(vec2(vW.x - pzc[i].x, (vSy - pzc[i].y) * 1.6)); if (d < dm) { dm = d; P = pzc[i]; } }
+      float jit = (vn(vW/38.) - .5) * 70.;
+      float cl = 1. - smoothstep(P.z - 150., P.z, dm + jit);  // 切り開いた所は、森の地面を草地へ
+      float wF = fo*(1.-oth)*(1.-wK)*.9*(1.-cl);
       float wG = max(0., 1.-oth-wK-wF);
       vec2 uvw = uv*vec2(1.,.55) + vec2(0., -time*.045);
       vec3 cR = at(tR,uv), cP = at(tP,uv);
       cR = mix(vec3(dot(cR,vec3(.3,.59,.11))), cR, .62) * vec3(1.12,1.06,.98) * 1.06;
       cP = mix(vec3(dot(cP,vec3(.3,.59,.11))), cP, .7) * 0.95;
+      { float L = dot(cR, vec3(.3,.59,.11)), lv = P.w;            // 道の格上げ：土 → 砂利（発展度2〜）→ 石畳（3〜）。広場に近い所から
+        float gR = lv < 1.5 ? -99. : 230. + (lv - 2.) * 160., sR = lv < 2.5 ? -99. : 150. + (lv - 3.) * 175.;
+        float gv = 1. - smoothstep(gR - 50., gR, dm + jit * .6), st = 1. - smoothstep(sR - 30., sR, dm + jit * .6);
+        vec3 gvC = mix(vec3(L), cR, .35) * vec3(.97,.96,.93) * (.86 + .3 * h2(floor(vW * 1.1)));
+        vec2 q = vW / vec2(15., 10.); float rw = floor(q.y); q.x += mod(rw, 2.) * .5 + (h2(vec2(rw, 7.)) - .5) * .3; vec2 cc = floor(q), ff = fract(q);
+        float ed = min(min(ff.x, 1. - ff.x) * 1.5, min(ff.y, 1. - ff.y)), hh = h2(cc);
+        vec3 stC = vec3(.47,.45,.40) * (.9 + .16 * hh) * (.94 + .1 * vn(vW / 4.)) * (.97 + .07 * smoothstep(.7, .1, ff.y)); // 広場の石畳に色を寄せる
+        stC = mix(stC * .62, stC, smoothstep(.04, .12, ed));
+        cR = mix(cR, gvC, gv); cR = mix(cR, stC, st); }
       vec3 cG = at(tG,uv) * vec3(1.16,1.14,.92); vec3 col = cG*wG + at(tF,uv)*wF + cR*wR + cP*wP + at(tK,uv*1.3)*wK + at(tW,uvw)*wW;
       float sum = wG+wF+wR+wP+wK+wW; col /= max(sum,.001);
       col *= mix(.98,1.38, clamp(vSh,0.,1.)) * 1.08;
@@ -247,7 +269,9 @@ const baseQ = new THREE.Quaternion().setFromEuler(tiltRot);
 const buckets = SPR.map(() => []);
 const R = rng(20261028);
 const CAMP_CLEAR = [[70, 800], [110, 820], [30, 780], [70, 1200], [110, 1180], [30, 1220]]; // 敵の陣を置く場所は、木や岩を置かない
-function place(type, x, sy, sc = 1, flip = false, tint = 1) { if (CAMP_CLEAR.some(([cx, cy]) => Math.abs(x - cx) < 70 && sy > cy - 45 && sy < cy + 120)) return; /* 手前の背の高い木も除く */ const z = zOf(sy); buckets[type].push({ x, z, y: hgt(x, z), sc, flip, tint }); }
+function place(type, x, sy, sc = 1, flip = false, tint = 1, o = {}) { if (CAMP_CLEAR.some(([cx, cy]) => Math.abs(x - cx) < 70 && sy > cy - 45 && sy < cy + 120)) return; /* 手前の背の高い木も除く */
+  const z = zOf(sy), [pi, d] = nearPz(x, sy); /* d：広場からの距離に揺らぎを足す（切り開いた境目をでこぼこに） */
+  buckets[type].push({ x, z, y: hgt(x, z), sc, flip, tint, pi, d: d + (hash2(x * .02, sy * .02) - .5) * 110, keep: !!o.keep, plant: o.plant || 0, k: 1, tk: 1 }); }
 function townDist(x, sy) { let d = 1e9; for (const pz of layout.plazas) d = Math.min(d, Math.hypot(x - pz.center[0], (sy - pz.center[1]) * 1.6)); return d; }
 // 森・岩・茂み・川沿いの岩を散らす
 {
@@ -256,7 +280,7 @@ function townDist(x, sy) { let d = 1e9; for (const pz of layout.plazas) d = Math
     const x = -50 + R() * (REF_W + 100), sy = 380 + R() * (REF_H - 300);
     const zn = zoneAt(x, sy); if (zn > .62 || nearLayout(x, sy, 22)) continue;
     const z = zOf(sy), f = fbm(x / 230 + 5, z / 230), edge = Math.max(smooth(260, 0, x), smooth(REF_W - 260, REF_W, x)) * .5 + smooth(520, 400, sy) * .5;
-    const ar = layout.areas.find(a => x >= a.x0 && x < (a.x1 || 1e9)), meadow = (ar ? ar.forest : 1) * smooth(400, 580, townDist(x, sy)); // 区域ごとの木の密度。街の中は切り開く
+    const ar = layout.areas.find(a => x >= a.x0 && x < (a.x1 || 1e9)), meadow = (ar ? ar.forest : 1) * smooth(110, 230, townDist(x, sy)); // 区域ごとの木の密度。街の近くの木は、発展度で退く（DEV_R）
     const forestness = Math.min(1, Math.max(0, (f * 1.5 - .42 + edge * .55) * meadow)) * (1 - smooth(.08, .5, zn));
     const r = R();
     if (r < forestness * .55) { const t = R(); const type = t < .3 ? 0 : t < .62 ? 1 : t < .84 ? 2 : 3; place(type, x, sy, .75 + R() * .5, R() < .5, .86 + R() * .2); }
@@ -264,8 +288,8 @@ function townDist(x, sy) { let d = 1e9; for (const pz of layout.plazas) d = Math
     else if (r < forestness * .55 + .05 && forestness < .5) place(5 + (R() < .5 ? 1 : 0), x, sy, .8 + R() * .5, R() < .5);
   }
   // 左の岩壁・川沿いの岩
-  for (let i = 0; i < 260; i++) { const x = R() * 200, sy = 420 + R() * 1200; if (nearLayout(x, sy, 12)) continue; place(R() < .35 ? 7 : R() < .6 ? 5 : 6, x, sy, .9 + R() * .7, R() < .5); }
-  for (let i = 0; i < Math.round(1300 * REF_W / AREA0_W); i++) { const x = R() * REF_W, sy = 900 + R() * 800; const s = splatAt(x, sy); if (s[2] > .12 && s[2] < .6) place(R() < .5 ? 5 : 6, x + (R() - .5) * 20, sy + (R() - .5) * 12, .6 + R() * .6, R() < .5); }
+  for (let i = 0; i < 260; i++) { const x = R() * 200, sy = 420 + R() * 1200; if (nearLayout(x, sy, 12)) continue; place(R() < .35 ? 7 : R() < .6 ? 5 : 6, x, sy, .9 + R() * .7, R() < .5, 1, { keep: 1 }); }
+  for (let i = 0; i < Math.round(1300 * REF_W / AREA0_W); i++) { const x = R() * REF_W, sy = 900 + R() * 800; const s = splatAt(x, sy); if (s[2] > .12 && s[2] < .6) place(R() < .5 ? 5 : 6, x + (R() - .5) * 20, sy + (R() - .5) * 12, .6 + R() * .6, R() < .5, 1, { keep: 1 }); }
   // 並木と植え込み：街の中の道の両脇に、等間隔で（区画・広場・道の上には置かない）
   const onLot = (x, sy) => layout.plots.some(p => pointInPoly(x, sy, p.poly)) || layout.plazas.some(p => pointInPoly(x, sy, p.poly));
   layout.roads.forEach(rd => { let d = 0;
@@ -273,11 +297,32 @@ function townDist(x, sy) { let d = 1e9; for (const pz of layout.plazas) d = Math
       for (let t = 30; t < L - 20; t += 78, d++) for (const sd of [-1, 1]) {
         const x = x0 + (x1 - x0) * t / L + nx * sd * (rd.w / 2 + 14), sy = y0 + (y1 - y0) * t / L + ny * sd * (rd.w / 2 + 14) * .8;
         if (townDist(x, sy) > 560 || onLot(x, sy) || splatAt(x, sy)[0] > .3) continue;
-        if (d % 2) place(2, x, sy + 6, .7, sd < 0, .95); else place(4, x, sy + 4, .75, sd > 0, 1);
+        if (d % 2) place(2, x, sy + 6, .7, sd < 0, .95, { plant: 3 }); else place(4, x, sy + 4, .75, sd > 0, 1, { plant: 2 });
       } } });
 }
 const dummy = new THREE.Object3D();
+function instSet(m, i, o) { const k = o.k; dummy.position.set(o.x, o.y, o.z); dummy.quaternion.copy(baseQ); dummy.scale.set(o.ww * (o.flip ? -1 : 1) * Math.max(.001, k), o.hh * Math.max(.001, k), 1); dummy.updateMatrix(); m.setMatrixAt(i, dummy.matrix); }
+function propVis(o) { const lv = devLv[o.pi], R = DEV_R[lv];
+  if (o.stump) return lv < 5 && o.d < R && o.d > R - 150 ? 1 : 0;   /* 切り株は、切り開いた境目の内側だけ */
+  if (o.keep) return 1; if (o.plant) return lv >= o.plant ? 1 : 0; return o.d > R ? 1 : 0; }
+let propAnim = [];  /* 消える・現れる途中の板 [m, i, o] */
+function devProps(instant) { propAnim = [];
+  for (const m of instMeshes) { const arr = m.userData.arr; let ch = false;
+    arr.forEach((o, i) => { o.tk = propVis(o); if (o.k === o.tk) return; if (instant) { o.k = o.tk; instSet(m, i, o); ch = true; } else propAnim.push([m, i, o]); });
+    if (ch) m.instanceMatrix.needsUpdate = true; } }
+function stepProps(dt) { if (!propAnim.length) return; const touched = new Set();
+  propAnim = propAnim.filter(([m, i, o]) => { const sg = Math.sign(o.tk - o.k); o.k += sg * dt / .7; if (sg > 0 ? o.k >= o.tk : o.k <= o.tk) o.k = o.tk; instSet(m, i, o); touched.add(m); return o.k !== o.tk; });
+  touched.forEach(m => m.instanceMatrix.needsUpdate = true); }
 const instMeshes = []; let total = 0;
+// 切り株：退いた森の境目に残る（絵が無ければコードで描く。外部AIの絵は assets/props/stump.png）
+const stumpIm = await loadImage('assets/props/stump.png');
+const stumpTex = stumpIm ? (() => { const t = new THREE.Texture(stumpIm); t.needsUpdate = true; t.colorSpace = THREE.SRGBColorSpace; return { t, real: true, aspect: stumpIm.width / stumpIm.height }; })()
+  : { t: canvasSprite(64, 44, g => { const e = (x, y, rx, ry, c) => { g.fillStyle = c; g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, 7); g.fill(); };
+      e(32, 38, 26, 6, 'rgba(0,0,0,.28)'); g.fillStyle = '#4a3220'; g.fillRect(14, 16, 36, 22); g.fillStyle = '#5c3e26'; g.fillRect(14, 16, 12, 22); e(32, 38, 18, 5, '#3c2818');
+      g.fillStyle = '#4a3220'; g.beginPath(); g.moveTo(10, 38); g.lineTo(16, 28); g.lineTo(20, 38); g.fill(); g.beginPath(); g.moveTo(54, 38); g.lineTo(48, 27); g.lineTo(44, 38); g.fill();
+      e(32, 16, 18, 7, '#c9a46a'); e(32, 16, 12, 4.5, '#b08850'); e(32, 16, 6, 2.2, '#c9a46a'); }), real: false, aspect: 64 / 44 };
+SPR.push({ id: 'stump', w: 20, h: 14 }); stex.push(stumpTex); buckets.push([]);
+buckets.slice(0, 4).forEach(arr => arr.forEach(o => { if (!o.keep && !o.plant && hash2(o.x * .3, o.z * .3) < .55) buckets[SPR.length - 1].push({ ...o, sc: o.sc * (.8 + hash2(o.z, o.x) * .5), stump: 1, k: 0, tk: 0 }); }));
 buckets.forEach((arr, ti) => {
   if (!arr.length) return;
   const def = SPR[ti], st = stex[ti];
@@ -286,9 +331,10 @@ buckets.forEach((arr, ti) => {
   const col = new THREE.Color();
   arr.forEach((o, i) => {
     const hh = def.h * o.sc, ww = hh * st.aspect;
-    dummy.position.set(o.x, o.y, o.z); dummy.quaternion.copy(baseQ); dummy.scale.set(ww * (o.flip ? -1 : 1), hh, 1); dummy.updateMatrix(); m.setMatrixAt(i, dummy.matrix);
+    o.ww = ww; o.hh = hh; instSet(m, i, o);
     col.setScalar(o.tint); m.setColorAt(i, col);
   });
+  m.userData.arr = arr;
   m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true;
   scene.add(m); instMeshes.push(m); total += arr.length;
 });
@@ -532,25 +578,28 @@ function animateWater(mesh) { // 噴水の水だけを動かす：青い画素�
         diffuseColor.rgb += w * (vec3(.18, .24, .28) * fall + vec3(.6) * sp); }`); };
   mat.needsUpdate = true; waterMats.push(mat); return mesh; }
 const onLotOrRoad = (x, y) => layout.plots.some(p => pointInPoly(x, y, p.poly)) || splatAt(x, y)[0] > .25 || splatAt(x, y)[2] > .2;
-layout.plazas.forEach((pz, n) => { // 広場：石畳＋中央の噴水／井戸＋四隅の街灯＋屋台・花壇・ベンチ・樽
-  const [T, R, B, L] = pz.poly; scene.add(pavingMesh([T, R, B, L], true));
+const deco = []; // 発展度で出し入れする街の小物 { m, pi, lo, hi }
+function lvd(m, pi, lo, hi = 9) { deco.push({ m, pi, lo, hi }); return m; }
+function devDeco() { for (const d of deco) d.m.visible = devLv[d.pi] >= d.lo && devLv[d.pi] <= d.hi; }
+layout.plazas.forEach((pz, n) => { // 広場：石畳（村から）＋中央の井戸→噴水（町から）＋四隅の街灯（町から）＋屋台・樽（集落から）・ベンチ（村から）・花壇（町から）
+  const [T, R, B, L] = pz.poly; const pav = pavingMesh([T, R, B, L], true); scene.add(pav); lvd(pav, n, 2);
   const [cx, cy] = pz.center;
-  if (pz.kind === 'fountain') animateWater(townPiece('fountain', cx, cy + 34, .44)); else townPiece('well', cx, cy + 34, .42);
-  [T, R, B, L].forEach(([x, y]) => townPiece('lamp', x + (cx - x) * .12, y + (cy - y) * .12, .2));
+  if (pz.kind === 'fountain') { lvd(animateWater(townPiece('fountain', cx, cy + 34, .44)), n, 3); lvd(townPiece('well', cx, cy + 24, .27), n, 0, 2); } else townPiece('well', cx, cy + 34, .42);
+  [T, R, B, L].forEach(([x, y]) => lvd(townPiece('lamp', x + (cx - x) * .12, y + (cy - y) * .12, .2), n, 3));
   const mid = (p, q, k = .3) => [(p[0] + q[0]) / 2 + (cx - (p[0] + q[0]) / 2) * k, (p[1] + q[1]) / 2 + (cy - (p[1] + q[1]) / 2) * k];
-  const d = [['stall', T, R, .3], ['flowerbed', L, T, .34], ['bench', B, L, .34], ['barrels', R, B, .3]];
-  d.forEach(([kd, p, q, sc], i) => { const [x, y] = mid(p, q, .34); townPiece(kd, x, y + 4, sc * .62, null, (i + n) % 2 === 1); });
+  const d = [['stall', T, R, .3, 1], ['flowerbed', L, T, .34, 3], ['bench', B, L, .34, 2], ['barrels', R, B, .3, 1]];
+  d.forEach(([kd, p, q, sc, lo], i) => { const [x, y] = mid(p, q, .34); lvd(townPiece(kd, x, y + 4, sc * .62, null, (i + n) % 2 === 1), n, lo); });
 });
 { // 交差点と道の曲がり角に街灯、広場の外の通り沿いにたいまつ
   const pts = [];
   layout.roads.forEach(rd => rd.pts.forEach(([x, y], i) => { if (i > 0 && i < rd.pts.length - 1 && x > 0 && x < REF_W) pts.push([x, y]); }));
-  pts.forEach(([x, y]) => { if (!layout.plazas.some(pz => pointInPoly(x, y, pz.poly))) townPiece('lamp', x + 26, y - 6, .2); });
+  pts.forEach(([x, y]) => { if (!layout.plazas.some(pz => pointInPoly(x, y, pz.poly))) { const [pi, dd] = nearPz(x, y); lvd(townPiece('lamp', x + 26, y - 6, .2), pi, dd < 420 ? 3 : 4); } }); /* 街灯は町から（遠い角は街から） */
 }
 { // 街の外れ：荷馬車・干し草・柵（区画・道・水の上は避ける）
   const R2 = rng(77);
-  layout.plazas.forEach(pz => { const [cx, cy] = pz.center;
-    [[-360, -150, 'hay', .3], [-300, -175, 'cart', .26], [360, 150, 'hay', .28], [420, 120, 'fence', .26], [-420, 170, 'fence', .26], [300, -190, 'cart', .24], [0, 250, 'torch', .2], [0, -250, 'torch', .2]].forEach(([dx, dy, kd, sc]) => {
-      for (let t = 0; t < 6; t++) { const x = cx + dx + (R2() - .5) * 60 * t, y = cy + dy + (R2() - .5) * 30 * t; if (!onLotOrRoad(x, y) && !layout.plazas.some(q => pointInPoly(x, y, q.poly))) { townPiece(kd, x, y, sc, null, R2() < .5); break; } }
+  layout.plazas.forEach((pz, n) => { const [cx, cy] = pz.center; /* 干し草・荷車・たいまつは集落から、柵は村から。たいまつは街灯が立つ町で消える */
+    [[-360, -150, 'hay', .3, 1, 9], [-300, -175, 'cart', .26, 1, 9], [360, 150, 'hay', .28, 1, 9], [420, 120, 'fence', .26, 2, 9], [-420, 170, 'fence', .26, 2, 9], [300, -190, 'cart', .24, 2, 9], [0, 250, 'torch', .2, 1, 2], [0, -250, 'torch', .2, 1, 2]].forEach(([dx, dy, kd, sc, lo, hi]) => {
+      for (let t = 0; t < 6; t++) { const x = cx + dx + (R2() - .5) * 60 * t, y = cy + dy + (R2() - .5) * 30 * t; if (!onLotOrRoad(x, y) && !layout.plazas.some(q => pointInPoly(x, y, q.poly))) { lvd(townPiece(kd, x, y, sc, null, R2() < .5), n, lo, hi); break; } }
     }); });
 }
 const signs = layout.signs.map(sg => ({ ...sg, mesh: townPiece('sign', sg.x, sg.y, .34, sg.label) }));
@@ -662,7 +711,19 @@ const SAVE_KEY = 'territory_v2';
 let G = null, selCastle = false, selAlly = null;
 function loadSave() { try { const v = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); if (v && v.week) { v.bond = Object.assign({ mina: 0, garou: 0, sera: 0, ranka: 0, lily: 0 }, v.bond || {}); v.assign = v.assign || {}; v.met = v.met || {}; v.areaDefs = v.areaDefs || []; for (const a of layout.areas) if (!v.areaDefs.some(q => q.id === a.id)) v.areaDefs.push({ id: a.id, name: a.name, cost: a.cost, income: a.income }); /* 後から足した区域を古い保存にも入れる */ return v; } return null; } catch (e) { return null; } }
 function writeSave() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(G)); } catch (e) { } }
+function devOf(st, area) { // 区域の発展度：完成した施設1点・発展後さらに1点（焼けた施設は数えない）＋民心70以上で1点。民心30未満は1段下がる
+  if (area !== 'home' && !st.open.includes(area)) return 0;
+  let pt = 0; for (const p of layout.plots) { if (p.area !== area) continue; const q = st.plots[p.id]; if (!q || q.burnt) continue; pt += (q.stage >= 2) + (q.stage >= 3); }
+  if (pt > 0 && st.morale >= 70) pt++;
+  let lv = 0; DEV_TH.forEach((t, i) => { if (pt >= t) lv = i; }); if (st.morale < 30) lv = Math.max(0, lv - 1); return lv; }
+function applyDev(instant) {
+  const up = [];
+  layout.plazas.forEach((pz, i) => { const lv = DEV_FORCE ?? devOf(G, pzArea[i]); if (lv > devLv[i]) up.push([i, lv]); devLv[i] = lv; groundMat.uniforms.pzc.value[i].set(pz.center[0], pz.center[1], DEV_R[lv], lv); });
+  devProps(instant); devDeco();
+  if (!instant) for (const [i, lv] of up) { const nm = pzArea[i] === 'home' ? '本拠の街' : (layout.areas.find(a => a.id === pzArea[i]) || {}).name; ui.toast(`${nm}が「${DEV_N[lv]}」に育った`); }
+}
 function syncMap(instant) { // 状態 → 区画の絵と霧
+  applyDev(instant);
   for (const pl of plots) { const p = G.plots[pl.id]; const f = p ? p.fac : null, stg = p ? p.stage : 0; const bt = !!(p && p.burnt); if (pl.fac !== f || pl.stage !== stg || pl.burnt !== bt) { if (!instant && pl.burnt === false && bt) pl.ign = performance.now(); if (!instant && pl.burnt && !bt) emitAt(pl, 'steam', 9); pl.burnt = bt; setPlot(pl, f, stg); } }
   updateCamp();
   for (const a of areas) showArea(a, G.open.includes(a.id)); updateFog(instant);
@@ -1529,7 +1590,7 @@ function frame(now) {
   const dt = now - last; last = now; acc += dt; frames++;
   if (duelEl.style.display === 'flex' || duelSel.style.display === 'flex') { requestAnimationFrame(frame); return; } // 一騎打ちの全画面の間は、裏の地図を描かない（重さ対策）
   groundMat.uniforms.time.value = now / 1000; selGlow.opacity = .38 + .2 * Math.sin(now / 260);
-  walkAllies(Math.min(.05, dt / 1000)); badges.forEach((b, i) => { b.position.y = b.userData.y0 + Math.sin(now / 400 + i) * 2; }); fireMeshes.forEach(f => { if (!f.parent) { fireMeshes.delete(f); return; } if (!f.userData.s) f.userData.s = f.scale.clone(); const k = 1 + Math.sin(now / 90 + f.id) * .06, g = f.userData.ign ? Math.min(1, (now - f.userData.ign) / 1200) : 1, ge = Math.max(.1, g * (2 - g)); f.scale.set(f.userData.s.x * (2 - k) * (.5 + .5 * ge), f.userData.s.y * k * ge, 1); }); burnUpdate(now);
+  walkAllies(Math.min(.05, dt / 1000)); stepProps(Math.min(.05, dt / 1000)); badges.forEach((b, i) => { b.position.y = b.userData.y0 + Math.sin(now / 400 + i) * 2; }); fireMeshes.forEach(f => { if (!f.parent) { fireMeshes.delete(f); return; } if (!f.userData.s) f.userData.s = f.scale.clone(); const k = 1 + Math.sin(now / 90 + f.id) * .06, g = f.userData.ign ? Math.min(1, (now - f.userData.ign) / 1200) : 1, ge = Math.max(.1, g * (2 - g)); f.scale.set(f.userData.s.x * (2 - k) * (.5 + .5 * ge), f.userData.s.y * k * ge, 1); }); burnUpdate(now);
   waterMats.forEach(mt => { if (mt.userData.sh) mt.userData.sh.uniforms.time.value = now / 1000; }); fx.forEach(f => f(now)); fx = fx.filter(f => !f.done);
   apply(); renderer.render(scene, camera);
   if (acc > 500) { st.textContent = `3D: ${status.ok ? 'OK' : status.reason} / 地面:${status.ground} 小物:${status.sprites}(${status.props}) / ${(frames * 1000 / acc).toFixed(0)}fps / 拡大 ${view.zoom.toFixed(2)}`; frames = 0; acc = 0; }
@@ -1543,11 +1604,12 @@ if (params.has('duel')) { const sv = JSON.stringify(G); for (const a of Object.v
   const gq = params.get('duel'), gn = /^[1-6]$/.test(gq) ? +gq : 1 + Math.floor(Math.random() * 6); /* 2026-10-31 ?duel＝章の将軍をランダム、?duel=3＝第3章の将軍 */
   G.raid = { kind: 'raid', E: GM.CHAPTERS[gn - 1].E[2], name: GM.CHAPTERS[gn - 1].g + 'の侵攻（試し）', boss: gn === 6, gen: gn, w: gn * GM.CH_LEN, dir: gn % 2 ? 'pass' : 'river', ranka: true }; maybeDuel(() => { G = JSON.parse(sv); writeSave(); refreshUI(); ui.toast('試しの一騎打ちを終えた（記録は残らない）'); }); } // ?duel で一騎打ちだけ見る
 resize(); apply(); renderer.render(scene, camera); status.ok = true; if (window.__bootDone) window.__bootDone();
+window.__t.dev = () => devLv.slice(); window.__t.devOf = a => devOf(G, a);
 window.__t.castle = () => { select(null); selCastle = true; refreshUI(); }; // 試験：城を選ぶ
 window.__t.selAlly = k => { select(null); selAlly = k; newLine(k); refreshUI(); }; window.__t.sync = () => { syncMap(); refreshUI(); writeSave(); }; // 試験：仲間を選ぶ／状態を画面へ
 window.__t.setView = (zoom, sx, sy) => { view.zoom = zoom; view.cx = sx; view.cz = zOf(sy); clampView(); apply(); renderer.render(scene, camera); };
 window.__t.playDuel = playDuel; window.__t.fieldBattle = fieldBattle; window.__t.maybeDuel = maybeDuel; window.__t.raidIntro = raidIntro; window.__t.allyMesh = allyMesh; window.__t.select = id => select(plots.find(p => p.id === id) || null);
 window.__t.plots = plots; window.__t.G = () => G; window.__t.playDuel = playDuel; window.__t.fieldBattle = fieldBattle; window.__t.maybeDuel = maybeDuel; window.__t.raidIntro = raidIntro; window.__t.camp = () => camp && camp.map(c => [c.position.x|0, c.position.y|0, c.position.z|0, c.visible]); window.__t.faces = () => faceURL; window.__t.raidIntro = raidIntro; window.__t.raidModal = raidModal; window.__t.showReport = showReport; window.__t.openMorning = openMorning; window.__t.GM = GM; window.__t.commit = () => commit(); window.__t.reset = () => { try { localStorage.removeItem(SAVE_KEY); } catch (e) { } }; window.__t.pickAt = (cx, cy) => pickAt(cx, cy); window.__t.view = view; window.__t.sel = () => selected && selected.id; window.__t.build = (id, fac, stage) => { if (stage) G.plots[id] = { fac, stage }; else delete G.plots[id]; commit(); };
 requestAnimationFrame(frame);
-if (!params.has('duel') && !params.has('field')) setTimeout(chapterStartScene, 400); // 新しいゲームの第1章、または保存の途中の章の始まり
+if (!params.has('duel') && !params.has('field') && !params.has('dev')) setTimeout(chapterStartScene, 400); /* ?dev（発展度の確かめ）は会話を出さない */ // 新しいゲームの第1章、または保存の途中の章の始まり
 window.__t.story = (c, kind) => playStory(c, kind || 'start', () => refreshUI());
