@@ -1,13 +1,15 @@
-// ジャストガード（2026-11-01）：敵の当たりの直前（JG.win 秒以内）に回避を押すと、受け止めて自動で反撃する。fx4.js の次に読む。
+// ジャストガード（2026-11-01）：敵の当たりの直前（構えの後半7割。jgWin）に回避を押すと、受け止めて自動で反撃する。fx4.js の次に読む。
 //   成功：その攻撃は当たらない・相手に強い反撃（大きくひるむ）・一瞬のスロー・回避の再使用がすぐ戻る・必殺の残りを JG.ult 秒縮める。
 //   外れ（間合いの中に当たりの近い敵がいない）：今までどおりの回避。合図は敵の予兆の赤いきらめき（fx4.js の vfwind）。
 'use strict';
-var JG = { win: 0.18, dmg: 30, ult: 3, inv: 0.6, slow: 0.25, slowT: 0.28, backT: 0.18 };
+var JG = { win: 0.7, winMin: 0.15, winMax: 0.32, dmg: 30, ult: 3, inv: 0.6, slow: 0.25, slowT: 0.28, backT: 0.18 };
+// 受付の幅：構え（攻撃の始まり→当たり）の後半7割。最短0.15秒・最長0.32秒（速い攻撃だけ極端に楽、遅い攻撃は押すだけ、にならないように）
+function jgWin(ak) { return Math.max(JG.winMin, Math.min(JG.winMax, ak.hitT * JG.win)); }
 function jgTargets() {
   var h = G.hero, out = [];
   for (var i = 0; i < G.enemies.length; i++) {
     var e = G.enemies[i], ak = e.atk; if (!ak || ak.done || e.state !== 'walk' || e.stun > 0 || e.bind > 0) continue;
-    var left = ak.hitT - ak.t; if (left < 0 || left > JG.win) continue;
+    var left = ak.hitT - ak.t; if (left < 0 || left > jgWin(ak)) continue;
     if (Math.abs(h.x - e.x) < 115 * e.size && Math.abs(h.y - e.y) < 44) out.push(e); // 当たりの判定（update.js）より少し広く
   }
   return out;

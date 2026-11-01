@@ -18,7 +18,7 @@ fs.mkdirSync('/tmp/jgt', { recursive: true });
     let e = setup(0.1); const hp0 = h.hp, cd0 = G.ultCD = 10;
     tryAttack('dodge'); out.ok = { jgN: G.jgN || 0, done: !e.atk || e.atk.done, stun: e.stun, eHpLost: e.max - e.hp, ultCD: G.ultCD, dodgeCD: G.dodgeCD, hstate: h.state, slow: !!G.jg };
     // 早すぎ：0.4秒前 → 普通の回避
-    G.jg = null; h.state = 'idle'; e = setup(0.4); tryAttack('dodge'); out.early = { jgN: G.jgN || 0, hstate: h.state };
+    G.jg = null; h.state = 'idle'; e = setup(0); e.atk.t = Math.max(0, e.atk.hitT - jgWin(e.atk) - 0.03); out.earlyLeft = +(e.atk.hitT - e.atk.t).toFixed(3); out.win = +jgWin(e.atk).toFixed(3); tryAttack('dodge'); out.early = { jgN: G.jgN || 0, hstate: h.state };
     // 遅すぎ（当たりの後）
     h.state = 'idle'; e = setup(-0.02); e.atk.done = true; G.dodgeCD = 0; tryAttack('dodge'); out.late = { jgN: G.jgN || 0, hstate: h.state };
     return out;
