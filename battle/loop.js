@@ -5,7 +5,7 @@
 var last = 0;
 function frame(ts) {
   var dt = Math.min(0.05, (ts - last) / 1000 || 0.016); last = ts;
-  update(dt * cineTick(dt)); draw(); // 寄りとスローは実時間で進める（battle/fx2.js の cineTick）
+  update(dt * cineTick(dt) * (typeof jgTick === 'function' ? jgTick(dt) : 1)); draw(); // 寄りとスローは実時間で進める（battle/fx2.js の cineTick）
   requestAnimationFrame(frame);
 }
 function boot() {

@@ -102,3 +102,28 @@ function foeSlam(f) {
   fxGroundSlam(x, f.y + 4, R, VFX_FOE_S, false, true);
   G.shake = Math.max(G.shake, f.big > 1 ? 7 : 3.5);
 }
+
+/* ===== ジャストガード（battle/jguard.js）：受け止めた瞬間の金属の火花。白金の閃光＋細い閃きの交差＋縦に立つ受けの弧＋床のむらの輪＋前へ散る火花 ===== */
+function fxJustGuard(x, y, dir, gy) {
+  var sp = []; for (var i = 0; i < 26; i++) { var a = (Math.random() - 0.5) * 2.2; sp.push({ vx: dir * Math.cos(a) * vR(300, 1100), vy: Math.sin(a) * vR(250, 800) - 120, life: vR(0.18, 0.45), s: vR(1, 2.2) }); }
+  G.fx.push({ type: 'vjguard', x: x, y: y, gy: gy, dir: dir, t: 0, life: 0.6, sp: sp, seed: Math.random() * 100 });
+}
+FX2.vjguard = function (f) {
+  var C = VFX_GOLD, t = f.t, x = f.x, y = f.y, d = f.dir;
+  if (t < 0.12) vGlow(x, y, 120 * (0.6 + t * 4), C, 1 - t / 0.12); // 閃光
+  var gl = Math.max(0, 1 - t / 0.2); // 細い閃きの交差（横に長く、斜めにもう1本）
+  vGlint(x, y, 190 * vEase(t / 0.04), -0.1 * d, C.main, C.core, gl);
+  vGlint(x, y, 110 * vEase(t / 0.05), 0.9 * d, C.main, C.core, gl * 0.8);
+  var k = vEase(t / 0.22), fa = Math.max(0, 1 - t / 0.35); // 受けの弧：相手の側に縦に立ち、外へ押し広がる
+  if (fa > 0) {
+    ctx.save(); ctx.translate(x + d * 18 * k, y); ctx.scale(d, 1); ctx.lineCap = 'round';
+    var L = [[C.glow, 7, 0.35], [C.main, 3, 0.8], [C.core, 1.2, 1]];
+    for (var l = 0; l < 3; l++) { ctx.strokeStyle = vrgba(L[l][0], L[l][2] * fa); ctx.lineWidth = L[l][1] * (0.5 + 0.5 * fa); ctx.beginPath(); ctx.ellipse(0, 0, 26 + 40 * k, 70 + 70 * k, 0, -1.25, 1.25); ctx.stroke(); }
+    ctx.restore();
+  }
+  if (typeof vRingN === 'function') vRingN(x, f.gy, 40 + 260 * vEase(t / 0.4), 4 * (1 - t / f.life), C.glow, 0.8 * (1 - t / f.life), f.seed, 0.25); // 床の輪
+  for (var i = 0; i < f.sp.length; i++) { // 火花（重力で落ちる細い筋）
+    var q = f.sp[i]; if (t > q.life) continue; var dr = Math.exp(-t * 4), px = x + q.vx * (1 - dr) / 4, py = y + q.vy * (1 - dr) / 4 + 420 * t * t;
+    vStreak(px, py, q.vx * dr, q.vy * dr + 840 * t, Math.min(36, Math.hypot(q.vx, q.vy) * dr * 0.04) + 3, q.s, i % 3 ? C.spark : C.core, 1 - t / q.life);
+  }
+};

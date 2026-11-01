@@ -92,6 +92,7 @@ function beginAttack(kind) {
 var DODGE = { dist: 250, dur: 0.24, inv: 0.32 };
 function tryDodge() {
   var h = G.hero;
+  if (G.dodgeCD <= 0 && typeof tryJustGuard === 'function' && tryJustGuard()) return; // 当たりの直前ならジャストガード（battle/jguard.js）
   if (G.dodgeCD > 0) { addText(h.x, h.y - 250, '回避 再使用まで ' + G.dodgeCD.toFixed(1) + '秒', 20, '#a8dcff', 0.7); return; }
   var ax = (keys.ArrowRight || keys.KeyD ? 1 : 0) - (keys.ArrowLeft || keys.KeyA ? 1 : 0) + pad.x;
   var ay = (keys.ArrowDown || keys.KeyS ? 1 : 0) - (keys.ArrowUp || keys.KeyW ? 1 : 0) + pad.y, m = Math.hypot(ax, ay);
