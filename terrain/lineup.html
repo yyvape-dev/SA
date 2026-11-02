@@ -27,24 +27,30 @@ pre{white-space:pre-wrap;background:#14110d;padding:10px;border-radius:8px;font-
   <button id="copy">数値をコピー</button>
 </header>
 <p class="n">会話の舞台と同じ縮尺（足元＝0、線は50ごと、数字は基準画素）。紫の線＝頭の高さ。下の倍率を動かすとその場で変わる。決まったら「数値をコピー」で送ってください（story.js の SIZE に入れる）。</p>
+<p class="n">「ラナ候補」「リリィ候補」「新キャラ（仮）」を試しに追加しています。候補の倍率1.00は既存のラナ・リリィ・ガロウの頭頂高に合わせた仮サイズです。候補は一覧表だけの表示です。</p>
 <div id="wrap"><div id="stage"></div></div>
 <div id="panel"></div>
 <pre id="out"></pre>
+<script>window.addEventListener("unhandledrejection", e => { const out = document.getElementById("out"); out.textContent = "読み込みエラー：" + (e.reason?.message || e.reason); out.setAttribute("role", "alert"); });</script>
 <script type="module">
+import { CANDIDATES, candidateImage } from './lineup-candidates.js?v=1';
 import { SIZE, LANA, ALLY_S, GEN_BODY, FOOT, GEN_NAME, NAME } from './story.js?v=1799000000';
 const meta = await fetch('assets/npc/gen_meta.json?v=1').then(r => r.json()).catch(() => ({}));
-const KEYS = ['rana', 'mina', 'garou', 'sera', 'ranka', 'lily', 'g1', 'g2', 'g3', 'g4', 'g5', 'g6', 'g6b'];
-const nameOf = k => NAME[k] || GEN_NAME[k] || k;
+const BASE_KEYS = ['rana', 'mina', 'garou', 'sera', 'ranka', 'lily', 'g1', 'g2', 'g3', 'g4', 'g5', 'g6', 'g6b'];
+const KEYS = BASE_KEYS.flatMap(k => k === 'rana' ? [k, 'c_rana'] : k === 'lily' ? [k, 'c_lily'] : k === 'garou' ? [k, 'c_guest'] : [k]);
+const nameOf = k => CANDIDATES[k]?.name || NAME[k] || GEN_NAME[k] || k;
 const S = { ...SIZE }, PX = .55; // 画面の縮尺（基準画素→画面）
-const srcOf = k => k === 'rana' ? '../sprites/idle_00.png' : /^g\d/.test(k) ? `assets/npc/gen_${k}.webp?v=1` : `../ally/${k}.png`;
-const imgs = {}; await Promise.all(KEYS.map(k => new Promise(r => { const im = new Image(); im.onload = im.onerror = () => r(); im.src = srcOf(k); imgs[k] = im; })));
+const srcOf = k => CANDIDATES[k] ? imgs[k].src : k === 'rana' ? '../sprites/idle_00.png' : /^g\d/.test(k) ? `assets/npc/gen_${k}.webp?v=1` : `../ally/${k}.png`;
+const imgs = {}, candidateHeights = {}; await Promise.all(BASE_KEYS.map(k => new Promise(r => { const im = new Image(); im.crossOrigin = 'anonymous'; im.onload = im.onerror = () => r(); im.src = srcOf(k); imgs[k] = im; })));
+await Promise.all(Object.entries(CANDIDATES).map(async ([k, v]) => { imgs[k] = await candidateImage(v.src); }));
 function headTop(im) { const c = document.createElement('canvas'), w = c.width = 200, h = c.height = Math.round(im.naturalHeight * 200 / im.naturalWidth), g = c.getContext('2d'); g.drawImage(im, 0, 0, w, h);
   const d = g.getImageData(0, 0, w, h).data; for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (d[(y * w + x) * 4 + 3] > 60) return y * im.naturalHeight / h; return 0; }
 const HT = {}; KEYS.forEach(k => { if (imgs[k].naturalWidth) HT[k] = headTop(imgs[k]); });
-const m = k => { const im = imgs[k]; if (k === 'rana') return { w: LANA.w, h: LANA.h, ax: LANA.ax, ay: LANA.ay, s: LANA.scale };
+const m = k => { const im = imgs[k]; if (CANDIDATES[k]) return { w: im.naturalWidth, h: im.naturalHeight, ax: im.naturalWidth / 2, ay: im.naturalHeight - 1, s: candidateHeights[k] / (im.naturalHeight - 1 - HT[k]) }; if (k === 'rana') return { w: LANA.w, h: LANA.h, ax: LANA.ax, ay: LANA.ay, s: LANA.scale };
   if (/^g\d/.test(k)) { const g = meta[k]; return g ? { w: g.w, h: g.h, ax: g.ax, ay: g.ay, s: (GEN_BODY[k] || 520) / g.body } : null; }
   return { w: im.naturalWidth, h: im.naturalHeight, ax: im.naturalWidth / 2, ay: im.naturalHeight - 1, s: ALLY_S }; };
 const head = k => { const q = m(k); return q ? Math.round((q.ay - HT[k]) * q.s * (S[k] || 1)) : 0; };
+Object.entries(CANDIDATES).forEach(([k, v]) => { candidateHeights[k] = head(v.ref); });
 let mode = 'all';
 const selA = document.getElementById('a'), selB = document.getElementById('b');
 KEYS.forEach(k => { selA.add(new Option(nameOf(k) + '（' + k + '）', k)); selB.add(new Option(nameOf(k) + '（' + k + '）', k)); }); selA.value = 'rana'; selB.value = 'garou';
@@ -57,7 +63,7 @@ function draw() { const st = document.getElementById('stage'), list = mode === '
       <div class="hd" style="left:${(x - 100) * PX}px;width:${200 * PX}px;top:${base - hy * PX}px"></div>
       <div class="lb" style="left:${x * PX - 75}px;top:${base + 6}px"><b>${nameOf(k)}</b>頭 ${hy}・×${(S[k] || 1).toFixed(2)}</div>`; });
   st.innerHTML = h;
-  document.getElementById('out').textContent = 'export const SIZE = { ' + KEYS.map(k => `${k}: ${+(S[k] || 1).toFixed(3)}`).join(', ') + ' };';
+  document.getElementById('out').textContent = 'export const SIZE = { ' + BASE_KEYS.map(k => `${k}: ${+(S[k] || 1).toFixed(3)}`).join(', ') + ' };\n// 候補の仮倍率（ゲーム本体の SIZE とは別）\nconst CANDIDATE_SIZE = { ' + Object.keys(CANDIDATES).map(k => `${k}: ${+(S[k] || 1).toFixed(3)}`).join(', ') + ' };';
   document.querySelectorAll('.row').forEach(r => { r.querySelector('span').textContent = `頭 ${head(r.dataset.k)}・×${(S[r.dataset.k] || 1).toFixed(2)}`; }); }
 document.getElementById('panel').innerHTML = KEYS.map(k => `<div class="row" data-k="${k}"><b>${nameOf(k)}</b>（${k}）　<span></span><input type="range" min="0.7" max="1.4" step="0.01" value="${S[k] || 1}"></div>`).join('');
 document.querySelectorAll('.row input').forEach(inp => inp.oninput = () => { S[inp.closest('.row').dataset.k] = +inp.value; draw(); });
