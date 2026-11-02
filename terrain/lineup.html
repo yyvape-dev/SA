@@ -21,7 +21,7 @@ button.on{background:#c9a24a;color:#1b1206;font-weight:bold}
 pre{white-space:pre-wrap;background:#14110d;padding:10px;border-radius:8px;font-size:13px;margin:10px 12px}
 .n{color:#f0c070;font-size:12px;padding:0 12px}
 </style></head><body>
-<header><b>キャラの大きさ比べ</b>
+<header><a href="battle-lineup.html?mode=duel">一騎打ち</a> <a href="battle-lineup.html?mode=action">アクション</a> <b>キャラの大きさ比べ</b>
   <button id="all" class="on">全員</button><button id="two">2人</button>
   <select id="a"></select><select id="b"></select>
   <button id="copy">数値をコピー</button>
@@ -31,7 +31,7 @@ pre{white-space:pre-wrap;background:#14110d;padding:10px;border-radius:8px;font-
 <div id="panel"></div>
 <pre id="out"></pre>
 <script type="module">
-import { SIZE, LANA, ALLY_S, GEN_BODY, FOOT, GEN_NAME, NAME } from './story.js?v=1798300000';
+import { SIZE, LANA, ALLY_S, GEN_BODY, FOOT, GEN_NAME, NAME } from './story.js?v=1799000000';
 const meta = await fetch('assets/npc/gen_meta.json?v=1').then(r => r.json()).catch(() => ({}));
 const KEYS = ['rana', 'mina', 'garou', 'sera', 'ranka', 'lily', 'g1', 'g2', 'g3', 'g4', 'g5', 'g6', 'g6b'];
 const nameOf = k => NAME[k] || GEN_NAME[k] || k;
@@ -67,3 +67,4 @@ selA.onchange = selB.onchange = () => { if (mode !== 'two') document.getElementB
 document.getElementById('copy').onclick = async () => { const t = document.getElementById('out').textContent; try { await navigator.clipboard.writeText(t); alert('コピーした'); } catch (e) { prompt('コピーしてください', t); } };
 draw();
 </script></body></html>
+

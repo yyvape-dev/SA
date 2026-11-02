@@ -135,7 +135,7 @@ const ALLY_S = .75, OTHER_X = 650;           // 仲間の全身（高さ640）�
 const GEN_BODY = { g1: 540, g2: 520, g3: 490, g4: 560, g5: 510, g6: 500, g6b: 520 }; // 敵将の体の高さ（基準画素。仲間＝480）
 const GEN_DX = { g1: -50 }; // 立ち位置の調整（武器が画面の外に出る人だけ）
 // 2026-11-01 大きさの調整（会話の舞台だけ）。1＝今のまま。?grid=1 のガイド線に「頭の高さ（足元からの基準画素）」と倍率が出るので、それを見て直す
-export const SIZE = { rana: 1, mina: 1, garou: 1.09, sera: 1, ranka: .96, lily: .9, g1: 1, g2: 1, g3: 1, g4: 1, g5: 1, g6: 1, g6b: 1 };
+export const SIZE = { rana: 1, mina: 1.03, garou: 1.18, sera: 1.04, ranka: 1.05, lily: 1, g1: 1.05, g2: 1.07, g3: 1.01, g4: 1.06, g5: 1.12, g6: 1.2, g6b: 1.18 };
 const GRID = () => { try { return new URLSearchParams(location.search).has('grid'); } catch (e) { return false; } };
 const headCache = new Map();
 function headTop(img) { // 絵の一番上の不透明な画素（元の絵の画素）
@@ -253,3 +253,4 @@ export function createStory() {
   return { play, close };
 }
 export { LANA, ALLY_S, GEN_BODY, FOOT, REF_H, GEN_NAME, NAME }; // 2026-11-01 lineup.html（大きさを比べる資料のページ）用
+

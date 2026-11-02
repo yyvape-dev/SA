@@ -5,7 +5,7 @@ import { createGL } from './fx_gl.js?v=1794800000';
 import * as GM from './game.js?v=1798200000';
 import { createUI } from './ui.js?v=1793650000';
 import { createMorning } from './morning.js?v=1793800000';
-import { createStory, SCENES } from './story.js?v=1798200000';
+import { createStory, SCENES } from './story.js?v=1799000000';
 import * as EV from './events.js?v=1798200000';
 import { slashFX, impactFX, clashFX, chargeFX, rallyFX, starFX, hitStop, isHeld, shaker, FXPAL, burstFX, crackFX, chainFX, glyphFX, smokeFX, warpFX } from './fx_slash.js?v=1794700000';
 
@@ -1796,3 +1796,4 @@ window.__t.plots = plots; window.__t.G = () => G; window.__t.playDuel = playDuel
 requestAnimationFrame(frame);
 if (!params.has('duel') && !params.has('field') && !params.has('dev')) setTimeout(() => { if (!G.repPrev && !skirmPlaying) chapterStartScene(() => weekEvents()); }, 400); /* 2026-11-01 アクション戦闘から戻って章の終わりの会話・朝の報告を出している間は、章の始まりを重ねない（朝の報告を閉じた時に出る）。不具合：将軍に自分で勝つと、終わりの会話が次の章の始まりに上書きされていた */ /* ?dev（発展度の確かめ）は会話を出さない */ // 新しいゲームの第1章、または保存の途中の章の始まり
 window.__t.story = (c, kind) => playStory(c, kind || 'start', () => refreshUI());
+
