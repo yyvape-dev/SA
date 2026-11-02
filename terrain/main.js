@@ -1246,7 +1246,7 @@ function clipActor(el, sp, clips, base, T, run, runBase) { // 動画由来の連
       start({ Lo: lay[ci], ts, end, done: idle }, at);
       return { c, hitAt: at + ts[c.hit] }; } };
 }
-const HUMAN = { rana: 176, mina: 181, sera: 181, ranka: 174, garou: 196, lily: 162, sol: 200, f1: 200, f2: 182, f3: 194, f4: 182, g1: 200, g2: 196, g3: 178, g4: 205, g5: 186, g6: 182, g6b: 186 }; /* 2026-10-30 ゲーム全体の背の高さ（battle/core.js の HEIGHT と同じ比。×0.86 で、一騎打ち・任せた戦闘の画面の大きさは従来並み） */ // 見た目の背の高さ：一騎打ちと戦場の大きさをこれで揃える。槍の穂先・兜の飾りが測った高さに入る絵は大きめの値（並べて目で合わせた値）
+const HUMAN = { rana: 197.12, mina: 204.53, sera: 211.77, ranka: 205.32, garou: 233.24, lily: 196.02, sol: 200, f1: 200, f2: 182, f3: 194, f4: 182, g1: 230, g2: 231.28, g3: 215.38, g4: 237.8, g5: 234.36, g6: 249.34, g6b: 251.1 }; /* 2026-11-02 比較シートで採用した一騎打ち・任せた戦闘の基準高。アクションの HEIGHT とは独立して調整する。 */
 const duelSel = document.createElement('div'); duelSel.id = 'dsel'; document.body.appendChild(duelSel);
 const bustBG = (look, duel) => { if (G.raid && G.raid.vice) return G.raid.vice === 'g1' ? 'url(assets/npc/bust_g1.webp)' : `url(assets/npc/bust_${look}.webp)`; const g = G.raid && G.raid.gen; const n = g ? 'g' + g + (g === 6 && duel ? 'b' : '') : look; return `url(assets/npc/bust_${n}.webp),url(assets/npc/bust_${look}.webp)`; }; /* 大公（第6章）は、一騎打ちで悪魔の姿（g6b） */ /* 章の将軍は bust_g<章>.webp（無ければ従来の胸像） */
 const duelRank = () => G.raid && (G.raid.boss || G.raid.gen) ? 'boss' : G.raid && GM.e0(G.raid) >= 30 ? 'vice' : 'cap';

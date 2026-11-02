@@ -2,6 +2,12 @@
 
 プロジェクトの `03` の「引き継ぎ」の先頭に、そのまま貼る用。
 
+## 2026-11-02 一騎打ち・アクションのサイズを比較シートの採用値へ
+* ユーザーがコピーした HUMAN／HEIGHT／将軍HUをそのまま反映。HUMANは一騎打ちと任せた戦闘で共有、アクションは独立。指定されていない補正（奥行き・将軍×1.12・走り倍率）と会話のSIZEは維持。
+* terrain/index.html のmain.js、ルートindex.htmlのbattle/core.jsのキャッシュ番号を更新。旧「ゲーム全体で同比率」のコメントを独立調整に合わせて修正。
+* 検証：構文チェック、ChromiumでHUMAN／HEIGHT／HUの全指定値の一致、両比較モードの素材表示、敵将×1.12補正の維持を確認。一騎打ち本体もsa-duel-checkの手順で第5章（リリィ＋ランカ対ヘルマン）を撮影、表示とエラーなしを確認。実機は未確認。
+* 確認用URL：terrain/battle-lineup.html?mode=duel、terrain/battle-lineup.html?mode=action。倍率1.00が今回の採用値。
+
 ## 2026-11-02 立ち絵のSIZE調整・戦闘の大きさ比較シート
 * ユーザー指定の SIZE を story.js に反映：rana 1 / mina 1.03 / garou 1.18 / sera 1.04 / ranka 1.05 / lily 1 / g1 1.05 / g2 1.07 / g3 1.01 / g4 1.06 / g5 1.12 / g6 1.2 / g6b 1.18。main.js と lineup.html の story.js のキャッシュ番号を更新。朝の報告 morning.js は独立設定のため今回の変更対象外。
 * `terrain/battle-lineup.html?mode=duel` / `?mode=action` と共通 `battle-lineup.js` を追加。既存 lineup.html からリンク。全員／2人、50ごとの線、基準高、倍率スライダー・数値入力、構え／走り／攻撃、停止・コマ送り、数値コピー。倍率はモード別、ページ内のみ。ゲームの戦闘サイズは未変更。
