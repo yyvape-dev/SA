@@ -2,6 +2,11 @@
 
 プロジェクトの `03` の「引き継ぎ」の先頭に、そのまま貼る用。
 
+## 2026-11-02 ラナ候補の色調調整版をキャラ表へ追加
+* ユーザー指定で、元の衣装の色配置を維持した色調調整版を `terrain/assets/candidates/rana-tone.webp` に追加。`c_rana_tone`＝「ラナ候補・色調調整」。元の候補も残し、同じ頭頂高で全員／2人比較・倍率変更ができる。採用画像・戦闘設定は変更しない。
+* lineup-candidates.js のキャッシュを更新。lineup.html は有効なa/bクエリで2人を初期選択できる。
+* 確認URL：https://yyvape-dev.github.io/SA/terrain/lineup.html?a=c_rana&b=c_rana_tone&v=tone1
+
 ## 2026-11-02 キャラの大きさ比べに立ち絵候補3人を追加
 * ユーザーの指定は会話画面への差し替えではなく、既存の `terrain/lineup.html` への試し置き。既存13人にラナ候補（c_rana）、リリィ候補（c_lily）、新キャラ（c_guest）を追加。全員／2人の選択、倍率、コピーに対応。採用済みの立ち絵・戦闘設定は変更しない。
 * 原画像3枚を `terrain/assets/candidates/{rana,lily,guest}.jpg` に保存。`lineup-candidates.js` が表示時だけマゼンタを透明化して余白を取り、描き直さず表示する。候補の倍率1は、ラナ・リリィ・ガロウそれぞれの現行頭頂高（約468／479／566基準画素）に合わせた仮サイズ。

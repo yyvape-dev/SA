@@ -27,17 +27,17 @@ pre{white-space:pre-wrap;background:#14110d;padding:10px;border-radius:8px;font-
   <button id="copy">数値をコピー</button>
 </header>
 <p class="n">会話の舞台と同じ縮尺（足元＝0、線は50ごと、数字は基準画素）。紫の線＝頭の高さ。下の倍率を動かすとその場で変わる。決まったら「数値をコピー」で送ってください（story.js の SIZE に入れる）。</p>
-<p class="n">「ラナ候補」「リリィ候補」「新キャラ（仮）」を試しに追加しています。候補の倍率1.00は既存のラナ・リリィ・ガロウの頭頂高に合わせた仮サイズです。候補は一覧表だけの表示です。</p>
+<p class="n">「ラナ候補」「ラナ候補・色調調整」「リリィ候補」「新キャラ（仮）」を試しに追加しています。候補の倍率1.00は既存のラナ・リリィ・ガロウの頭頂高に合わせた仮サイズです。候補は一覧表だけの表示です。</p>
 <div id="wrap"><div id="stage"></div></div>
 <div id="panel"></div>
 <pre id="out"></pre>
 <script>window.addEventListener("unhandledrejection", e => { const out = document.getElementById("out"); out.textContent = "読み込みエラー：" + (e.reason?.message || e.reason); out.setAttribute("role", "alert"); });</script>
 <script type="module">
-import { CANDIDATES, candidateImage } from './lineup-candidates.js?v=1';
+import { CANDIDATES, candidateImage } from './lineup-candidates.js?v=2';
 import { SIZE, LANA, ALLY_S, GEN_BODY, FOOT, GEN_NAME, NAME } from './story.js?v=1799000000';
 const meta = await fetch('assets/npc/gen_meta.json?v=1').then(r => r.json()).catch(() => ({}));
 const BASE_KEYS = ['rana', 'mina', 'garou', 'sera', 'ranka', 'lily', 'g1', 'g2', 'g3', 'g4', 'g5', 'g6', 'g6b'];
-const KEYS = BASE_KEYS.flatMap(k => k === 'rana' ? [k, 'c_rana'] : k === 'lily' ? [k, 'c_lily'] : k === 'garou' ? [k, 'c_guest'] : [k]);
+const KEYS = BASE_KEYS.flatMap(k => k === 'rana' ? [k, 'c_rana', 'c_rana_tone'] : k === 'lily' ? [k, 'c_lily'] : k === 'garou' ? [k, 'c_guest'] : [k]);
 const nameOf = k => CANDIDATES[k]?.name || NAME[k] || GEN_NAME[k] || k;
 const S = { ...SIZE }, PX = .55; // 画面の縮尺（基準画素→画面）
 const srcOf = k => CANDIDATES[k] ? imgs[k].src : k === 'rana' ? '../sprites/idle_00.png' : /^g\d/.test(k) ? `assets/npc/gen_${k}.webp?v=1` : `../ally/${k}.png`;
@@ -71,6 +71,8 @@ document.getElementById('all').onclick = () => { mode = 'all'; document.getEleme
 document.getElementById('two').onclick = () => { mode = 'two'; document.getElementById('two').classList.add('on'); document.getElementById('all').classList.remove('on'); draw(); };
 selA.onchange = selB.onchange = () => { if (mode !== 'two') document.getElementById('two').click(); else draw(); };
 document.getElementById('copy').onclick = async () => { const t = document.getElementById('out').textContent; try { await navigator.clipboard.writeText(t); alert('コピーした'); } catch (e) { prompt('コピーしてください', t); } };
+const params = new URLSearchParams(location.search);
+if (KEYS.includes(params.get('a')) && KEYS.includes(params.get('b'))) { selA.value = params.get('a'); selB.value = params.get('b'); mode = 'two'; document.getElementById('all').classList.remove('on'); document.getElementById('two').classList.add('on'); }
 draw();
 </script></body></html>
 

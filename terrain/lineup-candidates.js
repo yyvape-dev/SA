@@ -1,6 +1,7 @@
 // Trial assets for the size comparison page only. No production character settings are changed.
 export const CANDIDATES = {
   c_rana: {name:'ラナ候補',ref:'rana',src:'assets/candidates/rana.jpg'},
+  c_rana_tone: {name:'ラナ候補・色調調整',ref:'rana',src:'assets/candidates/rana-tone.webp'},
   c_lily: {name:'リリィ候補',ref:'lily',src:'assets/candidates/lily.jpg'},
   c_guest: {name:'新キャラ（仮）',ref:'garou',src:'assets/candidates/guest.jpg'}
 };
