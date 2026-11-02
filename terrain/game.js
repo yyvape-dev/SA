@@ -35,11 +35,11 @@ export const STAGE = ['空き地', '建築中', '完成', '発展後'];
 export const CH_LEN = 6;
 export const CHAPTERS = [ // area＝章の始まりに自動で開く区域（無料。仲間もそこで加入）。null＝まだ区域が無い（②で追加）。g＝章の将軍。bust＝胸像のファイル（無ければ従来の bust_4）
   { t: '逃亡の朝', d: '処刑されるはずだった女王を、民はまだ信じない。', area: null, g: '山賊頭グレン', E: [13, 15, 18] },
-  { t: '斧の値段', d: '金で振る斧と、主のために振る斧。', area: 'east', g: '傭兵団長ボルグ', E: [17, 19, 23] },
-  { t: '本の虫と鉄の花', d: '知恵者の過去が、敵の陣に立っている。', area: 'lake', g: '女騎士エルザ', E: [22, 24, 28] },
-  { t: '星が震える', d: 'これは、ただの謀反ではなかった。', area: 'forest', g: '黒騎士', E: [27, 29, 33] },
-  { t: '師の剣', d: '剣を教えてくれた人と、刃を交える。', area: 'pass2', g: '総大将ヘルマン', E: [32, 35, 39] },
-  { t: '月夜の回廊', d: '女王は、国へ帰る。', area: 'capital', g: '大公ヴァルド', E: [38, 41, 46] },
+  { t: '斧の値段', d: '今日の食事と、来年まく種。同じ麦を、どう分けるか。', area: 'east', g: '傭兵団長ボルグ', E: [17, 19, 23] },
+  { t: '本の虫と鉄の花', d: '帳面の中の国と、網を失った人たち。', area: 'lake', g: '女騎士エルザ', E: [22, 24, 28] },
+  { t: '星が震える', d: '戻らない七人。救う道を選んでも、残るものがある。', area: 'forest', g: '黒騎士', E: [27, 29, 33] },
+  { t: '師の剣', d: '守るという言葉で、何を閉じ込めてきたのか。', area: 'pass2', g: '総大将ヘルマン', E: [32, 35, 39] },
+  { t: '月夜の回廊', d: '同じ王座へ、違う約束を持って帰る。', area: 'capital', g: '大公ヴァルド', E: [38, 41, 46] },
 ];
 export const WEEKS = CH_LEN * CHAPTERS.length;
 export const chapterOf = w => Math.min(CHAPTERS.length, Math.max(1, Math.ceil(w / CH_LEN)));
@@ -97,7 +97,7 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const mult = st => (st === 2 ? 1 : st === 3 ? 2 : 0);
 
 export function newState(areaDefs) {
-  return { week: 1, ap: 3, sup: 10, morale: 60, troops: 4, hp: 3, plots: {}, open: [], bond: { mina: 0, garou: 0, sera: 0, ranka: 0, lily: 0 }, met: {}, assign: {}, battle: null, scouted: {}, tired: false, over: null, why: '', raid: null, log: [], chStart: 1, areaDefs: areaDefs.map(a => ({ id: a.id, name: a.name, cost: a.cost, income: a.income })) };
+  return { storyVersion: 2, storyChoices: {}, skirmResults: {}, chapterResults: {}, week: 1, ap: 3, sup: 10, morale: 60, troops: 4, hp: 3, plots: {}, open: [], bond: { mina: 0, garou: 0, sera: 0, ranka: 0, lily: 0 }, met: {}, assign: {}, battle: null, scouted: {}, tired: false, over: null, why: '', raid: null, log: [], chStart: 1, areaDefs: areaDefs.map(a => ({ id: a.id, name: a.name, cost: a.cost, income: a.income })) };
 }
 
 // ---------- 指標（全部ここから計算） ----------
@@ -207,8 +207,9 @@ export function resolve(s, mode, rnd = Math.random, forced) { // forced: アク�
   s.raid = null;
   if (R.gen) s.chEnd = { c: R.gen, win: !!ok }; // 章の終わりの会話（main.js が出す）
   if (R.boss && mode !== 'auto' && !ok && m - 7 >= 4) { ok = true; t += '押し返されたが、守りの厚さで持ちこたえた・'; } // 2026-11-01 自分で戦って負けても、防衛力の差が大きければ持ちこたえる（一騎打ちと同じく約1段の不利）
+  if (R.gen) { s.chEnd.win = !!ok; s.chapterResults ||= {}; s.chapterResults[R.gen] = !!ok; }
   if (R.kind === 'raid') s.merc = 0; // 傭兵は1回の襲撃で去る
-  if (R.boss) { s.over = ok ? 'win' : 'lose'; s.why = ok ? '大公を討ち、国を取り戻した' : '大公の軍に城を落とされた'; s.log.push(t + (ok ? '勝利' : '敗北')); return t + (ok ? '勝利' : '敗北'); }
+  if (R.boss) { s.over = ok ? 'win' : 'lose'; s.why = ok ? '大公を倒し、国を取り戻した' : '大公の軍に城を落とされた'; s.log.push(t + (ok ? '勝利' : '敗北')); return t + (ok ? '勝利' : '敗北'); }
   if (R.kind === 'sortie') { const n = R.sent || 0; let lost = 0;
     if (ok) { const g = sortieGain(n) + (mode === 'hand' ? 2 : 0); s.sup += g; s.morale += 3; t += `勝利 物資+${g}`; }
     else if (tier === 1) { lost = 1; s.morale -= 5; t += '苦戦 兵力-1 民心-5'; }
@@ -357,7 +358,7 @@ export function duelRound(plan, i, order, rnd = Math.random) { // order: 鬨の�
 export const GEN_LINES = {
   1: { open: ['首はもらったぜ、女王さまよ！'], heavy: ['ぶった斬ってやらぁ！'], win: ['へっ、他愛もねえ。'], lose: ['ちくしょう……割に合わねえ……！'] },
   2: { open: ['来い。教えた斧で、俺を割れるか？'], heavy: ['団長の一撃、忘れたか！'], win: ['まだまだだな。'], lose: ['……ちっ、腕を上げやがって。'],
-    vs: { garou: ['金で振る斧と、主のために振る斧の違いを見せてやりまさぁ。', 'ガロウ、てめえか。……いいだろう、来い。'] },
+    vs: { garou: ['村の麦は、渡さねえ。今夜の飯が掛かってるんでさぁ。', 'ガロウ、てめえか。……いいだろう、来い。'] },
     vsWin: { garou: ['あんたに教わった斧でさぁ。……振る理由が違うだけで。', 'ちっ……主持ちの斧ってのは、重てえもんだな。'] },
     vsLose: { garou: ['理由じゃ斧は重くならねえ。出直してこい、ガロウ。', '……まだ、あんたの背中は遠いか。'] } },
   3: { open: ['剣を抜きなさい。手加減はしない。'], heavy: ['これで、終わりよ！'], win: ['ここまでよ。'], lose: ['……見事、ね。'],
@@ -367,10 +368,10 @@ export const GEN_LINES = {
   4: { open: ['……ウ……ガ……'], heavy: ['グ……ォォォ……！'], hit: ['ガァッ！', 'ギ……ィ……！'], hurt: ['グ……', 'ゴ……ァ……'], win: ['…………'], lose: ['ガ……ァ……'],
     vs: { ranka: ['……その中身、引きずり出してあげるよ。', '……ニ……ン……ゲ……ン……'] },
     vsWin: { ranka: ['ほらね。鎧の中身、空っぽじゃない。', '……ガ……ァ……'] },
-    vsLose: { ranka: ['……グ……ォ……ォ……', '……っ、これが悪魔の力ってやつ？ 次は外さないよ。'] } },
+    vsLose: { ranka: ['……グ……ォ……ォ……', '……人のいる所じゃ、振れないね。道を変えるよ。'] } },
   5: { open: ['構えよ。剣に情けは要らぬ。'], heavy: ['受けてみよ、王国の剣を！'], win: ['まだ届かぬか。'], lose: ['……見事だ。'],
-    vs: { lily: ['迷いのある剣には、負けません！', '異国の騎士か。……良い構えだ。'] },
-    vsWin: { lily: ['あなたの剣、最後まで迷っていました。', '……見抜かれたか。良い目だ、異国の騎士よ。'] },
+    vs: { lily: ['門の向こうを、見なかったことにはできません！', '異国の騎士か。……良い構えだ。'] },
+    vsWin: { lily: ['守る門を、もう一度確かめてください。', '……門の奥を、見ておくべきだった。'] },
     vsLose: { lily: ['迷いを見抜く目はある。だが、剣がまだ軽い。', '……っ、ラナさん、ごめんなさい……！'] } },
   6: { open: ['跪け。我は王となる者ぞ。'], heavy: ['この力の前に、消え失せよ！'], win: ['所詮は、人の身よ。'], lose: ['バカな……この力が……！'],
     vs: { rana: ['叔父上。……これで、終わりにします。', 'ラナ……兄上の娘よ、ここで果てよ。'] },
@@ -403,8 +404,8 @@ export const GLENN_LINES = {
   2: { open: ['借りを返しに来たぜ、女王さまの犬ども！'], heavy: ['山賊の意地、見せてやらぁ！'], win: ['へっ、ざまあみろ！'], lose: ['ちくしょう……また負けかよ！'] },
   3: { open: ['騎士さまの用心棒だ。今度は手加減しねえぜ！'], heavy: ['盗まねえで、勝ってやる……！'], win: ['どうだ、まっとうに勝ったぜ！'], lose: ['……ちっ。まっとうにやっても、負けか。'] },
   4: { open: ['あ、あの黒いのよりは、てめえらの方がマシだ……行くぜ！'], heavy: ['怖くなんか、ねえぞ……！'], win: ['へ、へへ……勝っちまった。'], lose: ['……借りが、増えちまったな。'] },
-  5: { open: ['じいさんに言われたんだ。あんたらを、よく見とけってな！'], heavy: ['これが、グレンさまの全力だ！'], win: ['見たか、じいさん！'], lose: ['……なるほどな。こりゃ、王の器ってやつか。'] },
-  6: { open: ['最後の手合わせだ。手加減したら承知しねえぞ！'], heavy: ['民を逃がす時間くらい、稼いでやらぁ！'], win: ['……へっ。これで心置きなく、民の盾になれるぜ。'], lose: ['……行けよ、女王さま。大公の野郎を、ぶっ飛ばしてこい。'] },
+  5: { open: ['今夜の持ち場だ。まだ、ここを空けるわけにはいかねえ！'], heavy: ['これが、グレンさまの全力だ！'], win: ['見たか、じいさん！'], lose: ['……なるほどな。誰の飯を奪ってたのか、考えちまうな。'] },
+  6: { open: ['民を先に出す！ ここの門は、俺が押さえる！'], heavy: ['民を逃がす時間くらい、稼いでやらぁ！'], win: ['……へっ。これで心置きなく、民の盾になれるぜ。'], lose: ['……行けよ、女王さま。大公の野郎を、ぶっ飛ばしてこい。'] },
 };
 export const DUEL_LINES = {
   mina: { open: ['姫のために……負けない。', '……本気で、やるから。'], hit: ['そこっ！', '当たれ！', 'これでどう！'], hurt: ['くっ……まだ！', 'いったぁ……！'], win: ['姫……見てた？ やったよ。'], lose: ['ごめん、姫……。'] },

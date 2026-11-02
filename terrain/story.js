@@ -7,128 +7,9 @@ const NAME = { mina: 'ミナ', garou: 'ガロウ', sera: 'セラ', ranka: 'ラ�
 const splitTitle = n => { const m = /^(.+?)([ァ-ヶー]+)$/.exec(n || ''); return m ? [m[1], m[2]] : ['', n || '']; };
 const NUM = ['', '一', '二', '三', '四', '五', '六'];
 const GEN_NAME = { g1: '山賊頭グレン', g2: '傭兵団長ボルグ', g3: '女騎士エルザ', g4: '黒騎士', g5: '総大将ヘルマン', g6: '大公ヴァルド', g6b: '大公ヴァルド' }; // 台詞の話し手に 'g2' などと書くと、その将軍として出す。'@村の老人' は絵なしの話し手
-export const SCENES = {
-  1: { pro: [['rana', 'はぁ……はぁ……\nミナ、待って……\nもう、足が……'],
-      ['mina', 'あと少し。\n森を抜ければ、\n追っ手もまける。'],
-      ['rana', '……父上が亡くなって、\nまだ一月も経たないのに。'],
-      ['rana', '父上を毒で殺したのは\nわたしだって……\n叔父上は、そう言ったわ。'],
-      ['mina', 'そんなの、\n誰も信じてない。\n……わたしは、信じてない。'],
-      ['rana', 'でも、民は信じたわ。\n広場の石が、\nわたしに向かって飛んできた。'],
-      ['mina', '大公が、\nそう信じさせたんだよ。\n女王が邪魔だから。'],
-      ['rana', 'わたし、何もできなかった。\n縄をかけられても、\n泣くことしか……'],
-      ['mina', '……だから、\nわたしが縄を切ったの。\n姫を守るのが、仕事だもん。'],
-      ['rana', 'これから、どうすれば……\nわたしには、\nもう何も残ってないのに。'],
-      ['mina', '北の外れに、\nわたしの育った街がある。\n貧しいけど、隠れるには十分。'],
-      ['mina', '生きてれば、取り返せる。\n……とにかく、生きて。'],
-      ['rana', '……うん。\n行きましょう、ミナ。']],
-    pre: [['foe', 'おうおう、こいつが\n噂の逃げ出した女王さまか。'], ['foe', '首を持ってけば、\n大公さまが金貨を\n山ほどくれるって話でな。'], ['mina', '姫には、指一本\n触れさせない。'], ['rana', 'こ、怖くなんか……ない。\nこの街は、\nわたしが守る！']],
-    start: [['mina', '着いたよ、姫。\nここが、わたしの育った街。'],
-      ['rana', '……人が、\nほとんどいないのね。'],
-      ['mina', '山賊に、\n何度も襲われてるんだって。\n領主も、とっくに逃げた。'],
-      ['mina', '姫、ここなら追っ手も来ない。\n……しばらくは、ね。'],
-      ['rana', '……あの子たち、\nわたしを見て逃げたわ。'],
-      ['mina', '民はまだ、姫を怖がってる。\n処刑されるはずだった女王だもん。\n……でも、わたしは知ってるから。'],
-      ['rana', 'ねえ、ミナ。\n山賊は、また来るの？'],
-      ['mina', '来るよ。\n次の収穫の頃に。\n……街の人は、もう諦めてる。'],
-      ['rana', '……わたし、隠れに来たのよね。\n戦うなんて、\nできるかもわからない。'],
-      ['rana', 'でも……\nここで背を向けたら、\nあの広場と同じになる。'],
-      ['rana', '剣なんて、\n昔ヘルマン先生に\n少し習っただけなのに。'],
-      ['mina', '……振り方なら、\nわたしが付き合う。'],
-      ['rana', 'ありがとう、ミナ。\nこの街を守る。\n……ここから始めましょう。'],
-      ['mina', '……べ、別に、\n姫が心配なだけだから。']],
-    win: [['foe', 'ちっ……\nただの小娘じゃなかったか。'], ['mina', 'どこまでも付いてくよ。\n……べ、別に当然でしょ。'], ['rana', '民が、少しだけ笑ってくれた。'],
-      ['mina', '……ね、姫。\nパン屋のおばさんが、\n姫にって、これくれた。'], ['rana', '……温かいわね。\n守らなきゃ、この街を。']] },
-  2: { start: [['rana', '街の倉が、\nもう空っぽなの。\n東の村と、麦を分け合えたら……'],
-      ['mina', 'でも東は、\n傭兵がうろついてるって。'],
-      ['garou', 'おっと、そこまでだ。\nこの村に用があるなら、\nまず俺の斧を越えてもらおうか。'],
-      ['rana', '待って。\nわたしたちは、\n村を守りに来たの。'],
-      ['garou', '……その赤い襟巻き。\nまさか、処刑台から消えたっていう\n女王さまですかい？'],
-      ['rana', '……ええ。\n父殺しの女王よ。\n……そう呼ばれているわ。'],
-      ['garou', 'ハッ。\n父殺しが、\n他人の村を守りに来るかね。'],
-      ['garou', '俺はガロウ。\n元は傭兵でさぁ。\n村を焼けって命令が嫌で、\n団を抜けた半端者で。'],
-      ['garou', '団長は、\n拾ってくれた恩人でね。\n斧の振り方も生き方も、\nあの人に教わった。'],
-      ['rana', 'わたし、\n人を率いたことなんてないの。\nうまくやれる自信もない。'],
-      ['rana', 'それでも、\n村が焼かれるのは嫌。\n……力を、貸してくれない？'],
-      ['garou', '……自信がねえって、\n正直に言う大将は初めてだ。'],
-      ['garou', 'ガハハ！\n気に入った！\n姫、東の地は\n俺に任せてくだせえ。'],
-      ['garou', '……ただ、向こうの傭兵団に、\n見覚えのある旗がありやしてね。'],
-      ['rana', 'ガロウ？'],
-      ['garou', 'なに、昔の話でさぁ。'], ['mina', 'ふうん。\n昔の話なら、今は\n姫の味方ってことでいいんだよね？'], ['garou', 'へい。そこは\n斧に誓いまさぁ。']],
-    pre: [['foe', 'よう、ガロウ。\n生きてやがったか。'], ['garou', '団長……\nあんたが謀反側に付くとはな。'], ['foe', '金払いがいいほうに付く。\nそれが傭兵だろうが。\n教えたのは、俺だぜ。'], ['garou', 'ああ、教わりやした。\n……だから今日は、\nそれを返しに来たんでさぁ。'], ['mina', '姫、下がってて。\nあの斧、本物だよ。'], ['rana', 'ガロウ……\n負けないで。']],
-    win: [['foe', '金で振る斧の方が、\nよっぽど楽だったろうに。'], ['garou', '金で振る斧と、\n主のために振る斧の違い……\n見せてやりましたぜ。'], ['garou', '団長、行きな。\nもう二度と、\n姫の前に立つんじゃねえ。'],
-      ['foe', '……ちっ。\n甘くなりやがって。\n……達者でな、ガロウ。'], ['rana', '見逃して、よかったの？'], ['garou', 'あの人に斧を教わったのは、\n俺でさぁ。\n……これで、貸し借りなしだ。'], ['mina', 'ガロウ。\n……ちょっとだけ、\nかっこよかったよ。'], ['garou', 'ミナ嬢に褒められるたぁ、\n明日は槍が降りますぜ。']] },
-  3: { start: [['rana', 'ガロウのおかげで、\n東の村とも\n麦を分け合えるようになった。'],
-      ['garou', 'ただ、帳簿をつけられる奴が\nいねえんでさぁ。\n俺もミナ嬢も、数字はさっぱりで。'],
-      ['mina', '……わたしは、\nちょっとはできるし。'],
-      ['rana', '湖のほとりの修道院……\n誰か、いるの？'],
-      ['sera', 'ひゃっ！？\nご、ごめんなさい、\n兵隊さんかと思って……！'],
-      ['sera', 'わたし、ここで\n古い帳簿や記録を\n守っていたんです。\n戦で、焼かれないように。'],
-      ['rana', '一人で？'],
-      ['sera', '……はい。\n本しか、友だちがいなくて。'],
-      ['sera', '家は、湖畔の古い騎士の家です。\n……もう落ちぶれて、\n誰も残っていませんけど。'],
-      ['sera', '姉が二人いて、\nわたしだけ、\n剣より本が好きで。'],
-      ['sera', 'あの……姫さま。\n一つだけ、\nお伝えしたいことが。'],
-      ['sera', '先王さまのお薬の記録が、\nここにも写しで届いていて……\n日付が、合わないんです。'],
-      ['rana', '……え？'],
-      ['sera', '姫さまがお薬を運んだ日と、\n先王さまが倒れた日。\n記録では、三日ずれています。'],
-      ['rana', '……わたしじゃないって、\n信じてくれるの？'],
-      ['sera', '信じる、というより……\n数字は、嘘をつきませんから。'],
-      ['rana', '……泣いちゃだめ。\nわたしは、もう\n守られるだけじゃない。'],
-      ['rana', 'セラ。わたしたちには、\n数字を読める人が足りないの。\n力を貸してくれる？'],
-      ['sera', 'あの、姫さま……\n本日より内政を預かります、\nセラです。帳簿は、得意です。'],
-      ['sera', '……向こうの陣に、\n懐かしい紋章が見えました。\n気のせいだと、いいのですが。'], ['garou', 'セラ嬢、心配いらねえ。\n紋章が何だろうと、\n俺の斧の前じゃ同じでさぁ。'], ['mina', '……セラ、\n帳簿のつけ方、\nあとで教えて。'], ['sera', 'は、はいっ！\nよろこんで！']],
-    pre: [['foe', '久しぶりね、ラナ。\n……それに、セラ。'], ['sera', '姉さま……\nどうして、大公の側に。'], ['foe', '家を立て直すためよ。\n落ちぶれた家の娘に、\n選ぶ道なんて無いの。'], ['rana', 'エルザ。\nあなたの剣を、\n民に向けさせはしない。'], ['garou', '姉さんか……。\nセラ嬢、無理はすんなよ。'], ['sera', '……大丈夫です。\n逃げても、\n答えは変わりませんから。']],
-    win: [['foe', '強くなったわね、ラナ。\n……一つだけ教えてあげる。\n大公の軍は、得体の知れないものと\n取引しているわ。'], ['sera', '姉さま、一緒に……！'], ['foe', '……いいえ。\nわたしには、まだ\n帰れる顔が無いもの。'], ['sera', '姉さま……。'], ['sera', '姫さま。\nわたしは、ここに残ります。\nこの国の帳簿は、\nわたしがつけます。'], ['mina', 'セラ。\n……ここにいなよ。\nわたしたちが、いるから。'], ['garou', '泣きたきゃ泣きな、セラ嬢。\n肩なら貸しまさぁ。'], ['sera', '……ありがとう、\nございます……。']] },
-  4: { start: [['sera', '記録によると、\n東の森の砦に、\n大公の兵が集まっています。'],
-      ['rana', '森を押さえれば、\n王都への道が\nひとつ開けるのね。'],
-      ['rana', '黒い鎧の兵……\n数が多すぎる！'],
-      ['mina', '姫、下がって！\nここは、わたしが……！'],
-      ['ranka', 'あれ、困ってる？\n釣りの途中だったんだけどさ……\nお嬢、手、貸そっか？'],
-      ['rana', 'あなたは……？'],
-      ['ranka', 'ランカ。通りすがりの、\nちょっと強い人だよ。'],
-      ['ranka', 'よっと。\n……はい、片付いた。'],
-      ['mina', 'い、一撃で……？'],
-      ['rana', 'ランカは、\nどこから来たの？'],
-      ['ranka', '海の向こうの、\nアークラシアンって大陸。\n寺で育った、拾われっ子だよ。'],
-      ['ranka', '今はただの釣り人。\n大きな戦も終わったし、\nのんびりしたくてさ。'],
-      ['mina', '……あやしい。'],
-      ['ranka', 'あはは、よく言われる。'], ['rana', 'どうして、\nわたしたちを助けてくれたの？'], ['ranka', '前にもね、\n国を追われた王子さまと\n旅をしたことがあるんだ。'], ['ranka', '……お嬢、\nちょっとだけ似てるよ。\nそいつに。'],
-      ['ranka', 'この森、最近\n嫌な気配がするんだよね。\n魚も逃げちゃってさ。'],
-      ['rana', 'わたし、まだ剣も未熟で……\n守られてばかりね。'],
-      ['ranka', 'いいじゃん。\n守りたいって思わせる大将は、\nそれだけで強いよ。'],
-      ['ranka', 'お嬢の旗の下なら、\nその気配の元まで行けそう。\nしばらく付いてってもいい？'],
-      ['rana', '……ええ。\n歓迎するわ、ランカ。'], ['garou', '一撃で黒い鎧を……。\nとんでもねえのが\n来やがったな。'], ['sera', 'アークラシアン……\n記録で読んだことがあります。\n本当に、あったんですね。'], ['ranka', 'あはは。本より\n釣りのほうが面白い所だよ。']],
-    pre: [['foe', '……姫……\nコロ……セ……'], ['mina', 'なに、こいつ……\n声が、おかしい。'], ['ranka', '……お嬢、下がってて。\nこいつ、人の匂いがしない。'], ['rana', 'ランカ……？'], ['sera', '記録に無い兵です……。\n姫さま、気をつけて。'], ['garou', 'ミナ嬢、姫の脇を固めな。\n正面は俺とランカで受ける。']],
-    win: [['foe', '……グ……ァ……'], ['ranka', '……やっぱり。\nこいつ、中身は悪魔だよ。'], ['rana', '悪魔……？\nおとぎ話じゃ、なかったの。'], ['ranka', '昔、海の向こうで\n大きな戦があってね。\n人と、魔の。\n……その残りかすだよ。'], ['ranka', '……お嬢。\nここから先は、\nちょっとだけ真面目にやるよ。'], ['sera', '悪魔……。\n記録を、もう一度\n洗い直してみます。'], ['mina', '……なんでもいい。\n姫に手を出すなら、\n全部縛るだけ。'], ['garou', 'ガハハ、頼もしいねえ。\n悪魔だろうが、\n斧は通るみてえだ。']] },
-  5: { start: [['rana', '峠の砦を越えれば、\n王都はもうすぐ。\n……でも、守っているのは。'],
-      ['sera', '総大将ヘルマン。\n王国軍で、\n一番の老将です。'],
-      ['rana', '……わたしに、\n剣を教えてくれた人よ。'],
-      ['garou', '師匠と斬り合う、か。\n……つれえな、姫。'],
-      ['rana', 'それでも、行くわ。\n……もう、逃げないって\n決めたから。'],
-      ['lily', 'ランカ！\nやっと見つけた……！'],
-      ['ranka', 'げ、リリィ。'],
-      ['lily', '「げ」じゃないでしょ！\n黙って大陸を出て、\nどれだけ探したと思ってるの！'],
-      ['ranka', 'いや〜、\nちょっと釣りの旅にさ……'],
-      ['lily', '……もう。\n――失礼しました。\nあなたがラナさんですね。'],
-      ['lily', 'わたしはリリィ。\nランカの戦友です。\n銀狼騎士団の、団長を。'],
-      ['lily', 'この子、大きな戦で\n一番の功を立てて、\nそのまま姿を消したんです。'],
-      ['lily', '人も魔も、みんな\nこの子を英雄と呼ぶけど……'], ['ranka', '……やめてよ、リリィ。\n英雄なんて、\nそんな立派なもんじゃない。'],
-      ['rana', 'ランカには、\nずっと助けられているわ。'],
-      ['lily', '強すぎるんです、この子は。\nだから、誰かが隣で\n支えないといけない。'],
-      ['lily', '逃げながらも民を想う\nあなたに、\nわたしの剣を預けます。'], ['mina', '……また、\nあやしいのが増えた。'], ['lily', 'あやしくありません！\n……たぶん。'], ['garou', 'ガハハ！\nにぎやかになってきやがった。']],
-    pre: [['foe', '……来たか、姫。'], ['rana', 'ヘルマン先生……\nどうして、あなたが。'], ['foe', 'わしは王国の剣だ。\n剣は、理由を問わぬ。\n……そう教えたはずだ。'], ['lily', 'ラナさん。\nあの人、迷ってる。\n剣の構えで、わかります。'], ['foe', '構えよ、姫。\nわしに勝てぬようでは、\nこの先へは進めん。'], ['mina', '姫。\n一人で背負わないで。\nわたしも、隣にいる。'], ['sera', '姫さま。\n先生の剣筋、記録に残る限り\nお伝えします。']],
-    win: [['foe', '……強くなったな、姫。\n大公は悪魔と契約した。\n王都の地下に、封印がある。'], ['foe', 'この剣を持っていけ。\nわしには、もう振る資格がない。'], ['rana', '先生……。'], ['foe', '……行け、姫。\n王都で、決着をつけろ。'], ['ranka', '封印、ね。\n……じゃ、わたしが\n先に行って片付けとくよ。'], ['lily', 'ランカ、一人で行く気でしょ。\n……ちょっと！ 何してるの！\n一人で行かせるわけないでしょ。'], ['mina', '……行っちゃうなら、\n縛ってでも止めるけど。'], ['ranka', 'うわ、こわ。\n……わかったよ、\nみんなで行こ。'], ['garou', '決まりだな。\n王都まで、ひとっ走りだ！']] },
-  6: { start: [['rana', '王都が見える。\n……帰ってきたわ。'], ['mina', '国なんて取り戻せなくても、\n姫と二人で生きていければよかった。\n……でも、姫が王様になりたいなら、\n隣で見てる。'], ['ranka', 'さ、お嬢。\n最後くらい派手にいこっか。'], ['garou', '近衛の旗、\nもう一度王都に\n立てやしょう。'], ['sera', '王都の帳簿、\nきっと散らかってますね。\n……腕が鳴ります。'], ['lily', 'ラナさん。\n最後まで、\n隣で剣を振ります。'], ['rana', 'ありがとう、みんな。\n……行きましょう。']],
-    pre: [['foe', 'よく来たな、ラナ。\n兄上によく似た目だ。'], ['rana', '叔父上。\n父の玉座を、\n返していただきます。'], ['foe', '玉座は、力ある者が座るもの。\n……見せてやろう、\n我が得た力を。'], ['ranka', '……出たね、\n悪魔の匂いの元。'], ['ranka', 'お嬢、背中は任せて。\n……今日は、手加減なしだよ。'], ['lily', 'ランカ、一人で突っ込まないで。\n今日は、全員で勝つの。'], ['mina', '姫。\n今度は、逃げない。\n……一緒に、勝とう。'], ['garou', '野郎ども、\n姫の道を開けるぞ！']],
-    win: [['foe', 'バカな……\n我が契約が……！'], ['rana', '叔父上……\nあなたも、力に\n呑まれただけなのね。'], ['sera', '姫さま……いえ、陛下。\nお帰りなさいませ。'], ['sera', 'この国の帳簿は、\nわたしが守ります。\n……宰相見習いとして。'], ['garou', 'ガハハ！\n近衛の長、拝命しますぜ！'], ['ranka', 'じゃ、わたしは釣りの続きに戻るよ。\nお嬢、また呼んでよ。\n悪魔が出たらね。'], ['lily', 'ちょっと！ 待ちなさいランカ！\n……ラナさん、お元気で！'], ['mina', '……おかえり、姫。'], ['rana', 'ただいま、ミナ。\n……さあ、始めましょう。\nみんなの国を。']] },
-};
-const LOSE = [['mina', '退けきれなかった……。\nでも、まだ終わってない。'], ['rana', '立て直しましょう。\n次の章で、必ず。']];
-const LOSE_C = { // 2026-11-01 章ごとの負けの会話（仲間に順に光を当てる）
-  2: [['garou', 'すまねえ、姫……\n押し返せなかった。'], ['mina', '……まだ、終わってない。\n姫が立ってる限り。'], ['rana', '立て直しましょう。\n次こそ、必ず。']],
-  3: [['sera', '被害の記録は、\nわたしがまとめます。\n……数字は、取り戻せます。'], ['garou', 'そういうこった。\n斧を研ぎ直しやしょう。'], ['rana', 'ええ。\nもう一度、前へ。']],
-  4: [['ranka', 'あちゃー……\nちょっと油断したね。'], ['sera', '敵の動き、\n記録しておきました。\n次は、読めます。'], ['rana', '……ありがとう。\n立て直しましょう。']],
-  5: [['lily', 'ラナさん、\n顔を上げてください。\n騎士は、負けてからが本番です。'], ['mina', '……うん。\n姫は、何度でも立てる。'], ['rana', 'ええ。\nまだ、終われない。']],
-  6: [['mina', '……姫。'], ['ranka', 'お嬢、まだ息はあるね。\nなら、もう一回だよ。'], ['rana', '……ええ。\nみんなの国を、\nあきらめない。']] };
+export { SCENES } from './scenario.js?v=story2';
+import { SCENES, LOSE, LOSE_C } from './scenario.js?v=story2';
+import { pages } from './narrative.js?v=story2';
 const REF_W = 941, REF_H = 1672, FOOT = 1215;
 const LANA = { dir: '../sprites/', frames: 24, fps: 12, w: 536, h: 388, ax: 336, ay: 379, scale: 1.28, x: 300, from: -220 }; // morning.js と同じ大きさ
 const ALLY_S = .75, OTHER_X = 650;           // 仲間の全身（高さ640）の縮尺は朝の会話と同じ
@@ -185,12 +66,14 @@ export function createStory() {
   const st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st);
   const el = document.createElement('div'); el.id = 'story'; document.body.appendChild(el);
   let done = null, typing = 0, raf = 0, onR = null;
-  const close = () => { clearTimeout(typing); cancelAnimationFrame(raf); if (onR) window.removeEventListener('resize', onR); el.style.display = 'none'; el.innerHTML = ''; el.onclick = null; const f = done; done = null; f && f(); };
+  const jobs = new Set();
+  const later = (fn, ms) => { const id = setTimeout(() => { jobs.delete(id); fn(); }, ms); jobs.add(id); return id; };
+  const close = () => { jobs.forEach(clearTimeout); jobs.clear(); clearTimeout(typing); cancelAnimationFrame(raf); if (onR) window.removeEventListener('resize', onR); el.style.display = 'none'; el.innerHTML = ''; el.onclick = null; const f = done; done = null; f && f(); };
   // o = { c, kind: 'start'|'win'|'lose', title, desc, foeName, foeKey:'g1'…'g6b' }
   async function play(o, onDone) {
     // 2026-11-01 作り直し：舞台に2つの立ち位置（左・右）。話し手と、いま話している相手が向かい合う（ラナを左に固定しない）。
     // 台詞は2行ずつのページに分けて送る（JRPG風）。窓は一騎打ちと同じ絵本の紙。?grid=1 で大きさのガイド線（基準画素）
-    const pageify = arr => arr.flatMap(([k, t]) => { const r = String(t).split('\n'), out = []; for (let a = 0; a < r.length; a += 2) out.push([k, r.slice(a, a + 2).join('\n')]); return out; });
+    const pageify = pages;
     const lines = pageify(o.lines || (o.kind === 'lose' ? (LOSE_C[o.c] || LOSE) : ((SCENES[o.c] || {})[o.kind] || []))); let picked = false; // o.lines＝任意の台詞、o.choices＝最後に選択肢（{t, reply}）、o.onPick(i)
     if (!lines.length && o.kind !== 'start') { onDone && onDone(); return; }
     await genMetaP; done = onDone; el.style.display = 'block'; const fr = loadFrames(), grid = GRID();
@@ -209,7 +92,7 @@ export function createStory() {
       img.style.transformOrigin = `${m.ax * m.s * u}px ${m.ay * m.s * u}px`; const flip = side === 0 ? !m.right : m.right; img.style.scale = flip ? '-1 1' : ''; sl.m = m; sl.x = x; };
     const srcOf = k => k === 'rana' ? fr.idle.src : isGen(k) ? `assets/npc/gen_${fk(k)}.webp?v=1` : `../ally/${k}.png`;
     const enter = (side, k) => { const sl = slots[side]; sl.k = k; sl.img.classList.remove('on'); const img = sl.img;
-      setTimeout(() => { img.onload = () => { placeSlot(sl, side); drawGrid(); requestAnimationFrame(() => img.classList.add('on')); }; img.src = srcOf(k); if (img.complete && img.naturalWidth) img.onload(); }, sl.t >= 0 ? 160 : 0); };
+      later(() => { img.onload = () => { placeSlot(sl, side); drawGrid(); requestAnimationFrame(() => img.classList.add('on')); }; img.src = srcOf(k); if (img.complete && img.naturalWidth) img.onload(); }, sl.t >= 0 ? 160 : 0); };
     let clock = 0, prev = null;
     const stageFor = k => { // 話し手を舞台に出す。いなければ、直前の話し手（＝聞き手）ではない方と入れ替える
       if (k[0] === '@') return -1; const on = slots.findIndex(s => s.k === k); if (on >= 0) return on;
@@ -227,7 +110,15 @@ export function createStory() {
       slots.forEach((sl, side) => { if (!sl.k || !sl.m) return; const hd = headTop(sl.img); if (hd == null) return; const yh = Math.round((sl.m.ay - hd) * sl.m.s); h += `<div class="gh" style="top:${(FOOT - yh) * u}px;left:${(sl.x - 130) * u}px;width:${260 * u}px"><b>${NAME[sl.k] || GEN_NAME[fk(sl.k)] || sl.k}（${sl.k === 'foe' ? fk(sl.k) : sl.k}）頭 ${yh}・×${(SIZE[sl.k === 'foe' ? fk(sl.k) : sl.k] || 1).toFixed(2)}</b></div>`; });
       gd.innerHTML = h; }
     onR = () => { el.style.setProperty('--u', U() + 'px'); slots.forEach((sl, side) => placeSlot(sl, side)); drawGrid(); }; el.style.setProperty('--u', U() + 'px'); window.addEventListener('resize', onR);
-    el.querySelector('.skip').onclick = e => { e.stopPropagation(); close(); };
+    el.querySelector('.skip').onclick = e => {
+      e.stopPropagation();
+      if (o.choices?.length && !picked) {
+        if (step === 'choice') return;
+        jobs.forEach(clearTimeout); jobs.clear(); clearTimeout(typing); typing = 0;
+        i = lines.length - 1; if (card) card.classList.remove('on'); box.classList.add('on');
+        tx.textContent = '選択してください。'; choose();
+      } else close();
+    };
     let i = -1, full = '', step = card ? 'card' : 'line';
     if (card) requestAnimationFrame(() => card.classList.add('on'));
     const show = () => {
@@ -237,18 +128,18 @@ export function createStory() {
       slots.forEach((sl, j) => sl.img.classList.toggle('dim', side >= 0 ? j !== side : false));
       { const [ti, na] = foe ? splitTitle(k === 'foe' ? o.foeName : GEN_NAME[k]) : k[0] === '@' ? ['', k.slice(1)] : ['', NAME[k] || k]; nm.firstChild.textContent = ti; nm.lastChild.textContent = na; } box.classList.add('on');
       full = t; let n = 0; tx.textContent = ''; clearTimeout(typing);
-      const ty = () => { n++; tx.textContent = full.slice(0, n); if (n < full.length) typing = setTimeout(ty, 32); else typing = 0; }; ty();
+      const ty = () => { n++; tx.textContent = full.slice(0, n); if (n < full.length) typing = later(ty, 32); else typing = 0; }; ty();
     };
     const choose = () => { step = 'choice'; const ch = document.createElement('div'); ch.className = 'chs'; // 選択肢：押すと、その返しの台詞へ続く
       ch.innerHTML = o.choices.map((c, j) => `<button data-j="${j}">${c.t}</button>`).join(''); el.appendChild(ch);
       ch.querySelectorAll('button').forEach(b => b.onclick = e => { e.stopPropagation(); const j = +b.dataset.j; picked = true; ch.remove(); step = 'line'; o.onPick && o.onPick(j); lines.push(...pageify(o.choices[j].reply || [])); show(); }); };
     el.onclick = () => {
       if (step === 'choice') return;
-      if (step === 'card') { step = 'line'; card.classList.remove('on'); if (!lines.length) { setTimeout(close, 300); return; } setTimeout(show, 350); return; }
+      if (step === 'card') { step = 'line'; card.classList.remove('on'); if (!lines.length) { later(close, 300); return; } later(show, 350); return; }
       if (typing) { clearTimeout(typing); typing = 0; tx.textContent = full; return; }
       show();
     };
-    if (!card) setTimeout(show, 500);
+    if (!card) later(show, 500);
   }
   return { play, close };
 }

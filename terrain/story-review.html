@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>SA 台本プレビュー</title>
+<style>
+@font-face{font-family:DMincho;src:url(assets/font/mincho-b.woff2?v=story2);font-weight:700}
+*{box-sizing:border-box}body{margin:0;padding:28px 18px;background:#161d25;color:#eee3cf;font:16px/1.7 DMincho,serif}main{max-width:720px;margin:auto}h1{font-size:26px}p{color:#d0c4ae}label{display:block;margin:18px 0}select,button{font:inherit;padding:10px;border:1px solid #b08b48;border-radius:5px;background:#e9dec6;color:#302719;max-width:100%}select{display:block;width:100%}button{cursor:pointer;margin:4px 4px 4px 0}#transcript{white-space:pre-wrap;border-top:1px solid #6d5d3b;padding-top:20px;font-size:15px}a{color:#e2c485}small{color:#b9ad99}
+</style></head><body><main>
+<h1>台本プレビュー</h1>
+<p>章・週・絆の場面を選んで確認できます。<br>ゲームのセーブは読み書きしません。</p>
+<label>確認する場面<select id="scene"></select></label>
+<label>それまでの選び方<select id="path"><option value="none">未選択・旧セーブ相当</option><option value="0">慈悲を中心に選んだ場合</option><option value="1">厳格を中心に選んだ場合</option></select></label>
+<label>中盤戦の結果<select id="outcome"><option value="before">戦う前</option><option value="win">勝った後</option><option value="lose">負けた後</option></select></label>
+<button id="play">会話画面で読む</button><button id="text">文章を一覧で読む</button>
+<p><a href="index.html">ゲームへ</a>　<small>「スキップ」でも、選択は自分で決められます。</small></p>
+<div id="transcript"></div>
+</main><script type="module">
+import { createStory, GEN_NAME, NAME } from './story.js?v=story2';
+import { SCENES, LOSE_C } from './scenario.js?v=story2';
+import * as EV from './scenario-events.js?v=story2';
+import * as N from './narrative.js?v=story2';
+import { CHAPTERS } from './game.js?v=story2';
+const entries = [], el = id => document.getElementById(id), story = createStory();
+const titles={c1_work:'初めての水汲み',c1_well:'壊れた井戸',c1_thief:'麦を盗んだ少年',c1_return:'井戸への帰り道',c1_night:'長すぎる袖',c2_terms:'麦を受け取る約束',c2_harvest:'種麦と食べる麦',c2_share:'先に運ぶもの',c2_deserter:'戻ってきた傭兵',c2_cost:'配った後に残るもの',c2_root:'結んだままの荷物',c2_glenn:'兵隊になった山賊',c3_envoy:'網を失った漁師',c3_two_dates:'三日のずれ',c3_borg:'薬箱を運んだ人',c3_tax:'八年続いた臨時税',c3_tax_return:'湖の仕事',c3_father_tax:'父が架けた橋',c3_record:'帳面を閉じる夜',c3_glenn:'取る時と返す時',c4_names:'七人の名前',c4_mina:'待たせた人',c4_elza:'徴用の荷車',c4_fire:'北の林',c4_fire_cost:'選んだ道の報告',c4_mina_wait:'次は、その場で',c4_borg:'森の補給路',c4_glenn:'縄の下をくぐって',c5_empty:'青い靴紐',c5_mina_break:'一緒に逃げよう',c5_elza:'姉に頼むこと',c5_mina_other:'姫ではなく、あなたに',c5_volunteer:'剣を持たない仕事',c5_lesson:'師との稽古',c5_mina_after:'明日の朝ごはん',c5_glenn:'間違えた後の門',c6_witness:'薬師の証言',c6_volunteers_return:'志願した人の帰り道',c6_families:'王座より先に',c6_doubt:'英雄である必要はない',c6_square:'石を投げられた広場',c6_eve:'名前で呼ぶ夜',c6_glenn:'悪党の次の選択'};
+for (let c = 1; c <= 6; c++) {
+  for (const kind of ['pro','start','pre','win','lose']) {
+    const lines = kind === 'lose' ? LOSE_C[c] : SCENES[c][kind];
+    if (lines) entries.push({ label: `第${c}章 ${CHAPTERS[c-1].t}・${({pro:'序章',start:'始まり',pre:'決戦前',win:'勝利',lose:'敗北'})[kind]}`, c, lines, ending: c === 6 && kind === 'win' });
+  }
+  for (let week = (c-1)*6+1; week <= c*6; week++) for (const event of EV.WEEK[week] || []) entries.push({ label: `第${week}週・${titles[event.id]||event.id}`, c, event });
+}
+for (const [who, scenes] of Object.entries(EV.BOND)) for (const [bond, lines] of Object.entries(scenes)) entries.push({ label:`${NAME[who]}・絆${bond}`, c: Math.ceil(({mina:1,garou:7,sera:13,ranka:19,lily:25})[who]/6), lines });
+entries.push({label:'最終決戦・民の避難',c:6,lines:EV.FINAL_ESCAPE});
+for (const [i,e] of entries.entries()) {const option=new Option(e.label,i);option.dataset.event=e.event?.id||'';el('scene').add(option);}
+function prepare() {
+  const entry=entries[+el('scene').value], state=N.prepareNarrative({week:36,virtue:{mercy:0,rigor:0}}), path=el('path').value;
+  if(path!=='none') for(const event of Object.values(EV.WEEK).flat()) if(event.choices) {state.storyChoices[event.id]=+path;state.virtue[path==='0'?'mercy':'rigor']++;}
+  let event=entry.event || {id:'preview',lines:entry.lines};
+  if(entry.ending) event={...EV.JUDGE,lines:[...SCENES[6].win.slice(0,2),...EV.JUDGE.lines],choices:EV.JUDGE.choices.map(c=>({...c,reply:[...c.reply,...EV.endingVoices(state,N.endingTone(state)),...SCENES[6].win.slice(2)]}))};
+  if(event.battle && el('outcome').value!=='before') event={...event,choices:undefined,lines:N.skirmishLines(event,el('outcome').value==='win',state)};
+  delete state.storyChoices[event.id];
+  return {entry,event,scene:N.materialize(event,state)};
+}
+el('play').onclick=()=>{const {entry,scene}=prepare();story.play({c:entry.c,kind:'ev',...scene,foeKey:'g'+entry.c,foeName:GEN_NAME['g'+entry.c]});};
+el('text').onclick=()=>{const {entry,scene}=prepare();const name=k=>NAME[k]||GEN_NAME[k]||(k==='foe'?CHAPTERS[entry.c-1].g:k.replace(/^@/,''));const format=lines=>lines.map(([k,t])=>name(k)+'：'+t.replaceAll('\n',' ')).join('\n\n');el('transcript').textContent=entry.label+'\n\n'+format(scene.lines)+(scene.choices?'\n\n'+scene.choices.map(c=>'【'+c.t+'】\n'+format(c.reply)).join('\n\n'):'');};
+const q=new URLSearchParams(location.search);if(q.has('id')) {const i=entries.findIndex(e=>e.event?.id===q.get('id'));if(i>=0)el('scene').value=i;}el('text').click();
+</script></body></html>
