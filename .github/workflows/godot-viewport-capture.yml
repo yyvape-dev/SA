@@ -3,6 +3,9 @@ on:
   push:
     branches:
       - test/godot-viewport-capture-20261104
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 jobs:
   capture:
