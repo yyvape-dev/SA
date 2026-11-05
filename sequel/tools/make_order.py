@@ -6,6 +6,7 @@ import sys, os, json, base64
 ARGS = sys.argv[1:]
 ONLY = ARGS[ARGS.index('--only') + 1] if '--only' in ARGS else None
 STYLE_IMG = ARGS[ARGS.index('--style') + 1] if '--style' in ARGS else None
+BASE = open(ARGS[ARGS.index('--base') + 1], encoding='utf-8').read().strip() if '--base' in ARGS else None
 TITLE = ARGS[ARGS.index('--title') + 1] if '--title' in ARGS else '融合都市の発注票'
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 G = os.path.join(ROOT, 'art/guide')
@@ -38,17 +39,18 @@ WHAT = {"b1_tavern": "銅のボイラーと煙突のある、レンガの酒場�
         "f1_lamp": "鉄の街灯。上に暖色のガス灯。",
         "f2_pipe": "銅の蒸気弁（消火栓のような形）。上に真鍮のハンドル。",
         "f3_lamp": "鉄の街灯。上に水色のネオンの灯り。",
-        "b0_backrow": ("表通りの建物の裏にある、裏通りの建物の列（横に長い）。路地のすき間と通りの両端から、奥に少しだけ見える。"
-                       "添付2の路地の奥に霞んで見える建物と同じ扱い：紫がかった夜霧に半分溶け、手前の建物より暗く、"
-                       "コントラストと彩度を控えめに、細部も少なめ。レンガと石の壁、細い銅の配管、屋上の給水塔と煙突。"
-                       "窓は少数だけ暖色の明かり、小さなネオン（水色の縦の看板、ピンクの横の看板）は霧でにじむ程度。"
-                       "建物の下の方ほど霧が濃い。霧と光は建物の輪郭の内側だけに描き、マゼンタの部分には霧も光も描かない。")}
+        "b0_backrow": ("夜の歓楽街の裏通り（表通りの建物の裏にある、横に長い建物の列）。"
+                       "建物の正面に縦長のネオン看板が何段も重なる（記号のみ）。赤提灯と暖簾の飲み屋、電球で縁取った劇場・キャバレー風の入口、"
+                       "歯車仕掛けの遊技場の光る機械、煙と湯気。壁から手前へ突き出している細い縦の箱（ピンクと水色）は、頭上に張り出す縦長のネオン看板として塗る。"
+                       "建物と建物の境目あたりの壁の面の中に、奥へ続く細く暗い路地の入口を描く（輪郭は変えない。路地は壁の面の中だけ）。"
+                       "この区画は STYLE BASE より紫・マゼンタのネオンを強めにする（紅と金の灯りは残す）。人は描かない。"
+                       "煙・湯気・光は建物の輪郭の内側だけに描き、マゼンタの部分には何も描かない。")}
 for k in NAMES:
     if k not in meta or (ONLY and k != ONLY):
         continue
     w, h = meta[k]['w'], meta[k]['h']
     ORDERS.append((k, NAMES[k], [k, "STYLE"],
-                   KEEP + ("添付2（画風の見本）と同じ画風・光・色合いで塗る。" if STYLE_IMG else "添付2（0. の完成画）と同じ画風・光・色合いで塗る。") + STYLE + COMMON + "これは：" + WHAT[k]
+                   KEEP + ("添付2（画風の見本）と同じ画風・光・色合いで塗る。" if STYLE_IMG else "添付2（0. の完成画）と同じ画風・光・色合いで塗る。") + ("\n\n" + BASE + "\n\n" if BASE else STYLE) + COMMON + "これは：" + WHAT[k]
                    + "出力は %d×%d。" % (w, h),
                    ("添付2＝画風の見本（塗った全体の絵）。" if STYLE_IMG else "添付2＝「0.」で出来た絵（このページには無いので、自分で添付）。")))
 if ONLY:

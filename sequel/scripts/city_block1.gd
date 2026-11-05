@@ -95,6 +95,10 @@ static func pieces() -> Array:
 			[Vector3(-2.0, 6.5, -12.0), Vector3(0.5, 3.0, 0.8), "neon_c"],   # 縦の看板
 			[Vector3(27.0, 6.5, -11.9), Vector3(3.0, 0.8, 0.3), "neon_p"],
 			[Vector3(-15.0, 2.0, -12.25), Vector3(2.0, 2.4, 0.1), "wood"],    # 路地の奥の扉
+			# 壁から手前へ突き出す細い縦の看板（頭上に張り出す。路地のすき間から見える位置）
+			[Vector3(-9.6, 7.0, -11.0), Vector3(0.3, 3.4, 1.4), "neon_p"],
+			[Vector3(0.4, 6.2, -11.6), Vector3(0.3, 3.0, 1.4), "neon_c"],
+			[Vector3(13.0, 6.0, -11.6), Vector3(0.3, 3.2, 1.4), "neon_p"],
 		]},
 		# 遠景：一枚絵の板（main.gd の _build_far_plane）。箱は無い。
 		{"id": "z_skyline", "kind": "far", "boxes": []},
