@@ -144,13 +144,13 @@ func _make_environment() -> void:
 
 func _make_floor() -> void:
 	# The floor MUST be visible and collision-enabled. The old stage helper omitted add_child for solids.
-	_box("BELT FLOOR - visible, collidable", Vector3(0, -0.23, 0), Vector3(66, 0.46, 11.0), floor_mat, true)
+	_box("BELT FLOOR - visible, collidable", Vector3(0, -0.23, 2.85), Vector3(66, 0.46, 16.7), floor_mat, true)
 	for i in range(-16, 17):
-		_box("Floor grid X %02d" % i, Vector3(float(i) * 2.0, 0.012, 0), Vector3(0.025, 0.018, 10.8), lane_mat)
-	for z in [-4.0, 0.0, 4.0]:
+		_box("Floor grid X %02d" % i, Vector3(float(i) * 2.0, 0.012, 2.85), Vector3(0.025, 0.018, 16.5), lane_mat)
+	for z in [-4.0, 0.0, 4.0, 8.0]:
 		_box("Floor depth guide Z%.1f" % z, Vector3(0, 0.015, z), Vector3(65.0, 0.025, 0.04), lane_mat)
 	_box("Rear belt limit", Vector3(0, 0.23, -5.5), Vector3(66.0, 0.46, 0.25), dark_mat, true)
-	_box("Near belt limit", Vector3(0, 0.06, 5.45), Vector3(66.0, 0.12, 0.20), trim_mat)
+	_box("Near belt limit", Vector3(0, 0.06, 11.15), Vector3(66.0, 0.12, 0.20), trim_mat)
 
 func _make_tavern(x: float) -> void:
 	# A closed two-story mass; doors/awnings are 3D depth cues, NOT facade textures.
