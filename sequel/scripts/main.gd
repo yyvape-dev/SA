@@ -99,15 +99,69 @@ func _build_env() -> void:
 	add_child(sun)
 
 func _build_floor() -> void:
-	# 地面はコードで作る（前作の教訓：AIの一枚絵は継ぎ目が苦手）。奥の歩道・車道（帯）・手前の歩道。
-	_slab(Vector3(0, -0.05, -5.2), Vector3(60, 0.1, 3.0), Color("6b6460"))   # 奥の歩道
-	_slab(Vector3(0, -0.08, 0.15), Vector3(60, 0.1, 7.6), Color("4a4650"))   # 帯（石畳の通り）
-	_slab(Vector3(0, -0.05, 5.6), Vector3(60, 0.1, 3.2), Color("6b6460"))    # 手前の歩道
-	for z in [-1.2, 1.6]:   # 路面電車の線路
-		_slab(Vector3(0, -0.02, z), Vector3(60, 0.04, 0.12), Color("a59a85"))
+	# 地面はコード（前作の教訓：AIの一枚絵は継ぎ目が苦手）。外部AIの継ぎ目の無い素材を繰り返して敷く。
+	# 奥の歩道・帯（車道の石畳）・手前の歩道。キャラとエフェクトが沈まないよう暗めにする（FLOOR_DIM）。
+	_ground(Vector3(0, 0.0, -5.2), Vector2(60, 3.0), SLAB_TEX, SLAB_TILE)     # 奥の歩道
+	_ground(Vector3(0, -0.03, 0.15), Vector2(60, 7.6), COBBLE_TEX, COBBLE_TILE) # 帯（石畳の通り）
+	_ground(Vector3(0, 0.0, 5.6), Vector2(60, 3.2), SLAB_TEX, SLAB_TILE)      # 手前の歩道
+	for z in [-1.2, 1.6]:   # 路面電車の線路（真鍮の細い線）
+		var r := _slab(Vector3(0, -0.02, z), Vector3(60, 0.04, 0.06), Color("b8933f"))
+		var rm: StandardMaterial3D = r.material_override
+		rm.metallic = 0.6
+		rm.roughness = 0.35
 	_slab(Vector3(0, -1.0, -30), Vector3(140, 0.1, 50), Color("221f2c"))     # 奥の街（暗がり）
+	_build_glints()
 
-func _slab(c: Vector3, s: Vector3, col: Color) -> void:
+const COBBLE_TEX := preload("res://assets/ground/cobble.png")
+const SLAB_TEX := preload("res://assets/ground/slab.png")
+const COBBLE_TILE := 2.5   # 石畳 1 枚の大きさ（m）
+const SLAB_TILE := 2.0     # 敷石 1 枚（石 1 枚が約 1m×0.5m）
+const FLOOR_DIM := 0.5    # 地面の明るさ（素材の色に掛ける）
+const GLINT_SHADER := preload("res://scripts/glint.gdshader")
+
+func _ground(c: Vector3, size: Vector2, tex: Texture2D, tile: float) -> void:
+	var mi := MeshInstance3D.new()
+	var pm := PlaneMesh.new()
+	pm.size = size
+	mi.mesh = pm
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = tex
+	m.albedo_color = Color(FLOOR_DIM, FLOOR_DIM, FLOOR_DIM)
+	m.uv1_scale = Vector3(size.x / tile, size.y / tile, 1)
+	m.roughness = 0.85
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	mi.material_override = m
+	mi.position = c
+	add_child(mi)
+
+## 濡れた路面の映り込み：assets/ground/glints.json（tools/make_glints.py が塗った絵から作る）の光ごとに、
+## 建物の根元から手前へ、その色の筋を地面に寝かせて足す。高い所の光ほど筋が長く、強い光ほど明るい。
+func _build_glints() -> void:
+	var f := FileAccess.open("res://assets/ground/glints.json", FileAccess.READ)
+	if f == null:
+		return
+	var list = JSON.parse_string(f.get_as_text())
+	if not (list is Array):
+		return
+	for g in list:
+		var length := clampf(7.0 + float(g.y) * 0.8, 7.0, 12.0)
+		var mi := MeshInstance3D.new()
+		var pm := PlaneMesh.new()
+		pm.size = Vector2(float(g.w) * 0.9, length)
+		mi.mesh = pm
+		mi.position = Vector3(float(g.x), 0.012, float(g.z) + length * 0.5)
+		var m := ShaderMaterial.new()
+		m.shader = GLINT_SHADER
+		m.set_shader_parameter("col", Color(g.col[0], g.col[1], g.col[2]))
+		m.set_shader_parameter("power", 0.35 + 0.65 * float(g.p))
+		m.set_shader_parameter("stone", COBBLE_TEX)
+		m.set_shader_parameter("tile", COBBLE_TILE)
+		m.set_shader_parameter("z0", float(g.z))
+		mi.material_override = m
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(mi)
+
+func _slab(c: Vector3, s: Vector3, col: Color) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
 	var bm := BoxMesh.new()
 	bm.size = s
@@ -118,6 +172,7 @@ func _slab(c: Vector3, s: Vector3, col: Color) -> void:
 	mi.material_override = m
 	mi.position = c
 	add_child(mi)
+	return mi
 
 func _build_piece(p: Dictionary) -> void:
 	var root := Node3D.new()
