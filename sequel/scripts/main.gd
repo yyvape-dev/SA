@@ -109,7 +109,17 @@ func _build_floor() -> void:
 		var rm: StandardMaterial3D = r.material_override
 		rm.metallic = 0.6
 		rm.roughness = 0.35
-	_slab(Vector3(0, -1.0, -30), Vector3(140, 0.1, 50), Color("221f2c"))     # 奥の街（暗がり）
+	# 奥の地面（建物の後ろ〜遠景の板）：奥ほど遠景の下端の霧の色（z_skyline の地平あたりの平均 ≈ #684c53）に溶ける
+	var fg_mi := MeshInstance3D.new()
+	var fpm := PlaneMesh.new()
+	fpm.size = Vector2(160, 56)
+	fg_mi.mesh = fpm
+	fg_mi.position = Vector3(0, -0.04, -34.5)
+	var fgm := ShaderMaterial.new()
+	fgm.shader = FAR_GROUND_SHADER
+	fgm.set_shader_parameter("fog_col", Color8(104, 76, 83))
+	fg_mi.material_override = fgm
+	add_child(fg_mi)
 	_build_glints()
 
 const COBBLE_TEX := preload("res://assets/ground/cobble.png")
@@ -118,6 +128,8 @@ const COBBLE_TILE := 2.5   # 石畳 1 枚の大きさ（m）
 const SLAB_TILE := 2.0     # 敷石 1 枚（石 1 枚が約 1m×0.5m）
 const FLOOR_DIM := 0.5    # 地面の明るさ（素材の色に掛ける）
 const GLINT_SHADER := preload("res://scripts/glint.gdshader")
+const FAR_GROUND_SHADER := preload("res://scripts/far_ground.gdshader")
+const FOOT_SHADER := preload("res://scripts/foot_shade.gdshader")
 
 func _ground(c: Vector3, size: Vector2, tex: Texture2D, tile: float) -> void:
 	var mi := MeshInstance3D.new()
@@ -201,9 +213,37 @@ func _build_piece(p: Dictionary) -> void:
 			sm.set_shader_parameter("ref_vp", _proj_from(guide_meta[p.id].vp))
 			sm.set_shader_parameter("fallback", col)
 			mi.material_override = sm
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF   # 塗った絵の部品は日光の影を落とさない（足元は _foot_shade）
 		else:
 			mi.material_override = _grey_mat(col, b[2])
 		root.add_child(mi)
+	if painted != null and p.kind == "bld":
+		_foot_shade(root, p)
+
+## 建物の足元の薄い暗がり：地面に接する箱の左右の範囲・正面から手前へ 1.6m、柔らかく薄れる板を置く。
+func _foot_shade(root: Node3D, p: Dictionary) -> void:
+	var x0 := INF
+	var x1 := -INF
+	var zf := -INF
+	for b in p.boxes:
+		if b[0].y - b[1].y * 0.5 > 0.05:
+			continue
+		x0 = minf(x0, b[0].x - b[1].x * 0.5)
+		x1 = maxf(x1, b[0].x + b[1].x * 0.5)
+		zf = maxf(zf, b[0].z + b[1].z * 0.5)
+	if x0 == INF:
+		return
+	var depth := 1.6
+	var mi := MeshInstance3D.new()
+	var pm := PlaneMesh.new()
+	pm.size = Vector2(x1 - x0 + 0.8, depth)
+	mi.mesh = pm
+	mi.position = Vector3((x0 + x1) * 0.5, 0.016, zf + depth * 0.5)
+	var m := ShaderMaterial.new()
+	m.shader = FOOT_SHADER
+	mi.material_override = m
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(mi)
 
 ## 遠景：一枚絵を奥に立てた板（箱は使わない）。縦横比はそのまま。iPhone の横長（約2.17:1）でカメラが左右の端まで動いても
 ## 画面の上半分が切れない幅（z=-62 で約131m）。見えるのは絵の高さの約22％なので、ユーザー決定で「中の帯（塔の胴と窓）」が
