@@ -3,7 +3,9 @@ extends CanvasLayer
 ## 文字は使わない（日本語フォントを入れるまでは図形のアイコン）。
 
 var player: Node3D
+var battle: Node3D
 var pad: Control
+var hud: Control
 
 func _ready() -> void:
 	pad = _Pad.new()
@@ -11,6 +13,30 @@ func _ready() -> void:
 	pad.set_anchors_preset(Control.PRESET_FULL_RECT)
 	pad.mouse_filter = Control.MOUSE_FILTER_PASS
 	add_child(pad)
+	hud = _Hud.new()
+	hud.ui = self
+	hud.set_anchors_preset(Control.PRESET_FULL_RECT)
+	hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(hud)
+
+## 左上：ラナの体力（青＝味方）。減った分は少し遅れて追いかける白い帯
+class _Hud extends Control:
+	var ui
+	var shown := 1.0
+	func _process(delta: float) -> void:
+		var r: float = ui.battle.hp / ui.battle.hp_max
+		shown = maxf(r, shown - delta * 0.6) if shown > r else r
+		queue_redraw()
+	func _draw() -> void:
+		var u := size.y / 720.0
+		var p := Vector2(36, 30) * u
+		var w := 420.0 * u
+		var h := 22.0 * u
+		var r: float = ui.battle.hp / ui.battle.hp_max
+		draw_rect(Rect2(p - Vector2(4, 4) * u, Vector2(w, h) + Vector2(8, 8) * u), Color(0.02, 0.03, 0.07, 0.75))
+		draw_rect(Rect2(p, Vector2(w * shown, h)), Color(1, 1, 1, 0.8))
+		draw_rect(Rect2(p, Vector2(w * r, h)), Color("3d8bff") if r > 0.3 else Color("29e0ff"))
+		draw_rect(Rect2(p, Vector2(w * r, h * 0.35)), Color(1, 1, 1, 0.25))
 
 class _Pad extends Control:
 	var ui

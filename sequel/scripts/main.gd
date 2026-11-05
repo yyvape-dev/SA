@@ -7,6 +7,8 @@ extends Node3D
 const City := preload("res://scripts/city_block1.gd")
 const Player := preload("res://scripts/player.gd")
 const TouchUI := preload("res://scripts/touch_ui.gd")
+const Battle := preload("res://scripts/battle.gd")
+const Fx := preload("res://scripts/fx.gd")
 const PAINT_SHADER := preload("res://scripts/proj_paint.gdshader")
 
 const ROOM_X := Vector2(-19.0, 19.0)   # 歩ける左右
@@ -20,6 +22,8 @@ const MAGENTA := Color(1, 0, 1)
 var cam: Camera3D
 var player: Node3D
 var ui: CanvasLayer
+var battle: Node3D
+var fx: Node3D
 var piece_nodes := {}   # id -> Node3D
 var guide_meta := {}    # id -> {w,h,vp}
 
@@ -29,19 +33,31 @@ func _ready() -> void:
 	_build_floor()
 	for p in City.pieces():
 		_build_piece(p)
-	player = Player.new()
-	player.room_x = ROOM_X
-	player.belt_z = BELT_Z
-	add_child(player)
-	player.position = Vector3(-4, 0, 1.0)
 	cam = Camera3D.new()
 	cam.fov = CAM_FOV
 	cam.near = 0.3
 	cam.far = 300.0
 	add_child(cam)
+	battle = Battle.new()
+	battle.BELT_Z = BELT_Z
+	battle.ROOM_X = ROOM_X
+	battle.cam = cam
+	add_child(battle)
+	fx = Fx.new()
+	fx.cam = cam
+	add_child(fx)
+	battle.fx = fx
+	player = Player.new()
+	player.world = battle
+	player.room_x = ROOM_X
+	player.belt_z = BELT_Z
+	battle.player = player
+	add_child(player)
+	player.position = Vector3(-4, 0, 1.0)
 	_place_cam(true)
 	ui = TouchUI.new()
 	ui.player = player
+	ui.battle = battle
 	add_child(ui)
 	if OS.has_environment("CAPTURE_GUIDE"):
 		_capture_guides.call_deferred()
@@ -58,6 +74,10 @@ func _place_cam(snap: bool, delta: float = 0.0) -> void:
 	var want := _cam_pos_for(player.position.x)
 	cam.position = want if snap else cam.position.lerp(want, minf(1.0, delta * 5.0))
 	cam.look_at(Vector3(cam.position.x, 0, 0) + CAM_LOOK, Vector3.UP)
+	# 画面の揺れ（px 相当 → 画面の高さ 720px ≒ 8.8m）
+	var sk: float = battle.shake * 0.012 if battle else 0.0
+	cam.h_offset = randf_range(-1.0, 1.0) * sk
+	cam.v_offset = randf_range(-1.0, 1.0) * sk * 0.7
 
 # ---------- 見た目 ----------
 func _build_env() -> void:
@@ -256,16 +276,36 @@ func _capture_guides() -> void:
 	get_tree().quit()
 
 # ---------- 動作確認の撮影 ----------
+## 決まった入力で戦闘を流し、3コマに1枚 captures/ へ書き出す（--fixed-fps 60 で起動すると毎回同じ）。
 func _capture_play() -> void:
 	var dir := ProjectSettings.globalize_path("res://captures")
 	DirAccess.make_dir_recursive_absolute(dir)
-	var shots := [[-4.0, 1.0, "idle"], [-12.0, -2.5, "walk"], [4.5, 3.4, "behind_fg"], [12.0, 0.0, "atk"]]
-	for s in shots:
-		player.position = Vector3(s[0], 0, s[1])
-		player.debug_state(s[2])
-		_place_cam(true)
-		for i in 8:
-			await RenderingServer.frame_post_draw
-		get_viewport().get_texture().get_image().save_png(dir + "/play_%s.png" % s[2])
-		print("PLAY ", s[2])
+	battle.auto_spawn = false
+	player.position = Vector3(-2.0, 0, 0.6)
+	_place_cam(true)
+	var foes := [
+		battle.spawn("1", Vector3(0.6, 0, 0.6)), battle.spawn("3", Vector3(1.6, 0, 1.2)),
+		battle.spawn("1", Vector3(1.2, 0, -0.1)), battle.spawn("3", Vector3(-3.6, 0, 0.5)),
+	]
+	for e in foes:
+		e.atk_cd = 9.0     # 最初はラナの攻撃を見るため、敵は攻撃しない
+	# 前半：ラナの連携（A→B→A…）。後半：新しい2体がラナを攻撃する（床の予兆→被弾）。最後に回避
+	var script := {6: "atk", 26: "atk", 50: "atk", 70: "atk", 92: "atk", 112: "atk", 170: "foes", 300: "dodge"}
+	for f in 360:
+		if script.has(f):
+			match script[f]:
+				"atk": player.attack()
+				"dodge": player.dodge()
+				"foes":
+					for e in battle.enemies.duplicate():
+						battle.remove_enemy(e)
+					var pz: float = player.position.z
+					var a = battle.spawn("1", player.position + Vector3(1.05, 0, 0.05))
+					var b = battle.spawn("3", player.position + Vector3(-1.1, 0, -0.1))
+					b.atk_cd = 0.9
+		await get_tree().physics_frame
+		await RenderingServer.frame_post_draw
+		if f % 3 == 0:
+			get_viewport().get_texture().get_image().save_png(dir + "/play_%03d.png" % f)
+	print("PLAY DONE")
 	get_tree().quit()

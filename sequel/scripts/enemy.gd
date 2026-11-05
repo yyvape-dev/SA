@@ -1,0 +1,200 @@
+extends Node3D
+## 敵兵（仮の絵＝前作の一般兵）。帯の中でラナへ寄り、間合いに入ると攻撃の連番を流す。
+## 状態：walk（寄る）／atk（攻撃。予兆→当たり→戻り）／stun（ひるみ）／dying（倒れて消える）。
+## 数値は前作 battle/ の値を、ラナの背（205px＝1.85m）で m に直したもの。
+
+const SPR := preload("res://scripts/sprite_bb.gdshader")
+const HEIGHT := {"1": 2.10, "3": 2.03}   # 前作の HEIGHT（f1 233・f3 225 px）÷205×1.85
+const FOE_SPD := 2.4       # 攻撃の連番の速さ（一騎打ちの何倍か。前作は3.3。予兆を読めるよう少し遅く）
+const ATK_START := 1.15    # この左右の距離で攻撃を始める
+const ATK_REACH := 1.45    # 当たりの瞬間に、この距離までなら当たる
+const ATK_LANE := 0.45     # 奥行きのずれがこれ以内なら当たる（奥行きをずらして避けられる）
+const STOP := 0.95         # これより近くへは歩かない
+
+var battle               # battle.gd
+var kind := "1"
+var clips: Dictionary
+var pages := {}
+var sprite: Sprite3D
+var mat: ShaderMaterial
+var shadow: MeshInstance3D
+var hpbar: MeshInstance3D
+var hp := 30.0
+var hp_max := 30.0
+var dmg := 8
+var sp := 1.2
+var size := 1.0
+var yo := 0.0             # 奥行きのばらけ（寄る先のずれ）
+var face := -1
+var state := "walk"
+var t := 0.0
+var atk_cd := 0.3
+var atk := {}             # {clip, t, starts, hit_t, end_t, done, warn}
+var stun := 0.0
+var kx := 0.0
+var flash := 0.0
+var bar_t := 0.0
+var die_t := 0.0
+var die_dir := 1
+
+func setup(b, k: String, c: Dictionary, level: int) -> void:
+	battle = b
+	kind = k
+	clips = c
+	size = randf_range(0.94, 1.06)
+	hp_max = 60.0 + level * 10.0   # 前作（22+5n）は2振りで倒れ、連携を見せる前に終わったので硬く
+	hp = hp_max
+	dmg = 7 + level
+	sp = (1.13 + randf_range(0.0, 0.38) + level * 0.03)
+	yo = randf_range(-1.0, 1.0) * 1.1
+	t = randf_range(0.0, 6.0)
+	atk_cd = randf_range(0.05, 0.6)
+
+func _ready() -> void:
+	sprite = Sprite3D.new()
+	sprite.region_enabled = true
+	sprite.centered = false
+	mat = ShaderMaterial.new()
+	mat.shader = SPR
+	sprite.material_override = mat
+	sprite.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(sprite)
+	shadow = battle.make_shadow(1.1 * size)
+	add_child(shadow)
+	hpbar = battle.make_hpbar()
+	hpbar.position.y = HEIGHT[kind] * size + 0.25
+	hpbar.visible = false
+	add_child(hpbar)
+	_show("walk", 0)
+
+func height() -> float:
+	return HEIGHT[kind] * size
+
+func _tex(name: String) -> Texture2D:
+	if not pages.has(name):
+		pages[name] = load("res://assets/foe/" + name)
+	return pages[name]
+
+func _show(c: String, i: int) -> void:
+	var cl: Dictionary = clips[c]
+	var fr: Array = cl.frames
+	var f: Array = fr[clampi(i, 0, fr.size() - 1)]
+	var tex := _tex(f[0])
+	if sprite.texture != tex:
+		sprite.texture = tex
+		mat.set_shader_parameter("tex", tex)
+	sprite.region_rect = Rect2(f[1], f[2], f[3], f[4])
+	sprite.pixel_size = HEIGHT[kind] * size / float(cl.h)
+	var flip: bool = (face != int(cl.face))
+	var ox: float = f[5]
+	if flip:
+		ox = -ox - f[3]
+	sprite.flip_h = flip
+	sprite.offset = Vector2(ox, -f[6] - f[4])
+
+func _physics_process(delta: float) -> void:
+	var dt: float = battle.dt(delta)
+	flash = maxf(0.0, flash - delta)
+	mat.set_shader_parameter("flash", Color(0.75, 0.88, 1.0, 0.42 * flash / 0.1 if flash > 0.0 else 0.0))
+	bar_t = maxf(0.0, bar_t - delta)
+	hpbar.visible = bar_t > 0.0 and state != "dying"
+	if dt <= 0.0:
+		return
+	t += dt
+	var pl: Node3D = battle.player
+	match state:
+		"dying":
+			die_t += dt
+			var k := die_t / 0.45
+			position.x += die_dir * 1.4 * dt * (1.0 - k)
+			mat.set_shader_parameter("rot", -die_dir * 1.25 * (1.0 - pow(1.0 - minf(k * 1.6, 1.0), 3.0)))
+			mat.set_shader_parameter("tint", Color(1, 1, 1, 1.0 - k))
+			shadow.transparency = k
+			if k >= 1.0:
+				battle.remove_enemy(self)
+			return
+		"stun":
+			stun -= dt
+			position.x += kx * dt
+			kx *= pow(0.0005, dt)
+			if stun <= 0.0:
+				state = "walk"
+			_show("walk", 0)
+		"atk":
+			atk.t += dt
+			var st: Array = atk.starts
+			var fi := 0
+			while fi + 1 < st.size() and st[fi + 1] <= atk.t:
+				fi += 1
+			_show(atk.clip, fi)
+			if not atk.done and atk.t >= atk.hit_t:
+				atk.done = true
+				atk.warn = null
+				var dx: float = (pl.position.x - position.x) * face
+				var dz: float = absf(pl.position.z - position.z)
+				if dx > -0.3 and dx < ATK_REACH * size and dz < ATK_LANE:
+					battle.enemy_hits_player(self)
+			if atk.t >= atk.end_t:
+				state = "walk"
+				atk_cd = 1.0
+		"walk":
+			var dx: float = pl.position.x - position.x
+			face = 1 if dx >= 0 else -1
+			if absf(dx) > STOP * size:
+				position.x += signf(dx) * sp * dt
+			# 遠いほど奥行きにばらけ、近づくとラナの奥行きへ寄る
+			var fk := clampf((absf(dx) - 0.5) / 2.2, 0.25, 1.0)
+			var tz: float = clampf(pl.position.z + yo * fk, battle.BELT_Z.x, battle.BELT_Z.y)
+			var dz: float = tz - position.z
+			if absf(dz) > 0.05:
+				position.z += signf(dz) * minf(absf(dz), sp * 0.6 * dt)
+			atk_cd -= dt
+			if absf(dx) < ATK_START * size and absf(pl.position.z - position.z) < ATK_LANE * 0.8 and atk_cd <= 0.0 and battle.player_alive():
+				_start_atk()
+			else:
+				var wc: Dictionary = clips.walk
+				var moving: bool = absf(dx) > STOP * size or absf(dz) > 0.05
+				var wf: int = int((t + yo) * wc.fps * sp / 1.2) % wc.frames.size() if moving else 0
+				_show("walk", wf)
+	position.z = clampf(position.z, battle.BELT_Z.x - 0.1, battle.BELT_Z.y + 0.1)
+
+func _start_atk() -> void:
+	var names := []
+	for k in clips:
+		if str(k).begins_with("atk"):
+			names.append(k)
+	var c: String = names[randi() % names.size()]
+	var cl: Dictionary = clips[c]
+	var acc := 0.0
+	var starts := []
+	var hit_t := 0.0
+	for i in cl.durs.size():
+		starts.append(acc / 1000.0 / FOE_SPD)
+		if i == int(cl.hit):
+			hit_t = acc / 1000.0 / FOE_SPD
+		acc += float(cl.durs[i])
+	state = "atk"
+	atk = {"clip": c, "t": 0.0, "starts": starts, "hit_t": hit_t, "end_t": acc / 1000.0 / FOE_SPD, "done": false}
+	# 床の予兆：当たる範囲（前へ ATK_REACH、奥行き ±ATK_LANE）
+	var cx := position.x + face * ATK_REACH * size * 0.5
+	atk.warn = battle.fx.warn(Vector3(cx, 0, position.z), Vector2(ATK_REACH * size, ATK_LANE * 2.0), hit_t)
+
+## ラナの攻撃が当たった
+func take_hit(d: float, dir: int, strong: bool) -> void:
+	if state == "dying":
+		return
+	hp -= d
+	flash = 0.1
+	bar_t = 1.6
+	hpbar.material_override.set_shader_parameter("ratio", maxf(0.0, hp / hp_max))
+	if atk.get("warn") != null and not atk.done:
+		battle.fx.drop(atk.warn)
+	atk = {}
+	stun = maxf(stun, 0.5 if strong else 0.16)
+	kx = dir * (3.9 if strong else 1.6)
+	state = "stun"
+	if hp <= 0.0:
+		state = "dying"
+		die_t = 0.0
+		die_dir = dir
+		battle.fx.kill(position, dir, height())
