@@ -1,0 +1,43 @@
+name: Neon city 3D greybox viewport capture
+on:
+  push:
+    branches:
+      - test/godot-neon-greybox-20261105
+  workflow_dispatch:
+jobs:
+  capture:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: godot-viewport-test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install software OpenGL
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y xvfb libgl1-mesa-dri libgl1
+      - name: Download Godot 4.4.1 stable
+        run: |
+          curl -fL --retry 3 -o /tmp/godot.zip https://github.com/godotengine/godot/releases/download/4.4.1-stable/Godot_v4.4.1-stable_linux.x86_64.zip
+          unzip -q /tmp/godot.zip -d /tmp
+          mv /tmp/Godot_v4.4.1-stable_linux.x86_64 /tmp/godot
+          chmod +x /tmp/godot
+          /tmp/godot --version
+      - name: Import Godot project
+        run: /tmp/godot --headless --path . --editor --import --quit
+      - name: Capture real greybox 3D viewport
+        env:
+          CAPTURE_GREYBOX: "1"
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: |
+          mkdir -p captures
+          timeout 90s xvfb-run -a -s '-screen 0 1280x720x24' /tmp/godot --path . --rendering-driver opengl3 --windowed --resolution 1280x720 res://greybox_city.tscn
+          for n in 00_tavern 01_workshop 02_scrapyard 03_occluded 04_unoccluded 05_rear_lane; do test -s captures/greybox_${n}.png; done
+      - name: Upload real Godot screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: neon-city-greybox-real-captures
+          path: godot-viewport-test/captures/greybox_*.png
+          if-no-files-found: warn
