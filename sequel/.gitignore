@@ -3,3 +3,4 @@ captures/
 # 外部AIの絵の受け取り場所（git に入れない）
 art/incoming/*
 !art/incoming/.gdignore
+__pycache__/
