@@ -6,6 +6,7 @@ import sys, os, json, base64
 ARGS = sys.argv[1:]
 ONLY = ARGS[ARGS.index('--only') + 1] if '--only' in ARGS else None
 STYLE_IMG = ARGS[ARGS.index('--style') + 1] if '--style' in ARGS else None
+TITLE = ARGS[ARGS.index('--title') + 1] if '--title' in ARGS else '融合都市の発注票'
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 G = os.path.join(ROOT, 'art/guide')
 meta = json.load(open(os.path.join(G, 'guide.json')))
@@ -79,16 +80,20 @@ for i, (pid, title, atts, prompt, note) in enumerate(ORDERS):
 <div class="atts">%s</div><p class="note">%s</p><pre>%s</pre><button class="big" onclick="cpTxt(this)">プロンプトをコピー</button>
 <p class="id">取り込み名：<b>%s</b></p></section>''' % (i, pid, title, ah, note, prompt, pid))
 
-html = '''<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>融合都市の下絵を塗る（発注票）</title><style>
-body{margin:0;background:#15131c;color:#eee;font:15px/1.6 system-ui,sans-serif}main{max-width:560px;margin:auto;padding:14px}
-h1{font-size:19px}.card{background:#221f2c;border:1px solid #3a3550;border-radius:12px;padding:12px;margin:14px 0}
-h2{font-size:17px;margin:0 0 8px}.atts{display:flex;gap:10px}.att{flex:1;text-align:center}.att img{width:100%;border-radius:6px;background:#000}
-.ph{aspect-ratio:3/2;display:flex;align-items:center;justify-content:center;border:2px dashed #6a6290;border-radius:6px;color:#aaa}
-.att span{display:block;font-size:13px;color:#c9a24a}button{background:#2c3a52;color:#fff;border:0;border-radius:8px;padding:8px 10px;font-size:14px}
-.big{width:100%;padding:12px;font-size:16px;background:#c9a24a;color:#111;margin-top:6px}pre{white-space:pre-wrap;background:#0f0e14;padding:10px;border-radius:8px;font-size:13.5px}
-.note{color:#9fd;font-size:13.5px;margin:6px 0}.id{font-size:13px;color:#aaa;margin:6px 0 0}#t{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#000c;padding:10px 16px;border-radius:20px;display:none}
-</style></head><body><main><h1>融合都市・1区画目：下絵を塗る（''' + ('全%d件' % len(ORDERS)) + '''）</h1>
+html = '''<title>''' + TITLE + '''</title><meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* 縦長スマホで上から順にコピペする票。夜の街に合わせた暗い一色の見た目（単一テーマ） */
+:root{--bg:#15131c;--card:#221f2c;--line:#3a3550;--fg:#eeeeee;--sub:#aaaaaa;--brass:#c9a24a;--ink:#111111;--btn:#2c3a52;--note:#99ddcc;--pre:#0f0e14;color-scheme:dark}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.6 system-ui,sans-serif}
+main{max-width:560px;margin:auto;padding-block:14px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1{font-size:19px}.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin:14px 0}
+h2{font-size:17px;margin:0 0 8px}.atts{display:flex;gap:10px}.att{flex:1;text-align:center}.att img{width:100%;border-radius:6px;background:var(--pre)}
+.ph{aspect-ratio:3/2;display:flex;align-items:center;justify-content:center;border:2px dashed var(--line);border-radius:6px;color:var(--sub)}
+.att span{display:block;font-size:13px;color:var(--brass)}button{background:var(--btn);color:var(--fg);border:0;border-radius:8px;padding:8px 10px;font-size:14px}
+.big{width:100%;padding:12px;font-size:16px;background:var(--brass);color:var(--ink);margin-top:6px}pre{white-space:pre-wrap;background:var(--pre);padding:10px;border-radius:8px;font-size:13.5px}
+.note{color:var(--note);font-size:13.5px;margin:6px 0}.id{font-size:13px;color:var(--sub);margin:6px 0 0}#t{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--pre);padding:10px 16px;border-radius:20px;display:none}
+button:focus-visible{outline:2px solid var(--brass);outline-offset:2px}.atts{flex-wrap:wrap}.att{min-width:0}pre{overflow-x:auto}
+</style><main><h1>融合都市・1区画目：下絵を塗る（''' + ('全%d件' % len(ORDERS)) + '''）</h1>
 <p>ChatGPT（画像生成）で、上から順に。添付の画像はコピーできない端末では長押しで保存してください。できた絵は、件名の「取り込み名」と一緒に送ってください。</p>
 ''' + "\n".join(cards) + '''<div id="t"></div></main><script>
 const IM=''' + json.dumps(IM) + ''';
@@ -97,6 +102,6 @@ function toast(s){const t=document.getElementById('t');t.textContent=s;t.style.d
 async function cpTxt(b){const s=b.parentNode.querySelector('pre').textContent;try{await navigator.clipboard.writeText(s);toast('コピーしました')}catch(e){const a=document.createElement('textarea');a.value=s;document.body.appendChild(a);a.select();document.execCommand('copy');a.remove();toast('コピーしました')}}
 async function cpImg(b){const im=b.parentNode.querySelector('img');try{const c=document.createElement('canvas');c.width=im.naturalWidth;c.height=im.naturalHeight;c.getContext('2d').drawImage(im,0,0);const bl=await new Promise(r=>c.toBlob(r,'image/png'));await navigator.clipboard.write([new ClipboardItem({'image/png':bl})]);toast('画像をコピーしました')}catch(e){toast('コピーできません。画像を長押しで保存してください')}}
 document.querySelectorAll('input[type=checkbox]').forEach(c=>{try{c.checked=localStorage.getItem('ord_'+c.dataset.id)==='1'}catch(e){}c.onchange=()=>{try{localStorage.setItem('ord_'+c.dataset.id,c.checked?'1':'0')}catch(e){}}});
-</script></body></html>'''
+</script>'''
 open(sys.argv[1], 'w').write(html)
 print(len(html) // 1024, 'KB')
