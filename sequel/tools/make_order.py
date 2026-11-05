@@ -1,5 +1,11 @@
-"""発注票（GPT に下絵を塗ってもらう）を1枚のHTMLにする。 python3 -I sequel/tools/make_order.py <出力.html>"""
+"""発注票（GPT に下絵を塗ってもらう）を1枚のHTMLにする。
+  python3 -I sequel/tools/make_order.py <出力.html>                      … 全件
+  python3 -I sequel/tools/make_order.py <出力.html> --only b0_backrow [--style 塗った全体の絵.png]
+      … その件だけ。--style を渡すと「添付2」に画風の見本（塗った key_full）を実物で入れる"""
 import sys, os, json, base64
+ARGS = sys.argv[1:]
+ONLY = ARGS[ARGS.index('--only') + 1] if '--only' in ARGS else None
+STYLE_IMG = ARGS[ARGS.index('--style') + 1] if '--style' in ARGS else None
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 G = os.path.join(ROOT, 'art/guide')
 meta = json.load(open(os.path.join(G, 'guide.json')))
@@ -21,7 +27,8 @@ ORDERS = [
 ]
 NAMES = {"b1_tavern": "1. 蒸気の酒場", "b2_workshop": "2. 時計塔の機関工房", "b3_shop": "3. ネオンの装備屋",
          "b4_bridge": "4. 鉄骨の高架と蒸気管", "z_skyline": "5. 遠景の高層の塔と飛行船",
-         "f1_lamp": "6. 手前の街灯（暖色）", "f2_pipe": "7. 手前の蒸気弁", "f3_lamp": "8. 手前の街灯（ネオン）"}
+         "f1_lamp": "6. 手前の街灯（暖色）", "f2_pipe": "7. 手前の蒸気弁", "f3_lamp": "8. 手前の街灯（ネオン）",
+         "b0_backrow": "9. 裏通りの建物の列（奥）"}
 WHAT = {"b1_tavern": "銅のボイラーと煙突のある、レンガの酒場。正面にピンクのネオン看板（ジョッキの形）、木の扉、窓から暖かい光。",
         "b2_workshop": "石造りの機関工房。鉄のシャッター、真鍮の歯車の丸窓、上に時計塔（真鍮の文字盤）。左に縦の配管。",
         "b3_shop": "レンガの装備屋。大きなガラスの陳列窓（中に剣や鎧の影）、銅の庇、右に縦長の水色のネオン看板（剣の形）。",
@@ -29,25 +36,42 @@ WHAT = {"b1_tavern": "銅のボイラーと煙突のある、レンガの酒場�
         "z_skyline": "遠くの高層の塔（ガラスと暗い石）と、銅の飛行船。霞んで、窓の明かりがまばら。遠景なので細部は控えめ。",
         "f1_lamp": "鉄の街灯。上に暖色のガス灯。",
         "f2_pipe": "銅の蒸気弁（消火栓のような形）。上に真鍮のハンドル。",
-        "f3_lamp": "鉄の街灯。上に水色のネオンの灯り。"}
+        "f3_lamp": "鉄の街灯。上に水色のネオンの灯り。",
+        "b0_backrow": ("表通りの建物の裏にある、裏通りの建物の列（横に長い）。路地のすき間と通りの両端から、奥に少しだけ見える。"
+                       "添付2の路地の奥に霞んで見える建物と同じ扱い：紫がかった夜霧に半分溶け、手前の建物より暗く、"
+                       "コントラストと彩度を控えめに、細部も少なめ。レンガと石の壁、細い銅の配管、屋上の給水塔と煙突。"
+                       "窓は少数だけ暖色の明かり、小さなネオン（水色の縦の看板、ピンクの横の看板）は霧でにじむ程度。"
+                       "建物の下の方ほど霧が濃い。霧と光は建物の輪郭の内側だけに描き、マゼンタの部分には霧も光も描かない。")}
 for k in NAMES:
+    if k not in meta or (ONLY and k != ONLY):
+        continue
     w, h = meta[k]['w'], meta[k]['h']
     ORDERS.append((k, NAMES[k], [k, "STYLE"],
-                   KEEP + "添付2（0. の完成画）と同じ画風・光・色合いで塗る。" + STYLE + COMMON + "これは：" + WHAT[k]
+                   KEEP + ("添付2（画風の見本）と同じ画風・光・色合いで塗る。" if STYLE_IMG else "添付2（0. の完成画）と同じ画風・光・色合いで塗る。") + STYLE + COMMON + "これは：" + WHAT[k]
                    + "出力は %d×%d。" % (w, h),
-                   "添付2＝「0.」で出来た絵（このページには無いので、自分で添付）。"))
+                   ("添付2＝画風の見本（塗った全体の絵）。" if STYLE_IMG else "添付2＝「0.」で出来た絵（このページには無いので、自分で添付）。")))
+if ONLY:
+    ORDERS = [o for o in ORDERS if o[0] == ONLY]
 
 IM = {}
+if STYLE_IMG:
+    from PIL import Image
+    import io
+    im = Image.open(STYLE_IMG).convert('RGB')
+    buf = io.BytesIO(); im.save(buf, 'PNG')
+    IM['STYLE'] = "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
 for o in ORDERS:
     for a in o[2]:
-        if a != "STYLE" and a not in IM:
+        if a not in IM and a != "STYLE":
             IM[a] = "data:image/png;base64," + base64.b64encode(open(os.path.join(G, a + ".png"), "rb").read()).decode()
 
 cards = []
 for i, (pid, title, atts, prompt, note) in enumerate(ORDERS):
     ah = ""
     for j, a in enumerate(atts):
-        if a == "STYLE":
+        if a == "STYLE" and STYLE_IMG:
+            ah += '<div class="att"><img data-k="STYLE"><span>添付%d</span><button onclick="cpImg(this)">画像をコピー</button></div>' % (j + 1)
+        elif a == "STYLE":
             ah += '<div class="att"><div class="ph">0. の完成画</div><span>添付%d</span></div>' % (j + 1)
         else:
             ah += '<div class="att"><img data-k="%s"><span>添付%d</span><button onclick="cpImg(this)">画像をコピー</button></div>' % (a, j + 1)
@@ -64,7 +88,7 @@ h2{font-size:17px;margin:0 0 8px}.atts{display:flex;gap:10px}.att{flex:1;text-al
 .att span{display:block;font-size:13px;color:#c9a24a}button{background:#2c3a52;color:#fff;border:0;border-radius:8px;padding:8px 10px;font-size:14px}
 .big{width:100%;padding:12px;font-size:16px;background:#c9a24a;color:#111;margin-top:6px}pre{white-space:pre-wrap;background:#0f0e14;padding:10px;border-radius:8px;font-size:13.5px}
 .note{color:#9fd;font-size:13.5px;margin:6px 0}.id{font-size:13px;color:#aaa;margin:6px 0 0}#t{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#000c;padding:10px 16px;border-radius:20px;display:none}
-</style></head><body><main><h1>融合都市・1区画目：下絵を塗る（全9件）</h1>
+</style></head><body><main><h1>融合都市・1区画目：下絵を塗る（''' + ('全%d件' % len(ORDERS)) + '''）</h1>
 <p>ChatGPT（画像生成）で、上から順に。添付の画像はコピーできない端末では長押しで保存してください。できた絵は、件名の「取り込み名」と一緒に送ってください。</p>
 ''' + "\n".join(cards) + '''<div id="t"></div></main><script>
 const IM=''' + json.dumps(IM) + ''';

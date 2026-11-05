@@ -1,7 +1,7 @@
 extends Node3D
 ## 融合都市の1区画（縦切り）。街を左右と奥行きで歩く。
 ## 起動の切り替え（環境変数）：
-##   CAPTURE_GUIDE=1 … 外部AIに渡す下絵を art/guide/ に書き出して終了
+##   CAPTURE_GUIDE=1 … 外部AIに渡す下絵を art/guide/ に書き出して終了（=<部品のid> でその部品だけ）
 ##   CAPTURE_PLAY=1  … 動作確認の画面を captures/ に書き出して終了
 
 const City := preload("res://scripts/city_block1.gd")
@@ -358,8 +358,18 @@ func _capture_guides() -> void:
 	for ch in get_children():
 		if ch is MeshInstance3D:
 			floor_nodes.append(ch)
+	# CAPTURE_GUIDE=<部品のid> なら、その部品だけ撮り直す（ほかの下絵と guide.json の他の項目は変えない）
+	var only := OS.get_environment("CAPTURE_GUIDE")
+	if only == "1":
+		only = ""
+	if only != "":
+		var gf := FileAccess.open(dir + "/guide.json", FileAccess.READ)
+		if gf:
+			var d = JSON.parse_string(gf.get_as_text())
+			if d is Dictionary:
+				meta = d
 	for p in City.pieces():
-		if p.boxes.is_empty():
+		if p.boxes.is_empty() or (only != "" and p.id != only):
 			continue
 		for k in piece_nodes:
 			piece_nodes[k].visible = (k == p.id)
@@ -406,6 +416,13 @@ func _capture_guides() -> void:
 			arr.append_array([c.x, c.y, c.z, c.w])
 		meta[p.id] = {"w": size.x, "h": size.y, "vp": arr, "kind": p.kind}
 		print("GUIDE ", p.id, " ", size)
+	if only != "":
+		var f1 := FileAccess.open(dir + "/guide.json", FileAccess.WRITE)
+		f1.store_string(JSON.stringify(meta, " "))
+		f1.close()
+		print("GUIDE DONE (only ", only, ")")
+		get_tree().quit()
+		return
 	# 全体の絵（画風を決める1枚）：ゲームのカメラ、中央、全部を表示
 	for k in piece_nodes:
 		piece_nodes[k].visible = true
