@@ -23,12 +23,14 @@ var combo := 0
 var combo_t := 0.0
 var auto_spawn := true
 var shadow_mat: StandardMaterial3D
+var glints: Array = []   # 看板・灯りの位置と色（assets/ground/glints.json）。キャラの縁取り・染めに使う
+const REFL := preload("res://scripts/sprite_refl.gdshader")
 
 func _ready() -> void:
 	var d = JSON.parse_string(FileAccess.get_file_as_string("res://assets/foe/foe.json"))
 	foe_clips = d
 	shadow_mat = StandardMaterial3D.new()
-	shadow_mat.albedo_color = Color(0, 0, 0, 0.55)
+	shadow_mat.albedo_color = Color(0, 0, 0, 0.8)   # 足元の影（濃いめ）
 	var gt := GradientTexture2D.new()
 	gt.fill = GradientTexture2D.FILL_RADIAL
 	gt.fill_from = Vector2(0.5, 0.5)
@@ -40,6 +42,46 @@ func _ready() -> void:
 	shadow_mat.albedo_texture = gt
 	shadow_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	shadow_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+
+## 濡れた路面に映る逆さの姿（キャラの子）
+func make_refl() -> Sprite3D:
+	var r := Sprite3D.new()
+	r.region_enabled = true
+	r.centered = false
+	var m := ShaderMaterial.new()
+	m.shader = REFL
+	r.material_override = m
+	r.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return r
+
+## その場の光（近くの看板・灯り）をキャラの絵に反映する：輪郭の光の側を細く光らせ、体を少し染め、映り込みを合わせる。毎コマ呼ぶ。
+func apply_light(spr: Sprite3D, mat: ShaderMaterial, refl: Sprite3D, p: Vector3) -> void:
+	var sum := Vector3.ZERO
+	var wt := 0.0
+	var side := 0.0
+	for g in glints:
+		var dx: float = float(g.x) - p.x
+		var w: float = float(g.p) / (1.0 + dx * dx * 0.08)
+		sum += Vector3(float(g.col[0]), float(g.col[1]), float(g.col[2])) * w
+		wt += w
+		side += w * signf(dx)
+	if wt > 0.0:
+		var c: Vector3 = sum / wt
+		c /= maxf(maxf(c.x, c.y), maxf(c.z, 0.001))
+		var k: float = clampf(wt * 0.35, 0.0, 1.0)
+		mat.set_shader_parameter("light_col", Color(c.x, c.y, c.z, 0.25 * k))
+		mat.set_shader_parameter("rim_col", Color(c.x, c.y, c.z, 0.7 * k))
+		var d: float = 1.0 if side >= 0.0 else -1.0
+		mat.set_shader_parameter("rim_dir", -d if spr.flip_h else d)
+	if refl:
+		if refl.texture != spr.texture:
+			refl.texture = spr.texture
+			refl.material_override.set_shader_parameter("tex", spr.texture)
+		refl.region_rect = spr.region_rect
+		refl.pixel_size = spr.pixel_size
+		refl.flip_h = spr.flip_h
+		refl.offset = spr.offset
+		refl.material_override.set_shader_parameter("tint", mat.get_shader_parameter("tint"))
 
 ## ラナと敵が使う時間（止めている間は 0）
 func dt(delta: float) -> float:

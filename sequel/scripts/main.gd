@@ -40,6 +40,7 @@ func _ready() -> void:
 	cam.far = 300.0
 	add_child(cam)
 	battle = Battle.new()
+	battle.glints = glints
 	battle.BELT_Z = BELT_Z
 	battle.ROOM_X = ROOM_X
 	battle.cam = cam
@@ -56,6 +57,7 @@ func _ready() -> void:
 	add_child(player)
 	player.position = Vector3(-4, 0, 1.0)
 	_place_cam(true)
+	_build_vignette()
 	ui = TouchUI.new()
 	ui.player = player
 	ui.battle = battle
@@ -67,6 +69,24 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_place_cam(false, delta)
+	# 手前の板：ラナと重なったら半分ほど透ける
+	for f in fg_list:
+		var over: bool = absf(player.position.x - f.node.position.x) < f.half + 0.45
+		var col: Color = f.mat.get_shader_parameter("tint")
+		var a: float = move_toward(col.a, 0.5 if over else 1.0, delta * 3.0)
+		f.mat.set_shader_parameter("tint", Color(FG_DIM, FG_DIM, FG_DIM, a))
+
+func _build_vignette() -> void:
+	var cl := CanvasLayer.new()
+	cl.layer = 0
+	var r := ColorRect.new()
+	r.set_anchors_preset(Control.PRESET_FULL_RECT)
+	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var m := ShaderMaterial.new()
+	m.shader = VIGNETTE_SHADER
+	r.material = m
+	cl.add_child(r)
+	add_child(cl)
 
 func _cam_pos_for(x: float) -> Vector3:
 	return Vector3(clampf(x, CAM_X.x, CAM_X.y), 0, 0) + CAM_OFS
@@ -90,6 +110,13 @@ func _build_env() -> void:
 	env.ambient_light_color = Color("8a86a8")
 	env.ambient_light_energy = 0.55
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	# ネオン・灯りのにじみ（Compatibility でも効くことを確認済み。明るい所だけ）
+	env.glow_enabled = true
+	env.glow_intensity = 1.2
+	env.glow_strength = 1.1
+	env.glow_bloom = 0.0
+	env.glow_hdr_threshold = 0.78
+	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_SCREEN
 	we.environment = env
 	add_child(we)
 	var sun := DirectionalLight3D.new()
@@ -117,7 +144,7 @@ func _build_floor() -> void:
 	fg_mi.position = Vector3(0, -0.04, -34.5)
 	var fgm := ShaderMaterial.new()
 	fgm.shader = FAR_GROUND_SHADER
-	fgm.set_shader_parameter("fog_col", Color8(104, 76, 83))
+	fgm.set_shader_parameter("fog_col", Color8(98, 72, 96))
 	fg_mi.material_override = fgm
 	add_child(fg_mi)
 	_build_glints()
@@ -130,6 +157,18 @@ const FLOOR_DIM := 0.5    # 地面の明るさ（素材の色に掛ける）
 const GLINT_SHADER := preload("res://scripts/glint.gdshader")
 const FAR_GROUND_SHADER := preload("res://scripts/far_ground.gdshader")
 const FOOT_SHADER := preload("res://scripts/foot_shade.gdshader")
+const FAR_PAINT_SHADER := preload("res://scripts/far_paint.gdshader")
+const VIGNETTE_SHADER := preload("res://scripts/vignette.gdshader")
+## 奥行き（2026-11-05）：奥ほど暗く・彩度を下げ・紫の霧。強さ＝遠景 ＞ 裏通り b0 ＞ 建物 b1〜b4 ＞ 路面。
+const FOG_COL := Color8(97, 69, 102)
+const FOG_FAR := 1.3
+const FOG_BACK := 1.0
+const FOG_BLD := 0.35
+const BLD_DIM := 0.8        # 塗った建物の面の明るさ（ネオン・灯りの明るい所は暗くしない）
+const FG_BLUR := 5.0        # 手前の板のぼかし（テクスチャの画素）
+const FG_DIM := 0.8
+var glints: Array = []
+var fg_list: Array = []     # [{node, mat, half}]
 
 func _ground(c: Vector3, size: Vector2, tex: Texture2D, tile: float) -> void:
 	var mi := MeshInstance3D.new()
@@ -138,7 +177,7 @@ func _ground(c: Vector3, size: Vector2, tex: Texture2D, tile: float) -> void:
 	mi.mesh = pm
 	var m := StandardMaterial3D.new()
 	m.albedo_texture = tex
-	m.albedo_color = Color(FLOOR_DIM, FLOOR_DIM, FLOOR_DIM)
+	m.albedo_color = Color(FLOOR_DIM * 0.97, FLOOR_DIM * 0.94, FLOOR_DIM * 1.04)   # ごく弱い紫（奥行きの霧の最弱）
 	m.uv1_scale = Vector3(size.x / tile, size.y / tile, 1)
 	m.roughness = 0.85
 	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
@@ -155,6 +194,7 @@ func _build_glints() -> void:
 	var list = JSON.parse_string(f.get_as_text())
 	if not (list is Array):
 		return
+	glints = list
 	for g in list:
 		var length := clampf(7.0 + float(g.y) * 0.8, 7.0, 12.0)
 		var mi := MeshInstance3D.new()
@@ -214,6 +254,10 @@ func _build_piece(p: Dictionary) -> void:
 			sm.set_shader_parameter("ref_vp", _proj_from(guide_meta[p.id].vp))
 			sm.set_shader_parameter("fallback", col)
 			sm.set_shader_parameter("alpha_mask", has_alpha)
+			sm.set_shader_parameter("dim", BLD_DIM)
+			sm.set_shader_parameter("glow_boost", 0.12)
+			sm.set_shader_parameter("fog_amt", FOG_BACK if p.kind == "back" else FOG_BLD)
+			sm.set_shader_parameter("fog_col", FOG_COL)
 			mi.material_override = sm
 			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF   # 塗った絵の部品は日光の影を落とさない（足元は _foot_shade）
 		else:
@@ -263,9 +307,11 @@ func _build_far_plane(root: Node3D, tex: Texture2D) -> void:
 	qm.size = Vector2(w, h)
 	mi.mesh = qm
 	mi.position = Vector3(0, -1.6 + (FAR_ROW_BOTTOM - tex.get_height() * 0.5) * px, FAR_Z)
-	var m := StandardMaterial3D.new()
-	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	m.albedo_texture = tex
+	var m := ShaderMaterial.new()
+	m.shader = FAR_PAINT_SHADER
+	m.set_shader_parameter("tex", tex)
+	m.set_shader_parameter("fog_amt", FOG_FAR)
+	m.set_shader_parameter("fog_col", FOG_COL)
 	mi.material_override = m
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(mi)
@@ -292,9 +338,12 @@ func _build_fg_plane(root: Node3D, p: Dictionary, tex: Texture2D) -> void:
 	var m := ShaderMaterial.new()
 	m.shader = SPRITE_SHADER
 	m.set_shader_parameter("tex", tex)
+	m.set_shader_parameter("blur", FG_BLUR)   # 表示のときだけぼかして暗く（元の絵は変えない）
+	m.set_shader_parameter("tint", Color(FG_DIM, FG_DIM, FG_DIM, 1.0))
 	mi.material_override = m
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(mi)
+	fg_list.append({"node": mi, "mat": m, "half": w * 0.5})
 
 func _grey_mat(col: Color, kind: String) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()

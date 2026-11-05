@@ -18,6 +18,7 @@ var pages := {}
 var sprite: Sprite3D
 var mat: ShaderMaterial
 var shadow: MeshInstance3D
+var refl: Sprite3D
 var hpbar: MeshInstance3D
 var hp := 30.0
 var hp_max := 30.0
@@ -61,6 +62,8 @@ func _ready() -> void:
 	add_child(sprite)
 	shadow = battle.make_shadow(1.1 * size)
 	add_child(shadow)
+	refl = battle.make_refl()
+	add_child(refl)
 	hpbar = battle.make_hpbar()
 	hpbar.position.y = HEIGHT[kind] * size + 0.25
 	hpbar.visible = false
@@ -96,6 +99,7 @@ func _physics_process(delta: float) -> void:
 	var dt: float = battle.dt(delta)
 	flash = maxf(0.0, flash - delta)
 	mat.set_shader_parameter("flash", Color(0.75, 0.88, 1.0, 0.3 * flash / 0.1 if flash > 0.0 else 0.0))
+	battle.apply_light(sprite, mat, refl, position)
 	bar_t = maxf(0.0, bar_t - delta)
 	hpbar.visible = bar_t > 0.0 and state != "dying"
 	if dt <= 0.0:

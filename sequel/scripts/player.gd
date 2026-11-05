@@ -30,6 +30,7 @@ var run_in := false
 var sprite: Sprite3D
 var mat: ShaderMaterial
 var shadow: MeshInstance3D
+var refl: Sprite3D
 var clips := {}
 var pages := {}
 var clip := "idle"
@@ -61,6 +62,8 @@ func _ready() -> void:
 	add_child(sprite)
 	shadow = world.make_shadow(1.3)
 	add_child(shadow)
+	refl = world.make_refl()
+	add_child(refl)
 	_show_frame("idle", 0)
 
 ## 前作の時間表：攻撃A（縦斬り）は元動画のコマ 9〜60、攻撃B（横薙ぎ）は 12〜37 と 50〜72。
@@ -277,6 +280,7 @@ func _physics_process(delta: float) -> void:
 				inv = 1.5
 				world.player_revived()
 	mat.set_shader_parameter("tint", tint)
+	world.apply_light(sprite, mat, refl, position)
 	position.x = clampf(position.x, room_x.x, room_x.y)
 	position.z = clampf(position.z, belt_z.x, belt_z.y)
 
