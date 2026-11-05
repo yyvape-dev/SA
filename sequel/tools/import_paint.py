@@ -7,7 +7,7 @@
   1. 下絵（art/guide/<id>.png）と同じ大きさに合わせる（比率が違えば中止）。
   2. 両方の「マゼンタでない所」（形）を比べ、ずれ（平行移動）を探して直す。
   3. 形の重なり（IoU）を表示。0.93 未満なら、形が変わっている → 作り直しを勧める。
-  4. art/painted/<id>.png に保存。ゲームは次の起動で、箱にこの絵を投影する。
+  4. art/painted/<id>.png に保存（外周につながったマゼンタ＝背景を透明に。色は変えない）。ゲームは次の起動で、箱にこの絵を投影する。
 """
 import sys, os
 import numpy as np
@@ -62,7 +62,15 @@ def main():
     if (dy, dx) != (0, 0):
         a = np.roll(np.roll(a, dy, 0), dx, 1)
     out = os.path.join(ROOT, 'art/painted/%s.png' % pid)
-    Image.fromarray(a).save(out, optimize=True)
+    # 背景＝外周につながったマゼンタだけ。透明度（アルファ）として持たせる（色は変えない）。
+    # 建物の中のピンクのネオンがマゼンタと見分けられず、仮の色で塗りつぶされるのを防ぐ（2026-11-05、b0_backrow で発覚）。
+    from scipy import ndimage as ndi
+    lab, _ = ndi.label(~shape_mask(a))
+    edge = set(np.unique(np.concatenate([lab[0], lab[-1], lab[:, 0], lab[:, -1]]))) - {0}
+    bg = np.isin(lab, list(edge))
+    rgba = np.dstack([a, np.where(bg, 0, 255).astype(np.uint8)])
+    Image.fromarray(rgba, 'RGBA').save(out, optimize=True)
+    print('建物の中のマゼンタに近い画素（背景として扱わない）：%d px' % int((~shape_mask(a) & ~bg).sum()))
     print('形の重なり IoU：そのまま %.3f → ずれ補正後 %.3f（下へ%dpx・右へ%dpx）' % (iou_raw, iou, dy, dx))
     print('保存：%s' % out)
     if iou < 0.93:

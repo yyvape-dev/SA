@@ -198,6 +198,7 @@ func _build_piece(p: Dictionary) -> void:
 	if p.kind == "fg" and painted != null:
 		_build_fg_plane(root, p, painted)
 		return
+	var has_alpha := painted != null and painted.get_image().detect_alpha() != Image.ALPHA_NONE
 	for b in p.boxes:
 		var mi := MeshInstance3D.new()
 		var bm := BoxMesh.new()
@@ -212,6 +213,7 @@ func _build_piece(p: Dictionary) -> void:
 			sm.set_shader_parameter("paint", painted)
 			sm.set_shader_parameter("ref_vp", _proj_from(guide_meta[p.id].vp))
 			sm.set_shader_parameter("fallback", col)
+			sm.set_shader_parameter("alpha_mask", has_alpha)
 			mi.material_override = sm
 			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF   # 塗った絵の部品は日光の影を落とさない（足元は _foot_shade）
 		else:

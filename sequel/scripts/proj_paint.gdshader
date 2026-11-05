@@ -6,6 +6,8 @@ render_mode unshaded, cull_back;
 uniform sampler2D paint : source_color, filter_linear_mipmap, repeat_disable;
 uniform mat4 ref_vp;
 uniform vec4 fallback : source_color = vec4(0.5, 0.5, 0.5, 1.0);
+// true＝絵の透明度で背景を見分ける（import_paint.py が外周のマゼンタだけを透明にした絵）。false＝色で見分ける（古い絵）
+uniform bool alpha_mask = false;
 varying vec3 wpos;
 
 void vertex() {
@@ -20,7 +22,7 @@ void fragment() {
 	if (c.w > 0.0 && uv.x >= 0.0 && uv.x <= 1.0 && uv.y >= 0.0 && uv.y <= 1.0) {
 		vec4 p = texture(paint, uv);
 		// マゼンタ（背景の名残）は使わない
-		float mag = step(0.75, p.r) * step(0.75, p.b) * (1.0 - step(0.45, p.g));
+		float mag = alpha_mask ? 1.0 - step(0.5, p.a) : step(0.75, p.r) * step(0.75, p.b) * (1.0 - step(0.45, p.g));
 		col = mix(p.rgb, fallback.rgb, mag);
 	}
 	ALBEDO = col;
