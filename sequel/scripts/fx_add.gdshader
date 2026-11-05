@@ -14,6 +14,7 @@ uniform float head = 1.0;     // 0〜1.3：斬撃の先端の位置
 uniform float fade = 1.0;     // 全体の明るさ
 uniform float tail = 3.5;     // 尾の短さ
 uniform float fill = 0.0;
+uniform float core_gain = 1.3;   // mode 1 の中心の白の強さ
 uniform bool billboard = false;
 
 void vertex() {
@@ -40,7 +41,7 @@ void fragment() {
 	} else if (mode == 1) {
 		float r = length(UV - vec2(0.5)) * 2.0;
 		float k = clamp(1.0 - r, 0.0, 1.0);
-		c = col_core.rgb * pow(k, 6.0) * 1.3 + col_main.rgb * pow(k, 2.5) * 0.7 + col_glow.rgb * k * 0.35;
+		c = col_core.rgb * pow(k, 6.0) * core_gain + col_main.rgb * pow(k, 2.5) * 0.7 + col_glow.rgb * k * 0.35;
 	} else if (mode == 2) {
 		c = COLOR.rgb * COLOR.a;
 	} else {

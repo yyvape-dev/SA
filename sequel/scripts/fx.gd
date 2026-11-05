@@ -79,8 +79,8 @@ func slash(origin: Vector3, face: int, spec: Dictionary) -> void:
 	mi.sorting_offset = 0.05
 	# 暗い下地：少し太く、少し外側まで
 	var dk := MeshInstance3D.new()
-	dk.mesh = _arc_mesh(spec.r + spec.w * 0.15, spec.w * 1.5, spec.a0, spec.a1, spec.plane, face, spec.get("squash", 1.0))
-	dk.material_override = _dark(0, 0.5)
+	dk.mesh = _arc_mesh(spec.r + spec.w * 0.15, spec.w * 1.8, spec.a0, spec.a1, spec.plane, face, spec.get("squash", 1.0))
+	dk.material_override = _dark(0, 0.8)   # 塗った絵の上でも帯が埋もれないよう濃く・太く（2026-11-05）
 	dk.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	dk.position = Vector3(0, 0, -0.02)
 	mi.add_child(dk)
@@ -119,7 +119,9 @@ func hit(p: Vector3, dir: int, strong: bool, lead: bool) -> void:
 		return
 	var sz := 1.7 if strong else 1.25
 	_quad(p + Vector3(0, 0, 0.15), Vector2(sz * 1.2, sz * 1.2), _dark(1, 0.35), "flash", 0.12, 0.0)
-	_quad(p + Vector3(0, 0, 0.2), Vector2(sz, sz), _mat(1, pal), "flash", 0.1, 0.0)
+	var fm := _mat(1, pal)
+	fm.set_shader_parameter("core_gain", 0.7)   # 光の中心を弱める（白く飛ばない）
+	_quad(p + Vector3(0, 0, 0.2), Vector2(sz, sz), fm, "flash", 0.1, 0.0)
 	# 切り口：細長いひし形が一瞬で伸びて細る
 	var cut := MeshInstance3D.new()
 	cut.mesh = _diamond()
@@ -204,10 +206,10 @@ func number(p: Vector3, val: int, kind: String) -> void:
 	l.fixed_size = false
 	l.pixel_size = 0.0062
 	l.font_size = 64 if kind != "strong" else 86
-	l.outline_size = 14
+	l.outline_size = 22
 	l.outline_modulate = Color(0, 0, 0, 0.85)
 	match kind:
-		"strong": l.modulate = Color8(255, 226, 138)
+		"strong": l.modulate = Color8(255, 236, 165)
 		"hurt": l.modulate = Color8(255, 107, 107)
 		_: l.modulate = Color(1, 1, 1)
 	# 同じ所に続けて出た数字は、少しずつ上へずらして重ならないように

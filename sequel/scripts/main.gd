@@ -10,6 +10,7 @@ const TouchUI := preload("res://scripts/touch_ui.gd")
 const Battle := preload("res://scripts/battle.gd")
 const Fx := preload("res://scripts/fx.gd")
 const PAINT_SHADER := preload("res://scripts/proj_paint.gdshader")
+const SPRITE_SHADER := preload("res://scripts/sprite_bb.gdshader")
 
 const ROOM_X := Vector2(-19.0, 19.0)   # 歩ける左右
 const BELT_Z := Vector2(-3.2, 3.5)     # 歩ける奥行き
@@ -124,6 +125,12 @@ func _build_piece(p: Dictionary) -> void:
 	add_child(root)
 	piece_nodes[p.id] = root
 	var painted: Texture2D = _load_painted(p.id)
+	if p.kind == "far" and painted != null:
+		_build_far_plane(root, painted)
+		return
+	if p.kind == "fg" and painted != null:
+		_build_fg_plane(root, p, painted)
+		return
 	for b in p.boxes:
 		var mi := MeshInstance3D.new()
 		var bm := BoxMesh.new()
@@ -142,6 +149,55 @@ func _build_piece(p: Dictionary) -> void:
 		else:
 			mi.material_override = _grey_mat(col, b[2])
 		root.add_child(mi)
+
+## 遠景：一枚絵を奥に立てた板（箱は使わない）。縦横比はそのまま。iPhone の横長（約2.17:1）でカメラが左右の端まで動いても
+## 画面の上半分が切れない幅（z=-62 で約131m）。見えるのは絵の高さの約22％なので、ユーザー決定で「中の帯（塔の胴と窓）」が
+## 見える高さに置く（絵の 470〜699 行目が、奥の街の地平 y≈-1.5 〜 画面の上端 y≈18 に来る）。
+const FAR_Z := -62.0
+const FAR_W := 136.0
+const FAR_ROW_BOTTOM := 699.0   # 地平に合わせる絵の行（1024 行中）
+
+func _build_far_plane(root: Node3D, tex: Texture2D) -> void:
+	var w := FAR_W
+	var h := w * float(tex.get_height()) / float(tex.get_width())
+	var px := h / float(tex.get_height())
+	var mi := MeshInstance3D.new()
+	var qm := QuadMesh.new()
+	qm.size = Vector2(w, h)
+	mi.mesh = qm
+	mi.position = Vector3(0, -1.6 + (FAR_ROW_BOTTOM - tex.get_height() * 0.5) * px, FAR_Z)
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.albedo_texture = tex
+	mi.material_override = m
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(mi)
+
+## 手前の部品：背景を抜いた絵（key_soft）を、画面に正対する板として立てる（箱への投影は側面が伸びるのでやめた）。
+## 足元＝地面、背の高さ＝箱のいちばん上。左右・奥行きは箱の中心。当たりには関係しない。
+func _build_fg_plane(root: Node3D, p: Dictionary, tex: Texture2D) -> void:
+	var top := 0.0
+	var cx := 0.0
+	var cz := 0.0
+	for b in p.boxes:
+		top = maxf(top, b[0].y + b[1].y * 0.5)
+		cx += b[0].x
+		cz += b[0].z
+	cx /= p.boxes.size()
+	cz /= p.boxes.size()
+	var h := top
+	var w := h * float(tex.get_width()) / float(tex.get_height())
+	var mi := MeshInstance3D.new()
+	var qm := QuadMesh.new()
+	qm.size = Vector2(w, h)
+	mi.mesh = qm
+	mi.position = Vector3(cx, h * 0.5, cz)
+	var m := ShaderMaterial.new()
+	m.shader = SPRITE_SHADER
+	m.set_shader_parameter("tex", tex)
+	mi.material_override = m
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(mi)
 
 func _grey_mat(col: Color, kind: String) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
@@ -208,6 +264,8 @@ func _capture_guides() -> void:
 		if ch is MeshInstance3D:
 			floor_nodes.append(ch)
 	for p in City.pieces():
+		if p.boxes.is_empty():
+			continue
 		for k in piece_nodes:
 			piece_nodes[k].visible = (k == p.id)
 		for fnode in floor_nodes:

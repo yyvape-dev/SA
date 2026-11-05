@@ -67,14 +67,6 @@ static func pieces() -> Array:
 			[Vector3(14.5, 2.6, 5.6), Vector3(0.35, 5.2, 0.35), "iron"],
 			[Vector3(14.5, 5.3, 5.6), Vector3(0.9, 0.7, 0.9), "neon_c"],
 		]},
-		# 遠景：高層の塔と飛行船（ゆっくり動く）
-		{"id": "z_skyline", "kind": "far", "boxes": [
-			[Vector3(-40, 20, -60), Vector3(10, 40, 6), "dark"],
-			[Vector3(-22, 28, -62), Vector3(8, 56, 6), "glass"],
-			[Vector3(-6, 16, -58), Vector3(12, 32, 6), "dark"],
-			[Vector3(10, 34, -64), Vector3(7, 68, 6), "glass"],
-			[Vector3(26, 22, -60), Vector3(11, 44, 6), "dark"],
-			[Vector3(42, 18, -58), Vector3(9, 36, 6), "glass"],
-			[Vector3(-12, 42, -66), Vector3(18, 5, 5), "copper"],           # 飛行船
-		]},
+		# 遠景：一枚絵の板（main.gd の _build_far_plane）。箱は無い。
+		{"id": "z_skyline", "kind": "far", "boxes": []},
 	]

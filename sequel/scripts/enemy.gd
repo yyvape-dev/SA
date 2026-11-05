@@ -95,7 +95,7 @@ func _show(c: String, i: int) -> void:
 func _physics_process(delta: float) -> void:
 	var dt: float = battle.dt(delta)
 	flash = maxf(0.0, flash - delta)
-	mat.set_shader_parameter("flash", Color(0.75, 0.88, 1.0, 0.42 * flash / 0.1 if flash > 0.0 else 0.0))
+	mat.set_shader_parameter("flash", Color(0.75, 0.88, 1.0, 0.3 * flash / 0.1 if flash > 0.0 else 0.0))
 	bar_t = maxf(0.0, bar_t - delta)
 	hpbar.visible = bar_t > 0.0 and state != "dying"
 	if dt <= 0.0:
