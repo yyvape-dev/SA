@@ -17,10 +17,12 @@ uniform float glow_boost = 0.0;
 uniform float flicker = 0.0;
 uniform float fog_amt = 0.0;
 uniform vec4 fog_col : source_color = vec4(0.38, 0.27, 0.40, 1.0);
+// ofs＝部品の置き場所のずれ（使い回し用）。絵は「下絵を撮った位置」から投影するので、ずらした分を引いて元の位置で計算する。
+uniform vec3 ofs = vec3(0.0);
 varying vec3 wpos;
 
 void vertex() {
-	wpos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	wpos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz - ofs;
 }
 
 void fragment() {

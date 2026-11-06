@@ -1,6 +1,6 @@
 # 続編（SA2・融合都市）引き継ぎ
 
-## 現在地（2026-11-06・夜の歓楽街の暗さ・提灯・人の流れまで）
+## 現在地（2026-11-06・部品の使い回しと地区 pck まで）
 - 前作SAは完成。続編＝横スクロール＋奥行きの帯の2.5Dアクション。街も横スクロールで歩き、ストーリーを挟みつつ、アクションで装備・スキルを掘る。柱＝アクション操作と派手なエフェクト（モーションは増やしにくいので、スキルの幅はエフェクト・移動距離で出す）。
 - 決定（ユーザー）：主人公＝ラナ（絵は描き直す予定。今は前作の連番を仮置き）。舞台＝ネオン街とスチームパンクが融合した近未来都市。iPhone は横持ち。Godot 4.4.1、Web 書き出し（スレッド無し）。実装は Claude。
 - 縦切り1：下町の大通り1区画（`scripts/city_block1.gd`）。歩き・走り（スティックを倒しきる／Shift）・攻撃2種（J／Z）・回避（K／X）。左半分のタッチでスティック、右下に攻撃・回避。敵はまだ無い。
@@ -34,6 +34,20 @@
   - FPS（swiftshader、844×390。この測り方は機械の混み具合で大きく揺れる→同じ時に前の版と並べて測る）：前の版 4.2〜4.6、今回 4.0〜4.4（約5％重い）。
 - 遊べるURL：https://yyvape-dev.github.io/SA/sequel/web/
 
+## 決まり：部品の使い回し（2026-11-06）
+- 塗った部品は、別の位置に置いて使い回せる：`_build_piece(p, ofs, key)`。`proj_paint` は `ofs`（置き場所のずれ）を引いて、下絵を撮った位置で投影する。
+- 事実（`CAPTURE_REUSE=1` で酒場 b1 を 40m 横へ置き、同じ相対位置のカメラで撮って比較）：ずれ補正ありは元とほぼ同じ（差のある画素 0.01〜0.21％）。補正なし（前のシェーダー）は絵が外れて仮の色になった。奥へ 3m・手前へ 1.5m ずらしても、絵は箱に合ったまま（大きさは遠近で変わる）。
+- 同じ部品を置く場所ごとに key を変える（`piece_nodes[key]`）。左右反転の使い回しは未確認。
+
+## 決まり：地区 pck（2026-11-06）
+- 地区ごとの絵は本体（`web/index.pck`）に入れず、`web/districts/<id>.pck` に分ける。今は d1＝歓楽街（`art/painted/*`・`assets/ground/*`・`glints.json`）。本体 36.6MB → 19.1MB、d1 17.5MB。
+- 書き出しは必ず `python3 -I sequel/tools/export_web.py`（godot の --export-release を直接使わない）。版の番号（時刻＋commit）を `build_ver.json`（本体）と `districts/<id>_ver.json`（地区）に同じ値で書き、書き出し設定（"District <id>"）を作り直し、本体と地区 pck を書き出して中身を確かめる。地区を足すときは、この中の `DISTRICTS` に書く。
+- 起動：`district.gd` の `ensure(id)` が `districts/<id>.pck?v=<版>` を落とし、`load_resource_pack(..., false)`（本体を上書きしない）。中の版を本体と照らし合わせ、ずれていたらページを 1 回だけ読み直す（`?r=`。2 回目もずれたらそのまま進む）。手元（エディタ・撮影）では res:// の絵をそのまま使う。
+- 読み込み中は `loading.gd`（暗転＋右下の小さな回る印、文字なし。いちばん上の層）。読み終えたら 0.3 秒で消える。Web では準備完了の時刻を `window.__sa_ready` に入れる（起動時間を測るため）。
+- 地区を出るときは `release_district()`：その地区の絵で作った物を捨て、絵への参照を手放す。事実（`DISTRICT_RELEASE_TEST=1`）：絵のメモリ 92.2MB → 34.5MB。
+- `HTTPRequest.download_chunk_size` は 4MB（既定 64KB だと 1コマに 64KB ずつしか受け取らず、遅い端末で数十秒かかった）。`<link rel="preload">` での先読みは二重に落として逆効果だった（使わない）。
+- 起動から準備完了まで（iPhone 13 横持ち相当 844×390・DPR3、swiftshader、ゲームの合図で測定）：回線の制限なし 前 2.1〜3.5 秒 → 後 3.9〜4.8 秒、20Mbps 相当 前 35.0〜35.3 秒 → 後 38.7〜39.8 秒（地区 pck を本体の起動後に取りに行く分、約 1.5〜4 秒遅い）。
+
 ## 絵の方式（決定。ユーザー承認）：下絵を塗ってもらい、箱に投影する
 - AIに「前景だけ」「層ごと」を描き分けさせない（GPTの試作で失敗）。代わりに：
   1. Godot で街を箱（グレーボックス）で組む。部品（piece）＝1件の絵。
@@ -61,7 +75,7 @@
 ## 確認の手順
 - Windows／xvfb の無い環境では `xvfb-run …` を外す。
 - 撮影：`cd sequel && CAPTURE_PLAY=1 LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a -s '-screen 0 1280x720x24' godot --path . --rendering-driver opengl3 --windowed --resolution 1280x720 --fixed-fps 60` → `captures/play_NNN.png`（3コマに1枚、360コマ。前半＝ラナの連携、170コマ目から敵2体がラナを攻撃、300コマ目で回避。git 管理外）。スクリプトの誤りがあると終わらないので timeout を付ける。
-- 書き出し：`godot --headless --path sequel --export-release "Web" web/index.html`（テンプレートは 4.4.1 の web_nothreads）。index.wasm は版が同じなら毎回同じ中身。
+- 書き出し：`python3 -I sequel/tools/export_web.py`（本体＋地区 pck。テンプレートは 4.4.1 の web_nothreads）。index.wasm は版が同じなら毎回同じ中身。
 - ブラウザ：web/ を http で配信し、playwright（swiftshader）で 844×390 を撮る。
 
 ## 次の候補

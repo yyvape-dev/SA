@@ -28,12 +28,27 @@ var fx: Node3D
 var piece_nodes := {}   # id -> Node3D
 var guide_meta := {}    # id -> {w,h,vp}
 
+const District := preload("res://scripts/district.gd")
+const Loading := preload("res://scripts/loading.gd")
+var district: Node
+var loading: CanvasLayer
+var district_nodes: Array = []   # 今の地区の絵で作った物（地区を出るときに捨てて、絵を解放する）
+
 func _ready() -> void:
+	loading = Loading.new()
+	add_child(loading)
+	district = District.new()
+	add_child(district)
 	_load_guide_meta()
 	_build_env()
+	var ok: bool = await district.ensure("d1")
+	if not ok:
+		push_error("地区 d1 の絵を読み込めない")
+	var n0 := get_children().size()
 	_build_floor()
 	for p in City.pieces():
 		_build_piece(p)
+	district_nodes = get_children().slice(n0)
 	cam = Camera3D.new()
 	cam.fov = CAM_FOV
 	cam.near = 0.3
@@ -63,12 +78,25 @@ func _ready() -> void:
 	ui.player = player
 	ui.battle = battle
 	add_child(ui)
+	var capture := OS.has_environment("CAPTURE_GUIDE") or OS.has_environment("CAPTURE_PLAY") or OS.has_environment("CAPTURE_REUSE")
+	if capture:
+		loading.visible = false
+	else:
+		loading.hide_soon()
+	if OS.has_feature("web"):
+		JavaScriptBridge.eval("window.__sa_ready = performance.now()")
+	if OS.has_environment("DISTRICT_RELEASE_TEST"):
+		_release_test.call_deferred()
 	if OS.has_environment("CAPTURE_GUIDE"):
 		_capture_guides.call_deferred()
 	elif OS.has_environment("CAPTURE_PLAY"):
 		_capture_play.call_deferred()
+	elif OS.has_environment("CAPTURE_REUSE"):
+		_capture_reuse.call_deferred()
 
 func _process(delta: float) -> void:
+	if player == null:
+		return   # 地区の読み込み中
 	_place_cam(false, delta)
 	# 手前の板：ラナと重なったら半分ほど透ける
 	for f in fg_list:
@@ -199,11 +227,13 @@ func _build_env() -> void:
 	add_child(sun)
 
 func _build_floor() -> void:
+	cobble_tex = load("res://assets/ground/cobble.png")
+	slab_tex = load("res://assets/ground/slab.png")
 	# 地面はコード（前作の教訓：AIの一枚絵は継ぎ目が苦手）。外部AIの継ぎ目の無い素材を繰り返して敷く。
 	# 奥の歩道・帯（車道の石畳）・手前の歩道。キャラとエフェクトが沈まないよう暗めにする（FLOOR_DIM）。
-	_ground(Vector3(0, 0.0, -5.2), Vector2(60, 3.0), SLAB_TEX, SLAB_TILE)     # 奥の歩道
-	_ground(Vector3(0, -0.03, 0.15), Vector2(60, 7.6), COBBLE_TEX, COBBLE_TILE) # 帯（石畳の通り）
-	_ground(Vector3(0, 0.0, 5.6), Vector2(60, 3.2), SLAB_TEX, SLAB_TILE)      # 手前の歩道
+	_ground(Vector3(0, 0.0, -5.2), Vector2(60, 3.0), slab_tex, SLAB_TILE)     # 奥の歩道
+	_ground(Vector3(0, -0.03, 0.15), Vector2(60, 7.6), cobble_tex, COBBLE_TILE) # 帯（石畳の通り）
+	_ground(Vector3(0, 0.0, 5.6), Vector2(60, 3.2), slab_tex, SLAB_TILE)      # 手前の歩道
 	for z in [-1.2, 1.6]:   # 路面電車の線路（真鍮の細い線）
 		var r := _slab(Vector3(0, -0.02, z), Vector3(60, 0.04, 0.06), Color("b8933f"))
 		var rm: StandardMaterial3D = r.material_override
@@ -222,8 +252,9 @@ func _build_floor() -> void:
 	add_child(fg_mi)
 	_build_glints()
 
-const COBBLE_TEX := preload("res://assets/ground/cobble.png")
-const SLAB_TEX := preload("res://assets/ground/slab.png")
+## 地面の素材は地区 d1 の pck に入る（本体には入れない）→ 読み込み後に load する
+var cobble_tex: Texture2D
+var slab_tex: Texture2D
 const COBBLE_TILE := 2.5   # 石畳 1 枚の大きさ（m）
 const SLAB_TILE := 2.0     # 敷石 1 枚（石 1 枚が約 1m×0.5m）
 const FLOOR_DIM := 0.3    # 地面の明るさ（素材の色に掛ける。夜。前は 0.5）
@@ -283,7 +314,7 @@ func _build_glints() -> void:
 		m.shader = GLINT_SHADER
 		m.set_shader_parameter("col", Color(g.col[0], g.col[1], g.col[2]))
 		m.set_shader_parameter("power", (0.55 + 1.0 * float(g.p)) * float(g.get("k", 1.0)))
-		m.set_shader_parameter("stone", COBBLE_TEX)
+		m.set_shader_parameter("stone", cobble_tex)
 		m.set_shader_parameter("tile", COBBLE_TILE)
 		m.set_shader_parameter("z0", float(g.z))
 		mi.material_override = m
@@ -303,18 +334,20 @@ func _slab(c: Vector3, s: Vector3, col: Color) -> MeshInstance3D:
 	add_child(mi)
 	return mi
 
-func _build_piece(p: Dictionary) -> void:
+## ofs：同じ部品（同じ絵）を別の位置に置くときのずれ（使い回し）。key：その置き場所の名前（既定は部品の id）。
+func _build_piece(p: Dictionary, ofs: Vector3 = Vector3.ZERO, key: String = "") -> Node3D:
 	var root := Node3D.new()
-	root.name = p.id
+	root.name = p.id if key == "" else key
+	root.position = ofs
 	add_child(root)
-	piece_nodes[p.id] = root
+	piece_nodes[root.name] = root
 	var painted: Texture2D = _load_painted(p.id)
 	if p.kind == "far" and painted != null:
 		_build_far_plane(root, painted)
-		return
+		return root
 	if p.kind == "fg" and painted != null:
 		_build_fg_plane(root, p, painted)
-		return
+		return root
 	var has_alpha := painted != null and painted.get_image().detect_alpha() != Image.ALPHA_NONE
 	for b in p.boxes:
 		var mi := MeshInstance3D.new()
@@ -336,6 +369,7 @@ func _build_piece(p: Dictionary) -> void:
 			sm.set_shader_parameter("flicker", 1.0 if p.kind == "bld" else 0.0)
 			sm.set_shader_parameter("fog_amt", FOG_BACK if p.kind == "back" else FOG_BLD)
 			sm.set_shader_parameter("fog_col", FOG_COL)
+			sm.set_shader_parameter("ofs", ofs)
 			mi.material_override = sm
 			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF   # 塗った絵の部品は日光の影を落とさない（足元は _foot_shade）
 		else:
@@ -345,6 +379,8 @@ func _build_piece(p: Dictionary) -> void:
 		_foot_shade(root, p)
 
 ## 建物の足元の薄い暗がり：地面に接する箱の左右の範囲・正面から手前へ 1.6m、柔らかく薄れる板を置く。
+	return root
+
 func _foot_shade(root: Node3D, p: Dictionary) -> void:
 	var x0 := INF
 	var x1 := -INF
@@ -575,6 +611,73 @@ func _capture_guides() -> void:
 	f.store_string(JSON.stringify(meta, " "))
 	f.close()
 	print("GUIDE DONE")
+	get_tree().quit()
+
+## 地区を出る：その地区の絵で作った物を捨て、絵への参照を手放す（参照が無くなった絵は Godot が解放する）。
+func release_district() -> void:
+	for n in district_nodes:
+		if is_instance_valid(n):
+			n.queue_free()
+	district_nodes.clear()
+	piece_nodes.clear()
+	fg_list.clear()
+	glints = []
+	if battle:
+		battle.glints = []
+	cobble_tex = null
+	slab_tex = null
+
+## 解放の確認（DISTRICT_RELEASE_TEST=1）：絵の使うメモリを、捨てる前と後で出す
+func _release_test() -> void:
+	for i in 5:
+		await RenderingServer.frame_post_draw
+	var before := RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TEXTURE_MEM_USED)
+	release_district()
+	for i in 5:
+		await RenderingServer.frame_post_draw
+	var after := RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TEXTURE_MEM_USED)
+	print("RELEASE TEST texture_mem before=%.1fMB after=%.1fMB" % [before / 1048576.0, after / 1048576.0])
+	get_tree().quit()
+
+# ---------- 使い回しの確認（CAPTURE_REUSE=1）----------
+## 酒場 b1 を別の位置に置き、元の位置と「同じ相対位置のカメラ」で撮って captures/reuse_*.png に書き出す。
+func _capture_reuse() -> void:
+	var p: Dictionary = {}
+	for q in City.pieces():
+		if q.id == "b1_tavern":
+			p = q
+	var cases := {"ok": Vector3(40, 0, 0), "old": Vector3(40, 0, 0), "deep": Vector3(40, 0, -3), "near": Vector3(40, 0, 1.5)}
+	var roots := {"orig": piece_nodes["b1_tavern"]}
+	for k in cases:
+		roots[k] = _build_piece(p, cases[k], "b1_" + k)
+	# "old"＝ずれを引かない（これまでのシェーダーのまま置いた場合）
+	for mi in roots["old"].get_children():
+		if mi is MeshInstance3D and mi.material_override is ShaderMaterial:
+			mi.material_override.set_shader_parameter("ofs", Vector3.ZERO)
+	battle.process_mode = Node.PROCESS_MODE_DISABLED
+	for ch in get_children():
+		if ch is Node3D and ch != cam and not (ch is DirectionalLight3D):
+			ch.visible = false
+		elif ch is CanvasLayer:
+			ch.visible = false
+	set_process(false)
+	var cx := -14.0
+	var dir := ProjectSettings.globalize_path("res://captures")
+	DirAccess.make_dir_recursive_absolute(dir)
+	for k in ["orig", "ok", "old", "deep", "near"]:
+		for r in roots:
+			roots[r].visible = (r == k)
+		var o: Vector3 = Vector3.ZERO if k == "orig" else cases[k]
+		for rel in [-6.0, 0.0, 6.0]:
+			var x: float = cx + o.x + float(rel)
+			cam.position = Vector3(x, 0, 0) + CAM_OFS
+			cam.look_at(Vector3(x, 0, 0) + CAM_LOOK, Vector3.UP)
+			cam.h_offset = 0.0
+			cam.v_offset = 0.0
+			for i in 3:
+				await RenderingServer.frame_post_draw
+			get_viewport().get_texture().get_image().save_png(dir + "/reuse_%s_%d.png" % [k, int(rel)])
+	print("REUSE DONE")
 	get_tree().quit()
 
 # ---------- 動作確認の撮影 ----------
