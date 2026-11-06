@@ -86,6 +86,7 @@ func _ready() -> void:
 	battle.BELT_Z = BELT_Z
 	battle.ROOM_X = ROOM_X
 	battle.cam = cam
+	battle.main = self
 	add_child(battle)
 	fx = Fx.new()
 	fx.cam = cam
@@ -103,6 +104,7 @@ func _ready() -> void:
 	_build_vignette()
 	ui = TouchUI.new()
 	ui.player = player
+	ui.main = self
 	ui.battle = battle
 	add_child(ui)
 	apply_progress()
@@ -809,7 +811,7 @@ func _capture_fx() -> void:
 	_place_cam(true)
 	var shots := {"slash": [2, 5, 9, 13], "wave": [3, 8, 14, 20], "kill": [6, 16, 26, 36]}
 	var scenes := ["slash", "wave", "kill"]
-	if OS.get_environment("FX_ONLY") == "lily":
+	if OS.get_environment("FX_ONLY") != "":
 		scenes = []
 	for scene in scenes:
 		var e = battle.spawn("3", Vector3(0.6, 0, 0.8))
@@ -834,9 +836,63 @@ func _capture_fx() -> void:
 			battle.remove_enemy(x)
 		for f in 30:
 			await get_tree().physics_frame
+	if OS.get_environment("FX_ONLY") == "skill":
+		await _capture_skill_fx(dir)
+		print("FX DONE")
+		get_tree().quit()
+		return
 	await _capture_lily_fx(dir)
 	print("FX DONE")
 	get_tree().quit()
+
+## ラナのスキル3つ（specs/skill_ui.md）：溜め・頂点・余韻 → captures/fx_skill_<id>_<1|2|3>.png、右下の操作 → captures/ui_skill.png
+func _capture_skill_fx(dir: String) -> void:
+	player.visible = true
+	player.set_physics_process(true)
+	var at := {"flurry": [0.18, 0.75, 1.33], "rift": [0.3, 0.6, 0.85], "vortex": [0.35, 1.0, 1.4]}
+	for id in ["flurry", "rift", "vortex"]:
+		for x in battle.enemies.duplicate():
+			battle.remove_enemy(x)
+		player.position = Vector3(-2.0 if id != "rift" else -4.5, 0, 0.6)
+		player.face = 1
+		player.state = "move"
+		_place_cam(true)
+		# ラナからの相対位置（左右 m, 奥行き m）
+		var spots := {"flurry": [[1.6, 0.0], [2.2, 0.5]], "rift": [[1.6, 0.0], [3.8, -0.2], [6.2, 0.2]], "vortex": [[2.4, 0.9], [-2.8, -0.3], [1.8, -1.4], [-1.6, 1.2]]}
+		for sp in spots[id]:
+			var e = battle.spawn("3", player.position + Vector3(sp[0], 0, sp[1]))
+			e.atk_cd = 99.0
+			e.hp_max = 999.0
+			e.hp = 999.0
+		for f in 3:
+			await get_tree().physics_frame
+		player.skill_cd.clear()
+		player.use_skill(id)
+		var marks: Array = at[id]
+		var n := 0
+		for f in int(marks[2] * 60.0) + 2:
+			await get_tree().physics_frame
+			await RenderingServer.frame_post_draw
+			if n < 3 and f >= int(marks[n] * 60.0):
+				get_viewport().get_texture().get_image().save_png(dir + "/fx_skill_%s_%d.png" % [id, n + 1])
+				n += 1
+		for f in 40:
+			await get_tree().physics_frame
+	# 右下の操作：枠1 は待ち中（残り秒と外周の弧）、ほかは使える
+	for x in battle.enemies.duplicate():
+		battle.remove_enemy(x)
+	player.skill_cd = {"flurry": 5.4, "rift": 0.0, "vortex": 0.0}
+	for f in 6:
+		await get_tree().physics_frame
+		await RenderingServer.frame_post_draw
+	get_viewport().get_texture().get_image().save_png(dir + "/ui_skill.png")
+	hud.open_slots()
+	hud.slot_pick = "vortex"
+	for f in 6:
+		await get_tree().physics_frame
+		await RenderingServer.frame_post_draw
+	get_viewport().get_texture().get_image().save_png(dir + "/ui_slots.png")
+	hud.close_slots()
 
 ## リリィの5本（specs/lily_attack_fx.md）：溜め・頂点・余韻を撮る → captures/fx_lily_<技>_<1〜3>.png
 func _capture_lily_fx(dir: String) -> void:

@@ -8,6 +8,9 @@ var weapon := 0          # 武器の攻撃力（0＝素手相当の初期の剣�
 var hard_open := false
 var best := {}           # diff -> 最速のクリア時間（秒）
 var clears := {}         # diff -> クリア回数
+const SKILLS_DEFAULT := ["flurry", "rift", "vortex"]
+var skills_owned: Array = SKILLS_DEFAULT.duplicate()   # 持っている技（今は最初から3つ）
+var skill_slots: Array = SKILLS_DEFAULT.duplicate()    # 枠1〜3 の技の id
 
 func reset() -> void:
 	lv = 1
@@ -16,6 +19,8 @@ func reset() -> void:
 	hard_open = false
 	best = {}
 	clears = {}
+	skills_owned = SKILLS_DEFAULT.duplicate()
+	skill_slots = SKILLS_DEFAULT.duplicate()
 
 ## 次のレベルまでに要る経験値
 func need() -> int:
@@ -50,10 +55,16 @@ func load_save() -> void:
 	hard_open = bool(d.get("hard_open", false))
 	best = d.get("best", {})
 	clears = d.get("clears", {})
+	var so = d.get("skills_owned", null)
+	if so is Array and not so.is_empty():
+		skills_owned = so
+	var ss = d.get("skill_slots", null)
+	if ss is Array and ss.size() == 3:
+		skill_slots = ss
 
 func save() -> void:
 	var f := FileAccess.open(path, FileAccess.WRITE)
 	if f == null:
 		return
-	f.store_string(JSON.stringify({"lv": lv, "xp": xp, "weapon": weapon, "hard_open": hard_open, "best": best, "clears": clears}))
+	f.store_string(JSON.stringify({"lv": lv, "xp": xp, "weapon": weapon, "hard_open": hard_open, "best": best, "clears": clears, "skills_owned": skills_owned, "skill_slots": skill_slots}))
 	f.close()

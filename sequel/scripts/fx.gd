@@ -339,6 +339,20 @@ func _process(delta: float) -> void:
 				var sc2: float = it.size.x * lerpf(1.7, 0.35, k)
 				node.scale = Vector3(sc2, sc2, 1)
 				m.set_shader_parameter("fade", 0.3 + 0.9 * k)
+			"vortex":   # 金の渦：ラナについて回り、回転しながら縮む。粒は内へ吸われる
+				var who: Node3D = it.who
+				if is_instance_valid(who):
+					node.position = who.position + Vector3(0, 0.05, 0)
+				node.rotation.y += delta * 9.0
+				var sc3: float = lerpf(1.0, 0.45, k)
+				node.scale = Vector3(sc3, 1, sc3)
+				m.set_shader_parameter("fade", 0.9 * (1.0 - k * k))
+				if randf() < 0.7:
+					var a3 := randf() * TAU
+					var rr: float = it.r * sc3
+					var p3: Vector3 = node.position + Vector3(cos(a3) * rr, randf_range(0.2, 1.4), sin(a3) * rr * 0.6)
+					var v3 := (node.position + Vector3(0, 0.8, 0) - p3) * 2.4 + Vector3(-sin(a3), 0, cos(a3)) * 3.0
+					_spark(p3, v3, 0.35, 0.024, GOLD[1] if randf() < 0.6 else GOLD[2], 0.0)
 			"dust":
 				var e2 := 1.0 - pow(1.0 - k, 2.0)
 				node.scale = Vector3.ONE * it.size.x * (0.5 + 0.9 * e2)
@@ -625,3 +639,64 @@ func floor_bolts(p: Vector3, n: int, r: float) -> void:
 		for k in 3:
 			path.append(p + d * r * float(k + 1) / 3.0 * randf_range(0.8, 1.1) + Vector3(0, 0.03, 0))
 		bolt(path, 0.045, BOLT_BLUE if i % 3 else BOLT_VIOLET, randf_range(0.3, 0.45), randf_range(0.0, 0.05), 0.18, true)
+
+
+# ---------- スキル（specs/skill_ui.md、2026-11-07） ----------
+## 地走り：x0〜x1 の床を走る金と青のひび＋割れ目から立つ光の破片＋砂煙（n＝何回目）
+func rift(x0: float, x1: float, z: float, n: int) -> void:
+	var d := signf(x1 - x0)
+	var a := Vector3(x0, 0.03, z)
+	var b := Vector3(x1, 0.03, z)
+	bolt([a, a.lerp(b, 0.5), b], 0.07, GOLD[1], 0.55, 0.0, 0.25, true, 2)
+	bolt([a + Vector3(0, 0, 0.15), b + Vector3(0, 0, -0.1)], 0.04, Color8(79, 184, 255), 0.45, 0.03, 0.2, true, 1)
+	for i in 9:
+		var q := a.lerp(b, randf())
+		_spark(q + Vector3(0, 0.05, randf_range(-0.3, 0.3)), Vector3(d * randf_range(-0.5, 1.5), randf_range(4.0, 8.0), randf_range(-0.4, 0.4)), randf_range(0.3, 0.55), 0.03, GOLD[2] if i % 2 else GOLD[1], 0.0)
+	_quad(b + Vector3(0, 0.5, 0.1), Vector2(1.6, 1.4), _mat(1, GOLD), "flash", 0.16, 0.0)
+	dust(a.lerp(b, 0.6), 1.2 + n * 0.3)
+
+## 金の渦：床に回転しながら縮む輪（ラナについていく）。life 秒
+func vortex(who: Node3D, r: float, life: float) -> void:
+	var mi := MeshInstance3D.new()
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for arm in 3:   # 3本の腕の渦巻き（均一な輪にしない）
+		var n := 36
+		for i in n:
+			var u0 := float(i) / n
+			var u1 := float(i + 1) / n
+			var pts := []
+			for u in [u0, u1]:
+				var ang: float = arm * TAU / 3.0 + u * 4.2
+				var rad: float = r * (1.0 - u * 0.75)
+				var w: float = 0.32 * (1.0 - u * 0.6)
+				pts.append([Vector3(cos(ang) * rad, 0, sin(ang) * rad * 0.6), Vector3(cos(ang) * (rad - w), 0, sin(ang) * (rad - w) * 0.6), u])
+			for q in [[pts[0][0], 0.0], [pts[1][0], 0.0], [pts[1][1], 1.0], [pts[0][0], 0.0], [pts[1][1], 1.0], [pts[0][1], 1.0]]:
+				st.set_uv(Vector2(0.5, q[1]))
+				st.add_vertex(q[0])
+	mi.mesh = st.commit()
+	var m := _mat(0, GOLD)
+	m.set_shader_parameter("head", 1.3)
+	m.set_shader_parameter("tail", 0.0)
+	mi.material_override = m
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.position = who.position + Vector3(0, 0.05, 0)
+	add_child(mi)
+	items.append({"node": mi, "t": 0.0, "life": life, "kind": "vortex", "who": who, "r": r})
+
+## 渦の締め：輪が外へ弾けて、金の粒が外へ飛ぶ
+func vortex_burst(p: Vector3, r: float) -> void:
+	var ring := MeshInstance3D.new()
+	ring.mesh = _arc_mesh(r * 0.5, 0.35, -180, 180, "h", 1, 0.6)
+	ring.material_override = _mat(0, GOLD)
+	ring.material_override.set_shader_parameter("head", 1.3)
+	ring.material_override.set_shader_parameter("tail", 0.0)
+	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	ring.position = p + Vector3(0, 0.06, 0)
+	add_child(ring)
+	items.append({"node": ring, "t": 0.0, "life": 0.4, "kind": "ring"})
+	for i in 28:
+		var a := randf() * TAU
+		_spark(p + Vector3(0, randf_range(0.3, 1.3), 0), Vector3(cos(a) * randf_range(6, 11), randf_range(0.5, 3.0), sin(a) * randf_range(3, 6)), randf_range(0.3, 0.55), 0.03, GOLD[1] if i % 2 else GOLD[2], 0.0)
+	_quad(p + Vector3(0, 0.9, 0.2), Vector2(2.6, 2.6), _mat(1, GOLD), "flash", 0.16, 0.0)
+	shockwave(p + Vector3(0, 0.8, 0), 1.5, 0.5, 0.75)

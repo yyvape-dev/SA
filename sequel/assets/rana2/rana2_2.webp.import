@@ -15,7 +15,7 @@ dest_files=["res://.godot/imported/rana2_2.webp-cad1a86dd057a881a09fb0afbc6b0e8c
 
 [params]
 
-compress/mode=1
+compress/mode=0
 compress/high_quality=false
 compress/lossy_quality=0.9
 compress/uastc_level=0

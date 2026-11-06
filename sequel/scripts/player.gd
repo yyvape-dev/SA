@@ -5,6 +5,7 @@ extends Node3D
 ## 攻撃は元の動画（24fps）を3コマおきに 24fps で流す＝3倍速。当たりの瞬間は元の動画のコマ番号÷72 秒（剣が最も届くコマを測った）。
 
 const SPR := preload("res://scripts/sprite_bb.gdshader")
+const Skills := preload("res://scripts/skills.gd")
 const WALK := 2.8
 const RUN := 6.2
 const DEPTH_K := 0.75        # 奥行きの移動は少し遅く（アラド型）
@@ -55,6 +56,11 @@ var dodge_t := 0.0
 var queued := false
 var px_size := 0.005
 var hold_hit := []
+var skills := {}          # skills.gd の表
+var skill_cd := {}        # id -> 残りの待ち（秒）
+var skill_id := ""        # 使っている技
+var skill_uses := {}      # id -> 使った回数（確認用）
+var skill_ready_flash := {}   # id -> 使えるようになった瞬間の光（秒）
 var inv := 0.0
 var flash := 0.0
 var kb := 0.0
@@ -70,6 +76,7 @@ func _ready() -> void:
 	for pg in d.pages:   # 最初の攻撃で読み込みの引っかかりが出ないよう、先に全部読む
 		_tex(pg)
 	_build_tables()
+	skills = Skills.table()
 	sprite = Sprite3D.new()
 	sprite.region_enabled = true
 	sprite.centered = false
@@ -194,6 +201,43 @@ func _end_attack() -> void:
 	atk_next = "atkA"
 	_show_frame(clip, 0)
 
+## スキル：使えたら true。move・atk（連撃の当たりの後）から。CD 中・回避・被弾・ダウン・locked は不可
+func can_use_skill(id: String) -> bool:
+	if locked or id == "" or not skills.has(id) or float(skill_cd.get(id, 0.0)) > 0.0:
+		return false
+	if state == "move":
+		return true
+	if state == "atk" and tab.has(clip):
+		return t >= float(tab[clip].cancel)
+	return false
+
+func use_skill(id: String) -> bool:
+	if not can_use_skill(id):
+		return false
+	var sk: Dictionary = skills[id]
+	if absf(move_in.x) > 0.3:
+		face = 1 if move_in.x > 0 else -1
+	state = "skill"
+	skill_id = id
+	clip = sk.clip
+	t = 0.0
+	hit_i = 0
+	root_prev = 0.0
+	queued = false
+	queued_hold = false
+	atk_next = "atkA"
+	skill_cd[id] = float(sk.cd)
+	skill_uses[id] = int(skill_uses.get(id, 0)) + 1
+	return true
+
+func _skill_event(spec: Dictionary) -> void:
+	var hs := spec.duplicate()
+	hs.dmg = Skills.BASE_DMG * float(spec.k)
+	if spec.shape == "band":
+		hs.x0 = position.x + face * float(spec.x0)
+		hs.x1 = position.x + face * float(spec.x1)
+	world.player_skill(hs, self)
+
 func dodge() -> void:
 	if locked:
 		return
@@ -209,6 +253,9 @@ func can_be_hit() -> bool:
 
 func on_hurt(dir: int, dead: bool) -> void:
 	flash = 0.25
+	if state == "skill" and not dead:   # 技の間はのけぞらない（ダメージは受ける。無敵ではない）
+		inv = 0.35
+		return
 	inv = HURT_T + 0.3   # 被弾の動きが終わってから 0.3 秒は当たらない（囲まれて被弾し続けないように）
 	queued = false
 	queued_hold = false
@@ -269,6 +316,15 @@ func _physics_process(delta: float) -> void:
 	_update_ghosts(delta)
 	var blink := inv > 0.0 and state != "down" and int(Time.get_ticks_msec() / 42) % 2 == 0
 	mat.set_shader_parameter("flash", Color(1.0, 0.25, 0.2, 0.7 if flash > 0.0 else 0.0))
+	for id in skill_cd:   # 待ちは止め（ヒットストップ）中も進める
+		if float(skill_cd[id]) > 0.0:
+			skill_cd[id] = maxf(0.0, float(skill_cd[id]) - delta)
+			if skill_cd[id] <= 0.0:
+				skill_ready_flash[id] = 0.25
+	for id in skill_ready_flash.keys():
+		skill_ready_flash[id] = float(skill_ready_flash[id]) - delta
+		if skill_ready_flash[id] <= 0.0:
+			skill_ready_flash.erase(id)
 	var dt: float = world.dt(delta)
 	if dt <= 0.0:
 		return
@@ -317,6 +373,23 @@ func _physics_process(delta: float) -> void:
 				_start_attack("hold" if queued_hold else atk_next)
 				_show_frame(clip, 0)
 			elif t >= tb.total:
+				_end_attack()
+			else:
+				_show_frame(clip, _fidx(clip, te))
+		"skill":
+			var sk: Dictionary = skills[skill_id]
+			var te: float = t * float(sk.spd)
+			if absf(mv.x) > 0.3:   # 移動の入力は向きだけ
+				face = 1 if mv.x > 0 else -1
+			var r := _root(clip, te)
+			position.x += face * (r - root_prev) * px_size * 0.3   # その場の技：前進は 0.3 倍
+			root_prev = r
+			var ev: Array = sk.ev
+			while hit_i < ev.size() and t >= float(ev[hit_i][0]):
+				_skill_event(ev[hit_i][1])
+				hit_i += 1
+			if t >= float(sk.total) and hit_i >= ev.size():
+				skill_id = ""
 				_end_attack()
 			else:
 				_show_frame(clip, _fidx(clip, te))
@@ -379,6 +452,10 @@ func _unhandled_input(e: InputEvent) -> void:
 			else: attack_release()
 		elif (e.keycode == KEY_K or e.keycode == KEY_X) and e.pressed:
 			dodge()
+		elif e.pressed and (e.keycode == KEY_U or e.keycode == KEY_I or e.keycode == KEY_O):
+			var slot: int = [KEY_U, KEY_I, KEY_O].find(e.keycode)
+			if world.main and world.main.progress:
+				use_skill(str(world.main.progress.skill_slots[slot]))
 
 ## 撮影用：状態を固定する
 func debug_state(s: String) -> void:

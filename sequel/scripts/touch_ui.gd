@@ -2,6 +2,8 @@ extends CanvasLayer
 ## 横持ちのタッチ操作。左半分＝触った所に出るスティック（倒しきると走る）。右下＝攻撃（大）・回避。
 ## 文字は使わない（日本語フォントを入れるまでは図形のアイコン）。
 
+const SkillIcons := preload("res://scripts/skill_icons.gd")
+var main          # main.gd（スキルの枠・街かどうか）
 var player: Node3D
 var battle: Node3D
 var pad: Control
@@ -39,28 +41,61 @@ class _Hud extends Control:
 		draw_rect(Rect2(p, Vector2(w * r, h * 0.35)), Color(1, 1, 1, 0.25))
 
 class _Pad extends Control:
+	## 右下（specs/skill_ui.md）：攻撃・回避・スキル3枠（攻撃の中心から半径 175u の弧、165°・115°・65°）。4枠目 215° は空けておく。
+	## 街にいる時だけ、回避の左下に歯車（スロット設定）
 	var ui
 	var stick_id := -1
 	var stick_c := Vector2.ZERO
 	var stick_p := Vector2.ZERO
 	var btn_down := {}
+	var shake := {}     # ボタン -> 揺れの残り（CD 中に押した）
 	const R := 90.0
+	const SKILL_ANG := [165.0, 115.0, 65.0]
 
 	func _btns() -> Dictionary:
 		var s := size
 		var u := s.y / 720.0
-		return {
-			"atk": [Vector2(s.x - 170 * u, s.y - 150 * u), 82 * u],
-			"dodge": [Vector2(s.x - 330 * u, s.y - 95 * u), 56 * u],
+		var ac := Vector2(s.x - 175 * u, s.y - 190 * u)
+		var b := {
+			"atk": [ac, 78 * u],
+			"dodge": [Vector2(s.x - 345 * u, s.y - 105 * u), 50 * u],
 		}
+		for i in 3:
+			var a := deg_to_rad(SKILL_ANG[i])
+			b["sk%d" % i] = [ac + Vector2(cos(a), -sin(a)) * 175 * u, 52 * u]
+		if ui.main and ui.main.hud and ui.main.dungeon == null and not ui.main.hud.menu_open and not ui.main.hud.slot_open:
+			b["gear"] = [Vector2(s.x - 420 * u, s.y - 52 * u), 30 * u]
+		return b
+
+	func _process(delta: float) -> void:
+		for k in shake.keys():
+			shake[k] = float(shake[k]) - delta
+			if shake[k] <= 0.0:
+				shake.erase(k)
+		queue_redraw()
+
+	func _slot_id(i: int) -> String:
+		if ui.main and ui.main.progress:
+			return str(ui.main.progress.skill_slots[i])
+		return ""
+
+	func _press(k: String) -> void:
+		var pl = ui.player
+		match k:
+			"atk": pl.attack_press()
+			"dodge": pl.dodge()
+			"gear": ui.main.hud.open_slots()
+			_:
+				var id := _slot_id(int(k.substr(2)))
+				if not pl.use_skill(id) and float(pl.skill_cd.get(id, 0.0)) > 0.0:
+					shake[k] = 0.25
 
 	func _input(e: InputEvent) -> void:
 		var pos := Vector2.ZERO
 		var idx := 0
 		var pressed := false
-		var is_touch := false
 		if e is InputEventScreenTouch:
-			pos = e.position; idx = e.index; pressed = e.pressed; is_touch = true
+			pos = e.position; idx = e.index; pressed = e.pressed
 		elif e is InputEventScreenDrag:
 			if e.index == stick_id:
 				stick_p = e.position
@@ -69,17 +104,21 @@ class _Pad extends Control:
 			return
 		else:
 			return
-		if not is_touch:
-			return
 		if pressed:
+			# 判定は半径×1.15。重なったら近い方
 			var b := _btns()
+			var best := ""
+			var bd := INF
 			for k in b:
-				if pos.distance_to(b[k][0]) < b[k][1] * 1.15:
-					btn_down[k] = idx
-					if k == "atk": ui.player.attack_press()
-					else: ui.player.dodge()
-					queue_redraw()
-					return
+				var d: float = pos.distance_to(b[k][0])
+				if d < b[k][1] * 1.15 and d / b[k][1] < bd:
+					bd = d / b[k][1]
+					best = k
+			if best != "":
+				btn_down[best] = idx
+				_press(best)
+				queue_redraw()
+				return
 			if pos.x < size.x * 0.5 and stick_id < 0:
 				stick_id = idx
 				stick_c = pos
@@ -114,15 +153,45 @@ class _Pad extends Control:
 			var c := Vector2(200 * u, size.y - 170 * u)
 			draw_arc(c, R * u, 0, TAU, 48, Color(1, 1, 1, 0.18), 3 * u)
 		var b := _btns()
+		var font := ThemeDB.fallback_font
+		var pl = ui.player
 		for k in b:
 			var p: Vector2 = b[k][0]
 			var r: float = b[k][1]
+			if shake.has(k):
+				p.x += sin(float(shake[k]) * 80.0) * 5 * u
 			var on := btn_down.has(k)
-			draw_circle(p, r, Color(0.08, 0.1, 0.16, 0.55 if not on else 0.8))
-			draw_arc(p, r, 0, TAU, 48, Color("c9a24a") if k == "atk" else Color("29e0ff"), 3 * u)
-			if k == "atk":   # 斬撃の弧
-				draw_arc(p + Vector2(-8, 10) * u, r * 0.55, -2.4, -0.2, 20, Color(1, 1, 1, 0.9), 6 * u)
-			else:            # 回避の山形2つ
-				for dx in [-12, 8]:
-					var q := p + Vector2(dx, 0) * u
-					draw_polyline(PackedVector2Array([q + Vector2(-8, -16) * u, q + Vector2(8, 0) * u, q + Vector2(-8, 16) * u]), Color(1, 1, 1, 0.9), 5 * u)
+			draw_circle(p, r, Color(0.04, 0.06, 0.13, 0.55 if on else 0.28))
+			var rim := Color(1, 1, 1, 0.5)
+			if k == "atk": rim = Color("c9a24a")
+			elif k == "dodge": rim = Color("29e0ff")
+			draw_arc(p, r, 0, TAU, 48, rim, 2 * u, true)
+			match k:
+				"atk":   # 斬撃の弧
+					draw_arc(p + Vector2(-8, 10) * u, r * 0.55, -2.4, -0.2, 20, Color(1, 1, 1, 0.9), 6 * u)
+				"dodge":   # 山形2つ
+					for dx in [-12, 8]:
+						var q := p + Vector2(dx, 0) * u
+						draw_polyline(PackedVector2Array([q + Vector2(-8, -16) * u, q + Vector2(8, 0) * u, q + Vector2(-8, 16) * u]), Color(1, 1, 1, 0.9), 5 * u)
+				"gear":   # 歯車
+					for i in 8:
+						var a := i * TAU / 8.0
+						draw_line(p + Vector2(cos(a), sin(a)) * r * 0.35, p + Vector2(cos(a), sin(a)) * r * 0.7, Color(1, 1, 1, 0.8), 5 * u)
+					draw_circle(p, r * 0.42, Color(1, 1, 1, 0.8))
+					draw_circle(p, r * 0.2, Color(0.04, 0.06, 0.13, 1))
+				_:
+					var id := _slot_id(int(k.substr(2)))
+					var cd: float = float(pl.skill_cd.get(id, 0.0))
+					var full: float = float(pl.skills[id].cd) if pl.skills.has(id) else 1.0
+					var ic := Color(1, 1, 1, 0.9) if cd <= 0.0 else Color(1, 1, 1, 0.35)
+					if cd > 0.0:
+						draw_circle(p, r, Color(0, 0, 0, 0.5))
+					SkillIcons.draw(self, id, p, r, ic, u)
+					if cd > 0.0:   # 外周：残りの割合（金、12時から時計回りに減る）＋残り秒
+						draw_arc(p, r - 2 * u, -PI / 2.0, -PI / 2.0 + TAU * (cd / full), 48, Color("ffc94d"), 4 * u, true)
+						var txt := ("%.1f" % cd) if cd < 10.0 else str(int(ceil(cd)))
+						var fs := int(26 * u)
+						draw_string_outline(font, p + Vector2(-r, fs * 0.35), txt, HORIZONTAL_ALIGNMENT_CENTER, r * 2, fs, int(6 * u), Color(0, 0, 0, 0.9))
+						draw_string(font, p + Vector2(-r, fs * 0.35), txt, HORIZONTAL_ALIGNMENT_CENTER, r * 2, fs, Color.WHITE)
+					if pl.skill_ready_flash.has(id):   # 使えるようになった瞬間に縁が光る
+						draw_arc(p, r + 2 * u, 0, TAU, 48, Color(1, 0.86, 0.45, float(pl.skill_ready_flash[id]) / 0.25), 6 * u, true)

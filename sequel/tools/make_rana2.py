@@ -188,6 +188,7 @@ GAME_CLIPS = {
     "hold": ("atkHold_spin", list(range(0, 121, 3)), 24, True, "gold"),
     "hurt": ("hit", [8, 10, 12], 8, False, "none"),
     "down": ("down", list(range(0, 73, 2)), 20, False, "none"),
+    "flurry": ("spare_combo", list(range(0, 73, 2)), 24, True, "gold"),   # スキル「乱れ斬り」（37コマ＝約1.54秒、specs/skill_ui.md）
 }
 
 

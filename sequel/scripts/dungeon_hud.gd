@@ -5,6 +5,9 @@ extends CanvasLayer
 
 var main
 var menu_open := false
+var slot_open := false     # スキルのスロット設定（街だけ）
+var slot_pick := ""        # 一覧で選んだ技
+const SkillIcons := preload("res://scripts/skill_icons.gd")
 var menu_sel := 0          # 0＝ノーマル 1＝ハード
 var menu_t := 0.0
 var in_dungeon := false
@@ -76,6 +79,44 @@ func choose(i: int) -> bool:
 	main.enter_dungeon("hard" if i == 1 else "normal", main.dungeon_seed())
 	return true
 
+# ---------- スキルのスロット設定（specs/skill_ui.md 2.） ----------
+func open_slots() -> void:
+	if main.dungeon != null:
+		return
+	slot_open = true
+	slot_pick = ""
+	menu_t = 0.0
+	main.player.locked = true
+	main.battle.process_mode = Node.PROCESS_MODE_DISABLED
+
+func close_slots() -> void:
+	slot_open = false
+	main.player.locked = false
+	main.battle.process_mode = Node.PROCESS_MODE_INHERIT
+	main.progress.save()
+
+## 一覧の技を選ぶ → 枠を押すと入れる（同じ技が他の枠にあれば入れ替え）
+func slot_tap(pos: Vector2) -> void:
+	var r: Dictionary = view.slot_rects()
+	if r.close.has_point(pos) or not r.panel.has_point(pos):
+		close_slots()
+		return
+	var pr = main.progress
+	for i in 3:
+		if r["slot%d" % i].has_point(pos):
+			if slot_pick != "":
+				var old: String = str(pr.skill_slots[i])
+				var j: int = pr.skill_slots.find(slot_pick)
+				if j >= 0:
+					pr.skill_slots[j] = old
+				pr.skill_slots[i] = slot_pick
+				slot_pick = ""
+			return
+	for i in pr.skills_owned.size():
+		if r.has("own%d" % i) and r["own%d" % i].has_point(pos):
+			slot_pick = "" if slot_pick == str(pr.skills_owned[i]) else str(pr.skills_owned[i])
+			return
+
 # ---------- 結果 ----------
 func show_result(r: Dictionary) -> void:
 	result = r
@@ -90,6 +131,14 @@ func confirm_result() -> void:
 		main.dungeon.close_result()
 
 func _input(e: InputEvent) -> void:
+	if slot_open:
+		if e is InputEventKey and e.pressed and not e.echo and (e.keycode == KEY_K or e.keycode == KEY_X or e.keycode == KEY_ESCAPE):
+			get_viewport().set_input_as_handled()
+			close_slots()
+		elif e is InputEventScreenTouch and e.pressed and menu_t > 0.2:
+			get_viewport().set_input_as_handled()
+			slot_tap(e.position)
+		return
 	if not menu_open and result_t < 0.0:
 		return
 	var key := -1
@@ -201,6 +250,8 @@ class _View extends Control:
 				draw_rect(Rect2(p, Vector2(w * r, 6 * u)), Color(1, 1, 1, 0.25))
 		if hud.menu_open:
 			_menu()
+		if hud.slot_open:
+			_slots()
 		if hud.result_t >= 0.0:
 			_result()
 		if hud.fade_t > 0.0 and hud.fade_d > 0.0:
@@ -292,6 +343,44 @@ class _View extends Control:
 			if pr.best.has(key):
 				_clock(Vector2(rect.position.x + 70 * u, rect.end.y - 42 * u), 13 * u, GOLD)
 				_num(Vector2(rect.position.x + 92 * u, rect.end.y - 30 * u), _time_str(float(pr.best[key])), 32, GOLD)
+
+	func slot_rects() -> Dictionary:
+		var u := _u()
+		var c := size * 0.5
+		var panel := Rect2(c - Vector2(330, 230) * u, Vector2(660, 460) * u)
+		var out := {"panel": panel, "close": Rect2(panel.position + Vector2(panel.size.x - 52 * u, 8 * u), Vector2(44, 44) * u)}
+		for i in 3:   # 上に3枠
+			out["slot%d" % i] = Rect2(c + Vector2((i - 1) * 170 - 65, -170) * u, Vector2(130, 130) * u)
+		var own: Array = hud.main.progress.skills_owned
+		for i in own.size():   # 下に持っている技
+			out["own%d" % i] = Rect2(c + Vector2((i - (own.size() - 1) * 0.5) * 130 - 50, 50) * u, Vector2(100, 100) * u)
+		return out
+
+	func _slots() -> void:
+		var u := _u()
+		var pr = hud.main.progress
+		draw_rect(Rect2(Vector2.ZERO, size), Color(0, 0, 0, 0.55))
+		var r := slot_rects()
+		draw_rect(r.panel, Color(0.04, 0.04, 0.09, 0.92))
+		draw_rect(r.panel, Color(0.72, 0.5, 1.0, 0.8), false, 3 * u)
+		var cc: Vector2 = r.close.get_center()
+		draw_line(cc + Vector2(-12, -12) * u, cc + Vector2(12, 12) * u, Color(1, 1, 1, 0.8), 4 * u)
+		draw_line(cc + Vector2(12, -12) * u, cc + Vector2(-12, 12) * u, Color(1, 1, 1, 0.8), 4 * u)
+		for i in 3:
+			var rc: Rect2 = r["slot%d" % i]
+			draw_rect(rc, Color(0.1, 0.12, 0.2, 0.9))
+			draw_rect(rc, GOLD if hud.slot_pick != "" else Color(1, 1, 1, 0.5), false, 3 * u)
+			_num(rc.position + Vector2(8, 28) * u, str(i + 1), 24, Color(1, 1, 1, 0.6))
+			SkillIcons.draw(self, str(pr.skill_slots[i]), rc.get_center(), rc.size.x * 0.5, Color.WHITE, u)
+		# 枠と一覧の境目に下向きの山形
+		var mid := size * 0.5 + Vector2(0, 5 * u)
+		draw_polyline(PackedVector2Array([mid + Vector2(-16, -8) * u, mid + Vector2(0, 6) * u, mid + Vector2(16, -8) * u]), Color(1, 1, 1, 0.5), 3 * u)
+		for i in pr.skills_owned.size():
+			var rc2: Rect2 = r["own%d" % i]
+			var sel: bool = hud.slot_pick == str(pr.skills_owned[i])
+			draw_rect(rc2, Color(0.08, 0.09, 0.15, 0.9))
+			draw_rect(rc2, GOLD if sel else Color(1, 1, 1, 0.35), false, (5 if sel else 2) * u)
+			SkillIcons.draw(self, str(pr.skills_owned[i]), rc2.get_center(), rc2.size.x * 0.5, Color.WHITE, u)
 
 	func _result() -> void:
 		var u := _u()

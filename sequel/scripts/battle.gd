@@ -8,6 +8,7 @@ const HPBAR := preload("res://scripts/hpbar.gdshader")
 var BELT_Z := Vector2(-3.2, 3.5)
 var ROOM_X := Vector2(-19, 19)
 var player: Node3D
+var main                  # main.gd（スキルの枠・進み具合を読む）
 var ally: Node3D = null   # 仲間（ally.gd）。絵を読み終えるまで null
 var fx: Node3D
 var cam: Camera3D
@@ -204,7 +205,7 @@ func player_attack(spec: Dictionary) -> void:
 func ally_attack(a: Node3D, spec: Dictionary) -> void:
 	_attack_from(a, spec, atk_mul)
 
-func _attack_from(p: Node3D, spec: Dictionary, mul: float) -> void:
+func _attack_from(p: Node3D, spec: Dictionary, mul: float) -> int:
 	var dir: int = p.face * (spec.side if spec.side != 0 else 1)
 	var shape: String = spec.get("shape", "both" if spec.side == 0 else "fwd")
 	var hits := 0
@@ -232,6 +233,13 @@ func _attack_from(p: Node3D, spec: Dictionary, mul: float) -> void:
 			e.take_hit(d, edir, spec.strong)
 			if spec.has("kb"):   # 吹き飛ばしの強さ（倍）
 				e.kx *= float(spec.kb)
+			if spec.has("pull") and not e.boss:   # 寄せる（スキル）：front＝ラナの前 1.5m へ、in＝ラナへ
+				var tx: float = p.position.x + (p.face * 1.5 if spec.pull == "front" else 0.0)
+				var m: float = float(spec.get("pull_m", 0.3))
+				if spec.pull == "in" and absf(e.position.x - p.position.x) < 0.9:
+					m = 0.0
+				e.position.x = move_toward(e.position.x, tx, m)
+				e.position.z = move_toward(e.position.z, p.position.z, m * 0.5)
 			if spec.has("lift") and e.has_method("lift_up"):   # 浮かせる（強めののけぞり＋絵を持ち上げる）
 				e.lift_up(float(spec.lift))
 			var hp_pos: Vector3 = e.position + Vector3(0, e.height() * 0.55, 0)
@@ -245,12 +253,47 @@ func _attack_from(p: Node3D, spec: Dictionary, mul: float) -> void:
 	if hits > 0 and spec.strong:   # 強い当たり：画面のゆがみの輪（2026-11-06）
 		fx.shockwave(p.position + Vector3(dir * minf(spec.r, 2.0) * 0.5, 0.9, 0), 0.9 + mini(hits, 5) * 0.12)
 	if hits > 0:
-		freeze = maxf(freeze, 0.045 + mini(hits, 10) * 0.006 + (0.03 if spec.strong else 0.0))
+		freeze = maxf(freeze, 0.045 + mini(hits, 10) * 0.006 + (0.03 if spec.strong else 0.0) + float(spec.get("freeze_add", 0.0)))
 		shake = maxf(shake, 5.0 + mini(hits, 12) * 1.1 + (4.0 if spec.strong else 0.0))
 		combo += hits
 		combo_t = 2.4
 	else:
 		shake = maxf(shake, 1.5)
+	return hits
+
+## スキル（skills.gd の当たり 1 回）：見た目を出してから当たりを判定する
+const GOLD_PAL := [Color8(255, 150, 40), Color8(255, 210, 110), Color8(255, 250, 225)]
+func player_skill(spec: Dictionary, p: Node3D) -> void:
+	var f: int = p.face
+	match spec.get("fx", ""):
+		"flurry":   # 金の弧を毎回、大きさと角度をずらして重ねる
+			var base: Dictionary = [p.SL_SWEEP, p.SL_DOWN, p.SL_BACK, p.SL_THRUST][randi() % 4].duplicate()
+			base.r = float(base.r) * randf_range(0.85, 1.15) * 0.9
+			var rot := randf_range(-35.0, 35.0)
+			base.a0 = float(base.a0) + rot
+			base.a1 = float(base.a1) + rot
+			base.pal = GOLD_PAL
+			base.life = 0.22
+			spec.slash = base
+			if hit_count_in_skill(p) >= 9:
+				shake = maxf(shake, 3.0)   # 10 回目以降はわずかに揺れ続ける
+		"flurry_end":
+			var big: Dictionary = p.SL_BIG.duplicate()
+			big.pal = GOLD_PAL
+			spec.slash = big
+		"rift":
+			fx.rift(float(spec.x0), float(spec.x1), p.position.z, int(spec.n))
+		"vortex":
+			if int(spec.n) == 0:
+				fx.vortex(p, 3.2, 1.25)
+		"vortex_end":
+			fx.vortex_burst(p.position, 3.4)
+	var hits := _attack_from(p, spec, atk_mul)
+	if spec.get("fx", "") == "rift" and int(spec.n) == 2:
+		fx.shockwave(Vector3(float(spec.x1), 0.5, p.position.z), 1.1)
+
+func hit_count_in_skill(p: Node3D) -> int:
+	return int(p.hit_i)
 
 # ---------- 敵の攻撃 ----------
 func player_alive() -> bool:
