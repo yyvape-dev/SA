@@ -33,7 +33,7 @@ var glints: Array = []   # 看板・灯りの位置と色（assets/ground/glints
 const REFL := preload("res://scripts/sprite_refl.gdshader")
 ## 縁取りの描き方（2026-11-06、ユーザー「白い縁取りで貼り絵感」）："hard"＝前の線、"off"＝無し、"soft"＝柔らかい光。撮影の比べは環境変数 RIM_MODE
 var RIM_MODE: String = OS.get_environment("RIM_MODE") if OS.has_environment("RIM_MODE") else "soft"
-const BODY_DIM := 0.7   # キャラの体の明るさ（夜。縁取りは暗くしない）
+const BODY_DIM := 0.8   # 2026-11-06：縁取りを柔らかくしたので少し明るく（前 0.7）。   # キャラの体の明るさ（夜。縁取りは暗くしない）
 
 func _ready() -> void:
 	var d = JSON.parse_string(FileAccess.get_file_as_string("res://assets/foe/foe.json"))
@@ -90,7 +90,7 @@ func apply_light(spr: Sprite3D, mat: ShaderMaterial, refl: Sprite3D, p: Vector3)
 				mat.set_shader_parameter("rim_px", 3.0)
 				mat.set_shader_parameter("rim_col", Color(c.x, c.y, c.z, 0.55 * k))
 				mat.set_shader_parameter("edge_soft", 1.0)
-				mat.set_shader_parameter("amb_col", Color(0.5, 0.46, 0.68, 0.35))
+				mat.set_shader_parameter("amb_col", Color(0.5, 0.46, 0.68, 0.28))
 		mat.set_shader_parameter("body_dim", BODY_DIM)
 		var d: float = 1.0 if side >= 0.0 else -1.0
 		mat.set_shader_parameter("rim_dir", -d if spr.flip_h else d)

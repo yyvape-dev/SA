@@ -175,7 +175,7 @@ if __name__ == "__main__" and "--game" not in sys.argv:
 
 # ---------- ゲーム用（--game）：frames/ から間引き・前進の分離・光の削除・足裏・縮小・アトラス ----------
 GAME_OUT = os.path.join(ROOT, "sequel/assets/rana2")
-GAME_SCALE = 366 / 717       # 構えの背 717px → 366px（今のラナと同じ見た目の背＝1.85m）
+GAME_SCALE = 430 / 717       # 構えの背 717px → 430px（2026-11-06：366px は iPhone で約1.28倍に引き伸ばされて荒かった。カメラ 35％なら画面で約410画素）
 # 名前: (連番, 使う元のコマ, 再生の fps, 前進を位置へ, 体から離れた光の扱い)
 #   光："keep"＝残す、"gold"＝金の軌跡だけ残す（白い弧・きらめきは消してコードで描く）、"none"＝全部消す（土煙）
 GAME_CLIPS = {
