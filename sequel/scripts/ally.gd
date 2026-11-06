@@ -350,7 +350,7 @@ func _hit_new(c: Dictionary, h: int, n: int, last_hit: bool) -> void:
 	match spec.kind:
 		"spear":
 			var base := _tip_world(c, h, 0.25)
-			fx.ribbon([base, base.lerp(tip, 0.5), tip + Vector3(face * 0.35, 0, 0)], {"w": 0.42, "life": 0.4, "bolts": 2})
+			fx.ribbon([base, base.lerp(tip, 0.5), tip + Vector3(face * 0.35, 0, 0)], {"w": 0.42, "life": 0.4, "bolts": 1})
 		"arc":
 			fx.ribbon(_trail(c, h), {"w": spec.get("w", 0.62), "life": 0.48, "bolts": spec.get("bolts", 2)})
 		"sweep":
@@ -358,23 +358,21 @@ func _hit_new(c: Dictionary, h: int, n: int, last_hit: bool) -> void:
 			hs.side = 0
 			fx.slash(position, face, {"plane": "h", "r": r, "w": 0.85, "a0": -120.0, "a1": 210.0, "y": 1.35, "life": 0.45, "draw": 0.09,
 				"squash": 0.6, "tilt": 4.0, "pal": fx.SILVER})
-			fx.bolt([position + Vector3(-face * r * 0.7, 1.35, 0.3), position + Vector3(0, 1.4, 0.5), position + Vector3(face * r * 0.9, 1.35, 0.3)], 0.035, fx.BOLT_BLUE, 0.35, 0.03, 0.15)
 		"pillar":
 			hs.shape = "circle"
 			hs.r = float(spec.r)
 			hs.cx = 0.9
 			var gx := position + Vector3(face * 0.9, 0, 0.12)
-			fx.ribbon([gx + Vector3(0, 3.4, 0), gx + Vector3(0, 1.7, 0), gx + Vector3(0, 0.05, 0)], {"w": 0.8, "life": 0.5, "draw": 0.05, "bolts": 3})
+			fx.pillar(gx, 3.6)   # 光の柱＝太い稲妻の束＋縦の柔らかい光（板の帯はやめた。衝撃波は strong の当たりで battle が出す）
 			fx.floor_bolts(gx, 8, 2.2)
-			fx.shockwave(gx + Vector3(0, 0.4, 0), 1.4)
 			fx.dust(gx, 1.8)
 			world.shake = maxf(world.shake, 12.0)
 		"rush":
 			hs.shape = "band"
 			hs.x0 = dash_x0
 			hs.x1 = position.x + face * r
-			var foot := _tip_world(c, h, TRAIL_K)
-			fx.ribbon([foot - Vector3(face * 2.6, 0.05, 0), foot - Vector3(face * 1.3, 0.0, 0), foot + Vector3(face * 0.4, 0, 0)], {"w": 0.46, "life": 0.45, "bolts": 2})
+			var foot := position + Vector3(face * 1.2, 1.1, 0.12)   # 足の高さ（当たりのコマの絵に焼き込まれた光の塊を拾わないよう決め打ち）
+			fx.ribbon([foot - Vector3(face * 2.6, 0.05, 0), foot - Vector3(face * 1.3, 0.0, 0), foot + Vector3(face * 0.4, 0, 0)], {"w": 0.46, "life": 0.45, "bolts": 1})
 	world.ally_attack(self, hs)
 
 ## 撮影用：攻撃のコマを止めて見せる

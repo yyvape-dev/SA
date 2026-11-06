@@ -328,8 +328,13 @@ func _process(delta: float) -> void:
 			"warn":
 				m.set_shader_parameter("fill", k)
 				m.set_shader_parameter("fade", 0.6 + 0.4 * sin(it.t * 40.0) * 0.5 + k * 0.4)
-			"bolt":   # 稲妻：明滅しながら消える
-				m.set_shader_parameter("fade", (1.0 - k) * (1.0 if randf() > 0.35 else 0.25))
+			"bolt":   # 稲妻：再放電（STROKES の明るさの並び）を流しながら、終わりへ向けて薄れる
+				var br := 0.3
+				for stv in STROKES:
+					if it.t >= float(stv[0]):
+						br = float(stv[1])
+				m.set_shader_parameter("brightness", br)
+				m.set_shader_parameter("fade", 1.0 - k * k)
 			"charge":   # 溜め：外から中心へ集まって濃くなる
 				var sc2: float = it.size.x * lerpf(1.7, 0.35, k)
 				node.scale = Vector3(sc2, sc2, 1)
@@ -455,7 +460,7 @@ func ribbon(pts: Array, spec: Dictionary) -> void:
 	mi.material_override.set_shader_parameter("tail", spec.get("tail", 2.2))   # 尾を長く（余韻）
 	var dk := MeshInstance3D.new()
 	dk.mesh = _strip(pts, w * 1.9, 1.0)
-	dk.material_override = _dark(0, 0.85)
+	dk.material_override = _dark(0, 0.55)
 	dk.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	dk.position = Vector3(0, 0, -0.03)
 	mi.add_child(dk)
@@ -471,7 +476,7 @@ func ribbon(pts: Array, spec: Dictionary) -> void:
 		var path := []
 		for j in range(a, e + 1):
 			path.append(pts[j] + Vector3(0, 0, 0.05))
-		bolt(path, 0.035, BOLT_BLUE if b % 3 != 2 else BOLT_VIOLET, life * 0.8, 0.02 + b * 0.03, 0.12)
+		bolt(path, 0.03, BOLT_BLUE if b % 3 != 2 else BOLT_VIOLET, life * 0.8, 0.02 + b * 0.03, 0.04, false, 1)
 	# 余韻：帯が稲妻の粒になって散る（すぐ消さない）
 	if spec.get("dissolve", true):
 		for j in pts.size() * 3:
@@ -514,33 +519,68 @@ func _strip(pts: Array, w: float, taper: float) -> ArrayMesh:
 			st.add_vertex(q[0][0])
 	return st.commit()
 
-## 稲妻：点の列を折れ線にゆがめた細い帯（加算、明滅）。delay 秒後に出る
-func bolt(path: Array, w: float, col: Color, life: float, delay: float, jitter: float, on_floor: bool = false) -> void:
+## 稲妻（作り方は alanfischer/overcast-godot の _bolt・_draw_bolt を元に。MIT）：
+##  - 形：点を少しずつ横へさまよわせ、ずれを毎回 0.85 倍に縮める（ただ波打つ線ではなく、雷らしいギザギザ）
+##  - 枝：本筋の途中から細い枝を 0〜2 本
+##  - 光り方：同じ形が何度か明滅する（再放電）。帯はカメラへ向け、芯が白く熱く、外へ色のにじみ（bolt.gdshader）
+## path：通る点（2 点以上）。w：太さの目安（m、前の版の値をそのまま渡せる）。on_floor：床に寝かせる（ずれを床の面で）
+const BOLT_SH := preload("res://scripts/bolt.gdshader")
+const STROKES := [[0.0, 1.0], [0.045, 0.35], [0.075, 1.25], [0.13, 0.5], [0.17, 0.9]]   # 再放電：[秒, 明るさ]
+
+func bolt(path: Array, w: float, col: Color, life: float, delay: float, jitter: float, on_floor: bool = false, branches: int = -1) -> void:
+	var pts := _bolt_points(path, jitter, on_floor)
+	_bolt_mesh(pts, w * 4.0, col, life, delay)
+	var nb: int = branches if branches >= 0 else (randi_range(0, 2) if pts.size() > 8 else 0)
+	for b in nb:
+		var k := randi_range(int(pts.size() * 0.25), int(pts.size() * 0.7))
+		var from: Vector3 = pts[k]
+		var dirv: Vector3 = (pts[mini(k + 2, pts.size() - 1)] - pts[k]).normalized()
+		var sidev := Vector3(-dirv.y, dirv.x, 0) if not on_floor else Vector3(-dirv.z, 0, dirv.x)
+		var len := from.distance_to(pts[pts.size() - 1]) * randf_range(0.3, 0.55)
+		var to := from + (dirv * 0.6 + sidev * randf_range(-0.9, 0.9)).normalized() * len
+		_bolt_mesh(_bolt_points([from, to], jitter * 0.7, on_floor), w * 2.2, col, life * 0.8, delay + 0.02)
+
+func _bolt_points(path: Array, jitter: float, on_floor: bool) -> Array:
 	var pts := []
 	for i in path.size() - 1:
 		var a: Vector3 = path[i]
 		var b: Vector3 = path[i + 1]
-		var segs := 3
+		var segs := maxi(4, int(a.distance_to(b) / 0.07))
+		var j: float = maxf(jitter, a.distance_to(b) / segs * 0.35)
+		var d := (b - a).normalized()
+		var side := Vector3(-d.y, d.x, 0) if not on_floor else Vector3(-d.z, 0, d.x)
+		var walk := 0.0
 		for k in segs:
-			var q := a.lerp(b, float(k) / segs)
-			if k > 0 or i > 0:
-				q += (Vector3(randf_range(-1, 1), 0, randf_range(-0.6, 0.6)) if on_floor else Vector3(randf_range(-1, 1), randf_range(-1, 1), 0)) * jitter
-			pts.append(q)
+			var t := float(k) / segs
+			pts.append(a.lerp(b, t) + side * walk)
+			walk += randf_range(-j, j)
+			walk *= 0.85
 	pts.append(path[path.size() - 1])
+	return pts
+
+func _bolt_mesh(pts: Array, width: float, col: Color, life: float, delay: float) -> void:
+	if pts.size() < 2:
+		return
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for i in pts.size() - 1:
-		var a: Vector3 = pts[i]
-		var b: Vector3 = pts[i + 1]
-		var d := (b - a)
-		var nm := Vector3(-d.y, d.x, 0).normalized() * w if absf(d.z) < absf(d.x) + absf(d.y) else Vector3(-d.z, 0, d.x).normalized() * w
-		for v in [a + nm, b + nm, b - nm, a + nm, b - nm, a - nm]:
-			st.set_color(col)
-			st.add_vertex(v)
+	var last := pts.size() - 1
+	for i in last:
+		var dirs := []
+		for k in [i, i + 1]:
+			dirs.append(((pts[mini(k + 1, last)] as Vector3) - pts[maxi(k - 1, 0)]).normalized())
+		for v in [[i, -1.0], [i, 1.0], [i + 1, 1.0], [i, -1.0], [i + 1, 1.0], [i + 1, -1.0]]:
+			st.set_normal(dirs[v[0] - i])
+			st.set_uv(Vector2(v[1], float(v[0]) / last))
+			st.add_vertex(pts[v[0]])
 	var mi := MeshInstance3D.new()
 	mi.mesh = st.commit()
-	mi.material_override = _mat(2)
+	var m := ShaderMaterial.new()
+	m.shader = BOLT_SH
+	m.set_shader_parameter("color", Vector3(col.r, col.g, col.b))
+	m.set_shader_parameter("width", width)
+	mi.material_override = m
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.extra_cull_margin = 4.0
 	add_child(mi)
 	items.append({"node": mi, "t": -delay, "life": life, "kind": "bolt"})
 
@@ -565,6 +605,16 @@ func charge(p: Vector3, size: float, life: float) -> void:
 		var a := randf() * TAU
 		var off := Vector3(cos(a), sin(a), 0) * size * 0.8
 		_spark(p + off, -off / life, life, 0.02, SILVER[0], 0.0)
+
+## 光の柱（かかと落とし）：上から足元へ落ちる太い稲妻の束＋縦に長い柔らかい光（加算）
+func pillar(g: Vector3, h: float) -> void:
+	for i in 3:
+		var top := g + Vector3(randf_range(-0.35, 0.35), h, 0.1)
+		bolt([top, g + Vector3(randf_range(-0.15, 0.15), h * 0.5, 0.1), g + Vector3(0, 0.05, 0.1)], 0.07 if i == 0 else 0.04, SILVER[0] if i != 2 else BOLT_VIOLET, 0.5, i * 0.03, 0.12, false, 2)
+	var m := _mat(1, SILVER)
+	m.set_shader_parameter("core_gain", 0.35)
+	_quad(g + Vector3(0, h * 0.45, 0.15), Vector2(0.9, h * 1.1), m, "flash", 0.26, 0.0)
+	_quad(g + Vector3(0, 0.3, 0.2), Vector2(2.6, 1.2), _mat(1, SILVER), "flash", 0.22, 0.02)
 
 ## 床を走る稲妻（かかと落としの着地）：中心から放射状に、床に寝かせた折れ線
 func floor_bolts(p: Vector3, n: int, r: float) -> void:
