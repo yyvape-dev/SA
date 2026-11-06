@@ -1,0 +1,19 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Texture2D" path="res://fit_assets/lana_idle_original.png" id="1_image"]
+[ext_resource type="Shader" path="res://shaders/lana_idle.gdshader" id="2_shader"]
+[ext_resource type="Script" path="res://scripts/lana_idle.gd" id="3_script"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_idle"]
+shader = ExtResource("2_shader")
+shader_parameter/phase = 0.0
+shader_parameter/strength = 1.0
+
+[node name="LanaIdle" type="Node2D"]
+script = ExtResource("3_script")
+
+[node name="Character" type="Sprite2D" parent="."]
+texture = ExtResource("1_image")
+centered = false
+texture_filter = 2
+material = SubResource("ShaderMaterial_idle")
