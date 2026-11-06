@@ -57,7 +57,7 @@
 - 同じ部品を置く場所ごとに key を変える（`piece_nodes[key]`）。左右反転の使い回しは未確認。
 
 ## 決まり：地区 pck（2026-11-06）
-- 不具合（2026-11-06、ユーザーの PC の Chrome、Windows）：起動直後から背景が仮の箱。事実＝看板の映り込みも無く提灯の筋だけ＝d1.pck 自体を読めていない（手元で d1.pck を 404 にすると同じ画面になる）。手元の Chromium（初回・2回目以降・保存領域を5MBに絞る）では再現しない。対策：pck の置き場所を user://（IndexedDB）から /tmp（メモリ上、残らない）へ、前の版が残した user://*.pck を消す、失敗したら1回やり直す、それでも駄目なら左上に赤い「! <地区> <結果> <HTTPの番号>」を出す（`loading.gd` の error_text）。原因は未確定（その番号で判断する）。
+- 不具合（2026-11-06、ユーザーの PC の Chrome、Windows）：起動直後から背景が仮の箱。事実＝看板の映り込みも無く提灯の筋だけ＝d1.pck 自体を読めていない（手元で d1.pck を 404 にすると同じ画面になる）。手元の Chromium（初回・2回目以降・保存領域を5MBに絞る）では再現しない。対策：pck の置き場所を user://（IndexedDB）から /tmp（メモリ上、残らない）へ、前の版が残した user://*.pck を消す、失敗したら1回やり直す、それでも駄目なら左上に赤い「! <地区> <結果> <HTTPの番号>」を出す（`loading.gd` の error_text）。原因は未確定（その番号で判断する）。続き：ユーザー「赤い文字も出ない」→ 古い版が残っている疑い。本体の index.pck も `?v=<版>` 付きで取りに行く（`export_web.py` が index.html の GODOT_CONFIG に mainPack を足す）。`?diag=1` で左上に版・d1 の状態・glints の数・絵の有無・URL を出す。
 - 地区ごとの絵は本体（`web/index.pck`）に入れず、`web/districts/<id>.pck` に分ける。今は d1＝歓楽街（`art/painted/*`・`assets/ground/*`・`glints.json`）。本体 36.6MB → 19.1MB、d1 17.5MB。
 - 書き出しは必ず `python3 -I sequel/tools/export_web.py`（godot の --export-release を直接使わない）。版の番号（時刻＋commit）を `build_ver.json`（本体）と `districts/<id>_ver.json`（地区）に同じ値で書き、書き出し設定（"District <id>"）を作り直し、本体と地区 pck を書き出して中身を確かめる。地区を足すときは、この中の `DISTRICTS` に書く。
 - 起動：`district.gd` の `ensure(id)` が `districts/<id>.pck?v=<版>` を落とし、`load_resource_pack(..., false)`（本体を上書きしない）。中の版を本体と照らし合わせ、ずれていたらページを 1 回だけ読み直す（`?r=`。2 回目もずれたらそのまま進む）。手元（エディタ・撮影）では res:// の絵をそのまま使う。

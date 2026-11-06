@@ -105,6 +105,10 @@ func _ready() -> void:
 		loading.hide_soon()
 	if OS.has_feature("web"):
 		JavaScriptBridge.eval("window.__sa_ready = performance.now()")
+		# 確認用：?diag=1 で左上に版と地区の読み込みの状態を出す
+		if str(JavaScriptBridge.eval("window.location.search")).contains("diag=1"):
+			loading.error_text = "ver %s | d1 %s | glints %d | painted %s | url %s" % [District.build_ver(), str(district.status.get("d1", "-")),
+				glints_src.size(), str(ResourceLoader.exists("res://art/painted/b1_tavern.png")), str(JavaScriptBridge.eval("location.href"))]
 		# 確認用：?at=gate で入口の前から始める
 		if str(JavaScriptBridge.eval("window.location.search")).contains("at=gate"):
 			player.position = Vector3(GATE_X - 0.5, 0, BELT_Z.x + 1.6)

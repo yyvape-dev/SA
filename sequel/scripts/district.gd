@@ -7,6 +7,7 @@ extends Node
 ##  - 手元（エディタ・撮影）では絵が res:// にそのままあるので、落とさずに使う。
 
 signal progress(ratio: float)
+var status := {}       # id -> 状態の短い印（?diag=1 で画面に出す）
 var last_error := ""   # 読み込めなかったとき、画面の隅に出す短い印（地区 結果 HTTPの番号）
 
 func _download(url: String, file: String) -> Array:
@@ -47,7 +48,9 @@ func ensure(id: String) -> bool:
 	var ver_path := "res://districts/%s_ver.json" % id
 	var want := build_ver()
 	var have := _read_ver(ver_path)
+	status[id] = "start have=%s" % have
 	if have != "" and have == want:
+		status[id] = "cached"
 		return true
 	if not OS.has_feature("web"):
 		return have != ""      # 手元：ファイルがあれば使う
@@ -71,8 +74,10 @@ func ensure(id: String) -> bool:
 	if not res.is_empty():
 		push_error("district %s: pck を読み込めない (%s)" % [id, str(res)])
 		last_error = "%s %d %d" % [id, int(res[0]), int(res[1])]
+		status[id] = "NG " + last_error
 		return false
 	have = _read_ver(ver_path)
+	status[id] = "loaded have=%s" % have
 	if have != want:
 		push_warning("district %s: 版がずれている（本体 %s / 地区 %s）" % [id, want, have])
 		if not search.contains("r="):

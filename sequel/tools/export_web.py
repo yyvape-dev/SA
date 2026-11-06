@@ -69,6 +69,11 @@ def main():
     run = lambda *a: subprocess.run(['timeout', '600', 'godot', '--headless', '--path', '.', *a], capture_output=True, text=True)
     run('--import')
     run('--export-release', 'Web', 'web/index.html')
+    # 本体の pck にも版の番号を付けて取りに行く（ブラウザに古い index.pck が残り、新しい版が動かないのを防ぐ）
+    h = open('web/index.html', encoding='utf-8').read()
+    h = h.replace('"executable":"index",', '"executable":"index","mainPack":"index.pck?v=%s",' % ver, 1)
+    assert 'mainPack' in h, 'index.html の GODOT_CONFIG を書き換えられない'
+    open('web/index.html', 'w', encoding='utf-8').write(h)
     os.makedirs('web/districts', exist_ok=True)
     for d in DISTRICTS:
         run('--export-pack', 'District ' + d, 'web/districts/%s.pck' % d)
