@@ -25,6 +25,7 @@ var auto_spawn := true
 var shadow_mat: StandardMaterial3D
 var glints: Array = []   # 看板・灯りの位置と色（assets/ground/glints.json）。キャラの縁取り・染めに使う
 const REFL := preload("res://scripts/sprite_refl.gdshader")
+const BODY_DIM := 0.7   # キャラの体の明るさ（夜。縁取りは暗くしない）
 
 func _ready() -> void:
 	var d = JSON.parse_string(FileAccess.get_file_as_string("res://assets/foe/foe.json"))
@@ -70,7 +71,8 @@ func apply_light(spr: Sprite3D, mat: ShaderMaterial, refl: Sprite3D, p: Vector3)
 		c /= maxf(maxf(c.x, c.y), maxf(c.z, 0.001))
 		var k: float = clampf(wt * 0.35, 0.0, 1.0)
 		mat.set_shader_parameter("light_col", Color(c.x, c.y, c.z, 0.25 * k))
-		mat.set_shader_parameter("rim_col", Color(c.x, c.y, c.z, 0.7 * k))
+		mat.set_shader_parameter("rim_col", Color(c.x * 1.2, c.y * 1.2, c.z * 1.2, 0.95 * k))   # 光を浴びて浮かぶ（強め）
+		mat.set_shader_parameter("body_dim", BODY_DIM)
 		var d: float = 1.0 if side >= 0.0 else -1.0
 		mat.set_shader_parameter("rim_dir", -d if spr.flip_h else d)
 	if refl:

@@ -3,7 +3,7 @@ shader_type spatial;
 render_mode unshaded, cull_disabled, depth_test_disabled, depth_draw_never;
 
 uniform sampler2D tex : source_color, filter_linear;
-uniform float strength = 0.36;
+uniform float strength = 0.5;
 uniform float len = 1.7;      // これだけ下まで映る（m）
 uniform vec4 tint = vec4(1.0);
 varying float hy;

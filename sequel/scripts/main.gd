@@ -57,6 +57,7 @@ func _ready() -> void:
 	add_child(player)
 	player.position = Vector3(-4, 0, 1.0)
 	_place_cam(true)
+	_build_crowd()
 	_build_vignette()
 	ui = TouchUI.new()
 	ui.player = player
@@ -74,7 +75,79 @@ func _process(delta: float) -> void:
 		var over: bool = absf(player.position.x - f.node.position.x) < f.half + 0.45
 		var col: Color = f.mat.get_shader_parameter("tint")
 		var a: float = move_toward(col.a, 0.5 if over else 1.0, delta * 3.0)
-		f.mat.set_shader_parameter("tint", Color(FG_DIM, FG_DIM, FG_DIM, a))
+		f.mat.set_shader_parameter("tint", Color(1, 1, 1, a))
+	# 奥の歩道の人の流れ
+	for c in crowd:
+		var n: Sprite3D = c.node
+		n.position.x += c.v * delta
+		if n.position.x > 34.0: n.position.x = -34.0
+		if n.position.x < -34.0: n.position.x = 34.0
+		c.ph += delta * absf(c.v) * 5.5
+		n.position.y = c.h * 0.5 + absf(sin(c.ph)) * 0.05
+
+## 通りを横切る提灯の列：建物の前（z −6.3）から手前の歩道（z 5.2）へ張った綱に、1.4m おきに提灯。揺れる。
+## 路面への映り込みは glints に足す（キャラの縁取り・染めにも効く）。
+const LANTERN_X := [-6.2, 6.8, 17.0]
+func _build_lanterns() -> void:
+	var lm := ShaderMaterial.new()
+	lm.shader = LANTERN_SHADER
+	var rope := StandardMaterial3D.new()
+	rope.albedo_color = Color(0.06, 0.05, 0.05)
+	rope.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	for x in LANTERN_X:
+		var z0 := -6.3
+		var z1 := 5.2
+		var segs := 12
+		for i in segs:
+			var t0 := float(i) / segs
+			var t1 := float(i + 1) / segs
+			var p0 := Vector3(x, 5.7 - 0.8 * 4.0 * t0 * (1.0 - t0), lerpf(z0, z1, t0))
+			var p1 := Vector3(x, 5.7 - 0.8 * 4.0 * t1 * (1.0 - t1), lerpf(z0, z1, t1))
+			var seg := MeshInstance3D.new()
+			var bm := BoxMesh.new()
+			bm.size = Vector3(0.03, 0.03, p0.distance_to(p1))
+			seg.mesh = bm
+			seg.material_override = rope
+			seg.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			add_child(seg)
+			seg.look_at_from_position((p0 + p1) * 0.5, p1, Vector3.UP)
+		var z := -5.4
+		while z < 4.8:
+			var t := (z - z0) / (z1 - z0)
+			var y := 5.7 - 0.8 * 4.0 * t * (1.0 - t) - 0.42
+			var q := MeshInstance3D.new()
+			var qm := QuadMesh.new()
+			qm.size = Vector2(0.46, 0.62)
+			q.mesh = qm
+			q.material_override = lm
+			q.position = Vector3(x, y, z)
+			q.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			add_child(q)
+			glints.append({"x": x, "y": y, "z": z, "w": 0.45, "col": [1.0, 0.32, 0.16], "p": 0.45, "len": 3.2, "k": 0.6})
+			z += 1.4
+
+## 奥の歩道の人の流れ：前作の町の人の絵を暗く・青紫に沈めて、左右へゆっくり流す（当たりには関係しない）。
+func _build_crowd() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
+	for i in 11:
+		var key: String = NPC_KEYS[i % NPC_KEYS.size()]
+		var tex: Texture2D = load("res://assets/npc/%s.webp" % key)
+		var s := Sprite3D.new()
+		s.texture = tex
+		var h := rng.randf_range(1.6, 1.8)
+		s.pixel_size = h / float(tex.get_height())
+		var m := ShaderMaterial.new()
+		m.shader = SPRITE_SHADER
+		m.set_shader_parameter("tex", tex)
+		m.set_shader_parameter("tint", Color(0.2, 0.19, 0.3, 1.0))
+		s.material_override = m
+		s.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var v := rng.randf_range(0.7, 1.4) * (1.0 if i % 2 == 0 else -1.0)
+		s.flip_h = v > 0.0
+		s.position = Vector3(rng.randf_range(-32.0, 32.0), h * 0.5, rng.randf_range(-6.2, -4.7))
+		add_child(s)
+		crowd.append({"node": s, "v": v, "ph": rng.randf() * 6.0, "h": h})
 
 func _build_vignette() -> void:
 	var cl := CanvasLayer.new()
@@ -153,7 +226,7 @@ const COBBLE_TEX := preload("res://assets/ground/cobble.png")
 const SLAB_TEX := preload("res://assets/ground/slab.png")
 const COBBLE_TILE := 2.5   # 石畳 1 枚の大きさ（m）
 const SLAB_TILE := 2.0     # 敷石 1 枚（石 1 枚が約 1m×0.5m）
-const FLOOR_DIM := 0.5    # 地面の明るさ（素材の色に掛ける）
+const FLOOR_DIM := 0.3    # 地面の明るさ（素材の色に掛ける。夜。前は 0.5）
 const GLINT_SHADER := preload("res://scripts/glint.gdshader")
 const FAR_GROUND_SHADER := preload("res://scripts/far_ground.gdshader")
 const FOOT_SHADER := preload("res://scripts/foot_shade.gdshader")
@@ -164,9 +237,12 @@ const FOG_COL := Color8(97, 69, 102)
 const FOG_FAR := 1.3
 const FOG_BACK := 1.0
 const FOG_BLD := 0.35
-const BLD_DIM := 0.8        # 塗った建物の面の明るさ（ネオン・灯りの明るい所は暗くしない）
+const BLD_DIM := 0.36       # 塗った建物の面の明るさ（夜。光る画素＝ネオン・灯り・明るい窓は暗くしない。前は 0.8）
 const FG_BLUR := 5.0        # 手前の板のぼかし（テクスチャの画素）
-const FG_DIM := 0.8
+const FG_DIM := 0.36       # 手前の板（光る画素は残す）
+const LANTERN_SHADER := preload("res://scripts/lantern.gdshader")
+const NPC_KEYS := ["man_1", "man_2", "man_3", "man_4", "woman_1", "woman_2", "woman_3", "woman_4", "work_1", "work_2", "work_3", "work_4"]
+var crowd: Array = []      # 奥の歩道の人の流れ [{node, v, ph}]
 var glints: Array = []
 var fg_list: Array = []     # [{node, mat, half}]
 
@@ -195,8 +271,9 @@ func _build_glints() -> void:
 	if not (list is Array):
 		return
 	glints = list
+	_build_lanterns()
 	for g in list:
-		var length := clampf(7.0 + float(g.y) * 0.8, 7.0, 12.0)
+		var length: float = float(g.len) if g.has("len") else clampf(7.0 + float(g.y) * 0.8, 7.0, 12.0)
 		var mi := MeshInstance3D.new()
 		var pm := PlaneMesh.new()
 		pm.size = Vector2(float(g.w) * 0.9, length)
@@ -205,7 +282,7 @@ func _build_glints() -> void:
 		var m := ShaderMaterial.new()
 		m.shader = GLINT_SHADER
 		m.set_shader_parameter("col", Color(g.col[0], g.col[1], g.col[2]))
-		m.set_shader_parameter("power", 0.35 + 0.65 * float(g.p))
+		m.set_shader_parameter("power", (0.55 + 1.0 * float(g.p)) * float(g.get("k", 1.0)))
 		m.set_shader_parameter("stone", COBBLE_TEX)
 		m.set_shader_parameter("tile", COBBLE_TILE)
 		m.set_shader_parameter("z0", float(g.z))
@@ -255,7 +332,8 @@ func _build_piece(p: Dictionary) -> void:
 			sm.set_shader_parameter("fallback", col)
 			sm.set_shader_parameter("alpha_mask", has_alpha)
 			sm.set_shader_parameter("dim", BLD_DIM)
-			sm.set_shader_parameter("glow_boost", 0.12)
+			sm.set_shader_parameter("glow_boost", 0.15)
+			sm.set_shader_parameter("flicker", 1.0 if p.kind == "bld" else 0.0)
 			sm.set_shader_parameter("fog_amt", FOG_BACK if p.kind == "back" else FOG_BLD)
 			sm.set_shader_parameter("fog_col", FOG_COL)
 			mi.material_override = sm
@@ -339,7 +417,8 @@ func _build_fg_plane(root: Node3D, p: Dictionary, tex: Texture2D) -> void:
 	m.shader = SPRITE_SHADER
 	m.set_shader_parameter("tex", tex)
 	m.set_shader_parameter("blur", FG_BLUR)   # 表示のときだけぼかして暗く（元の絵は変えない）
-	m.set_shader_parameter("tint", Color(FG_DIM, FG_DIM, FG_DIM, 1.0))
+	m.set_shader_parameter("night_dim", FG_DIM)
+	m.set_shader_parameter("tint", Color(1, 1, 1, 1))
 	mi.material_override = m
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(mi)
@@ -405,6 +484,8 @@ func _capture_guides() -> void:
 	renv.ambient_light_energy = 0.12
 	renv.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	rc.environment = renv
+	for c in crowd:
+		c.node.visible = false
 	var floor_nodes := []
 	for ch in get_children():
 		if ch is MeshInstance3D:

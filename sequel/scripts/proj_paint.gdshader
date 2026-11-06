@@ -12,6 +12,9 @@ uniform bool alpha_mask = false;
 // fog_amt：奥ほど大きく（b0 ＞ 建物）。彩度を下げ、暗くし、紫の霧を重ねる。明るい所は霧を少し透かす。
 uniform float dim = 1.0;
 uniform float glow_boost = 0.0;
+// 夜（2026-11-05 その2）：光る画素（明るく彩度の高いネオン・灯り、とても明るい窓）は残し、それ以外を dim 倍に。
+// flicker＝1 の部品は、ネオンの色（ピンク・水色）の光る画素のうち、区画ごとに一部だけ時々消える（明滅）。
+uniform float flicker = 0.0;
 uniform float fog_amt = 0.0;
 uniform vec4 fog_col : source_color = vec4(0.38, 0.27, 0.40, 1.0);
 varying vec3 wpos;
@@ -33,7 +36,17 @@ void fragment() {
 	}
 	float mx = max(col.r, max(col.g, col.b));
 	float sat = mx - min(col.r, min(col.g, col.b));
-	float hot = smoothstep(0.72, 0.95, mx) * smoothstep(0.15, 0.4, sat);
+	float mn = min(col.r, min(col.g, col.b));
+	float srel = (mx - mn) / max(mx, 0.001);
+	float hot = max(smoothstep(0.6, 0.85, mx) * smoothstep(0.25, 0.5, srel), smoothstep(0.9, 0.99, mx));
+	if (flicker > 0.0) {
+		float neon = hot * max(step(col.g + 0.15, min(col.r, col.b)), step(col.r + 0.2, min(col.g, col.b)));
+		vec2 cell = floor(uv * vec2(9.0, 7.0));
+		float h = fract(sin(dot(cell, vec2(12.9898, 78.233))) * 43758.5453);
+		float n = fract(sin(floor(TIME * 11.0 + h * 50.0) * 12.9898 + h * 78.233) * 43758.5453);
+		float off = step(h, 0.3) * step(0.82, n) * neon * flicker;
+		col *= 1.0 - off * 0.8;
+	}
 	col = mix(col * dim, col * (1.0 + glow_boost), hot);
 	float f = fog_amt * (1.0 - hot * 0.5);
 	float lum = dot(col, vec3(0.299, 0.587, 0.114));

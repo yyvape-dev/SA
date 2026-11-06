@@ -13,6 +13,8 @@ uniform vec4 rim_col = vec4(1.0, 1.0, 1.0, 0.0);  // 縁取りの色（a＝強�
 uniform float rim_dir = 1.0;                      // 光の来る側（UV の x の向き。左右反転はスクリプトで考慮済み）
 uniform float rim_px = 4.0;                       // 縁取りの太さ（テクスチャの画素）
 uniform float blur = 0.0;                         // ぼかし（テクスチャの画素。手前の部品だけ）
+uniform float night_dim = 1.0;                    // 手前の部品：光る画素は残し、それ以外をこの倍率に（1＝しない）
+uniform float body_dim = 1.0;                     // キャラ：体の明るさ（縁取りは暗くしない）
 
 void vertex() {
 	float c = cos(rot);
@@ -38,7 +40,13 @@ void fragment() {
 		}
 		c = acc / 9.0;
 	}
-	vec3 col = c.rgb * tint.rgb;
+	vec3 col = c.rgb * tint.rgb * body_dim;
+	if (night_dim < 1.0) {
+		float mx = max(col.r, max(col.g, col.b));
+		float srel = (mx - min(col.r, min(col.g, col.b))) / max(mx, 0.001);
+		float hot = max(smoothstep(0.6, 0.85, mx) * smoothstep(0.25, 0.5, srel), smoothstep(0.9, 0.99, mx));
+		col = mix(col * night_dim, col, hot);
+	}
 	col *= mix(vec3(1.0), light_col.rgb, light_col.a);   // 色味だけ寄せる（明るくはしない）
 	if (rim_col.a > 0.0) {
 		float nb = texture(tex, UV + vec2(rim_dir * rim_px * ts.x, 0.0)).a;
