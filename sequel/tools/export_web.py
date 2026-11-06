@@ -9,6 +9,10 @@
 """
 import os, re, glob, json, struct, subprocess, datetime
 
+# 使う Godot と出力先（既定：godot と web/）。例：GODOT_BIN=godot47 WEB_OUT=web47 python3 -I sequel/tools/export_web.py
+GODOT = os.environ.get('GODOT_BIN', 'godot')
+OUT = os.environ.get('WEB_OUT', 'web')
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DISTRICTS = {
     "d1": {"res": ["art/painted/*.png", "assets/ground/*.png"],   # 歓楽街：塗った部品・遠景・地面
@@ -21,7 +25,11 @@ MAIN_EXCLUDE = ["captures/*", "art/guide/*.png", "tools/*", "districts/*", "art/
 
 def pck_files(path):
     d = open(path, 'rb').read()
-    off = 24 + 8 + 64
+    pack_ver, = struct.unpack_from('<I', d, 4)
+    if pack_ver >= 3:   # Godot 4.5 以降（4.7.2 は pack 4）：見出しに目録の位置がある
+        off, = struct.unpack_from('<Q', d, 32)
+    else:               # Godot 4.4 まで（pack 2）：見出しの直後が目録
+        off = 24 + 8 + 64
     n, = struct.unpack_from('<I', d, off); off += 4
     out = []
     for _ in range(n):
@@ -44,7 +52,9 @@ def preset_block(idx, name, files, include, export_path, options):
 def main():
     os.chdir(ROOT)
     head = subprocess.run(['git', 'rev-parse', '--short', 'HEAD'], capture_output=True, text=True).stdout.strip()
-    ver = '%s-%s' % (datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%d%H%M%S'), head)
+    eng = subprocess.run([GODOT, '--version'], capture_output=True, text=True).stdout.strip().split('.stable')[0]
+    # 版の番号＝時刻－commit－Godot の版（Godot の版が違う本体と地区 pck は混ぜない）
+    ver = '%s-%s-g%s' % (datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%d%H%M%S'), head, eng)
     json.dump({"ver": ver}, open('build_ver.json', 'w'))
     os.makedirs('districts', exist_ok=True)
     for d in DISTRICTS:
@@ -59,35 +69,38 @@ def main():
     for i, (d, spec) in enumerate(DISTRICTS.items(), start=1):
         files = sorted(f for g in spec["res"] for f in glob.glob(g))
         blocks.append(preset_block(i, 'District ' + d, files, ['districts/%s_ver.json' % d] + spec["files"],
-                                   'web/districts/%s.pck' % d, opts))
+                                   OUT + '/districts/%s.pck' % d, opts))
     # 注意（2026-11-06 に試した事実）：<link rel="preload"> で地区 pck を先読みすると、Godot の読み込みが使い回さず
     # 二重に落とし、かえって遅くなった（20Mbps 相当で 240 秒以内に終わらない）。先読みはしない。
     base_head = '<meta name=\\"apple-mobile-web-app-capable\\" content=\\"yes\\"><meta name=\\"mobile-web-app-capable\\" content=\\"yes\\">'
     blocks = [re.sub(r'html/head_include="[^\n]*"', lambda m: 'html/head_include="%s"' % base_head, b) for b in blocks]
     open('export_presets.cfg', 'w', encoding='utf-8').write('\n'.join(blocks))
     # 書き出し
-    run = lambda *a: subprocess.run(['timeout', '600', 'godot', '--headless', '--path', '.', *a], capture_output=True, text=True)
+    run = lambda *a: subprocess.run(['timeout', '600', GODOT, '--headless', '--path', '.', *a], capture_output=True, text=True)
     run('--import')
-    run('--export-release', 'Web', 'web/index.html')
+    os.makedirs(OUT, exist_ok=True)
+    if not os.path.exists(OUT + '/.gdignore'):
+        open(OUT + '/.gdignore', 'w').close()
+    run('--export-release', 'Web', OUT + '/index.html')
     # 本体の pck にも版の番号を付けて取りに行く（ブラウザに古い index.pck が残り、新しい版が動かないのを防ぐ）
-    h = open('web/index.html', encoding='utf-8').read()
+    h = open(OUT + '/index.html', encoding='utf-8').read()
     h = h.replace('"executable":"index",', '"executable":"index","mainPack":"index.pck?v=%s",' % ver, 1)
     assert 'mainPack' in h, 'index.html の GODOT_CONFIG を書き換えられない'
-    open('web/index.html', 'w', encoding='utf-8').write(h)
-    os.makedirs('web/districts', exist_ok=True)
+    open(OUT + '/index.html', 'w', encoding='utf-8').write(h)
+    os.makedirs(OUT + '/districts', exist_ok=True)
     for d in DISTRICTS:
-        run('--export-pack', 'District ' + d, 'web/districts/%s.pck' % d)
+        run('--export-pack', 'District ' + d, OUT + '/districts/%s.pck' % d)
     # 確かめる
-    main_files = [p for p, _ in pck_files('web/index.pck')]
+    main_files = [p for p, _ in pck_files(OUT + '/index.pck')]
     bad = [p for p in main_files if re.match(r'(res://)?(art/painted|assets/ground|districts)/', p)]
     print('版', ver)
-    print('本体 index.pck %.1fMB、地区の絵が入っていない: %s %s' % (os.path.getsize('web/index.pck') / 1e6, not bad, bad[:3]))
+    print('本体 index.pck %.1fMB、地区の絵が入っていない: %s %s' % (os.path.getsize(OUT + '/index.pck') / 1e6, not bad, bad[:3]))
     for d, spec in DISTRICTS.items():
-        fs = pck_files('web/districts/%s.pck' % d)
+        fs = pck_files(OUT + '/districts/%s.pck' % d)
         names = [p for p, _ in fs]
         need = ['districts/%s_ver.json' % d] + spec["files"] + [f + '.import' for g in spec["res"] for f in glob.glob(g)]
         miss = [n for n in need if n not in names and 'res://' + n not in names]
-        print('地区 %s.pck %.1fMB（%d ファイル）、足りない物: %s' % (d, os.path.getsize('web/districts/%s.pck' % d) / 1e6, len(fs), miss or 'なし'))
+        print('地区 %s.pck %.1fMB（%d ファイル）、足りない物: %s' % (d, os.path.getsize(OUT + '/districts/%s.pck' % d) / 1e6, len(fs), miss or 'なし'))
 
 
 if __name__ == '__main__':

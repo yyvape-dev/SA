@@ -11,13 +11,13 @@ var status := {}       # id -> 状態の短い印（?diag=1 で画面に出す�
 var last_error := ""   # 読み込めなかったとき、画面の隅に出す短い印（地区 結果 HTTPの番号）
 
 func _download(url: String, file: String) -> Array:
+	# 受け取った中身を自分でファイルに書く（2026-11-06 の事実：Godot 4.7.2 の Web 版では download_file で /tmp に書くと 0 バイトになった）
 	var http := HTTPRequest.new()
 	add_child(http)
-	http.download_file = file
 	http.accept_gzip = false   # 圧縮はブラウザが解く。Godot がもう一度解こうとすると PC の Chrome で失敗した（結果 8＝BODY_DECOMPRESS_FAILED、2026-11-06）
 	http.download_chunk_size = 4 * 1024 * 1024   # 既定の 64KB だと 1コマに 64KB しか受け取らず、遅い端末で何十秒もかかる
-	var st := {"done": false, "res": [-1, 0]}
-	http.request_completed.connect(func(r, code, _h, _b): st.res = [r, code]; st.done = true)
+	var st := {"done": false, "res": [-1, 0], "body": PackedByteArray()}
+	http.request_completed.connect(func(r, code, _h, b): st.res = [r, code]; st.body = b; st.done = true)
 	var err := http.request(url)
 	if err != OK:
 		http.queue_free()
@@ -28,6 +28,13 @@ func _download(url: String, file: String) -> Array:
 			progress.emit(float(http.get_downloaded_bytes()) / total)
 		await get_tree().process_frame
 	http.queue_free()
+	var body: PackedByteArray = st.body
+	if int(st.res[0]) == HTTPRequest.RESULT_SUCCESS and body.size() > 0:
+		var f := FileAccess.open(file, FileAccess.WRITE)
+		if f == null:
+			return [-3, FileAccess.get_open_error()]
+		f.store_buffer(body)
+		f.close()
 	return st.res
 
 static func build_ver() -> String:
@@ -71,7 +78,8 @@ func ensure(id: String) -> bool:
 		if int(res[0]) == HTTPRequest.RESULT_SUCCESS and int(res[1]) == 200 and ProjectSettings.load_resource_pack(file, false):
 			res = []
 			break
-		push_warning("district %s: 取得・読み込みに失敗 %s（%d 回目）" % [id, str(res), attempt + 1])
+		var fb := FileAccess.get_file_as_bytes(file)
+		push_warning("district %s: 取得・読み込みに失敗 %s（%d 回目）ファイル %d バイト 先頭 %s" % [id, str(res), attempt + 1, fb.size(), fb.slice(0, 4).get_string_from_ascii()])
 	if not res.is_empty():
 		push_error("district %s: pck を読み込めない (%s)" % [id, str(res)])
 		last_error = "%s %d %d" % [id, int(res[0]), int(res[1])]

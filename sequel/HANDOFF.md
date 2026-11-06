@@ -34,6 +34,15 @@
   - FPS（swiftshader、844×390。この測り方は機械の混み具合で大きく揺れる→同じ時に前の版と並べて測る）：前の版 4.2〜4.6、今回 4.0〜4.4（約5％重い）。
 - 遊べるURL：https://yyvape-dev.github.io/SA/sequel/web/ （入口の前から：`?at=gate`）
 
+## Godot 4.7.2 への移行（2026-11-06、ユーザー決定。iPhone での OK 待ち）
+- 公式の tag で最新の安定版＝4.7.2-stable（`git ls-remote --tags`）。本体 `godot47`、テンプレート `~/.local/share/godot/export_templates/4.7.2.stable/web_nothreads_release.zip`。
+- 変換：取り込みで変わったのは `project.godot`（features 4.7・`compatibility/default_parent_skeleton_in_mesh_instance_3d=true` が足された）と `main.tscn`（load_steps が消えた）だけ。文法エラー・警告 0。
+- 書き出し：`GODOT_BIN=godot47 WEB_OUT=web47 python3 -I sequel/tools/export_web.py`。版の番号に Godot の版を付ける（`…-g4.7.2`）。pck の形式が 2→4 に変わった（見出しに目録の位置）→ `pck_files` を両方に対応。
+- 4.7.2 の Web 版だけの不具合：HTTPRequest の `download_file` で /tmp に書くと 0 バイトになり地区 pck が読めなかった → 受け取った中身を自分で書く（`district.gd` の `_download`）。
+- 比べた結果（同じ乱数の種・同じコマ。撮影でもセーブを毎回まっさらに＝前はレベルが残り場面がずれた）：戦闘 120 枚・ダンジョン 118 枚で、差のある画素は最大 0.67％・1.23％。差はラナの被弾の点滅と出口の脈打ち（実時間で光らせている所）だけ。自動の4周の結果は小数点まで同じ。
+- Web（swiftshader 844×390、交互に3回）：FPS 4.4.1 5.53〜5.80 ／ 4.7.2 5.69〜5.95。起動 4.05〜4.48 秒 ／ 3.93〜4.37 秒。index.wasm 43.7MB → 39.5MB。版のずれ（4.7.2 の本体に 4.4.1 の地区 pck）は検出し1回だけ読み直す。
+- 試す URL：https://yyvape-dev.github.io/SA/sequel/web47/ 。OK が出たら web47 を web/ に差し替え、web47 を消し、HANDOFF・CLAUDE.md・Skill の版の記述を 4.7.2 に。
+
 ## インスタントダンジョン（縦切り3、2026-11-06、ユーザー承認の仕様）
 - 入口：街の区画の右端（高架の下、x=16、奥の歩道側）に紫の光る扉（`main.gd` の `_build_gate`、`gate.gdshader`）。近づくと難易度の画面（`dungeon_hud.gd`）：青の◆1つ＝ノーマル、赤の◆◆＝ハード（ノーマルのクリアで開く。開くまでは錠の印で、押すと揺れるだけ）。各札に最速の記録（金の時計＋数字）。×・外を押す・K で閉じる。キーは A/D（1/2）で選び J で決定。文字は無し。
 - 間取り（`dungeon_map.gd`）：3×3 のマスに6部屋を木の形でつなぐ（毎回ランダム、輪は作らない＝行き止まりができる）。入口は下の段の中央で固定。ボス部屋＝入口から3部屋以上離れた行き止まりからランダム。部屋の半幅 9.5〜14m（1〜1.5画面）。出口：左右＝部屋の端、上下のつながり＝奥・手前の出口（帯の奥／手前の縁、左右の位置は部屋ごとにランダムで4m以上離す）。

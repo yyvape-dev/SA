@@ -63,8 +63,8 @@ func _ready() -> void:
 		loading.error_text = district.last_error
 	_load_glints()
 	progress = Progress.new()
-	if OS.has_environment("CAPTURE_DUNGEON") or OS.has_environment("DUNGEON_TEST"):
-		progress.path = "user://sa2_capture_save.json"
+	if OS.has_environment("CAPTURE_DUNGEON") or OS.has_environment("DUNGEON_TEST") or OS.has_environment("CAPTURE_PLAY"):
+		progress.path = "user://sa2_capture_save.json"   # 撮影・確認は毎回まっさらなセーブ（前の回のレベルが残ると場面がずれる）
 		progress.reset()
 	else:
 		progress.load_save()
