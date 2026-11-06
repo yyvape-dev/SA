@@ -47,6 +47,10 @@ const Progress := preload("res://scripts/progress.gd")
 const GATE_X := 16.0              # 入口の位置（区画の右端、高架の下）
 
 func _ready() -> void:
+	# 撮影・確認では乱数の種を固定する（版どうしで同じ場面・同じコマを比べるため）
+	for k in ["CAPTURE_PLAY", "CAPTURE_DUNGEON", "DUNGEON_TEST", "CAPTURE_GUIDE", "CAPTURE_REUSE"]:
+		if OS.has_environment(k):
+			seed(20261106)
 	loading = Loading.new()
 	add_child(loading)
 	district = District.new()
