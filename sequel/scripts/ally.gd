@@ -1,0 +1,179 @@
+extends Node3D
+## 仲間リリィ（2026-11-06）。ラナについて歩き、敵がいれば近い敵へ寄って、5本の攻撃パターンからランダムに蹴る。
+## 絵は assets/lily/lily.json（tools/pack_lily.py）。地区 pck「al1」に入っていて、読み終えてから出てくる。
+## まだ無い動き：歩き・走り・被弾 → 今は戦闘の立ち絵を揺らして移動する。敵の攻撃は受けない（仮）。
+## スキルは未決：攻撃パターンは全部入れて、出す順はランダム（同じものを続けない）。
+
+const SPR := preload("res://scripts/sprite_bb.gdshader")
+const SPD := 2.0          # 連番（1秒12コマ）を流す速さ＝見た目は1秒24コマ
+const MOVE := 3.4         # 寄る速さ（m/秒）
+const DEPTH_K := 0.75
+const ATK_X := 1.0        # 敵とこの左右の距離まで寄って攻撃する
+const ATK_LANE := 0.35    # 奥行きをここまで合わせてから攻撃する
+const HIT_LANE := 0.8     # 当たりの奥行きの幅
+const DMG := 11.0         # 1発の強さ（最後の当たりは strong＝金の数字・強い止め）
+const PATTERNS := ["atk_jabkick", "atk_highkick", "atk_roundhouse", "atk_heeldrop", "atk_rush"]
+
+var world               # battle.gd
+var data := {}
+var pages := {}
+var sprite: Sprite3D
+var mat: ShaderMaterial
+var shadow: MeshInstance3D
+var refl: Sprite3D
+var px := 0.005
+var height_m := 1.70
+var face := 1
+var state := "move"     # move / atk
+var clip := "idle"
+var t := 0.0
+var hit_i := 0
+var cd := 0.8
+var last := ""
+var bob := 0.0
+var fixed_scale := -1.0   # 撮影の並べ比べ用（背の高さを変える）
+
+func setup(w, d: Dictionary) -> void:
+	world = w
+	data = d
+	height_m = float(d.height_m)
+
+func _ready() -> void:
+	px = height_m / float(data.body_px)
+	sprite = Sprite3D.new()
+	sprite.region_enabled = true
+	sprite.centered = false
+	mat = ShaderMaterial.new()
+	mat.shader = SPR
+	sprite.material_override = mat
+	sprite.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(sprite)
+	shadow = world.make_shadow(1.1)
+	add_child(shadow)
+	refl = world.make_refl()
+	add_child(refl)
+	_show("idle", 0)
+
+## 背の高さを変える（撮影の並べ比べ用）
+func set_height(h: float) -> void:
+	height_m = h
+	px = h / float(data.body_px)
+	_show(clip, 0)
+
+func height() -> float:
+	return height_m
+
+func _tex(p: int) -> Texture2D:
+	if not pages.has(p):
+		pages[p] = load("res://assets/lily/" + str(data.pages[p]))
+	return pages[p]
+
+func _show(c: String, i: int) -> void:
+	var fr: Array = data.clips[c].frames
+	var f: Array = fr[clampi(i, 0, fr.size() - 1)]
+	var tex := _tex(int(f[0]))
+	if sprite.texture != tex:
+		sprite.texture = tex
+		mat.set_shader_parameter("tex", tex)
+	sprite.region_rect = Rect2(f[1], f[2], f[3], f[4])
+	sprite.pixel_size = px
+	var ox: float = f[5]
+	if face < 0:
+		ox = -ox - f[3]
+	sprite.flip_h = face < 0
+	sprite.offset = Vector2(ox, -float(f[6]) - f[4])
+
+func _nearest() -> Node3D:
+	var best: Node3D = null
+	var bd := 1e9
+	for e in world.enemies:
+		if e.state == "dying":
+			continue
+		var d: float = absf(e.position.x - position.x) + absf(e.position.z - position.z) * 1.5
+		if d < bd:
+			bd = d
+			best = e
+	return best
+
+func _start_atk(e: Node3D) -> void:
+	var opts := []
+	for p in PATTERNS:
+		if p != last and data.clips.has(p):
+			opts.append(p)
+	clip = opts[randi() % opts.size()]
+	last = clip
+	face = 1 if e.position.x >= position.x else -1
+	state = "atk"
+	t = 0.0
+	hit_i = 0
+
+func _physics_process(delta: float) -> void:
+	var dt: float = world.dt(delta)
+	if dt <= 0.0:
+		world.apply_light(sprite, mat, refl, position)
+		return
+	t += dt
+	var pl: Node3D = world.player
+	# ラナから離れすぎたら（部屋の移動など）すぐそばへ
+	if absf(pl.position.x - position.x) > 9.0:
+		position = pl.position + Vector3(-pl.face * 1.4, 0, 0.6)
+		state = "move"
+	match state:
+		"move":
+			cd -= dt
+			var e := _nearest()
+			var goal: Vector3
+			if e:
+				var side := 1.0 if position.x >= e.position.x else -1.0
+				goal = Vector3(e.position.x + side * ATK_X * 0.9, 0, e.position.z)
+			else:
+				goal = pl.position + Vector3(-pl.face * 1.4, 0, 0.7)
+			var d := goal - position
+			var moving := absf(d.x) > 0.12 or absf(d.z) > 0.08
+			if moving:
+				position.x += clampf(d.x, -MOVE * dt, MOVE * dt)
+				position.z += clampf(d.z, -MOVE * DEPTH_K * dt, MOVE * DEPTH_K * dt)
+			if e:
+				face = 1 if e.position.x >= position.x else -1
+			elif absf(d.x) > 0.12:
+				face = 1 if d.x > 0 else -1
+			else:
+				face = pl.face
+			# 歩きの動画が無いので、立ち絵を弾ませて移動を見せる
+			bob = bob + dt * 9.0 if moving else 0.0
+			sprite.position.y = absf(sin(bob)) * 0.06
+			_show("idle", 0)
+			if e and cd <= 0.0 and absf(e.position.x - position.x) < ATK_X + 0.35 and absf(e.position.z - position.z) < ATK_LANE:
+				sprite.position.y = 0.0
+				_start_atk(e)
+		"atk":
+			var c: Dictionary = data.clips[clip]
+			var fps: float = float(c.fps) * SPD
+			var i := int(t * fps)
+			var hits: Array = c.hits
+			while hit_i < hits.size() and i >= int(hits[hit_i]):
+				var last_hit := hit_i == hits.size() - 1
+				world.ally_attack(self, {"side": 1, "r": maxf(1.5, float(c.reach[hit_i]) + 0.35), "lane": HIT_LANE,
+					"dmg": DMG * (1.3 if last_hit else 1.0), "strong": last_hit,
+					"slash": {"plane": "h", "r": maxf(1.3, float(c.reach[hit_i])), "w": 0.45, "a0": 120.0, "a1": -40.0,
+						"y": 1.0 if clip != "atk_heeldrop" or hit_i == 0 else 0.7, "life": 0.22, "draw": 0.06, "squash": 0.55, "tilt": 4.0}})
+				hit_i += 1
+			if i >= c.frames.size():
+				state = "move"
+				clip = "idle"
+				t = 0.0
+				cd = randf_range(0.5, 1.1)
+				_show("idle", 0)
+			else:
+				_show(clip, i)
+	mat.set_shader_parameter("tint", Color(1, 1, 1, 1))
+	world.apply_light(sprite, mat, refl, position)
+	position.x = clampf(position.x, world.ROOM_X.x, world.ROOM_X.y)
+	position.z = clampf(position.z, world.BELT_Z.x, world.BELT_Z.y)
+
+## 撮影用：攻撃のコマを止めて見せる
+func debug_pose(c: String, i: int) -> void:
+	set_physics_process(false)
+	clip = c
+	_show(c, i)
+	world.apply_light(sprite, mat, refl, position)

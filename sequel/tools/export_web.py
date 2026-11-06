@@ -19,6 +19,8 @@ DISTRICTS = {
            "files": ["assets/ground/glints.json"]},                # 映り込みの元（json は include_filter で入れる）
     "dg1": {"res": ["assets/foe/gen_g1.webp", "assets/foe/foeduel_g1_*.webp"],   # ダンジョンのボス（仮置きの敵将 g1）。入るときに読む
             "files": []},
+    "al1": {"res": ["assets/lily/*.webp"],                           # 仲間リリィ（起動の後に読む。読み終えてから出てくる）
+            "files": []},
 }
 MAIN_EXCLUDE = ["captures/*", "art/guide/*.png", "tools/*", "districts/*", "art/incoming/*"]
 

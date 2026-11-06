@@ -44,11 +44,12 @@ var gate_armed := true            # 入口から離れたら、また選べる
 const DungeonRun := preload("res://scripts/dungeon.gd")
 const DungeonHud := preload("res://scripts/dungeon_hud.gd")
 const Progress := preload("res://scripts/progress.gd")
+const Ally := preload("res://scripts/ally.gd")
 const GATE_X := 16.0              # 入口の位置（区画の右端、高架の下）
 
 func _ready() -> void:
 	# 撮影・確認では乱数の種を固定する（版どうしで同じ場面・同じコマを比べるため）
-	for k in ["CAPTURE_PLAY", "CAPTURE_DUNGEON", "DUNGEON_TEST", "CAPTURE_GUIDE", "CAPTURE_REUSE"]:
+	for k in ["CAPTURE_LINEUP", "CAPTURE_PLAY", "CAPTURE_DUNGEON", "DUNGEON_TEST", "CAPTURE_GUIDE", "CAPTURE_REUSE"]:
 		if OS.has_environment(k):
 			seed(20261106)
 	loading = Loading.new()
@@ -92,6 +93,7 @@ func _ready() -> void:
 	add_child(player)
 	player.position = Vector3(-4, 0, 1.0)
 	_place_cam(true)
+	_load_ally()
 	_build_vignette()
 	ui = TouchUI.new()
 	ui.player = player
@@ -102,7 +104,7 @@ func _ready() -> void:
 	hud = DungeonHud.new()
 	hud.main = self
 	add_child(hud)
-	var capture := OS.has_environment("CAPTURE_GUIDE") or OS.has_environment("CAPTURE_PLAY") or OS.has_environment("CAPTURE_REUSE")
+	var capture := OS.has_environment("CAPTURE_GUIDE") or OS.has_environment("CAPTURE_PLAY") or OS.has_environment("CAPTURE_REUSE") or OS.has_environment("CAPTURE_LINEUP")
 	if capture:
 		loading.visible = false
 	else:
@@ -125,6 +127,8 @@ func _ready() -> void:
 		_capture_play.call_deferred()
 	elif OS.has_environment("CAPTURE_REUSE"):
 		_capture_reuse.call_deferred()
+	elif OS.has_environment("CAPTURE_LINEUP"):
+		_capture_lineup.call_deferred()
 	elif OS.has_environment("CAPTURE_DUNGEON") or OS.has_environment("DUNGEON_TEST"):
 		var Bot = load("res://scripts/bot.gd")
 		var bot: Node = Bot.new()
@@ -133,6 +137,21 @@ func _ready() -> void:
 	if OS.has_environment("DUNGEON_LAYOUT_TEST"):
 		load("res://scripts/dungeon_map.gd").self_test()
 		get_tree().quit()
+
+## 仲間リリィ：絵（地区 pck「al1」）を読み終えたら出す。起動を待たせないよう、本体の起動の後に読む。
+func _load_ally() -> void:
+	if OS.has_feature("web"):
+		if not await district.ensure("al1"):
+			push_warning("仲間の絵 al1 を読めない: " + district.last_error)
+			return
+	var d = JSON.parse_string(FileAccess.get_file_as_string("res://assets/lily/lily.json"))
+	if not (d is Dictionary):
+		return
+	var a := Ally.new()
+	a.setup(battle, d)
+	a.position = player.position + Vector3(-1.4, 0, 0.7)
+	battle.add_child(a)
+	battle.ally = a
 
 func _process(delta: float) -> void:
 	if player == null:
@@ -761,6 +780,58 @@ func _capture_play() -> void:
 		if f % 3 == 0:
 			get_viewport().get_texture().get_image().save_png(dir + "/play_%03d.png" % f)
 	print("PLAY DONE")
+	get_tree().quit()
+
+## 背の並べ比べ（CAPTURE_LINEUP=1）：ラナの待機と、リリィの構えを背の高さ違いで横に並べて撮る → captures/lineup_*.png
+## 左から ラナ 1.85m ／ リリィ 1.62・1.70（前作の比 188:205）・1.78m。もう1枚はリリィの攻撃の当たりのコマ。
+func _capture_lineup() -> void:
+	var dir := ProjectSettings.globalize_path("res://captures")
+	DirAccess.make_dir_recursive_absolute(dir)
+	battle.auto_spawn = false
+	for e in battle.enemies.duplicate():
+		battle.remove_enemy(e)
+	player.position = Vector3(-2.4, 0, 0.8)
+	player.debug_state("idle")
+	_place_cam(true)
+	cam.position.x = 0.0
+	cam.look_at(Vector3(0, 0, 0) + CAM_LOOK, Vector3.UP)
+	var d = JSON.parse_string(FileAccess.get_file_as_string("res://assets/lily/lily.json"))
+	if battle.ally:
+		battle.ally.queue_free()
+		battle.ally = null
+	var hs := [1.62, 1.70, 1.78]
+	var lil := []
+	for i in hs.size():
+		var a := Ally.new()
+		a.setup(battle, d)
+		a.position = Vector3(-0.6 + i * 1.5, 0, 0.8)
+		battle.add_child(a)
+		a.set_height(hs[i])
+		a.face = -1 if i == 0 else 1
+		a.debug_pose("idle", 0)
+		lil.append(a)
+	for f in 4:
+		await get_tree().physics_frame
+		await RenderingServer.frame_post_draw
+	get_viewport().get_texture().get_image().save_png(dir + "/lineup_stand.png")
+	# 当たりの瞬間（1.70m）：ジャブ・上段・回し蹴り・かかと落とし・飛び蹴り
+	for a in lil:
+		a.queue_free()
+	player.position = Vector3(-8.6, 0, 0.8)
+	var pats := ["atk_jabkick", "atk_highkick", "atk_roundhouse", "atk_heeldrop", "atk_rush"]
+	for i in pats.size():
+		var a := Ally.new()
+		a.setup(battle, d)
+		a.position = Vector3(-6.2 + i * 2.4, 0, 0.8)
+		battle.add_child(a)
+		a.face = 1
+		var c: Dictionary = d.clips[pats[i]]
+		a.debug_pose(pats[i], int(c.hits[c.hits.size() - 1]))
+	for f in 4:
+		await get_tree().physics_frame
+		await RenderingServer.frame_post_draw
+	get_viewport().get_texture().get_image().save_png(dir + "/lineup_hits.png")
+	print("LINEUP DONE")
 	get_tree().quit()
 
 # ---------- 場所の組み立て（街の区画／ダンジョンの部屋） ----------

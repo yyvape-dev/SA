@@ -8,6 +8,7 @@ const HPBAR := preload("res://scripts/hpbar.gdshader")
 var BELT_Z := Vector2(-3.2, 3.5)
 var ROOM_X := Vector2(-19, 19)
 var player: Node3D
+var ally: Node3D = null   # 仲間（ally.gd）。絵を読み終えるまで null
 var fx: Node3D
 var cam: Camera3D
 var enemies := []
@@ -184,7 +185,13 @@ func _separate(delta: float) -> void:
 # ---------- ラナの攻撃 ----------
 ## spec：{side（+1＝前 −1＝背）, r（届く距離）, lane（奥行き）, dmg, strong, slash（エフェクト）}
 func player_attack(spec: Dictionary) -> void:
-	var p: Node3D = player
+	_attack_from(player, spec, atk_mul)
+
+## 仲間（ally.gd）の攻撃。強さはラナのレベルの倍率に合わせる
+func ally_attack(a: Node3D, spec: Dictionary) -> void:
+	_attack_from(a, spec, atk_mul)
+
+func _attack_from(p: Node3D, spec: Dictionary, mul: float) -> void:
 	var dir: int = p.face * (spec.side if spec.side != 0 else 1)
 	var hits := 0
 	for e in enemies:
@@ -195,7 +202,7 @@ func player_attack(spec: Dictionary) -> void:
 			dx = absf(e.position.x - p.position.x)
 		var dz: float = absf(e.position.z - p.position.z)
 		if dx > -0.42 and dx < spec.r and dz < spec.lane:
-			var d: float = spec.dmg * atk_mul * randf_range(0.9, 1.1)
+			var d: float = spec.dmg * mul * randf_range(0.9, 1.1)
 			var edir := 1 if e.position.x >= p.position.x else -1
 			e.take_hit(d, edir, spec.strong)
 			var hp_pos: Vector3 = e.position + Vector3(0, e.height() * 0.55, 0)
