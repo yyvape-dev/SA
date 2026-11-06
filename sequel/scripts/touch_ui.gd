@@ -39,6 +39,13 @@ class _Hud extends Control:
 		draw_rect(Rect2(p, Vector2(w * shown, h)), Color(1, 1, 1, 0.8))
 		draw_rect(Rect2(p, Vector2(w * r, h)), Color("3d8bff") if r > 0.3 else Color("29e0ff"))
 		draw_rect(Rect2(p, Vector2(w * r, h * 0.35)), Color(1, 1, 1, 0.25))
+		# 必殺技のゲージ（金の細い帯）。満タンで脈打つ
+		var g: float = ui.battle.ult / ui.battle.ULT_MAX
+		var gp := p + Vector2(0, h + 8 * u)
+		draw_rect(Rect2(gp - Vector2(2, 2) * u, Vector2(w, 9 * u) + Vector2(4, 4) * u), Color(0.02, 0.03, 0.07, 0.75))
+		var full := g >= 1.0
+		var gc := Color("ffc94d") if not full else Color("ffc94d").lerp(Color(1, 1, 0.9), 0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.012))
+		draw_rect(Rect2(gp, Vector2(w * g, 9 * u)), gc)
 
 class _Pad extends Control:
 	## 右下（specs/skill_ui.md）：攻撃・回避・スキル3枠（攻撃の中心から半径 175u の弧、165°・115°・65°）。4枠目 215° は空けておく。
@@ -63,6 +70,9 @@ class _Pad extends Control:
 		for i in 3:
 			var a := deg_to_rad(SKILL_ANG[i])
 			b["sk%d" % i] = [ac + Vector2(cos(a), -sin(a)) * 175 * u, 52 * u]
+		if ui.battle and ui.battle.ult >= ui.battle.ULT_MAX:   # 必殺技：4枠目の場所（215°）に、満タンの時だけ大きな金のボタン
+			var a4 := deg_to_rad(215.0)
+			b["ult"] = [ac + Vector2(cos(a4), -sin(a4)) * 175 * u, 60 * u]
 		if ui.main and ui.main.hud and ui.main.dungeon == null and not ui.main.hud.menu_open and not ui.main.hud.slot_open:
 			b["gear"] = [Vector2(s.x - 420 * u, s.y - 52 * u), 30 * u]
 		return b
@@ -85,6 +95,7 @@ class _Pad extends Control:
 			"atk": pl.attack_press()
 			"dodge": pl.dodge()
 			"gear": ui.main.hud.open_slots()
+			"ult": pl.use_ult()
 			_:
 				var id := _slot_id(int(k.substr(2)))
 				if not pl.use_skill(id) and float(pl.skill_cd.get(id, 0.0)) > 0.0:
@@ -164,6 +175,11 @@ class _Pad extends Control:
 			draw_circle(p, r, Color(0.04, 0.06, 0.13, 0.55 if on else 0.28))
 			var rim := Color(1, 1, 1, 0.5)
 			if k == "atk": rim = Color("c9a24a")
+			elif k == "ult":
+				var pulse := 0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.01)
+				draw_circle(p, r, Color(0.35, 0.22, 0.02, 0.6))
+				draw_arc(p, r + 4 * u * pulse, 0, TAU, 48, Color(1, 0.85, 0.4, 0.5 + 0.5 * pulse), 4 * u, true)
+				rim = Color("ffc94d")
 			elif k == "dodge": rim = Color("29e0ff")
 			draw_arc(p, r, 0, TAU, 48, rim, 2 * u, true)
 			match k:
@@ -173,6 +189,11 @@ class _Pad extends Control:
 					for dx in [-12, 8]:
 						var q := p + Vector2(dx, 0) * u
 						draw_polyline(PackedVector2Array([q + Vector2(-8, -16) * u, q + Vector2(8, 0) * u, q + Vector2(-8, 16) * u]), Color(1, 1, 1, 0.9), 5 * u)
+				"ult":   # 必殺技：金の菱形（決着の色）と、交差する2本の弧
+					var dpts := PackedVector2Array([p + Vector2(0, -r * 0.5), p + Vector2(r * 0.38, 0), p + Vector2(0, r * 0.5), p + Vector2(-r * 0.38, 0)])
+					draw_colored_polygon(dpts, Color(1, 0.86, 0.45, 0.95))
+					draw_arc(p, r * 0.7, -2.6, -0.5, 18, Color(1, 1, 1, 0.9), 4 * u)
+					draw_arc(p, r * 0.7, 0.5, 2.6, 18, Color(1, 1, 1, 0.9), 4 * u)
 				"gear":   # 歯車
 					for i in 8:
 						var a := i * TAU / 8.0

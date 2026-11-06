@@ -9,6 +9,12 @@ var BELT_Z := Vector2(-3.2, 3.5)
 var ROOM_X := Vector2(-19, 19)
 var player: Node3D
 var main                  # main.gd（スキルの枠・進み具合を読む）
+## 必殺技（2026-11-07）：ゲージ 0〜ULT_MAX。当てると 1 体 1.5、被弾で 5。cine＝演出の間（敵と仲間は止まる）、cam_zoom＝カメラの寄り 0〜1
+const ULT_MAX := 100.0
+var ult := 0.0
+var ult_gain := true
+var cine := false
+var cam_zoom := 0.0
 var ally: Node3D = null   # 仲間（ally.gd）。絵を読み終えるまで null
 var fx: Node3D
 var cam: Camera3D
@@ -107,7 +113,7 @@ func apply_light(spr: Sprite3D, mat: ShaderMaterial, refl: Sprite3D, p: Vector3)
 
 ## ラナと敵が使う時間（止めている間は 0）
 func dt(delta: float) -> float:
-	return 0.0 if freeze > 0.0 else delta
+	return 0.0 if (freeze > 0.0 or cine) else delta
 
 func _physics_process(delta: float) -> void:
 	freeze = maxf(0.0, freeze - delta)
@@ -252,6 +258,8 @@ func _attack_from(p: Node3D, spec: Dictionary, mul: float) -> int:
 		fx.slash(p.position, dir, spec.slash)
 	if hits > 0 and spec.strong:   # 強い当たり：画面のゆがみの輪（2026-11-06）
 		fx.shockwave(p.position + Vector3(dir * minf(spec.r, 2.0) * 0.5, 0.9, 0), 0.9 + mini(hits, 5) * 0.12)
+	if hits > 0 and p == player and ult_gain:
+		ult = minf(ULT_MAX, ult + hits * 1.5)
 	if hits > 0:
 		freeze = maxf(freeze, 0.045 + mini(hits, 10) * 0.006 + (0.03 if spec.strong else 0.0) + float(spec.get("freeze_add", 0.0)))
 		shake = maxf(shake, 5.0 + mini(hits, 12) * 1.1 + (4.0 if spec.strong else 0.0))
@@ -305,6 +313,7 @@ func enemy_hits_player(e) -> void:
 		return
 	var d: int = e.dmg
 	hits_taken += 1
+	ult = minf(ULT_MAX, ult + 5.0)
 	hp = maxf(0.0, hp - d)
 	var dir := 1 if p.position.x >= e.position.x else -1
 	fx.hurt(p.position + Vector3(0, 1.0, 0), dir)

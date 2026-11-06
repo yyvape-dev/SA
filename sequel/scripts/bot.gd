@@ -275,7 +275,10 @@ func _fight(e) -> void:
 			p.move_in = Vector2(want * 0.35, 0)
 		# スキル：待ちが明けたら使う（枠1〜3の順。群れには渦を優先）
 		var used := false
-		if OS.get_environment("BOT_SKILLS") != "0":
+		if OS.get_environment("BOT_SKILLS") != "0" and p.use_ult():
+			used = true
+			ult_uses += 1
+		if not used and OS.get_environment("BOT_SKILLS") != "0":
 			for id in (["vortex", "flurry", "rift"] if main.battle.alive_count() >= 3 else ["flurry", "rift", "vortex"]):
 				if main.progress.skill_slots.has(id) and p.use_skill(id):
 					used = true
@@ -324,6 +327,7 @@ func _record(d) -> void:
 		d.visited.size(), int(d.layout.rooms[d.layout.boss].dist), mx])
 
 var finished := false
+var ult_uses := 0
 func _finish() -> void:
 	if finished:
 		return
@@ -334,7 +338,7 @@ func _finish() -> void:
 	for n in notes:
 		print("note: ", n)
 	print("ハードの鍵（保存）：", main.progress.hard_open, "  保存：Lv ", main.progress.lv, " 武器 ", main.progress.weapon, " 最速 ", main.progress.best)
-	print("スキルを使った回数：", main.player.skill_uses)
+	print("スキルを使った回数：", main.player.skill_uses, "  必殺技：", ult_uses)
 	print("DUNGEON DONE")
 	await get_tree().create_timer(0.5).timeout
 	get_tree().quit()

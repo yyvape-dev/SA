@@ -22,7 +22,12 @@ const CAM_LOOK := Vector3(0, 2.1, 0)
 const PLAY_OFS := Vector3(0, 2.6, 8.0)
 const PLAY_LOOK := Vector3(0, 1.35, 0)
 const FG_PULL := 1.6                    # 手前の板を奥へ下げる量（m）
-const PLAY_HALF_W := 5.7                # 遊ぶカメラで、帯の真ん中（z=0）に見える左右の半分（横持ち 19.5:9、m）
+const PLAY_HALF_W := 5.7
+## 必殺技の寄り（battle.cam_zoom＝1 の時）：ラナの胸の高さへ近づく
+const ULT_OFS := Vector3(0.0, 1.5, 2.7)
+const ULT_LOOK := Vector3(0, 1.25, 0)
+const Cutin := preload("res://scripts/ult_cutin.gd")
+var cutin                # 遊ぶカメラで、帯の真ん中（z=0）に見える左右の半分（横持ち 19.5:9、m）
 const CAM_FOV := 36.0
 const MAGENTA := Color(1, 0, 1)
 
@@ -109,6 +114,9 @@ func _ready() -> void:
 	add_child(ui)
 	apply_progress()
 	battle.foe_killed.connect(_on_foe_killed)
+	cutin = Cutin.new()
+	cutin.player = player
+	add_child(cutin)
 	hud = DungeonHud.new()
 	hud.main = self
 	add_child(hud)
@@ -266,8 +274,15 @@ func _cam_pos_for(x: float, ofs: Vector3 = CAM_OFS) -> Vector3:
 
 func _place_cam(snap: bool, delta: float = 0.0) -> void:
 	var want := _cam_pos_for(player.position.x, PLAY_OFS)
-	cam.position = want if snap else cam.position.lerp(want, minf(1.0, delta * 5.0))
-	cam.look_at(Vector3(cam.position.x, 0, 0) + PLAY_LOOK, Vector3.UP)
+	var z: float = battle.cam_zoom if battle else 0.0
+	if z > 0.0:   # 必殺技：ラナへ寄る（なめらかに）
+		var zz := z * z * (3.0 - 2.0 * z)
+		var near := Vector3(player.position.x + player.face * 0.6, 0, player.position.z) + ULT_OFS
+		cam.position = want.lerp(near, zz)
+		cam.look_at(Vector3(cam.position.x, 0, player.position.z * zz) + PLAY_LOOK.lerp(ULT_LOOK, zz), Vector3.UP)
+	else:
+		cam.position = want if snap else cam.position.lerp(want, minf(1.0, delta * 5.0))
+		cam.look_at(Vector3(cam.position.x, 0, 0) + PLAY_LOOK, Vector3.UP)
 	# 画面の揺れ（px 相当 → 画面の高さ 720px ≒ 8.8m）
 	var sk: float = battle.shake * 0.012 if battle else 0.0
 	cam.h_offset = randf_range(-1.0, 1.0) * sk
@@ -836,6 +851,11 @@ func _capture_fx() -> void:
 			battle.remove_enemy(x)
 		for f in 30:
 			await get_tree().physics_frame
+	if OS.get_environment("FX_ONLY") == "ult":
+		await _capture_ult(dir)
+		print("FX DONE")
+		get_tree().quit()
+		return
 	if OS.get_environment("FX_ONLY") == "skill":
 		await _capture_skill_fx(dir)
 		print("FX DONE")
@@ -844,6 +864,33 @@ func _capture_fx() -> void:
 	await _capture_lily_fx(dir)
 	print("FX DONE")
 	get_tree().quit()
+
+## 必殺技（ゲージ満タン → 寄り・カットイン → 全体の多段 → 決め）→ captures/fx_ult_<n>.png
+func _capture_ult(dir: String) -> void:
+	player.visible = true
+	player.set_physics_process(true)
+	for x in battle.enemies.duplicate():
+		battle.remove_enemy(x)
+	player.position = Vector3(-1.0, 0, 0.6)
+	player.face = 1
+	_place_cam(true)
+	for sp in [[2.0, 0.0], [3.6, 1.0], [-2.6, -0.8], [5.0, -1.2]]:
+		var e = battle.spawn(["1", "3"][randi() % 2], player.position + Vector3(sp[0], 0, sp[1]))
+		e.atk_cd = 99.0
+	battle.ult = battle.ULT_MAX
+	for f in 8:
+		await get_tree().physics_frame
+		await RenderingServer.frame_post_draw
+	get_viewport().get_texture().get_image().save_png(dir + "/fx_ult_0.png")   # 満タン（ボタンとゲージ）
+	player.use_ult()
+	var marks := [0.15, 0.32, 0.75, 1.2, 1.5, 1.9, 2.22, 2.4]
+	var n := 0
+	for f in 160:
+		await get_tree().physics_frame
+		await RenderingServer.frame_post_draw
+		if n < marks.size() and f >= int(marks[n] * 60.0):
+			n += 1
+			get_viewport().get_texture().get_image().save_png(dir + "/fx_ult_%d.png" % n)
 
 ## ラナのスキル3つ（specs/skill_ui.md）：溜め・頂点・余韻 → captures/fx_skill_<id>_<1|2|3>.png、右下の操作 → captures/ui_skill.png
 func _capture_skill_fx(dir: String) -> void:

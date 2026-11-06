@@ -238,6 +238,75 @@ func _skill_event(spec: Dictionary) -> void:
 		hs.x1 = position.x + face * float(spec.x1)
 	world.player_skill(hs, self)
 
+# ---------- 必殺技（2026-11-07）：ゲージが満タンの時。止まる → 寄って立ち絵のカットイン → 引きながら画面全体へ多段 → 決め ----------
+const ULT_T := {"zoom": 0.3, "cut_start": 0.3, "cut_end": 1.35, "end": 2.45}
+const ULT_HITS := [1.42, 1.52, 1.62, 1.72, 1.82, 1.92, 2.02]
+const ULT_FINAL := 2.18
+var ult_i := 0
+var ult_t := 0.0
+
+func can_use_ult() -> bool:
+	return not locked and world.ult >= world.ULT_MAX and (state == "move" or (state == "atk" and tab.has(clip) and t >= float(tab[clip].cancel)))
+
+func use_ult() -> bool:
+	if not can_use_ult():
+		return false
+	world.ult = 0.0
+	world.ult_gain = false
+	if absf(move_in.x) > 0.3:
+		face = 1 if move_in.x > 0 else -1
+	state = "ult"
+	ult_t = 0.0
+	ult_i = 0
+	root_prev = 0.0
+	queued = false
+	queued_hold = false
+	atk_next = "atkA"
+	world.cine = true
+	return true
+
+func _ult_process(delta: float) -> void:
+	ult_t += delta
+	inv = 0.4   # 必殺技の間は当たらない
+	var zt: float = ULT_T.zoom
+	if ult_t < ULT_T.cut_end:
+		world.cam_zoom = minf(1.0, ult_t / zt)
+		if ult_t - delta < ULT_T.cut_start and ult_t >= ULT_T.cut_start and world.main and world.main.cutin:
+			world.main.cutin.play()   # 寄りきってから立ち絵が差し込む
+		_show_frame("idle", 0)
+		return
+	world.cine = false
+	world.cam_zoom = maxf(0.0, 1.0 - (ult_t - ULT_T.cut_end) / 0.35)
+	var tt: float = (ult_t - ULT_T.cut_end) * 1.3
+	_show_frame("atkC", _fidx("atkC", tt))
+	var fx = world.fx
+	while ult_i < ULT_HITS.size() and ult_t >= ULT_HITS[ult_i]:
+		var sl: Dictionary = [SL_SWEEP, SL_DOWN, SL_BACK, SL_SPIN][ult_i % 4].duplicate()
+		sl.r = float(sl.r) * 1.6
+		sl.w = float(sl.w) * 1.3
+		sl.pal = world.GOLD_PAL
+		world._attack_from(self, {"side": 0, "shape": "both", "r": 8.0, "lane": 4.0, "dmg": 18.0 * 0.8, "strong": false, "kb": 0.2, "slash": sl}, world.atk_mul)
+		if ult_i % 2 == 0:
+			fx.rift(position.x, position.x + 7.0 * (1 if ult_i % 4 == 0 else -1), position.z, 1)
+		world.shake = maxf(world.shake, 8.0)
+		ult_i += 1
+	if ult_i == ULT_HITS.size() and ult_t >= ULT_FINAL:
+		ult_i += 1
+		var big: Dictionary = SL_BIG.duplicate()
+		big.r = float(big.r) * 1.5
+		big.w = float(big.w) * 1.5
+		big.pal = world.GOLD_PAL
+		world._attack_from(self, {"side": 0, "shape": "both", "r": 8.0, "lane": 4.0, "dmg": 18.0 * 4.0, "strong": true, "kb": 3.0, "freeze_add": 0.2, "slash": big}, world.atk_mul)
+		fx.vortex_burst(position, 6.0)
+		fx.shockwave(position + Vector3(0, 1.0, 0), 2.2, 0.6, 0.9)
+		world.shake = maxf(world.shake, 22.0)
+		if world.main and world.main.cutin:
+			world.main.cutin.flash_white()
+	if ult_t >= ULT_T.end:
+		world.ult_gain = true
+		world.cam_zoom = 0.0
+		_end_attack()
+
 func dodge() -> void:
 	if locked:
 		return
@@ -249,7 +318,7 @@ func dodge() -> void:
 	queued = false
 
 func can_be_hit() -> bool:
-	return inv <= 0.0 and state != "dodge" and state != "down"
+	return inv <= 0.0 and state != "dodge" and state != "down" and state != "ult"
 
 func on_hurt(dir: int, dead: bool) -> void:
 	flash = 0.25
@@ -325,6 +394,11 @@ func _physics_process(delta: float) -> void:
 		skill_ready_flash[id] = float(skill_ready_flash[id]) - delta
 		if skill_ready_flash[id] <= 0.0:
 			skill_ready_flash.erase(id)
+	if state == "ult":
+		_ult_process(delta)
+		mat.set_shader_parameter("tint", Color(1, 1, 1, 1))
+		world.apply_light(sprite, mat, refl, position)
+		return
 	var dt: float = world.dt(delta)
 	if dt <= 0.0:
 		return
@@ -452,6 +526,8 @@ func _unhandled_input(e: InputEvent) -> void:
 			else: attack_release()
 		elif (e.keycode == KEY_K or e.keycode == KEY_X) and e.pressed:
 			dodge()
+		elif e.pressed and e.keycode == KEY_L:
+			use_ult()
 		elif e.pressed and (e.keycode == KEY_U or e.keycode == KEY_I or e.keycode == KEY_O):
 			var slot: int = [KEY_U, KEY_I, KEY_O].find(e.keycode)
 			if world.main and world.main.progress:

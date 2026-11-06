@@ -227,7 +227,7 @@ class _View extends Control:
 			return
 		var pr = m.progress
 		# レベル（金の山形＋数字）・経験値の細い帯（金）・武器（剣＋数字）。体力の帯（touch_ui）の下
-		var y := 78.0 * u
+		var y := 96.0 * u   # 必殺技のゲージ（体力の帯の下）の下
 		var lvc := GOLD.lerp(Color.WHITE, hud.lv_flash) if hud.lv_flash > 0.0 else GOLD
 		_chev(Vector2(48 * u, y - 10 * u), 11 * u, lvc)
 		_num(Vector2(66 * u, y), str(pr.lv), 30, lvc)

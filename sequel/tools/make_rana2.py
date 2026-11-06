@@ -169,7 +169,7 @@ def main():
     print("\n".join(report))
 
 
-if __name__ == "__main__" and "--game" not in sys.argv:
+if __name__ == "__main__" and "--game" not in sys.argv and "--cutin" not in sys.argv:
     main()
 
 
@@ -293,3 +293,17 @@ def build_game():
 
 if __name__ == "__main__" and "--game" in sys.argv:
     build_game()
+
+
+# ---------- 必殺技のカットイン（--cutin）：戦闘の立ち絵を背景抜きして元の大きさのまま可逆 WebP に ----------
+def build_cutin():
+    rgb = np.asarray(Image.open(os.path.join(SRC, "stance_battle.png")).convert("RGB"))
+    im, _ = fix_green(key(rgb))
+    ys, xs = np.where(im[..., 3] > 0)
+    im = im[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
+    Image.fromarray(im).save(os.path.join(GAME_OUT, "cutin.webp"), lossless=True, quality=100, method=6)
+    print("カットイン", im.shape[1], "x", im.shape[0], "（縮めない）")
+
+
+if __name__ == "__main__" and "--cutin" in sys.argv:
+    build_cutin()
