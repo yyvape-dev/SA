@@ -14,6 +14,7 @@ func _download(url: String, file: String) -> Array:
 	var http := HTTPRequest.new()
 	add_child(http)
 	http.download_file = file
+	http.accept_gzip = false   # 圧縮はブラウザが解く。Godot がもう一度解こうとすると PC の Chrome で失敗した（結果 8＝BODY_DECOMPRESS_FAILED、2026-11-06）
 	http.download_chunk_size = 4 * 1024 * 1024   # 既定の 64KB だと 1コマに 64KB しか受け取らず、遅い端末で何十秒もかかる
 	var st := {"done": false, "res": [-1, 0]}
 	http.request_completed.connect(func(r, code, _h, _b): st.res = [r, code]; st.done = true)
