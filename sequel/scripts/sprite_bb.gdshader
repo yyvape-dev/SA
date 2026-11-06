@@ -19,6 +19,9 @@ uniform float body_dim = 1.0;                     // キャラ：体の明るさ
 uniform float dissolve = 0.0;                     // 0＝そのまま、1＝消えた
 uniform sampler2D dnoise : filter_linear, repeat_enable;
 uniform vec4 burn_col : source_color = vec4(1.0, 0.62, 0.18, 1.0);   // 焼ける縁（金＝決着）
+uniform int rim_mode = 0;                         // 0＝くっきりした線（前）、1＝柔らかい光（輪郭から内側へなだらかに薄れる）
+uniform vec4 amb_col = vec4(1.0, 1.0, 1.0, 0.0);  // 周りの夜の色へ寄せる（a＝量）。影の部分ほど強く寄せる
+uniform float edge_soft = 0.0;                    // 輪郭の不透明の境目をなだらかに（0＝しない）
 
 void vertex() {
 	float c = cos(rot);
@@ -52,12 +55,34 @@ void fragment() {
 		col = mix(col * night_dim, col, hot);
 	}
 	col *= mix(vec3(1.0), light_col.rgb, light_col.a);   // 色味だけ寄せる（明るくはしない）
-	if (rim_col.a > 0.0) {
-		float nb = texture(tex, UV + vec2(rim_dir * rim_px * ts.x, 0.0)).a;
-		float edge = step(0.6, c.a) * (1.0 - smoothstep(0.0, 0.5, nb));   // 光の側の輪郭だけ
-		col += rim_col.rgb * rim_col.a * edge;
+	if (amb_col.a > 0.0) {   // 暗い所ほど周りの色へ（明るい所・光は残す）
+		float lum = dot(col, vec3(0.299, 0.587, 0.114));
+		col = mix(col, col * amb_col.rgb * 1.6, amb_col.a * (1.0 - smoothstep(0.15, 0.7, lum)));
 	}
-	float a_out = c.a * tint.a;
+	if (rim_col.a > 0.0) {
+		if (rim_mode == 0) {
+			float nb = texture(tex, UV + vec2(rim_dir * rim_px * ts.x, 0.0)).a;
+			float edge = step(0.6, c.a) * (1.0 - smoothstep(0.0, 0.5, nb));   // 光の側の輪郭だけ
+			col += rim_col.rgb * rim_col.a * edge;
+		} else {
+			// 光の側へ何画素先まで体が続くかを見て、輪郭に近いほど強く、内側へなだらかに薄れる（線ではなく光が回り込む感じ）
+			float open = 0.0;
+			for (int i = 1; i <= 6; i++) {
+				float d = float(i) * rim_px * 0.75;
+				open += (1.0 - texture(tex, UV + vec2(rim_dir * d * ts.x, -0.15 * d * ts.y)).a) * (1.0 - float(i - 1) / 6.0);
+			}
+			open = clamp(open / 3.5, 0.0, 1.0);
+			float lum = dot(col, vec3(0.299, 0.587, 0.114));
+			col += rim_col.rgb * rim_col.a * open * open * (0.35 + 0.65 * lum) * c.a;   // 明るい所（髪・肌）ほどよく光る
+		}
+	}
+	float a_out = c.a;
+	if (edge_soft > 0.0) {
+		float nb4 = (texture(tex, UV + vec2(ts.x, 0.0)).a + texture(tex, UV - vec2(ts.x, 0.0)).a
+			+ texture(tex, UV + vec2(0.0, ts.y)).a + texture(tex, UV - vec2(0.0, ts.y)).a) * 0.25;
+		a_out = mix(c.a, min(c.a, nb4), edge_soft);
+	}
+	a_out *= tint.a;
 	if (dissolve > 0.0) {
 		float n = texture(dnoise, UV * vec2(1.5, 2.5)).r * 0.6 + (1.0 - UV.y) * 0.4;   // 下（足元）から先に消える
 		float th = dissolve * 1.15;
