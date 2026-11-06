@@ -7,7 +7,7 @@
 手順（video-to-sprite-pipeline）：
   1. 背景抜き：四隅の色からの距離でアルファ。体の縁は最も近い不透明な画素の色（マゼンタのにじみを消す）、
      体から離れた半透明（焼き込みの光・軌跡）は背景色を差し引いて元の光の色を戻す（まず抜いて試す。汚ければコードで描き直す）。
-  2. 色ずれ：黄緑〜緑（色相 62〜110・彩度 0.15 以上）を金（色相 45）へ。この絵に緑は無い。胸の宝石の青緑（150 以上）は残す。
+  2. 色ずれ：黄緑〜緑とピンク（マゼンタのにじみ）を、上半身（髪・袖）は金、下半身（靴・裾）はくすんだ茶へ（fix_green）。この絵に緑は無い。胸の宝石の青緑（150 以上）は残す。
      事実：atkC で袖・手袋・軌跡の縁が黄緑になっていた（README は「髪」としていたが、測ると袖と軌跡）。
   3. 大きさ：頭の照合で全クリップ 1.0 倍（±0.05〜0.1）→ 補正しない。
   4. 足元：各クリップの最初のコマ（構え）の足元＝原点。攻撃の前進などの体の移動はそのまま絵の位置に残す（dx に記録）。
@@ -54,15 +54,30 @@ def key(rgb):
 
 
 def fix_green(rgba):
+    """色ずれを戻す。上半身（髪・袖）は金、下半身（靴・裾）はくすんだ茶。
+    緑：色相 62〜110・彩度 0.15 以上（淡いものは 52〜）。ピンク：色相 285〜340・彩度 0.12 以上（上半身は全部＝髪の筋、下半身は縁 6px だけ）。
+    事実：atkC の袖・軌跡の縁が黄緑、run の靴がオリーブ、髪の筋と靴の縁にマゼンタのにじみ。服の紫（〜275）・赤（〜10）は対象外。"""
     rgb = np.ascontiguousarray(rgba[..., :3])
     hsv = cv2.cvtColor(rgb, cv2.COLOR_RGB2HSV)
     h = hsv[..., 0].astype(np.float32) * 2
     s = hsv[..., 1] / 255.0
-    m = (h > 62) & (h < 110) & (s > 0.15) & (rgba[..., 3] > 0)
-    hsv[..., 0] = np.where(m, 45 // 2 + 1, hsv[..., 0])
+    op = rgba[..., 3] > 0
+    ys = np.where(rgba[..., 3] > 128)[0]
+    upper = np.zeros(op.shape, bool)
+    if len(ys):
+        upper[: int(ys.min() + 0.45 * (ys.max() - ys.min())), :] = True
+    edge = ndi.distance_transform_edt(rgba[..., 3] > 200) <= 6
+    green = (((h > 62) & (h < 110) & (s > 0.15)) | ((h > 52) & (h <= 62) & (s > 0.12) & (s < 0.45))) & op
+    pink = (h >= 285) & (h <= 340) & (s > 0.12) & op & (upper | edge)
+    to_gold = (green | pink) & upper
+    to_brown = (green | pink) & ~upper
+    hsv[..., 0] = np.where(to_gold, 20, np.where(to_brown, 15, hsv[..., 0]))   # 金 40°／茶 30°
+    sat = hsv[..., 1].astype(np.float32)
+    sat = np.where(pink & upper, sat * 0.6, np.where(to_brown, sat * 0.5, sat))
+    hsv[..., 1] = sat.astype(np.uint8)
     out = rgba.copy()
     out[..., :3] = cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB)
-    return out, int(m.sum())
+    return out, int((to_gold | to_brown).sum())
 
 
 def body_x(rgba):
