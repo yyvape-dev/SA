@@ -15,8 +15,14 @@ const SPRITE_SHADER := preload("res://scripts/sprite_bb.gdshader")
 const ROOM_X := Vector2(-19.0, 19.0)   # 歩ける左右
 const BELT_Z := Vector2(-3.2, 3.5)     # 歩ける奥行き
 const CAM_X := Vector2(-12.0, 12.0)    # カメラが動ける左右
-const CAM_OFS := Vector3(0, 3.8, 13.5) # 主人公からのカメラの位置
+const CAM_OFS := Vector3(0, 3.8, 13.5) # 下絵（塗ってもらった絵）を撮ったカメラ。下絵の撮り直し・使い回しの確認はこれ
 const CAM_LOOK := Vector3(0, 2.1, 0)
+## 遊ぶときのカメラ（2026-11-06、ユーザー「手前に来ても小さい」）：ラナの背が画面の高さの約 21％ → 約 31％ になるよう寄せる。
+## 塗った絵は下絵のカメラから投影しているので、遊ぶカメラを寄せても絵はずれない。
+const PLAY_OFS := Vector3(0, 2.9, 9.0)
+const PLAY_LOOK := Vector3(0, 1.45, 0)
+const FG_PULL := 1.2                    # 手前の板を奥へ下げる量（m）
+const PLAY_HALF_W := 6.4                # 遊ぶカメラで、帯の真ん中（z=0）に見える左右の半分（横持ち 19.5:9、m）
 const CAM_FOV := 36.0
 const MAGENTA := Color(1, 0, 1)
 
@@ -249,13 +255,13 @@ func _build_vignette() -> void:
 	cl.add_child(r)
 	add_child(cl)
 
-func _cam_pos_for(x: float) -> Vector3:
-	return Vector3(clampf(x, cam_x.x, cam_x.y), 0, 0) + CAM_OFS
+func _cam_pos_for(x: float, ofs: Vector3 = CAM_OFS) -> Vector3:
+	return Vector3(clampf(x, cam_x.x, cam_x.y), 0, 0) + ofs
 
 func _place_cam(snap: bool, delta: float = 0.0) -> void:
-	var want := _cam_pos_for(player.position.x)
+	var want := _cam_pos_for(player.position.x, PLAY_OFS)
 	cam.position = want if snap else cam.position.lerp(want, minf(1.0, delta * 5.0))
-	cam.look_at(Vector3(cam.position.x, 0, 0) + CAM_LOOK, Vector3.UP)
+	cam.look_at(Vector3(cam.position.x, 0, 0) + PLAY_LOOK, Vector3.UP)
 	# 画面の揺れ（px 相当 → 画面の高さ 720px ≒ 8.8m）
 	var sk: float = battle.shake * 0.012 if battle else 0.0
 	cam.h_offset = randf_range(-1.0, 1.0) * sk
@@ -406,6 +412,7 @@ func _build_piece(p: Dictionary, ofs: Vector3 = Vector3.ZERO, key: String = "") 
 		_build_far_plane(root, painted)
 		return root
 	if p.kind == "fg" and painted != null:
+		root.position.z -= FG_PULL   # 遊ぶカメラを寄せたので、手前の板を帯のすぐ手前まで下げる（近すぎて画面をふさいだ）
 		_build_fg_plane(root, p, painted)
 		return root
 	var has_alpha := painted != null and painted.get_image().detect_alpha() != Image.ALPHA_NONE
@@ -897,7 +904,7 @@ func build_room(spec: Dictionary) -> void:
 		var ext := _piece_x_range(p)
 		_build_piece(p, Vector3(float(f[1]) - (ext.x + ext.y) * 0.5, 0, 0), "%s_fg%d" % [f[0], i])
 	_build_glints()
-	cam_x = Vector2(-maxf(0.0, rw - 9.5), maxf(0.0, rw - 9.5))
+	cam_x = Vector2(-maxf(0.0, rw - PLAY_HALF_W), maxf(0.0, rw - PLAY_HALF_W))
 	battle.glints = glints
 	battle.ROOM_X = Vector2(-rw, rw)
 	player.room_x = Vector2(-rw, rw)

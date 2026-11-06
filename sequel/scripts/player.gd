@@ -13,14 +13,19 @@ const DODGE_T := 0.24
 const DODGE_D := 4.0
 const HURT_T := 0.42
 const HOLD_T := 0.35         # この長さ押し続けると長押しの技（回転斬り）
+## 攻撃の速さ（2026-11-06、ユーザー「つながりが遅くて爽快感がない」）：連撃 1.5 倍・回転斬り 1.25 倍。次の技は当たりの 0.04 秒後から受け付ける
+const ATK_SPD := {"atkA": 1.5, "atkB": 1.5, "atkC": 1.5, "hold": 1.25}
+const CANCEL_AFTER := 0.04
+const REACH_ADD := 0.4       # 当たりの距離を広げる（m）
+const LANE_ADD := 0.25
 
 # 斬撃のエフェクト（fx.gd の slash）。縦＝画面に立つ弧、横＝床と平行の弧。色は味方の青
-const SL_THRUST := {"plane": "v", "r": 2.3, "w": 0.22, "a0": 14.0, "a1": -10.0, "y": 1.15, "life": 0.2, "draw": 0.05}
-const SL_DOWN := {"plane": "v", "r": 1.9, "w": 0.6, "a0": 120.0, "a1": -50.0, "y": 0.95, "life": 0.26, "draw": 0.07}
-const SL_SWEEP := {"plane": "h", "r": 2.1, "w": 0.55, "a0": 110.0, "a1": -50.0, "y": 1.0, "life": 0.24, "draw": 0.06, "squash": 0.55, "tilt": 6.0}
-const SL_BACK := {"plane": "h", "r": 1.8, "w": 0.5, "a0": -40.0, "a1": 120.0, "y": 0.9, "life": 0.24, "draw": 0.06, "squash": 0.55, "tilt": -8.0}
-const SL_BIG := {"plane": "v", "r": 2.6, "w": 0.85, "a0": 150.0, "a1": -60.0, "y": 1.1, "life": 0.34, "draw": 0.08}   # C の締め（元の白い大きな弧をコードで）
-const SL_SPIN := {"plane": "h", "r": 2.2, "w": 0.5, "a0": -170.0, "a1": 170.0, "y": 0.85, "life": 0.26, "draw": 0.08, "squash": 0.6}
+const SL_THRUST := {"plane": "v", "r": 2.64, "w": 0.31, "a0": 14.0, "a1": -10.0, "y": 1.15, "life": 0.25, "draw": 0.05}
+const SL_DOWN := {"plane": "v", "r": 2.18, "w": 0.84, "a0": 120.0, "a1": -50.0, "y": 0.95, "life": 0.33, "draw": 0.07}
+const SL_SWEEP := {"plane": "h", "r": 2.42, "w": 0.77, "a0": 110.0, "a1": -50.0, "y": 1.0, "life": 0.3, "draw": 0.06, "squash": 0.55, "tilt": 6.0}
+const SL_BACK := {"plane": "h", "r": 2.07, "w": 0.7, "a0": -40.0, "a1": 120.0, "y": 0.9, "life": 0.3, "draw": 0.06, "squash": 0.55, "tilt": -8.0}
+const SL_BIG := {"plane": "v", "r": 2.99, "w": 1.19, "a0": 150.0, "a1": -60.0, "y": 1.1, "life": 0.43, "draw": 0.08}   # C の締め（元の白い大きな弧をコードで）
+const SL_SPIN := {"plane": "h", "r": 2.53, "w": 0.7, "a0": -170.0, "a1": 170.0, "y": 0.85, "life": 0.33, "draw": 0.08, "squash": 0.6}
 
 var world               # battle.gd
 var room_x := Vector2(-19, 19)
@@ -85,25 +90,29 @@ func _ready() -> void:
 func _build_tables() -> void:
 	var mk := func(c: String, hits: Array, cancel_after: float) -> Dictionary:
 		var n: int = clips[c].frames.size()
-		var tot: float = n / float(clips[c].fps)
+		var sp: float = ATK_SPD[c]
+		var tot: float = n / float(clips[c].fps) / sp
 		var hs := []
 		for h in hits:
-			hs.append([float(h[0]) / 72.0, h[1]])
+			var spec: Dictionary = h[1].duplicate()
+			spec.r = float(spec.r) + REACH_ADD
+			spec.lane = float(spec.lane) + LANE_ADD
+			hs.append([float(h[0]) / 72.0 / sp, spec])
 		return {"total": tot, "hits": hs, "cancel": hs[hs.size() - 1][0] + cancel_after}
-	var a: Dictionary = mk.call("atkA", [[18, {"side": 1, "r": 2.4, "lane": 0.85, "dmg": 18.0, "strong": false, "slash": SL_THRUST}]], 0.1)
-	var b: Dictionary = mk.call("atkB", [[33, {"side": 1, "r": 2.2, "lane": 1.0, "dmg": 26.0, "strong": false, "slash": SL_DOWN}]], 0.1)
+	var a: Dictionary = mk.call("atkA", [[18, {"side": 1, "r": 2.4, "lane": 0.85, "dmg": 18.0, "strong": false, "slash": SL_THRUST}]], CANCEL_AFTER)
+	var b: Dictionary = mk.call("atkB", [[33, {"side": 1, "r": 2.2, "lane": 1.0, "dmg": 26.0, "strong": false, "slash": SL_DOWN}]], CANCEL_AFTER)
 	var c_hits := []
 	var k := 0
 	for f in [15, 24, 33, 42]:
 		c_hits.append([f, {"side": 0, "r": 2.1, "lane": 1.1, "dmg": 12.0, "strong": false, "slash": SL_SWEEP if k % 2 == 0 else SL_BACK}])
 		k += 1
 	c_hits.append([60, {"side": 1, "r": 2.6, "lane": 1.2, "dmg": 24.0, "strong": true, "slash": SL_BIG}])
-	var c: Dictionary = mk.call("atkC", c_hits, 0.12)
+	var c: Dictionary = mk.call("atkC", c_hits, CANCEL_AFTER)
 	var h_hits := []
 	for f in [24, 36, 45, 57, 66]:
 		h_hits.append([f, {"side": 0, "r": 2.3, "lane": 1.3, "dmg": 14.0, "strong": false, "slash": SL_SPIN}])
 	h_hits.append([75, {"side": 0, "r": 2.4, "lane": 1.4, "dmg": 26.0, "strong": true, "slash": SL_SPIN}])
-	var h: Dictionary = mk.call("hold", h_hits, 0.15)
+	var h: Dictionary = mk.call("hold", h_hits, 0.08)
 	tab = {"atkA": a, "atkB": b, "atkC": c, "hold": h}
 
 func _tex(name: String) -> Texture2D:
@@ -296,7 +305,8 @@ func _physics_process(delta: float) -> void:
 		"atk":
 			var tb: Dictionary = tab[clip]
 			# 前進：絵から外した体の移動を、位置の移動にする
-			var r := _root(clip, t)
+			var te: float = t * float(ATK_SPD[clip])
+			var r := _root(clip, te)
 			position.x += face * (r - root_prev) * px_size
 			root_prev = r
 			# 当たりの瞬間ごとに判定（1振りで1回）
@@ -309,7 +319,7 @@ func _physics_process(delta: float) -> void:
 			elif t >= tb.total:
 				_end_attack()
 			else:
-				_show_frame(clip, _fidx(clip, t))
+				_show_frame(clip, _fidx(clip, te))
 		"dodge":
 			dodge_t += dt
 			var dir := mv.normalized() if mv.length() > 0.2 else Vector2(face, 0)

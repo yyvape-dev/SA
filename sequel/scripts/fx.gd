@@ -93,7 +93,7 @@ func slash(origin: Vector3, face: int, spec: Dictionary) -> void:
 	add_child(mi)
 	items.append({"node": mi, "t": 0.0, "life": spec.get("life", 0.22), "kind": "slash", "draw": spec.get("draw", 0.07)})
 	# 弧に沿って、外側へ飛ぶ細かい粒（刃の先から散る光）
-	for i in 10:
+	for i in 22:
 		var u := randf()
 		var a := deg_to_rad(lerpf(spec.a0, spec.a1, u))
 		var p: Vector3
@@ -104,20 +104,20 @@ func slash(origin: Vector3, face: int, spec: Dictionary) -> void:
 			out = Vector3(cos(a) * face, 0, -sin(a) * spec.get("squash", 1.0))
 		p = mi.position + mi.basis * (out * spec.r)
 		out = mi.basis * out
-		_spark(p, out * randf_range(2.0, 6.0) + Vector3(0, randf_range(-0.5, 1.5), 0), randf_range(0.12, 0.3), 0.018, pal[1].lerp(pal[2], 0.5), 0.05 + u * 0.08)
+		_spark(p, out * randf_range(3.0, 9.0) + Vector3(0, randf_range(-0.5, 1.5), 0), randf_range(0.15, 0.38), 0.024, pal[1].lerp(pal[2], 0.5), 0.05 + u * 0.08)
 
 # ---------- 当たり ----------
 func hit(p: Vector3, dir: int, strong: bool, lead: bool) -> void:
 	var pal: Array = BLUE
-	var n := (9 if strong else 6) if lead else 3
+	var n := (16 if strong else 10) if lead else 5
 	for i in n:
 		var a := randf_range(-0.8, 0.8) - 0.25
 		var v := Vector3(dir * cos(a), sin(a) + 0.4, randf_range(-0.4, 0.4)) * randf_range(3.0, 9.0)
 		var c: Color = pal[1] if i % 3 else Color8(255, 236, 190)
-		_spark(p, v, randf_range(0.15, 0.4), 0.032 if strong else 0.024, c, 0.0)
+		_spark(p, v * 1.3, randf_range(0.18, 0.45), 0.04 if strong else 0.03, c, 0.0)
 	if not lead:
 		return
-	var sz := 1.7 if strong else 1.25
+	var sz := 2.5 if strong else 1.8
 	_quad(p + Vector3(0, 0, 0.15), Vector2(sz * 1.2, sz * 1.2), _dark(1, 0.35), "flash", 0.12, 0.0)
 	var fm := _mat(1, pal)
 	fm.set_shader_parameter("core_gain", 0.7)   # 光の中心を弱める（白く飛ばない）
@@ -131,6 +131,16 @@ func hit(p: Vector3, dir: int, strong: bool, lead: bool) -> void:
 	cut.rotation.z = (-0.5 + randf() * 0.35) * dir
 	add_child(cut)
 	items.append({"node": cut, "t": 0.0, "life": 0.14, "kind": "cut", "len": sz * 1.3})
+	if strong:   # 強い当たり：床に青い輪が広がる
+		var ring := MeshInstance3D.new()
+		ring.mesh = _arc_mesh(1.0, 0.2, -180, 180, "h", 1, 0.55)
+		ring.material_override = _mat(0, pal)
+		ring.material_override.set_shader_parameter("head", 1.3)
+		ring.material_override.set_shader_parameter("tail", 0.0)
+		ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		ring.position = Vector3(p.x, 0.05, p.z)
+		add_child(ring)
+		items.append({"node": ring, "t": 0.0, "life": 0.32, "kind": "ring"})
 
 func _diamond() -> ArrayMesh:
 	# 中心を UV(0.5,0.5)（いちばん明るい）にした、4つの三角形のひし形
