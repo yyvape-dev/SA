@@ -15,6 +15,10 @@ uniform float rim_px = 4.0;                       // 縁取りの太さ（テク
 uniform float blur = 0.0;                         // ぼかし（テクスチャの画素。手前の部品だけ）
 uniform float night_dim = 1.0;                    // 手前の部品：光る画素は残し、それ以外をこの倍率に（1＝しない）
 uniform float body_dim = 1.0;                     // キャラ：体の明るさ（縁取りは暗くしない）
+// 2026-11-06：溶けて消える（撃破）。元：GDQuest godot-shaders の dissolve（焼ける縁が光る、MIT）。下から上へ燃え消える。
+uniform float dissolve = 0.0;                     // 0＝そのまま、1＝消えた
+uniform sampler2D dnoise : filter_linear, repeat_enable;
+uniform vec4 burn_col : source_color = vec4(1.0, 0.62, 0.18, 1.0);   // 焼ける縁（金＝決着）
 
 void vertex() {
 	float c = cos(rot);
@@ -53,6 +57,15 @@ void fragment() {
 		float edge = step(0.6, c.a) * (1.0 - smoothstep(0.0, 0.5, nb));   // 光の側の輪郭だけ
 		col += rim_col.rgb * rim_col.a * edge;
 	}
+	float a_out = c.a * tint.a;
+	if (dissolve > 0.0) {
+		float n = texture(dnoise, UV * vec2(1.5, 2.5)).r * 0.6 + (1.0 - UV.y) * 0.4;   // 下（足元）から先に消える
+		float th = dissolve * 1.15;
+		float keep = smoothstep(th, th + 0.04, n);
+		float burn = keep * (1.0 - smoothstep(th + 0.04, th + 0.28, n));
+		col = mix(col, burn_col.rgb * 3.0, burn);
+		a_out *= keep;
+	}
 	ALBEDO = col + flash.rgb * flash.a * c.a;
-	ALPHA = c.a * tint.a;
+	ALPHA = a_out;
 }

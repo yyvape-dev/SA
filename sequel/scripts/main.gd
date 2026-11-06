@@ -55,7 +55,7 @@ const GATE_X := 16.0              # 入口の位置（区画の右端、高架�
 
 func _ready() -> void:
 	# 撮影・確認では乱数の種を固定する（版どうしで同じ場面・同じコマを比べるため）
-	for k in ["CAPTURE_LINEUP", "CAPTURE_PLAY", "CAPTURE_DUNGEON", "DUNGEON_TEST", "CAPTURE_GUIDE", "CAPTURE_REUSE"]:
+	for k in ["CAPTURE_FX", "CAPTURE_LINEUP", "CAPTURE_PLAY", "CAPTURE_DUNGEON", "DUNGEON_TEST", "CAPTURE_GUIDE", "CAPTURE_REUSE"]:
 		if OS.has_environment(k):
 			seed(20261106)
 	loading = Loading.new()
@@ -110,7 +110,7 @@ func _ready() -> void:
 	hud = DungeonHud.new()
 	hud.main = self
 	add_child(hud)
-	var capture := OS.has_environment("CAPTURE_GUIDE") or OS.has_environment("CAPTURE_PLAY") or OS.has_environment("CAPTURE_REUSE") or OS.has_environment("CAPTURE_LINEUP")
+	var capture := OS.has_environment("CAPTURE_FX") or OS.has_environment("CAPTURE_GUIDE") or OS.has_environment("CAPTURE_PLAY") or OS.has_environment("CAPTURE_REUSE") or OS.has_environment("CAPTURE_LINEUP")
 	if capture:
 		loading.visible = false
 	else:
@@ -133,6 +133,8 @@ func _ready() -> void:
 		_capture_play.call_deferred()
 	elif OS.has_environment("CAPTURE_REUSE"):
 		_capture_reuse.call_deferred()
+	elif OS.has_environment("CAPTURE_FX"):
+		_capture_fx.call_deferred()
 	elif OS.has_environment("CAPTURE_LINEUP"):
 		_capture_lineup.call_deferred()
 	elif OS.has_environment("CAPTURE_DUNGEON") or OS.has_environment("DUNGEON_TEST"):
@@ -254,6 +256,8 @@ func _build_vignette() -> void:
 	r.material = m
 	cl.add_child(r)
 	add_child(cl)
+	if fx:
+		fx.screen_mat = m   # 衝撃波の画面のゆがみ
 
 func _cam_pos_for(x: float, ofs: Vector3 = CAM_OFS) -> Vector3:
 	return Vector3(clampf(x, cam_x.x, cam_x.y), 0, 0) + ofs
@@ -787,6 +791,47 @@ func _capture_play() -> void:
 		if f % 3 == 0:
 			get_viewport().get_texture().get_image().save_png(dir + "/play_%03d.png" % f)
 	print("PLAY DONE")
+	get_tree().quit()
+
+## エフェクトの比較（CAPTURE_FX=1、前の見た目は FX_OLD=1 を足す）：同じ場面・同じ時刻で
+## 斬撃（横の弧）・衝撃波（画面のゆがみ）・撃破（溶け消え）を撮る → captures/fx_<場面>_<コマ>.png
+func _capture_fx() -> void:
+	var dir := ProjectSettings.globalize_path("res://captures")
+	DirAccess.make_dir_recursive_absolute(dir)
+	battle.auto_spawn = false
+	for e in battle.enemies.duplicate():
+		battle.remove_enemy(e)
+	if battle.ally:
+		battle.ally.visible = false
+		battle.ally.set_physics_process(false)
+	player.position = Vector3(-1.5, 0, 0.8)
+	player.debug_state("atk")
+	_place_cam(true)
+	var shots := {"slash": [2, 5, 9, 13], "wave": [3, 8, 14, 20], "kill": [6, 16, 26, 36]}
+	for scene in ["slash", "wave", "kill"]:
+		var e = battle.spawn("3", Vector3(0.6, 0, 0.8))
+		e.atk_cd = 99.0
+		e.face = -1
+		for f in 3:
+			await get_tree().physics_frame
+		match scene:
+			"slash":
+				fx.slash(player.position, 1, {"plane": "h", "r": 2.5, "w": 0.7, "a0": 110.0, "a1": -50.0, "y": 1.0, "life": 0.26, "draw": 0.07, "squash": 0.55, "tilt": 6.0})
+			"wave":
+				fx.shockwave(e.position + Vector3(0, 0.9, 0), 1.3)
+			"kill":
+				e.take_hit(99999.0, 1, false)
+		var last: int = shots[scene][-1]
+		for f in last + 1:
+			await get_tree().physics_frame
+			await RenderingServer.frame_post_draw
+			if f in shots[scene]:
+				get_viewport().get_texture().get_image().save_png(dir + "/fx_%s_%02d.png" % [scene, f])
+		for x in battle.enemies.duplicate():
+			battle.remove_enemy(x)
+		for f in 30:
+			await get_tree().physics_frame
+	print("FX DONE")
 	get_tree().quit()
 
 ## 背の並べ比べ（CAPTURE_LINEUP=1）：ラナの待機と、リリィの構えを背の高さ違いで横に並べて撮る → captures/lineup_*.png

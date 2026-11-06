@@ -210,6 +210,8 @@ func _attack_from(p: Node3D, spec: Dictionary, mul: float) -> void:
 			fx.number(e.position + Vector3(0, e.height() + 0.5, 0), int(round(d)), "strong" if spec.strong else "")
 			hits += 1
 	fx.slash(p.position, dir, spec.slash)
+	if hits > 0 and spec.strong:   # 強い当たり：画面のゆがみの輪（2026-11-06）
+		fx.shockwave(p.position + Vector3(dir * minf(spec.r, 2.0) * 0.5, 0.9, 0), 0.9 + mini(hits, 5) * 0.12)
 	if hits > 0:
 		freeze = maxf(freeze, 0.045 + mini(hits, 10) * 0.006 + (0.03 if spec.strong else 0.0))
 		shake = maxf(shake, 5.0 + mini(hits, 12) * 1.1 + (4.0 if spec.strong else 0.0))

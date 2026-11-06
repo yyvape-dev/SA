@@ -13,8 +13,18 @@ var items := []          # {node, t, life, kind, ...}
 var sparks := []         # {p, v, t, life, w, c}
 var spark_mesh: ImmediateMesh
 var spark_mi: MeshInstance3D
+var noise_tex: Texture2D        # 継ぎ目の無いノイズ（斬撃の模様・撃破の溶け消えに使う）
+var screen_mat: ShaderMaterial  # 画面の仕上げ（vignette.gdshader）。衝撃波のゆがみを入れる
+var waves := []                 # 衝撃波 {p, t, life, str, r}
+var legacy := OS.has_environment("FX_OLD")   # 比較の撮影用：2026-11-06 より前の見た目（模様・ゆがみ・溶け消え無し）
 
 func _ready() -> void:
+	var fn := FastNoiseLite.new()
+	fn.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	fn.frequency = 0.012
+	fn.fractal_octaves = 3
+	fn.seed = 7
+	noise_tex = ImageTexture.create_from_image(fn.get_seamless_image(256, 256))
 	spark_mesh = ImmediateMesh.new()
 	spark_mi = MeshInstance3D.new()
 	spark_mi.mesh = spark_mesh
@@ -76,6 +86,9 @@ func slash(origin: Vector3, face: int, spec: Dictionary) -> void:
 	mi.mesh = _arc_mesh(spec.r, spec.w, spec.a0, spec.a1, spec.plane, face, spec.get("squash", 1.0))
 	var pal: Array = spec.get("pal", BLUE)
 	mi.material_override = _mat(0, pal)
+	mi.material_override.set_shader_parameter("noise", noise_tex)   # 流れる模様（2026-11-06）
+	mi.material_override.set_shader_parameter("n_amt", 0.0 if legacy else spec.get("noise", 1.0))
+	mi.material_override.set_shader_parameter("seed", randf() * 10.0)
 	mi.sorting_offset = 0.05
 	# 暗い下地：少し太く、少し外側まで
 	var dk := MeshInstance3D.new()
@@ -105,6 +118,34 @@ func slash(origin: Vector3, face: int, spec: Dictionary) -> void:
 		p = mi.position + mi.basis * (out * spec.r)
 		out = mi.basis * out
 		_spark(p, out * randf_range(3.0, 9.0) + Vector3(0, randf_range(-0.5, 1.5), 0), randf_range(0.15, 0.38), 0.024, pal[1].lerp(pal[2], 0.5), 0.05 + u * 0.08)
+
+# ---------- 衝撃波（画面のゆがみ） ----------
+## 世界の位置 p から輪が広がる。str＝強さ（0.5〜1.5）、r＝最大の半径（画面の高さに対する割合）。同時に4つまで。
+func shockwave(p: Vector3, str: float = 1.0, life: float = 0.42, r: float = 0.55) -> void:
+	if legacy:
+		return
+	if waves.size() >= 4:
+		waves.pop_front()
+	waves.append({"p": p, "t": 0.0, "life": life, "str": str, "r": r})
+
+func _update_waves(delta: float) -> void:
+	if screen_mat == null:
+		return
+	var vp := get_viewport().get_visible_rect().size
+	screen_mat.set_shader_parameter("aspect", vp.x / maxf(vp.y, 1.0))
+	var arr := []
+	for i in range(waves.size() - 1, -1, -1):
+		waves[i].t += delta
+		if waves[i].t >= waves[i].life:
+			waves.remove_at(i)
+	for w in waves:
+		var k: float = w.t / w.life
+		var sp: Vector2 = cam.unproject_position(w.p) / vp if cam else Vector2(0.5, 0.5)
+		var e := 1.0 - pow(1.0 - k, 2.5)       # 速く広がり、ゆっくり止まる
+		arr.append(Vector4(sp.x, sp.y, w.r * e, w.str * (1.0 - k) * (1.0 - k)))
+	while arr.size() < 4:
+		arr.append(Vector4(0, 0, 0, 0))
+	screen_mat.set_shader_parameter("wave", PackedVector4Array(arr))
 
 # ---------- 当たり ----------
 func hit(p: Vector3, dir: int, strong: bool, lead: bool) -> void:
@@ -187,6 +228,10 @@ func kill(p: Vector3, dir: int, h: float) -> void:
 	add_child(ring)
 	items.append({"node": ring, "t": 0.0, "life": 0.35, "kind": "ring"})
 
+## 撃破の溶け消えから昇る火の粉（金）
+func ember(p: Vector3) -> void:
+	_spark(p, Vector3(randf_range(-0.6, 0.6), randf_range(1.2, 2.8), 0), randf_range(0.35, 0.7), 0.03, GOLD[1].lerp(GOLD[2], randf()), 0.0)
+
 # ---------- 被弾（ラナ） ----------
 func hurt(p: Vector3, dir: int) -> void:
 	_quad(p + Vector3(0, 0, 0.2), Vector2(1.3, 1.3), _mat(1, RED), "flash", 0.12, 0.0)
@@ -237,6 +282,7 @@ func _spark(p: Vector3, v: Vector3, life: float, w: float, c: Color, delay: floa
 	sparks.append({"p": p, "v": v, "t": -delay, "life": life, "w": w, "c": c})
 
 func _process(delta: float) -> void:
+	_update_waves(delta)
 	for i in range(items.size() - 1, -1, -1):
 		var it: Dictionary = items[i]
 		it.t += delta

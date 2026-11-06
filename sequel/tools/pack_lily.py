@@ -21,6 +21,7 @@ HEIGHT_M = 1.80                 # 2026-11-06 ユーザー決定（ゲームで 1
 BODY_PX = round(366 * HEIGHT_M / 1.85)   # ラナと同じ画素の細かさ
 STEP = 2                         # 24fps → 12fps
 PAGE = 4096
+RANGE = {"hit": (8, 34)}   # 使うコマの範囲（元の24コマ単位）。被弾＝揺れている所だけ
 HITS = {"atk_rush": [23], "atk_heeldrop": [9, 28]}   # 自動で外れたもの（12コマ単位）：rush＝飛び蹴りの山、heeldrop＝振り下ろし
 BAD = {"atk_heeldrop": [13, 14, 17, 19, 21, 100, 101, 102], "atk_roundhouse": [9, 10, 11, 13, 14], "atk_rush": [42]}
 
@@ -77,7 +78,8 @@ def main():
             picks = list(range(lp["start"], lp["start"] + lp["len"]))
         else:
             picks = []
-            for i in range(0, n, STEP):
+            r0, r1 = RANGE.get(clip, (0, n))
+            for i in range(r0, r1, STEP):
                 j = i if i not in bad else min(good, key=lambda g: (abs(g - i), g))
                 picks.append(j)
         frames, reach = [], []
@@ -108,7 +110,7 @@ def main():
                 i = j + 1
             else:
                 i += 1
-        hits = [] if lp else HITS.get(clip, hits)
+        hits = [] if (lp or clip in RANGE) else HITS.get(clip, hits)
         px_m = HEIGHT_M / BODY_PX
         out["clips"][clip] = {"fps": 24 if lp else 24 / STEP, "frames": frames, "hits": hits,
                               "reach": [round((reach[h] - base) * px_m + 0.6, 2) for h in hits],

@@ -16,6 +16,10 @@ uniform float tail = 3.5;     // 尾の短さ
 uniform float fill = 0.0;
 uniform float core_gain = 1.3;   // mode 1 の中心の白の強さ
 uniform bool billboard = false;
+// 2026-11-06：流れる模様（mode 0）。元：godotshaders.com「Slash Shader」（ノイズで UV をゆがめる・明滅・溶けて消える）。
+uniform sampler2D noise : filter_linear, repeat_enable;   // 継ぎ目の無いノイズ（fx.gd が FastNoiseLite で作る）
+uniform float n_amt = 0.0;    // 0＝従来の帯、1＝模様入り
+uniform float seed = 0.0;     // 帯ごとに模様をずらす
 
 void vertex() {
 	if (billboard) {
@@ -30,6 +34,10 @@ void fragment() {
 	if (mode == 0) {
 		float u = UV.x;
 		float v = UV.y;
+		vec2 nuv = vec2(u * 2.2 - head * 0.9 + seed, v * 0.6 + seed * 0.37);
+		float nz = texture(noise, nuv).r;
+		float nz2 = texture(noise, nuv * vec2(3.0, 1.4) + vec2(head * 0.5, 0.0)).r;
+		v = clamp(v + (nz - 0.5) * 0.45 * n_amt, 0.0, 1.0);   // 縁が波打つ
 		float behind = head - u;
 		float a = behind < 0.0 ? 0.0 : exp(-behind * tail);
 		a *= smoothstep(0.0, 0.04, behind + 0.04);   // 先端を少しだけ柔らかく
@@ -38,6 +46,13 @@ void fragment() {
 		float glow = (1.0 - v);
 		c = col_core.rgb * core * 1.4 + col_main.rgb * mainc * 1.1 + col_glow.rgb * glow * 0.7;
 		c *= a;
+		if (n_amt > 0.0) {
+			// 筋（刃の流れに沿った明暗）と、終わりに模様に沿って溶ける
+			float streak = 0.35 + 1.35 * smoothstep(0.3, 0.75, nz2);   // 刃の流れに沿った明暗（強め）
+			float dis = smoothstep(1.0 - fade - 0.12, 1.0 - fade + 0.12, nz * 0.85 + 0.15 * (1.0 - v));
+			float edge = dis * (1.0 - smoothstep(1.0 - fade, 1.0 - fade + 0.25, nz)) * step(fade, 0.98);
+			c = mix(c, c * streak * dis + col_core.rgb * edge * a * 0.6, n_amt);
+		}
 	} else if (mode == 1) {
 		float r = length(UV - vec2(0.5)) * 2.0;
 		float k = clamp(1.0 - r, 0.0, 1.0);

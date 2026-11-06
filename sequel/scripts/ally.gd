@@ -1,7 +1,7 @@
 extends Node3D
 ## 仲間リリィ（2026-11-06）。ラナについて歩き、敵がいれば近い敵へ寄って、5本の攻撃パターンからランダムに蹴る。
 ## 絵は assets/lily/lily.json（tools/pack_lily.py）。地区 pck「al1」に入っていて、読み終えてから出てくる。
-## 歩き・走り（2026-11-06 追加、その場の1周を繰り返す）。まだ無い動き：被弾 → 敵の攻撃は受けない（仮）。
+## 歩き・走り（2026-11-06 追加、その場の1周を繰り返す）。被弾（2026-11-06）：敵の攻撃を受けると揺れて押し戻される。体力は無い（倒れない。仮）。
 ## スキルは未決：攻撃パターンは全部入れて、出す順はランダム（同じものを続けない）。
 
 const SPR := preload("res://scripts/sprite_bb.gdshader")
@@ -26,7 +26,10 @@ var refl: Sprite3D
 var px := 0.005
 var height_m := 1.70
 var face := 1
-var state := "move"     # move / atk
+var state := "move"     # move / atk / hurt
+var kb := 0.0
+var inv := 0.0
+var flash := 0.0
 var clip := "idle"
 var t := 0.0
 var hit_i := 0
@@ -61,6 +64,20 @@ func set_height(h: float) -> void:
 	height_m = h
 	px = h / float(data.body_px)
 	_show(clip, 0)
+
+## 敵の攻撃が当たった（enemy.gd から）
+func can_be_hit() -> bool:
+	return inv <= 0.0 and data.clips.has("hit")
+
+func on_hurt(dir: int) -> void:
+	state = "hurt"
+	clip = "hit"
+	mv = ""
+	t = 0.0
+	kb = dir * 1.8
+	inv = 0.5
+	flash = 0.22
+	face = -dir
 
 func height() -> float:
 	return height_m
@@ -115,6 +132,9 @@ func _physics_process(delta: float) -> void:
 		world.apply_light(sprite, mat, refl, position)
 		return
 	t += dt
+	inv = maxf(0.0, inv - dt)
+	flash = maxf(0.0, flash - delta)
+	mat.set_shader_parameter("flash", Color(1.0, 0.25, 0.2, 0.6 if flash > 0.0 else 0.0))
 	var pl: Node3D = world.player
 	# ラナから離れすぎたら（部屋の移動など）すぐそばへ
 	if absf(pl.position.x - position.x) > 9.0:
@@ -155,6 +175,19 @@ func _physics_process(delta: float) -> void:
 			if e and cd <= 0.0 and absf(e.position.x - position.x) < ATK_X + 0.35 and absf(e.position.z - position.z) < ATK_LANE:
 				mv = ""
 				_start_atk(e)
+		"hurt":
+			position.x += kb * dt
+			kb *= pow(0.003, dt)
+			var hc: Dictionary = data.clips["hit"]
+			var hi := int(t * float(hc.fps) * SPD)
+			if hi >= hc.frames.size():
+				state = "move"
+				clip = "idle"
+				t = 0.0
+				cd = randf_range(0.2, 0.6)
+				_show("idle", 0)
+			else:
+				_show("hit", hi)
 		"atk":
 			var c: Dictionary = data.clips[clip]
 			var fps: float = float(c.fps) * SPD

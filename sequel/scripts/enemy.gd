@@ -137,7 +137,7 @@ func _physics_process(delta: float) -> void:
 	match state:
 		"dying":
 			die_t += dt
-			var k := die_t / (1.2 if boss else 0.45)
+			var k := die_t / (1.2 if boss else (0.45 if battle.fx.legacy else 0.75))   # 溶け消えは少し長く（縁が燃えるのを見せる）
 			position.x += die_dir * 1.4 * dt * (1.0 - k)
 			mat.set_shader_parameter("rot", -die_dir * 1.25 * (1.0 - pow(1.0 - minf(k * 1.6, 1.0), 3.0)))
 			mat.set_shader_parameter("tint", Color(1, 1, 1, 1.0 - k))
@@ -168,6 +168,16 @@ func _physics_process(delta: float) -> void:
 					dx = absf(pl.position.x - position.x)
 				if dx > -0.3 and dx < float(atk.reach) and dz < float(atk.lane):
 					battle.enemy_hits_player(self)
+				# 仲間（リリィ）も同じ範囲にいれば当たる（体力は無い。揺れて押し戻されるだけ。2026-11-06）
+				var al: Node3D = battle.ally
+				if al and al.can_be_hit():
+					var adx: float = (al.position.x - position.x) * face
+					if atk.wide:
+						adx = absf(al.position.x - position.x)
+					if adx > -0.3 and adx < float(atk.reach) and absf(al.position.z - position.z) < float(atk.lane):
+						var ad := 1 if al.position.x >= position.x else -1
+						battle.fx.hurt(al.position + Vector3(0, 1.0, 0), ad)
+						al.on_hurt(ad)
 			if atk.t >= atk.end_t:
 				state = "walk"
 				atk_cd = 0.8 if boss else 1.0

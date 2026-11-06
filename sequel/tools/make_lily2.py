@@ -27,7 +27,9 @@ from key_soft import key_soft  # noqa: E402
 SRC = os.path.join(ROOT, "sequel/art/lily2/src")
 OUT = os.path.join(ROOT, "sequel/art/lily2")
 STILLS = ["stance_normal", "stance_battle"]
-CLIPS = ["atk_jabkick", "atk_highkick", "atk_roundhouse", "atk_heeldrop", "atk_rush", "walk", "run"]
+CLIPS = ["atk_jabkick", "atk_highkick", "atk_roundhouse", "atk_heeldrop", "atk_rush", "walk", "run", "hit"]
+# hit＝被弾（右を向いたまま、16コマ目前後で体が揺れる。ピンクの当たりの光が少し焼き込み。832×1104・3秒）
+ONLY = [c for c in os.environ.get("LILY_ONLY", "").split(",") if c]   # 例 LILY_ONLY=hit：そのクリップだけ作り直す（ほかは lily2.json の値を残す）
 LOOPS = ["walk", "run"]   # 歩き・走り（その場で。832×1104、3秒、構え→動き→構え）。中ほどから 1 周を探す（find_loop）
 
 
@@ -191,8 +193,8 @@ def check(name, raw, cut, info):
 def main():
     os.makedirs(os.path.join(OUT, "stance"), exist_ok=True)
     os.makedirs(os.path.join(OUT, "check"), exist_ok=True)
-    meta = {"note": "新リリィ（2026-11-06）。右向き。立ち絵は元の大きさのまま透過", "stills": {}}
-    for st in STILLS:
+    meta = json.load(open(os.path.join(OUT, "lily2.json"))) if ONLY else {"note": "新リリィ（2026-11-06）。右向き。立ち絵は元の大きさのまま透過", "stills": {}}
+    for st in ([] if ONLY else STILLS):
         raw = np.asarray(Image.open(os.path.join(SRC, st + ".png")).convert("RGB"))
         cut = key_soft(raw.astype(np.float32))
         cut, npink = fix_fringe(cut)
@@ -205,7 +207,11 @@ def main():
         meta["stills"][st] = info
         check(st, raw, cut, info)
         print(st, info)
-    meta["clips"] = {c: do_clip(c) for c in CLIPS}
+    if ONLY:
+        old = json.load(open(os.path.join(OUT, "lily2.json")))
+        meta["clips"] = {c: (do_clip(c) if c in ONLY else old["clips"][c]) for c in CLIPS if c in ONLY or c in old["clips"]}
+    else:
+        meta["clips"] = {c: do_clip(c) for c in CLIPS}
     json.dump(meta, open(os.path.join(OUT, "lily2.json"), "w"), ensure_ascii=False, indent=1)
 
 
