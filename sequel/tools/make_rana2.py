@@ -1,5 +1,6 @@
 """新ラナの動画（sequel/art/rana2/src/*.mp4、マゼンタ背景・右向き・24fps）を、透過 PNG の連番にする。
 使い方：python3 -I sequel/tools/make_rana2.py [作業フォルダ]   （リポジトリのルートで。ffmpeg・numpy・scipy・opencv・PIL）
+      ゲーム用のアトラスだけ作り直す：python3 -I sequel/tools/make_rana2.py --game  → sequel/assets/rana2/
 出力：
   sequel/art/rana2/frames/<clip>/<clip>_NN.png … 元の大きさのまま（縮めない）。コマごとに余白を切り詰める
   sequel/art/rana2/rana2.json                   … クリップごとのコマ：[ファイル, w, h, 足元から見た左上の x, y, 体の横の移動 dx]
@@ -24,7 +25,7 @@ from scipy import ndimage as ndi
 ROOT = os.getcwd()
 SRC = os.path.join(ROOT, "sequel/art/rana2/src")
 OUT = os.path.join(ROOT, "sequel/art/rana2")
-WORK = sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, "sequel/art/rana2/_work")
+WORK = [a for a in sys.argv[1:] if not a.startswith("--")][0] if [a for a in sys.argv[1:] if not a.startswith("--")] else os.path.join(ROOT, "sequel/art/rana2/_work")
 GROUND_Y = 783          # 構えの足裏（動画の y）
 LOOPS = {"walk": ("walk", 0, 31, False), "run": ("run_dodge", 19, 18, True)}   # 名前: (動画, 最初のコマ, コマ数, その場にする)
 ONESHOT = ["atkA_thrust", "atkB_downslash", "atkC_flurry", "atkHold_spin", "hit", "down", "spare_spinkick", "spare_combo"]
@@ -68,7 +69,7 @@ def fix_green(rgba):
         upper[: int(ys.min() + 0.45 * (ys.max() - ys.min())), :] = True
     edge = ndi.distance_transform_edt(rgba[..., 3] > 200) <= 6
     green = (((h > 62) & (h < 110) & (s > 0.15)) | ((h > 52) & (h <= 62) & (s > 0.12) & (s < 0.45))) & op
-    pink = (h >= 285) & (h <= 340) & (s > 0.12) & op & (upper | edge)
+    pink = (h >= 285) & (h <= 340) & (s > 0.12) & op & (upper | edge | ((h >= 300) & (h <= 345) & (s > 0.25)))   # 下半身も鮮やかなピンク（靴）は直す
     to_gold = (green | pink) & upper
     to_brown = (green | pink) & ~upper
     hsv[..., 0] = np.where(to_gold, 20, np.where(to_brown, 15, hsv[..., 0]))   # 金 40°／茶 30°
@@ -168,5 +169,126 @@ def main():
     print("\n".join(report))
 
 
-if __name__ == "__main__":
+if __name__ == "__main__" and "--game" not in sys.argv:
     main()
+
+
+# ---------- ゲーム用（--game）：frames/ から間引き・前進の分離・光の削除・足裏・縮小・アトラス ----------
+GAME_OUT = os.path.join(ROOT, "sequel/assets/rana2")
+GAME_SCALE = 366 / 717       # 構えの背 717px → 366px（今のラナと同じ見た目の背＝1.85m）
+# 名前: (連番, 使う元のコマ, 再生の fps, 前進を位置へ, 体から離れた光の扱い)
+#   光："keep"＝残す、"gold"＝金の軌跡だけ残す（白い弧・きらめきは消してコードで描く）、"none"＝全部消す（土煙）
+GAME_CLIPS = {
+    "idle": ("atkA_thrust", [0], 1, False, "none"),
+    "walk": ("walk", list(range(0, 31, 2)), 12, False, "none"),
+    "run": ("run", list(range(0, 18)), 24, False, "none"),
+    "atkA": ("atkA_thrust", list(range(0, 73, 3)), 24, True, "none"),
+    "atkB": ("atkB_downslash", list(range(0, 73, 3)), 24, True, "none"),
+    "atkC": ("atkC_flurry", list(range(0, 73, 3)), 24, True, "gold"),
+    "hold": ("atkHold_spin", list(range(0, 121, 3)), 24, True, "gold"),
+    "hurt": ("hit", [8, 10, 12], 8, False, "none"),
+    "down": ("down", list(range(0, 73, 2)), 20, False, "none"),
+}
+
+
+def strip_lights(rgba, mode):
+    """体（不透明の最大のかたまり＋6px）から離れた画素を消す。gold なら金の色だけ残す。none は体に重なる淡いピンクの煙も消す"""
+    if mode == "keep":
+        return rgba
+    a = rgba[..., 3]
+    lab, n = ndi.label(a > 240)   # 体＝ほぼ不透明の最大のかたまり（半透明の煙・にじみは体に入れない）
+    if n == 0:
+        return rgba
+    sizes = ndi.sum(a > 240, lab, range(1, n + 1))
+    body = ndi.binary_dilation(lab == (int(np.argmax(sizes)) + 1), iterations=2)
+    out = rgba.copy()
+    hsv = cv2.cvtColor(np.ascontiguousarray(rgba[..., :3]), cv2.COLOR_RGB2HSV)
+    h = hsv[..., 0].astype(np.float32) * 2
+    s = hsv[..., 1] / 255.0
+    gold = (h >= 25) & (h <= 65) & (s > 0.35)
+    drop = ~body & (a > 0)
+    if mode == "gold":
+        drop &= ~gold
+    else:   # 土煙：体に重なる淡いピンク〜灰の半透明も消す
+        drop |= body & (a < 215) & (((h >= 280) & (h <= 350)) | (s < 0.12))
+    out[..., 3] = np.where(drop, 0, a)
+    return out
+
+
+def build_game():
+    meta = json.load(open(os.path.join(OUT, "rana2.json")))
+    os.makedirs(GAME_OUT, exist_ok=True)
+    for f in os.listdir(GAME_OUT):
+        if f.endswith(".webp") or f.endswith(".json"):
+            os.remove(os.path.join(GAME_OUT, f))
+    k = GAME_SCALE
+    pieces = []   # (clip, i, image, ox, oy, root)
+    report = []
+    for name, (src, idx, fps, root, lights) in GAME_CLIPS.items():
+        fr = meta["clips"][src]["frames"]
+        imgs = []
+        for i in idx:
+            fn, w, h, ox, oy, dx = fr[i]
+            im = np.asarray(Image.open(os.path.join(OUT, "frames", src, fn)).convert("RGBA"))
+            im = strip_lights(im, lights)
+            ys, xs = np.where(im[..., 3] > 0)
+            x0, y0 = xs.min(), ys.min()
+            im = im[y0:ys.max() + 1, x0:xs.max() + 1]
+            ox += x0
+            oy += y0
+            if root:
+                ox -= dx     # 前進は絵から外し、位置の移動（root）にする
+            imgs.append([im, ox, oy, dx if root else 0.0])
+        # 足裏：歩きは毎コマ地面へ。走りは全体をずらして一番低いコマを地面へ
+        if name == "walk":
+            for it in imgs:
+                it[2] = -it[0].shape[0]
+        elif name == "run":
+            lift = min(-(it[2] + it[0].shape[0]) for it in imgs)
+            for it in imgs:
+                it[2] += lift
+        for i, (im, ox, oy, dx) in enumerate(imgs):
+            pil = Image.fromarray(im)
+            pil = pil.resize((max(1, round(pil.width * k)), max(1, round(pil.height * k))), Image.LANCZOS)
+            pieces.append((name, i, pil, ox * k, oy * k, dx * k))
+        report.append("%s %dコマ %dfps" % (name, len(imgs), fps))
+    # 棚詰めのアトラス（2048×2048）
+    order = sorted(range(len(pieces)), key=lambda j: -pieces[j][2].height)
+    pages, cur, x, y, row_h = [], None, 0, 0, 0
+    place = {}
+    for j in order:
+        im = pieces[j][2]
+        w, h = im.width + 2, im.height + 2
+        if cur is None or x + w > 2048:
+            x, y, row_h = 0, y + row_h, 0
+        if cur is None or y + h > 2048:
+            cur = Image.new("RGBA", (2048, 2048), (0, 0, 0, 0))
+            pages.append(cur)
+            x, y, row_h = 0, 0, 0
+        cur.paste(im, (x + 1, y + 1))
+        place[j] = (len(pages) - 1, x + 1, y + 1)
+        x += w
+        row_h = max(row_h, h)
+    names = []
+    for p, pg in enumerate(pages):
+        bb = pg.getbbox()
+        pg = pg.crop((0, 0, 2048, bb[3] + 1))
+        fn = "rana2_%d.webp" % p
+        pg.save(os.path.join(GAME_OUT, fn), lossless=True, quality=100, method=6)
+        names.append(fn)
+    clips = {}
+    for j, (name, i, im, ox, oy, dx) in enumerate(pieces):
+        c = clips.setdefault(name, {"fps": GAME_CLIPS[name][2], "frames": [], "root": []})
+        p, px, py = place[j]
+        c["frames"].append([names[p], px, py, im.width, im.height, round(ox, 1), round(oy, 1)])
+        c["root"].append(round(dx, 1))
+    idle_h = pieces[0][2].height
+    json.dump({"px_h": idle_h, "face": 1, "pages": names, "clips": clips},
+              open(os.path.join(GAME_OUT, "rana2.json"), "w"), ensure_ascii=False)
+    sz = sum(os.path.getsize(os.path.join(GAME_OUT, n)) for n in names)
+    print("ゲーム用：%d コマ、ページ %d 枚（%s）、%.1fMB、構えの背 %dpx" % (len(pieces), len(pages), ", ".join("%dx%d" % (2048, Image.open(os.path.join(GAME_OUT, n)).height) for n in names), sz / 1e6, idle_h))
+    print("  " + " / ".join(report))
+
+
+if __name__ == "__main__" and "--game" in sys.argv:
+    build_game()

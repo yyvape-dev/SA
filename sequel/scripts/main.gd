@@ -740,17 +740,19 @@ func _capture_play() -> void:
 	]
 	for e in foes:
 		e.atk_cd = 9.0     # 最初はラナの攻撃を見るため、敵は攻撃しない
-	# 前半：ラナの連携（A→B→A…）。後半：新しい2体がラナを攻撃する（床の予兆→被弾）。最後に回避
-	var script := {6: "atk", 26: "atk", 50: "atk", 70: "atk", 92: "atk", 112: "atk", 170: "foes", 300: "dodge"}
-	for f in 360:
+	# 新ラナ（2026-11-06）：A→B→C の連撃 → 長押しの回転斬り → 敵の攻撃（予兆→被弾）→ 回避（残像）→ 体力を減らしてダウン（土煙）→ 起き上がり
+	var script := {6: "atk", 16: "atk", 30: "atk", 120: "hold_on", 150: "hold_off", 250: "foes", 330: "dodge", 380: "low"}
+	for f in 560:
 		if script.has(f):
 			match script[f]:
 				"atk": player.attack()
+				"hold_on": player.attack_press()
+				"hold_off": player.attack_release()
 				"dodge": player.dodge()
+				"low": battle.hp = 3.0
 				"foes":
 					for e in battle.enemies.duplicate():
 						battle.remove_enemy(e)
-					var pz: float = player.position.z
 					var a = battle.spawn("1", player.position + Vector3(1.05, 0, 0.05))
 					var b = battle.spawn("3", player.position + Vector3(-1.1, 0, -0.1))
 					b.atk_cd = 0.9

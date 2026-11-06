@@ -1,26 +1,26 @@
 extends Node3D
-## ラナ（仮の絵＝前作の連番）。帯の中を左右・奥行きに動く。攻撃2種（交互に連携）・回避・被弾・ダウン。
-## 絵は rana.json（クリップごとのコマ：ページ, x, y, w, h, 足元からの左上のずれ）。
-## 攻撃のコマの時間と当たりの瞬間は、前作 battle/play.js の ATC・ATB と同じ（攻撃速度 1.75 倍）。
+## ラナ（新しい絵 rana2、2026-11-06）。帯の中を左右・奥行きに動く。攻撃は A小→B中→C大 の連撃＋長押し（回転斬り）・回避・被弾・ダウン。
+## 絵は assets/rana2/rana2.json（tools/make_rana2.py --game）：クリップごとのコマ [ページ, x, y, w, h, 足元から見た左上 x, y]、
+## 再生の fps、root＝攻撃の前進（絵から外した体の移動、px）。前進はラナの位置を動かす（当たりと絵がずれない）。
+## 攻撃は元の動画（24fps）を3コマおきに 24fps で流す＝3倍速。当たりの瞬間は元の動画のコマ番号÷72 秒（剣が最も届くコマを測った）。
 
 const SPR := preload("res://scripts/sprite_bb.gdshader")
 const WALK := 2.8
 const RUN := 6.2
 const DEPTH_K := 0.75        # 奥行きの移動は少し遅く（アラド型）
-const HEIGHT_M := 1.85       # 画面での背の高さ（待機の絵の366px＝この高さ）
-const FPS := {"idle": 1.0, "walk": 26.0, "run": 22.0}
-const ASPD := 1.75
+const HEIGHT_M := 1.85       # 画面での背の高さ（構えの絵の背＝この高さ。前作の基準 205 に合わせるかは未決）
 const DODGE_T := 0.24
 const DODGE_D := 4.0
-const HURT_CUT := [0.0, 0.08, 0.18, 0.28]
-const HURT_T := 0.36
-const DOWN_T := 1.6
+const HURT_T := 0.42
+const HOLD_T := 0.35         # この長さ押し続けると長押しの技（回転斬り）
 
-# 斬撃のエフェクト（fx.gd の slash）。縦＝画面に立つ弧、横＝床と平行の弧
-const SL_DOWN := {"plane": "v", "r": 1.75, "w": 0.55, "a0": 115.0, "a1": -55.0, "y": 0.95, "life": 0.24, "draw": 0.06}
-const SL_BACK := {"plane": "h", "r": 2.1, "w": 0.6, "a0": -40.0, "a1": 120.0, "y": 0.9, "life": 0.26, "draw": 0.07, "squash": 0.55, "tilt": -8.0}
-const SL_SWEEP := {"plane": "h", "r": 2.5, "w": 0.7, "a0": 110.0, "a1": -50.0, "y": 1.0, "life": 0.26, "draw": 0.07, "squash": 0.55, "tilt": 6.0}
-const SL_OVER := {"plane": "v", "r": 2.2, "w": 0.75, "a0": 80.0, "a1": -70.0, "y": 1.1, "life": 0.3, "draw": 0.07}
+# 斬撃のエフェクト（fx.gd の slash）。縦＝画面に立つ弧、横＝床と平行の弧。色は味方の青
+const SL_THRUST := {"plane": "v", "r": 2.3, "w": 0.22, "a0": 14.0, "a1": -10.0, "y": 1.15, "life": 0.2, "draw": 0.05}
+const SL_DOWN := {"plane": "v", "r": 1.9, "w": 0.6, "a0": 120.0, "a1": -50.0, "y": 0.95, "life": 0.26, "draw": 0.07}
+const SL_SWEEP := {"plane": "h", "r": 2.1, "w": 0.55, "a0": 110.0, "a1": -50.0, "y": 1.0, "life": 0.24, "draw": 0.06, "squash": 0.55, "tilt": 6.0}
+const SL_BACK := {"plane": "h", "r": 1.8, "w": 0.5, "a0": -40.0, "a1": 120.0, "y": 0.9, "life": 0.24, "draw": 0.06, "squash": 0.55, "tilt": -8.0}
+const SL_BIG := {"plane": "v", "r": 2.6, "w": 0.85, "a0": 150.0, "a1": -60.0, "y": 1.1, "life": 0.34, "draw": 0.08}   # C の締め（元の白い大きな弧をコードで）
+const SL_SPIN := {"plane": "h", "r": 2.2, "w": 0.5, "a0": -170.0, "a1": 170.0, "y": 0.85, "life": 0.26, "draw": 0.08, "squash": 0.6}
 
 var world               # battle.gd
 var room_x := Vector2(-19, 19)
@@ -37,10 +37,19 @@ var clip := "idle"
 var t := 0.0
 var face := 1
 var state := "move"   # move / atk / dodge / hurt / down
-var atk_next := "atc"
+var atk_next := "atkA"
+var atk_held := false     # 攻撃のボタンを押している
+var held_t := 0.0
+var hold_fired := false
+var queued_hold := false
+var root_prev := 0.0      # 攻撃の前進（px）の前のコマの値
+var ghost_t := 0.0
+var ghosts := []          # 回避の残像 [{node, t}]
+var dust_done := false
 var dodge_t := 0.0
 var queued := false
 var px_size := 0.005
+var hold_hit := []
 var inv := 0.0
 var flash := 0.0
 var kb := 0.0
@@ -50,8 +59,11 @@ var hit_i := 0
 var locked := false   # 選ぶ画面・結果の画面の間は動かない
 
 func _ready() -> void:
-	clips = JSON.parse_string(FileAccess.get_file_as_string("res://assets/rana/rana.json"))
-	px_size = HEIGHT_M / 366.0
+	clips = JSON.parse_string(FileAccess.get_file_as_string("res://assets/rana2/rana2.json")).clips
+	var d = JSON.parse_string(FileAccess.get_file_as_string("res://assets/rana2/rana2.json"))
+	px_size = HEIGHT_M / float(d.px_h)
+	for pg in d.pages:   # 最初の攻撃で読み込みの引っかかりが出ないよう、先に全部読む
+		_tex(pg)
 	_build_tables()
 	sprite = Sprite3D.new()
 	sprite.region_enabled = true
@@ -67,72 +79,47 @@ func _ready() -> void:
 	add_child(refl)
 	_show_frame("idle", 0)
 
-## 前作の時間表：攻撃A（縦斬り）は元動画のコマ 9〜60、攻撃B（横薙ぎ）は 12〜37 と 50〜72。
+## 当たりの時間表：元の動画のコマ番号 ÷ 72（3コマおきを 24fps＝3倍速）。距離は m（剣が最も届くコマを測った値＋余裕）。
+##   A 突き：18コマ目、前へ約 1.9m。B 斬り下ろし：33コマ目、約 1.7m。C 連続斬り：15・24・33・42・60（前後両方、最後が強い）。
+##   長押し 回転斬り：24・36・45・57・66・75（前後両方、最後が強い）。
 func _build_tables() -> void:
-	var atc_src := [9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 22, 26, 30, 34, 36, 37, 38, 39, 40, 41, 42, 44, 48, 52, 53, 54, 55, 56, 57, 58, 59, 60]
-	var atb_src := []
-	for s in range(12, 38): atb_src.append(s)
-	for s in range(50, 73): atb_src.append(s)
-	var mk := func(src: Array, ms: Callable) -> Dictionary:
-		var st := []
-		var acc := 0.0
-		for s in src:
-			st.append(acc / ASPD)
-			acc += ms.call(s) / 1000.0
-		return {"starts": st, "total": acc / ASPD}
-	var atc_ms := func(s: int) -> float:
-		if s <= 11: return 30.0
-		if s <= 16: return 25.0
-		if s == 17: return 20.0
-		if s == 18: return 40.0
-		if s == 22 or s == 26 or s == 34: return 0.0
-		if s <= 36: return 30.0
-		if s <= 41: return 25.0
-		if s <= 52: return 40.0
-		return 35.0
-	var atb_ms := func(s: int) -> float:
-		if s <= 18: return 25.0
-		if s <= 26: return 22.0
-		if s == 27: return 30.0
-		if s == 28: return 35.0
-		if s == 29: return 25.0
-		if s == 30: return 30.0
-		if s <= 37: return 30.0
-		if s <= 53: return 35.0
-		if s <= 55: return 30.0
-		if s == 56: return 35.0
-		return 34.0
-	var a: Dictionary = mk.call(atc_src, atc_ms)
-	var b: Dictionary = mk.call(atb_src, atb_ms)
-	# 当たり：距離は前作の px（ラナ 205px＝1.85m）を m に直した。奥行きの幅は続編で決めた値
-	a.hits = [
-		[a.starts[atc_src.find(18)], {"side": 1, "r": 2.85, "lane": 0.95, "dmg": 20.0, "strong": false, "slash": SL_DOWN}],
-		[a.starts[atc_src.find(42)], {"side": -1, "r": 2.5, "lane": 0.95, "dmg": 13.0, "strong": false, "slash": SL_BACK}],
-	]
-	a.cancel = a.hits[1][0] + 0.12 / ASPD
-	b.hits = [
-		[b.starts[atb_src.find(28)], {"side": 1, "r": 3.2, "lane": 1.1, "dmg": 22.0, "strong": false, "slash": SL_SWEEP}],
-		[b.starts[atb_src.find(30)], {"side": -1, "r": 2.7, "lane": 1.1, "dmg": 14.0, "strong": false, "slash": SL_BACK}],
-		[b.starts[atb_src.find(55)], {"side": -1, "r": 2.9, "lane": 1.1, "dmg": 18.0, "strong": true, "slash": SL_OVER}],
-	]
-	b.cancel = b.hits[2][0] + 0.14 / ASPD
-	tab = {"atc": a, "atb": b}
+	var mk := func(c: String, hits: Array, cancel_after: float) -> Dictionary:
+		var n: int = clips[c].frames.size()
+		var tot: float = n / float(clips[c].fps)
+		var hs := []
+		for h in hits:
+			hs.append([float(h[0]) / 72.0, h[1]])
+		return {"total": tot, "hits": hs, "cancel": hs[hs.size() - 1][0] + cancel_after}
+	var a: Dictionary = mk.call("atkA", [[18, {"side": 1, "r": 2.4, "lane": 0.85, "dmg": 18.0, "strong": false, "slash": SL_THRUST}]], 0.1)
+	var b: Dictionary = mk.call("atkB", [[33, {"side": 1, "r": 2.2, "lane": 1.0, "dmg": 26.0, "strong": false, "slash": SL_DOWN}]], 0.1)
+	var c_hits := []
+	var k := 0
+	for f in [15, 24, 33, 42]:
+		c_hits.append([f, {"side": 0, "r": 2.1, "lane": 1.1, "dmg": 12.0, "strong": false, "slash": SL_SWEEP if k % 2 == 0 else SL_BACK}])
+		k += 1
+	c_hits.append([60, {"side": 1, "r": 2.6, "lane": 1.2, "dmg": 24.0, "strong": true, "slash": SL_BIG}])
+	var c: Dictionary = mk.call("atkC", c_hits, 0.12)
+	var h_hits := []
+	for f in [24, 36, 45, 57, 66]:
+		h_hits.append([f, {"side": 0, "r": 2.3, "lane": 1.3, "dmg": 14.0, "strong": false, "slash": SL_SPIN}])
+	h_hits.append([75, {"side": 0, "r": 2.4, "lane": 1.4, "dmg": 26.0, "strong": true, "slash": SL_SPIN}])
+	var h: Dictionary = mk.call("hold", h_hits, 0.15)
+	tab = {"atkA": a, "atkB": b, "atkC": c, "hold": h}
 
 func _tex(name: String) -> Texture2D:
 	if not pages.has(name):
-		pages[name] = load("res://assets/rana/" + name)
+		pages[name] = load("res://assets/rana2/" + name)
 	return pages[name]
 
 func _show_frame(c: String, i: int) -> void:
 	var fr: Array = clips[c].frames
 	var f: Array = fr[clampi(i, 0, fr.size() - 1)]
-	var k: float = clips[c].k / 0.6
 	var tex := _tex(f[0])
 	if sprite.texture != tex:
 		sprite.texture = tex
 		mat.set_shader_parameter("tex", tex)
 	sprite.region_rect = Rect2(f[1], f[2], f[3], f[4])
-	sprite.pixel_size = px_size * k
+	sprite.pixel_size = px_size
 	# 足元（原点）から見た左上の位置。Sprite3D は y が上向き
 	var ox: float = f[5]
 	var oy: float = f[6]
@@ -144,6 +131,17 @@ func _show_frame(c: String, i: int) -> void:
 func _frames(c: String) -> int:
 	return clips[c].frames.size()
 
+func _fidx(c: String, tt: float) -> int:
+	return mini(int(tt * float(clips[c].fps)), _frames(c) - 1)
+
+func _root(c: String, tt: float) -> float:
+	var r: Array = clips[c].root
+	var x: float = tt * float(clips[c].fps)
+	var i := clampi(int(x), 0, r.size() - 1)
+	var j := mini(i + 1, r.size() - 1)
+	return lerpf(float(r[i]), float(r[j]), clampf(x - int(x), 0.0, 1.0))
+
+## 攻撃：押した瞬間に連撃の次の技。押し続けると長押しの技（attack_press／attack_release。tap は attack()）
 func attack() -> void:
 	if locked:
 		return
@@ -152,18 +150,40 @@ func attack() -> void:
 		return
 	if state != "move":
 		return
-	_start_attack()
+	_start_attack(atk_next)
 
-func _start_attack() -> void:
+func attack_press() -> void:
+	if locked:
+		return
+	atk_held = true
+	held_t = 0.0
+	hold_fired = false
+	attack()
+
+func attack_release() -> void:
+	atk_held = false
+
+func _start_attack(c: String) -> void:
 	# 入力の向きへ振り向いてから斬る
 	if absf(move_in.x) > 0.3:
 		face = 1 if move_in.x > 0 else -1
 	state = "atk"
-	clip = atk_next
-	atk_next = "atb" if atk_next == "atc" else "atc"
+	clip = c
+	if c == "atkA": atk_next = "atkB"
+	elif c == "atkB": atk_next = "atkC"
+	else: atk_next = "atkA"
 	t = 0.0
 	hit_i = 0
+	root_prev = 0.0
 	queued = false
+	queued_hold = false
+
+func _end_attack() -> void:
+	state = "move"
+	clip = "idle"
+	t = 0.0
+	atk_next = "atkA"
+	_show_frame(clip, 0)
 
 func dodge() -> void:
 	if locked:
@@ -172,6 +192,7 @@ func dodge() -> void:
 		return
 	state = "dodge"
 	dodge_t = 0.0
+	ghost_t = 0.0
 	queued = false
 
 func can_be_hit() -> bool:
@@ -179,18 +200,52 @@ func can_be_hit() -> bool:
 
 func on_hurt(dir: int, dead: bool) -> void:
 	flash = 0.25
-	inv = 0.45
+	inv = HURT_T + 0.3   # 被弾の動きが終わってから 0.3 秒は当たらない（囲まれて被弾し続けないように）
 	queued = false
+	queued_hold = false
 	if dead:
 		state = "down"
 		t = 0.0
 		down_dir = dir
 		face = -dir
+		dust_done = false
 		return
 	state = "hurt"
 	t = 0.0
 	kb = dir * 2.0
 	face = -dir
+
+## 回避の残像（青＝味方）：今の絵を写した板を置いて、すぐ薄れさせる
+func _ghost() -> void:
+	var g := Sprite3D.new()
+	g.texture = sprite.texture
+	g.region_enabled = true
+	g.region_rect = sprite.region_rect
+	g.centered = false
+	g.offset = sprite.offset
+	g.flip_h = sprite.flip_h
+	g.pixel_size = sprite.pixel_size
+	var gm := ShaderMaterial.new()
+	gm.shader = SPR
+	gm.set_shader_parameter("tex", sprite.texture)
+	gm.set_shader_parameter("tint", Color(0.45, 0.7, 1.0, 0.55))
+	gm.set_shader_parameter("flash", Color(0.35, 0.6, 1.0, 0.6))
+	g.material_override = gm
+	g.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	g.position = position - Vector3(0, 0, 0.05)
+	world.add_child(g)
+	ghosts.append({"node": g, "t": 0.0})
+
+func _update_ghosts(delta: float) -> void:
+	for i in range(ghosts.size() - 1, -1, -1):
+		var g: Dictionary = ghosts[i]
+		g.t += delta
+		var a: float = 0.55 * (1.0 - g.t / 0.24)
+		if a <= 0.0:
+			g.node.queue_free()
+			ghosts.remove_at(i)
+		else:
+			g.node.material_override.set_shader_parameter("tint", Color(0.45, 0.7, 1.0, a))
 
 func _physics_process(delta: float) -> void:
 	var mv := move_in
@@ -202,12 +257,24 @@ func _physics_process(delta: float) -> void:
 	if locked:
 		mv = Vector2.ZERO
 	flash = maxf(0.0, flash - delta)
+	_update_ghosts(delta)
 	var blink := inv > 0.0 and state != "down" and int(Time.get_ticks_msec() / 42) % 2 == 0
 	mat.set_shader_parameter("flash", Color(1.0, 0.25, 0.2, 0.7 if flash > 0.0 else 0.0))
 	var dt: float = world.dt(delta)
 	if dt <= 0.0:
 		return
 	inv = maxf(0.0, inv - dt)
+	# 長押し：押し続けて HOLD_T を超えたら回転斬り（A の当たりの前なら A を取り消して出す。それ以外は次の技にする）
+	if atk_held and not locked:
+		held_t += dt
+		if held_t >= HOLD_T and not hold_fired:
+			hold_fired = true
+			if state == "atk" and clip == "atkA" and t < tab.atkA.hits[0][0]:
+				_start_attack("hold")
+			elif state == "atk" or state == "dodge":
+				queued_hold = true
+			elif state == "move":
+				_start_attack("hold")
 	var running := run_in or Input.is_key_pressed(KEY_SHIFT) or mv.length() > 0.9
 	t += dt
 	var tint := Color(1, 1, 1, 0.55 if blink else 1.0)
@@ -225,62 +292,66 @@ func _physics_process(delta: float) -> void:
 			if c != clip:
 				clip = c
 				t = 0.0
-			var n := _frames(clip)
-			_show_frame(clip, int(t * FPS[clip]) % n)
+			_show_frame(clip, int(t * float(clips[clip].fps)) % _frames(clip))
 		"atk":
 			var tb: Dictionary = tab[clip]
-			var st: Array = tb.starts
-			var i := 0
-			while i + 1 < st.size() and st[i + 1] <= t:
-				i += 1
+			# 前進：絵から外した体の移動を、位置の移動にする
+			var r := _root(clip, t)
+			position.x += face * (r - root_prev) * px_size
+			root_prev = r
 			# 当たりの瞬間ごとに判定（1振りで1回）
 			while hit_i < tb.hits.size() and t >= tb.hits[hit_i][0]:
 				world.player_attack(tb.hits[hit_i][1])
 				hit_i += 1
-			# 最初の当たりの直前に、少し前へ出る（移動距離で手応えを足す）
-			var h0: float = tb.hits[0][0]
-			if t > h0 - 0.08 and t < h0 + 0.02:
-				position.x += face * 3.0 * dt
-			if queued and t >= tb.cancel:
-				_start_attack()
+			if (queued or queued_hold) and t >= tb.cancel:
+				_start_attack("hold" if queued_hold else atk_next)
 				_show_frame(clip, 0)
 			elif t >= tb.total:
-				state = "move"
-				clip = "idle"
-				t = 0.0
-				_show_frame(clip, 0)
+				_end_attack()
 			else:
-				_show_frame(clip, i)
+				_show_frame(clip, _fidx(clip, t))
 		"dodge":
 			dodge_t += dt
 			var dir := mv.normalized() if mv.length() > 0.2 else Vector2(face, 0)
+			if absf(dir.x) > 0.2:
+				face = 1 if dir.x > 0 else -1
 			position.x += dir.x * DODGE_D / DODGE_T * dt
 			position.z += dir.y * DODGE_D / DODGE_T * DEPTH_K * dt
-			tint = Color(0.6, 0.9, 1.0, 0.75)
-			_show_frame("run", int(dodge_t * 40.0) % _frames("run"))
+			tint = Color(0.75, 0.9, 1.0, 0.85)
+			_show_frame("run", int(dodge_t * 60.0) % _frames("run"))   # 走りを速く流す
+			ghost_t -= dt
+			if ghost_t <= 0.0:
+				ghost_t = 0.035
+				_ghost()
 			if dodge_t >= DODGE_T:
 				state = "move"
-				if queued:
-					_start_attack()
+				if queued_hold:
+					_start_attack("hold")
+				elif queued:
+					_start_attack(atk_next)
 		"hurt":
+			# 当たりの瞬間の3コマ（hit の最初の約0.5秒）→ のけぞりと戻りはコード（傾けて戻す）
 			position.x += kb * dt
 			kb *= pow(0.002, dt)
-			var hi := 0
-			while hi + 1 < HURT_CUT.size() and HURT_CUT[hi + 1] <= t:
-				hi += 1
-			_show_frame("dmg", hi)
+			var hi := mini(int(t / 0.07), 2)
+			_show_frame("hurt", hi)
+			var lean := sin(clampf(t / HURT_T, 0.0, 1.0) * PI)
+			mat.set_shader_parameter("rot", face * 0.22 * lean)
 			if t >= HURT_T:
 				state = "move"
 				clip = "idle"
 				t = 0.0
 		"down":
-			# 倒れて、少し置いて起き上がる（体力は全快）
-			var dk := minf(1.0, t / 0.5)
-			_show_frame("dmg", 1)
-			mat.set_shader_parameter("rot", down_dir * 1.4 * (1.0 - pow(1.0 - dk, 3.0)) * (1.0 if t < DOWN_T else maxf(0.0, 1.0 - (t - DOWN_T) / 0.25)))
+			# 倒れて起き上がるまでを、元の動画の2コマおきで流す（土煙はコード）
+			var n := _frames("down")
+			var fi := _fidx("down", t)
+			_show_frame("down", fi)
 			if t < 0.3:
 				position.x += down_dir * 2.0 * dt * (1.0 - t / 0.3)
-			if t >= DOWN_T + 0.25:
+			if not dust_done and fi >= 8:
+				dust_done = true
+				world.fx.dust(position + Vector3(-face * 1.1, 0, 0.1), 1.6)
+			if t >= n / float(clips.down.fps):
 				state = "move"
 				clip = "idle"
 				t = 0.0
@@ -292,10 +363,11 @@ func _physics_process(delta: float) -> void:
 	position.z = clampf(position.z, belt_z.x, belt_z.y)
 
 func _unhandled_input(e: InputEvent) -> void:
-	if e is InputEventKey and e.pressed and not e.echo:
+	if e is InputEventKey and not e.echo:
 		if e.keycode == KEY_J or e.keycode == KEY_Z:
-			attack()
-		elif e.keycode == KEY_K or e.keycode == KEY_X:
+			if e.pressed: attack_press()
+			else: attack_release()
+		elif (e.keycode == KEY_K or e.keycode == KEY_X) and e.pressed:
 			dodge()
 
 ## 撮影用：状態を固定する
@@ -307,7 +379,7 @@ func debug_state(s: String) -> void:
 			_show_frame("walk", 6)
 		"atk":
 			face = 1
-			_show_frame("atc", 14)
+			_show_frame("atkA", 6)
 		_:
 			face = 1
 			_show_frame("idle", 0)

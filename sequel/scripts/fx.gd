@@ -268,6 +268,11 @@ func _process(delta: float) -> void:
 			"warn":
 				m.set_shader_parameter("fill", k)
 				m.set_shader_parameter("fade", 0.6 + 0.4 * sin(it.t * 40.0) * 0.5 + k * 0.4)
+			"dust":
+				var e2 := 1.0 - pow(1.0 - k, 2.0)
+				node.scale = Vector3.ONE * it.size.x * (0.5 + 0.9 * e2)
+				node.position.y = it.y0 + 0.35 * e2
+				m.albedo_color.a = 0.45 * (1.0 - k)
 			"num":
 				var up := 1.0 - pow(1.0 - minf(1.0, k * 2.5), 3.0)
 				node.position.y = it.y0 + 0.35 * up + k * 0.15
@@ -336,3 +341,32 @@ func levelup(p: Vector3) -> void:
 	for i in 16:
 		var a := randf() * TAU
 		_spark(p + Vector3(cos(a) * 0.6, 0.1, sin(a) * 0.4), Vector3(0, randf_range(2.5, 5.0), 0), randf_range(0.4, 0.8), 0.02, GOLD[1], i * 0.02)
+
+# ---------- 土煙（ダウンで床に倒れたとき。元の動画の土煙は消してコードで描く） ----------
+func dust(p: Vector3, w: float) -> void:
+	var gt := GradientTexture2D.new()
+	gt.fill = GradientTexture2D.FILL_RADIAL
+	gt.fill_from = Vector2(0.5, 0.5)
+	gt.fill_to = Vector2(1.0, 0.5)
+	var gr := Gradient.new()
+	gr.set_color(0, Color(1, 1, 1, 1))
+	gr.set_color(1, Color(1, 1, 1, 0))
+	gt.gradient = gr
+	for i in 7:
+		var mi := MeshInstance3D.new()
+		var q := QuadMesh.new()
+		q.size = Vector2.ONE
+		mi.mesh = q
+		var m := StandardMaterial3D.new()
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+		m.albedo_texture = gt
+		m.albedo_color = Color(0.62, 0.58, 0.66, 0.45)   # 夜の路面の灰紫
+		mi.material_override = m
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var pos := p + Vector3(randf_range(-w, w) * 0.6, 0.25, randf_range(-0.3, 0.3))
+		mi.position = pos
+		add_child(mi)
+		var sz := randf_range(0.7, 1.2)
+		items.append({"node": mi, "t": -i * 0.03, "life": randf_range(0.5, 0.8), "kind": "dust", "size": Vector2(sz, sz), "y0": pos.y})

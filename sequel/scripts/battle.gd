@@ -185,12 +185,14 @@ func _separate(delta: float) -> void:
 ## spec：{side（+1＝前 −1＝背）, r（届く距離）, lane（奥行き）, dmg, strong, slash（エフェクト）}
 func player_attack(spec: Dictionary) -> void:
 	var p: Node3D = player
-	var dir: int = p.face * spec.side
+	var dir: int = p.face * (spec.side if spec.side != 0 else 1)
 	var hits := 0
 	for e in enemies:
 		if e.state == "dying":
 			continue
 		var dx: float = (e.position.x - p.position.x) * dir
+		if spec.side == 0:   # 前後両方（回転斬り・連続斬り）
+			dx = absf(e.position.x - p.position.x)
 		var dz: float = absf(e.position.z - p.position.z)
 		if dx > -0.42 and dx < spec.r and dz < spec.lane:
 			var d: float = spec.dmg * atk_mul * randf_range(0.9, 1.1)

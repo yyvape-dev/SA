@@ -76,7 +76,7 @@ class _Pad extends Control:
 			for k in b:
 				if pos.distance_to(b[k][0]) < b[k][1] * 1.15:
 					btn_down[k] = idx
-					if k == "atk": ui.player.attack()
+					if k == "atk": ui.player.attack_press()
 					else: ui.player.dodge()
 					queue_redraw()
 					return
@@ -92,6 +92,8 @@ class _Pad extends Control:
 			for k in btn_down.keys():
 				if btn_down[k] == idx:
 					btn_down.erase(k)
+					if k == "atk":
+						ui.player.attack_release()
 		queue_redraw()
 
 	func _apply() -> void:
