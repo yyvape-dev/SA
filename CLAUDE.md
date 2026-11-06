@@ -1,7 +1,7 @@
 # SA（月夜の回廊・領地ゲーム）
 
 - 返答はすべて日本語。
-- **続編（2.5D・融合都市、Godot）は `sequel/`**。最初に `sequel/HANDOFF.md` を読む。以下の項目は前作SAのもの。
+- **続編（2.5D・融合都市、Godot 4.7.2）は `sequel/`**。最初に `sequel/HANDOFF.md` を読む。以下の項目は前作SAのもの。
 - 最初に読む：`claude/03_handoff_addendum.md`（新しい引き継ぎ）→ 必要なら `claude/03_concept_handoff.md`（コンセプトと 2026-10-31 10:30 までの引き継ぎ）。
 - ストーリーの資料は GitHub が全て（2026-11-01 のユーザー決定。`claude/story_plan.md` と新しい引き継ぎを参照）。旧 `10_story_secret.md` の存在や非公開ルールを前提にしない。
 - シナリオを執筆・改稿・レビューするときは、[ゲームシナリオ制作・改稿の教科書](claude/scenario_handbook/README.md)を読み、原則編・実践編・SAへの適用メモを参照する。教材例・改善案は未採用であり、確定設定と区別する。

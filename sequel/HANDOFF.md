@@ -2,7 +2,7 @@
 
 ## 現在地（2026-11-06・インスタントダンジョン1つまで）
 - 前作SAは完成。続編＝横スクロール＋奥行きの帯の2.5Dアクション。街も横スクロールで歩き、ストーリーを挟みつつ、アクションで装備・スキルを掘る。柱＝アクション操作と派手なエフェクト（モーションは増やしにくいので、スキルの幅はエフェクト・移動距離で出す）。
-- 決定（ユーザー）：主人公＝ラナ（絵は描き直す予定。今は前作の連番を仮置き）。舞台＝ネオン街とスチームパンクが融合した近未来都市。iPhone は横持ち。Godot 4.4.1、Web 書き出し（スレッド無し）。実装は Claude。
+- 決定（ユーザー）：主人公＝ラナ（絵は描き直す予定。今は前作の連番を仮置き）。舞台＝ネオン街とスチームパンクが融合した近未来都市。iPhone は横持ち。Godot 4.7.2（2026-11-06 に 4.4.1 から移行。PC も 4.7.2）、Web 書き出し（スレッド無し）。実装は Claude。
 - 縦切り1：下町の大通り1区画（`scripts/city_block1.gd`）。歩き・走り（スティックを倒しきる／Shift）・攻撃2種（J／Z）・回避（K／X）。左半分のタッチでスティック、右下に攻撃・回避。敵はまだ無い。
 - 縦切り2（2026-11-05）：敵の群れと戦闘。`scripts/battle.gd`（出現・当たり・ヒットストップ・画面の揺れ・体力）、`enemy.gd`、`fx.gd`（エフェクト）。下に詳しく。
 - 絵の取り込み1回目（2026-11-05）：b1酒場・b3武器屋・b4高架・f1街灯・f2銅の箱・b2工房（時計塔）を `art/painted/` へ（IoU 0.985・0.975・0.960・0.978・0.992・0.983）。b1・b3 は届いた絵が 1254px（下絵 1024px）→ 縮めずに元の大きさで保存（投影は UV なので解像度は自由）。`import_paint.py` は大きさを下絵に合わせて縮めるので、大きい絵はずれだけ測って元の大きさで保存した。
@@ -34,14 +34,14 @@
   - FPS（swiftshader、844×390。この測り方は機械の混み具合で大きく揺れる→同じ時に前の版と並べて測る）：前の版 4.2〜4.6、今回 4.0〜4.4（約5％重い）。
 - 遊べるURL：https://yyvape-dev.github.io/SA/sequel/web/ （入口の前から：`?at=gate`）
 
-## Godot 4.7.2 への移行（2026-11-06、ユーザー決定。iPhone での OK 待ち）
+## Godot 4.7.2 への移行（2026-11-06、ユーザー決定。iPhone で OK → web/ を 4.7.2 に差し替え済み、web47/ は削除）
 - 公式の tag で最新の安定版＝4.7.2-stable（`git ls-remote --tags`）。本体 `godot47`、テンプレート `~/.local/share/godot/export_templates/4.7.2.stable/web_nothreads_release.zip`。
 - 変換：取り込みで変わったのは `project.godot`（features 4.7・`compatibility/default_parent_skeleton_in_mesh_instance_3d=true` が足された）と `main.tscn`（load_steps が消えた）だけ。文法エラー・警告 0。
 - 書き出し：`GODOT_BIN=godot47 WEB_OUT=web47 python3 -I sequel/tools/export_web.py`。版の番号に Godot の版を付ける（`…-g4.7.2`）。pck の形式が 2→4 に変わった（見出しに目録の位置）→ `pck_files` を両方に対応。
 - 4.7.2 の Web 版だけの不具合：HTTPRequest の `download_file` で /tmp に書くと 0 バイトになり地区 pck が読めなかった → 受け取った中身を自分で書く（`district.gd` の `_download`）。
 - 比べた結果（同じ乱数の種・同じコマ。撮影でもセーブを毎回まっさらに＝前はレベルが残り場面がずれた）：戦闘 120 枚・ダンジョン 118 枚で、差のある画素は最大 0.67％・1.23％。差はラナの被弾の点滅と出口の脈打ち（実時間で光らせている所）だけ。自動の4周の結果は小数点まで同じ。
 - Web（swiftshader 844×390、交互に3回）：FPS 4.4.1 5.53〜5.80 ／ 4.7.2 5.69〜5.95。起動 4.05〜4.48 秒 ／ 3.93〜4.37 秒。index.wasm 43.7MB → 39.5MB。版のずれ（4.7.2 の本体に 4.4.1 の地区 pck）は検出し1回だけ読み直す。
-- 試す URL：https://yyvape-dev.github.io/SA/sequel/web47/ 。OK が出たら web47 を web/ に差し替え、web47 を消し、HANDOFF・CLAUDE.md・Skill の版の記述を 4.7.2 に。
+- 移行の確認中だけ `sequel/web47/` に出して試した（今は無い）。いまの書き出しは `python3 -I sequel/tools/export_web.py`（既定で `godot`＝4.7.2、出力 web/）。
 
 ## インスタントダンジョン（縦切り3、2026-11-06、ユーザー承認の仕様）
 - 入口：街の区画の右端（高架の下、x=16、奥の歩道側）に紫の光る扉（`main.gd` の `_build_gate`、`gate.gdshader`）。近づくと難易度の画面（`dungeon_hud.gd`）：青の◆1つ＝ノーマル、赤の◆◆＝ハード（ノーマルのクリアで開く。開くまでは錠の印で、押すと揺れるだけ）。各札に最速の記録（金の時計＋数字）。×・外を押す・K で閉じる。キーは A/D（1/2）で選び J で決定。文字は無し。
@@ -102,7 +102,7 @@
 ## 確認の手順
 - Windows／xvfb の無い環境では `xvfb-run …` を外す。
 - 撮影：`cd sequel && CAPTURE_PLAY=1 LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a -s '-screen 0 1280x720x24' godot --path . --rendering-driver opengl3 --windowed --resolution 1280x720 --fixed-fps 60` → `captures/play_NNN.png`（3コマに1枚、360コマ。前半＝ラナの連携、170コマ目から敵2体がラナを攻撃、300コマ目で回避。git 管理外）。スクリプトの誤りがあると終わらないので timeout を付ける。
-- 書き出し：`python3 -I sequel/tools/export_web.py`（本体＋地区 pck。テンプレートは 4.4.1 の web_nothreads）。index.wasm は版が同じなら毎回同じ中身。
+- 書き出し：`python3 -I sequel/tools/export_web.py`（本体＋地区 pck。テンプレートは 4.7.2 の web_nothreads）。index.wasm は版が同じなら毎回同じ中身。
 - ブラウザ：web/ を http で配信し、playwright（swiftshader）で 844×390 を撮る。
 
 ## 次の候補
