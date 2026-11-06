@@ -5,7 +5,7 @@ extends Node3D
 ## スキルは未決：攻撃パターンは全部入れて、出す順はランダム（同じものを続けない）。
 
 const SPR := preload("res://scripts/sprite_bb.gdshader")
-const SPD := 2.0          # 連番（1秒12コマ）を流す速さ＝見た目は1秒24コマ
+const SPD := 4.0          # 連番（1秒12コマ）を流す速さ。2026-11-06 ユーザー「味方の攻撃が遅すぎる」→ 2.0（1本 1.5〜2.5秒）から 4.0（0.8〜1.3秒、ラナの連撃に近づける）
 const WALK := 2.4         # 歩く速さ（m/秒）
 const RUN := 5.2          # 走る速さ（目標まで RUN_D より遠いとき）
 const RUN_D := 2.2
@@ -164,15 +164,15 @@ func _physics_process(delta: float) -> void:
 				var last_hit := hit_i == hits.size() - 1
 				world.ally_attack(self, {"side": 1, "r": maxf(1.5, float(c.reach[hit_i]) + 0.35), "lane": HIT_LANE,
 					"dmg": DMG * (1.3 if last_hit else 1.0), "strong": last_hit,
-					"slash": {"plane": "h", "r": maxf(1.3, float(c.reach[hit_i])), "w": 0.45, "a0": 120.0, "a1": -40.0,
-						"y": 1.0 if clip != "atk_heeldrop" or hit_i == 0 else 0.7, "life": 0.22, "draw": 0.06, "squash": 0.55, "tilt": 4.0}})
+					"slash": {"plane": "h", "r": maxf(1.5, float(c.reach[hit_i]) * 1.15), "w": 0.65, "a0": 120.0, "a1": -40.0,
+						"y": 1.0 if clip != "atk_heeldrop" or hit_i == 0 else 0.7, "life": 0.28, "draw": 0.06, "squash": 0.55, "tilt": 4.0}})
 				hit_i += 1
 			if i >= c.frames.size():
 				state = "move"
 				clip = "idle"
 				mv = ""
 				t = 0.0
-				cd = randf_range(0.5, 1.1)
+				cd = randf_range(0.2, 0.45)   # 次の攻撃まで（前 0.5〜1.1）
 				_show("idle", 0)
 			else:
 				_show(clip, i)

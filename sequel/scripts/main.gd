@@ -17,12 +17,12 @@ const BELT_Z := Vector2(-3.2, 3.5)     # 歩ける奥行き
 const CAM_X := Vector2(-12.0, 12.0)    # カメラが動ける左右
 const CAM_OFS := Vector3(0, 3.8, 13.5) # 下絵（塗ってもらった絵）を撮ったカメラ。下絵の撮り直し・使い回しの確認はこれ
 const CAM_LOOK := Vector3(0, 2.1, 0)
-## 遊ぶときのカメラ（2026-11-06、ユーザー「手前に来ても小さい」）：ラナの背が画面の高さの約 21％ → 約 31％ になるよう寄せる。
+## 遊ぶときのカメラ（2026-11-06、ユーザー「手前に来ても小さい」→「もっと大きくても良い」）：ラナの背が画面の高さの約 21％ → 31％ → 約 40％。
 ## 塗った絵は下絵のカメラから投影しているので、遊ぶカメラを寄せても絵はずれない。
-const PLAY_OFS := Vector3(0, 2.9, 9.0)
-const PLAY_LOOK := Vector3(0, 1.45, 0)
-const FG_PULL := 1.2                    # 手前の板を奥へ下げる量（m）
-const PLAY_HALF_W := 6.4                # 遊ぶカメラで、帯の真ん中（z=0）に見える左右の半分（横持ち 19.5:9、m）
+const PLAY_OFS := Vector3(0, 2.4, 7.0)
+const PLAY_LOOK := Vector3(0, 1.25, 0)
+const FG_PULL := 1.9                    # 手前の板を奥へ下げる量（m）
+const PLAY_HALF_W := 5.0                # 遊ぶカメラで、帯の真ん中（z=0）に見える左右の半分（横持ち 19.5:9、m）
 const CAM_FOV := 36.0
 const MAGENTA := Color(1, 0, 1)
 
@@ -166,9 +166,9 @@ func _process(delta: float) -> void:
 	_check_gate()
 	# 手前の板：ラナと重なったら半分ほど透ける
 	for f in fg_list:
-		var over: bool = absf(player.position.x - f.node.position.x) < f.half + 0.45
+		var over: bool = absf(player.position.x - (f.node.global_position.x)) < f.half + 2.5   # カメラを寄せたので広めに、薄く
 		var col: Color = f.mat.get_shader_parameter("tint")
-		var a: float = move_toward(col.a, 0.5 if over else 1.0, delta * 3.0)
+		var a: float = move_toward(col.a, 0.3 if over else 1.0, delta * 3.0)
 		f.mat.set_shader_parameter("tint", Color(1, 1, 1, a))
 	# 奥の歩道の人の流れ
 	for c in crowd:
