@@ -5,7 +5,8 @@
   idle＝戦闘の立ち絵 1 枚（歩き・走りの動画が届くまで、移動もこれを揺らして使う）
 決まり（2026-11-06）：
   - 大きさ：ラナ（assets/rana の待機 366px＝1.85m）と同じ画素の細かさにそろえる＝構えの背 BODY_PX。元の連番（art/lily2/frames）は元の大きさのまま。
-  - コマ：1 秒 12 コマに間引き（ゲームでは 2 倍の速さで流す）。
+  - 歩き・走り：make_lily2 が探した 1 周（loop）を 24 コマのまま、体の横のずれ（dx）を消してその場で。
+  - コマ：攻撃は 1 秒 12 コマに間引き（ゲームでは 2 倍の速さで流す）。
   - 色が崩れたコマ（BAD）は、近くの正常なコマで置き換える（チャットで番号を示して判定待ち）。
   - 当たり（HITS で上書きできる）：前への届き（足元から絵の前の端まで）の山を自動で探す。構えより 0.30 背 以上前に出た山で、山の 92% に届いた最初のコマ。
 """
@@ -16,7 +17,7 @@ from PIL import Image
 ROOT = os.getcwd()
 SRC = os.path.join(ROOT, "sequel/art/lily2")
 OUT = os.path.join(ROOT, "sequel/assets/lily")
-HEIGHT_M = 1.70                 # 前作の比（リリィ 188：ラナ 205）× 1.85m。ゲーム側 ally.gd で変えられる
+HEIGHT_M = 1.80                 # 2026-11-06 ユーザー決定（ゲームで 1.62・1.70・1.78 を並べて判定）
 BODY_PX = round(366 * HEIGHT_M / 1.85)   # ラナと同じ画素の細かさ
 STEP = 2                         # 24fps → 12fps
 PAGE = 4096
@@ -71,13 +72,19 @@ def main():
         bad = set(BAD.get(clip, []))
         n = len(c["frames"])
         good = [i for i in range(n) if i not in bad]
-        picks = []
-        for i in range(0, n, STEP):
-            j = i if i not in bad else min(good, key=lambda g: (abs(g - i), g))
-            picks.append(j)
+        lp = c.get("loop")
+        if lp:   # 歩き・走り：1 周だけ、24 コマのまま、体の横のずれを消してその場に
+            picks = list(range(lp["start"], lp["start"] + lp["len"]))
+        else:
+            picks = []
+            for i in range(0, n, STEP):
+                j = i if i not in bad else min(good, key=lambda g: (abs(g - i), g))
+                picks.append(j)
         frames, reach = [], []
         for j in picks:
             fn, w, h, ox, oy, dx = c["frames"][j]
+            if lp:
+                ox -= dx
             im = load(clip, fn)
             w2, h2 = max(1, round(w * s)), max(1, round(h * s))
             im = im.resize((w2, h2), Image.LANCZOS)
@@ -101,9 +108,9 @@ def main():
                 i = j + 1
             else:
                 i += 1
-        hits = HITS.get(clip, hits)
+        hits = [] if lp else HITS.get(clip, hits)
         px_m = HEIGHT_M / BODY_PX
-        out["clips"][clip] = {"fps": 24 / STEP, "frames": frames, "hits": hits,
+        out["clips"][clip] = {"fps": 24 if lp else 24 / STEP, "frames": frames, "hits": hits,
                               "reach": [round((reach[h] - base) * px_m + 0.6, 2) for h in hits],
                               "end_dx": round(c["frames"][picks[-1]][5] * s * px_m, 2), "replaced": sorted(bad)}
         print(clip, len(frames), "コマ、当たり", hits, "届き", out["clips"][clip]["reach"], "最後の前進", out["clips"][clip]["end_dx"], "m")

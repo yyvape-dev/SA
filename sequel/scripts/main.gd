@@ -790,7 +790,7 @@ func _capture_play() -> void:
 	get_tree().quit()
 
 ## 背の並べ比べ（CAPTURE_LINEUP=1）：ラナの待機と、リリィの構えを背の高さ違いで横に並べて撮る → captures/lineup_*.png
-## 左から ラナ 1.85m ／ リリィ 1.62・1.70（前作の比 188:205）・1.78m。もう1枚はリリィの攻撃の当たりのコマ。
+## 左から ラナ 1.85m ／ リリィ 1.80m（2026-11-06 決定）の構え・歩き・走り。もう1枚はリリィの攻撃の当たりのコマ。
 func _capture_lineup() -> void:
 	var dir := ProjectSettings.globalize_path("res://captures")
 	DirAccess.make_dir_recursive_absolute(dir)
@@ -806,7 +806,7 @@ func _capture_lineup() -> void:
 	if battle.ally:
 		battle.ally.queue_free()
 		battle.ally = null
-	var hs := [1.62, 1.70, 1.78]
+	var hs := [1.80, 1.80, 1.80]
 	var lil := []
 	for i in hs.size():
 		var a := Ally.new()
@@ -814,8 +814,8 @@ func _capture_lineup() -> void:
 		a.position = Vector3(-0.6 + i * 1.5, 0, 0.8)
 		battle.add_child(a)
 		a.set_height(hs[i])
-		a.face = -1 if i == 0 else 1
-		a.debug_pose("idle", 0)
+		a.face = 1
+		a.debug_pose(["idle", "walk", "run"][i], [0, 5, 4][i])
 		lil.append(a)
 	for f in 4:
 		await get_tree().physics_frame

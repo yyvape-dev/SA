@@ -1,12 +1,14 @@
 extends Node3D
 ## 仲間リリィ（2026-11-06）。ラナについて歩き、敵がいれば近い敵へ寄って、5本の攻撃パターンからランダムに蹴る。
 ## 絵は assets/lily/lily.json（tools/pack_lily.py）。地区 pck「al1」に入っていて、読み終えてから出てくる。
-## まだ無い動き：歩き・走り・被弾 → 今は戦闘の立ち絵を揺らして移動する。敵の攻撃は受けない（仮）。
+## 歩き・走り（2026-11-06 追加、その場の1周を繰り返す）。まだ無い動き：被弾 → 敵の攻撃は受けない（仮）。
 ## スキルは未決：攻撃パターンは全部入れて、出す順はランダム（同じものを続けない）。
 
 const SPR := preload("res://scripts/sprite_bb.gdshader")
 const SPD := 2.0          # 連番（1秒12コマ）を流す速さ＝見た目は1秒24コマ
-const MOVE := 3.4         # 寄る速さ（m/秒）
+const WALK := 2.4         # 歩く速さ（m/秒）
+const RUN := 5.2          # 走る速さ（目標まで RUN_D より遠いとき）
+const RUN_D := 2.2
 const DEPTH_K := 0.75
 const ATK_X := 1.0        # 敵とこの左右の距離まで寄って攻撃する
 const ATK_LANE := 0.35    # 奥行きをここまで合わせてから攻撃する
@@ -30,7 +32,7 @@ var t := 0.0
 var hit_i := 0
 var cd := 0.8
 var last := ""
-var bob := 0.0
+var mv := ""             # 今流している移動のクリップ（walk / run）
 var fixed_scale := -1.0   # 撮影の並べ比べ用（背の高さを変える）
 
 func setup(w, d: Dictionary) -> void:
@@ -130,21 +132,28 @@ func _physics_process(delta: float) -> void:
 				goal = pl.position + Vector3(-pl.face * 1.4, 0, 0.7)
 			var d := goal - position
 			var moving := absf(d.x) > 0.12 or absf(d.z) > 0.08
+			var run := Vector2(d.x, d.z).length() > RUN_D
+			var sp := RUN if run else WALK
 			if moving:
-				position.x += clampf(d.x, -MOVE * dt, MOVE * dt)
-				position.z += clampf(d.z, -MOVE * DEPTH_K * dt, MOVE * DEPTH_K * dt)
+				position.x += clampf(d.x, -sp * dt, sp * dt)
+				position.z += clampf(d.z, -sp * DEPTH_K * dt, sp * DEPTH_K * dt)
 			if e:
 				face = 1 if e.position.x >= position.x else -1
 			elif absf(d.x) > 0.12:
 				face = 1 if d.x > 0 else -1
 			else:
 				face = pl.face
-			# 歩きの動画が無いので、立ち絵を弾ませて移動を見せる
-			bob = bob + dt * 9.0 if moving else 0.0
-			sprite.position.y = absf(sin(bob)) * 0.06
-			_show("idle", 0)
+			var want := ("run" if run else "walk") if moving and data.clips.has("walk") else ""
+			if want != mv:
+				mv = want
+				t = 0.0
+			if mv == "":
+				_show("idle", 0)
+			else:
+				var lc: Dictionary = data.clips[mv]
+				_show(mv, int(t * float(lc.fps)) % lc.frames.size())
 			if e and cd <= 0.0 and absf(e.position.x - position.x) < ATK_X + 0.35 and absf(e.position.z - position.z) < ATK_LANE:
-				sprite.position.y = 0.0
+				mv = ""
 				_start_atk(e)
 		"atk":
 			var c: Dictionary = data.clips[clip]
@@ -161,6 +170,7 @@ func _physics_process(delta: float) -> void:
 			if i >= c.frames.size():
 				state = "move"
 				clip = "idle"
+				mv = ""
 				t = 0.0
 				cd = randf_range(0.5, 1.1)
 				_show("idle", 0)

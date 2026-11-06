@@ -2,7 +2,7 @@
 使い方：python3 -I sequel/tools/make_lily2.py   （リポジトリのルートで。numpy・scipy・matplotlib・PIL）
 素材：立ち絵 2 枚（stance_normal 1024×1536・stance_battle 1248×1664）と攻撃の動画 5 本（24fps、atk_jabkick だけ 784×1168、ほかは 720×960）。
   atk_jabkick＝突き→上段蹴り（3秒）／atk_highkick＝短い上段蹴り（3.9秒）／atk_roundhouse＝膝上げ→回し蹴り（5秒、白い光の焼き込み）／
-  atk_heeldrop＝振り上げ→かかと落とし→しゃがみ→立つ（5秒）／atk_rush＝踏み込み→飛び蹴り（白い光）→着地→立つ（5秒）。
+  walk・run＝その場の歩き・走り（3秒、832×1104）／atk_heeldrop＝振り上げ→かかと落とし→しゃがみ→立つ（5秒）／atk_rush＝踏み込み→飛び蹴り（白い光）→着地→立つ（5秒）。
   動画のコマ：python3 -I sequel/tools/make_lily2.py [作業フォルダ]（ffmpeg も要る）
 出力：
   sequel/art/lily2/stance/<名前>.png … 元の大きさのまま透過（縮めない・切り詰めない）
@@ -27,7 +27,22 @@ from key_soft import key_soft  # noqa: E402
 SRC = os.path.join(ROOT, "sequel/art/lily2/src")
 OUT = os.path.join(ROOT, "sequel/art/lily2")
 STILLS = ["stance_normal", "stance_battle"]
-CLIPS = ["atk_jabkick", "atk_highkick", "atk_roundhouse", "atk_heeldrop", "atk_rush"]
+CLIPS = ["atk_jabkick", "atk_highkick", "atk_roundhouse", "atk_heeldrop", "atk_rush", "walk", "run"]
+LOOPS = ["walk", "run"]   # 歩き・走り（その場で。832×1104、3秒、構え→動き→構え）。中ほどから 1 周を探す（find_loop）
+
+
+def find_loop(imgs):
+    """1 周の始まり s と長さ p：s と s+p の絵（アルファ、1/4 に縮めて）の差が最も小さく、動きの中ほど（構えの出入りを避ける）。"""
+    small = [np.asarray(Image.fromarray(im[..., 3]).resize((im.shape[1] // 4, im.shape[0] // 4))).astype(np.float32) / 255 for im in imgs]
+    n = len(small)
+    best = (1e9, 0, 0)
+    for p in range(10, 33):
+        for s0 in range(int(n * 0.2), n - p - int(n * 0.12)):
+            d = float(np.abs(small[s0] - small[s0 + p]).mean())
+            d1 = float(np.abs(small[s0] - small[s0 + 1]).mean())   # となりのコマとの差（目安）
+            if d < best[0]:
+                best = (d, s0, p, d1)
+    return {"start": best[1], "len": best[2], "seam_diff": round(best[0] * 1000, 2), "next_diff": round(best[3] * 1000, 2)}
 WORK = sys.argv[1] if len(sys.argv) > 1 else os.path.join(OUT, "_work")
 
 
@@ -75,7 +90,8 @@ def do_clip(clip):
     picks = [int(i * (len(imgs) - 1) / 7) for i in range(8)]
     clip_check(clip, raw, imgs, picks, ground, ax)
     bots = [ground - int(np.where(im[..., 3] > 128)[0].max()) for im in imgs]
-    info = {"src": clip + ".mp4", "size": [raw[0].shape[1], raw[0].shape[0]], "count": len(imgs), "ground_y": ground,
+    loop = find_loop(imgs) if clip in LOOPS else None
+    info = {"loop": loop, "src": clip + ".mp4", "size": [raw[0].shape[1], raw[0].shape[0]], "count": len(imgs), "ground_y": ground,
             "anchor_x": round(ax, 1), "body_h": ground - top + 1, "fringe_fixed": fixed, "drift_green": drift[0], "drift_purple": drift[1],
             "lift_max": max(bots), "dx_range": [min(f[5] for f in fr), max(f[5] for f in fr)], "frames": fr}
     print(clip, {k: v for k, v in info.items() if k != "frames"})
