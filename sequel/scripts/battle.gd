@@ -206,23 +206,42 @@ func ally_attack(a: Node3D, spec: Dictionary) -> void:
 
 func _attack_from(p: Node3D, spec: Dictionary, mul: float) -> void:
 	var dir: int = p.face * (spec.side if spec.side != 0 else 1)
+	var shape: String = spec.get("shape", "both" if spec.side == 0 else "fwd")
 	var hits := 0
 	for e in enemies:
 		if e.state == "dying":
 			continue
 		var dx: float = (e.position.x - p.position.x) * dir
-		if spec.side == 0:   # 前後両方（回転斬り・連続斬り）
-			dx = absf(e.position.x - p.position.x)
 		var dz: float = absf(e.position.z - p.position.z)
-		if dx > -0.42 and dx < spec.r and dz < spec.lane:
+		var inside := false
+		match shape:
+			"both":   # 前後両方（回転斬り・連続斬り・回し蹴り）
+				inside = absf(e.position.x - p.position.x) < spec.r and dz < spec.lane
+			"circle":   # 足元の円（かかと落とし）：中心は前へ cx
+				var c: Vector3 = p.position + Vector3(dir * float(spec.get("cx", 0.0)), 0, 0)
+				inside = Vector2(e.position.x - c.x, (e.position.z - c.z) * 1.3).length() < spec.r
+			"band":   # 通り道の帯（飛び蹴り）：x0〜x1（世界の x）
+				var lo: float = minf(float(spec.x0), float(spec.x1)) - 0.3
+				var hi: float = maxf(float(spec.x0), float(spec.x1)) + 0.3
+				inside = e.position.x > lo and e.position.x < hi and dz < spec.lane
+			_:
+				inside = dx > -0.42 and dx < spec.r and dz < spec.lane
+		if inside:
 			var d: float = spec.dmg * mul * randf_range(0.9, 1.1)
 			var edir := 1 if e.position.x >= p.position.x else -1
 			e.take_hit(d, edir, spec.strong)
+			if spec.has("kb"):   # 吹き飛ばしの強さ（倍）
+				e.kx *= float(spec.kb)
+			if spec.has("lift") and e.has_method("lift_up"):   # 浮かせる（強めののけぞり＋絵を持ち上げる）
+				e.lift_up(float(spec.lift))
 			var hp_pos: Vector3 = e.position + Vector3(0, e.height() * 0.55, 0)
 			fx.hit(hp_pos, edir, spec.strong, hits < 4)
+			if spec.get("zap", false):   # 当たった所で稲妻が弾ける（リリィ）
+				fx.zap(hp_pos, 6 if spec.strong else 4, 0.9 if spec.strong else 0.6)
 			fx.number(e.position + Vector3(0, e.height() + 0.5, 0), int(round(d)), "strong" if spec.strong else "")
 			hits += 1
-	fx.slash(p.position, dir, spec.slash)
+	if spec.has("slash"):
+		fx.slash(p.position, dir, spec.slash)
 	if hits > 0 and spec.strong:   # 強い当たり：画面のゆがみの輪（2026-11-06）
 		fx.shockwave(p.position + Vector3(dir * minf(spec.r, 2.0) * 0.5, 0.9, 0), 0.9 + mini(hits, 5) * 0.12)
 	if hits > 0:

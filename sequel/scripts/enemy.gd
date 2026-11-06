@@ -37,6 +37,8 @@ var flash := 0.0
 var bar_t := 0.0
 var die_t := 0.0
 var die_dir := 1
+var lift_y := 0.0         # 浮かされた高さ（m）。絵だけを持ち上げる（空中の状態は別の作業）
+var lift_v := 0.0
 # ボス（前作の敵将を仮置き）：体力が大きい・のけぞらない・3回に1回は左右両側の大振り（床の予兆が長い）
 var boss := false
 var reach := ATK_REACH
@@ -131,6 +133,13 @@ func _physics_process(delta: float) -> void:
 	if dt <= 0.0:
 		return
 	t += dt
+	if lift_y > 0.0 or lift_v > 0.0:
+		lift_v -= 16.0 * dt
+		lift_y = maxf(0.0, lift_y + lift_v * dt)
+		if lift_y <= 0.0:
+			lift_v = 0.0
+		sprite.position.y = lift_y
+		refl.position.y = -lift_y
 	if boss:   # 立ち絵1枚の歩き＝構えの揺れ（前作と同じ）
 		sprite.position.y = absf(sin(t * 3.2)) * 0.05 if state == "walk" else 0.0
 	var pl: Node3D = battle.player
@@ -231,6 +240,13 @@ func _start_atk() -> void:
 	var w := r * 2.0 if wide else r
 	atk.area = Rect2(cx - w * 0.5, position.z - ln, w, ln * 2.0)
 	atk.warn = battle.fx.warn(Vector3(cx, 0, position.z), Vector2(w, ln * 2.0), hit_t)
+
+## 浮かせる（リリィの上段・ジャブの2発目）：v＝上向きの速さ（m/秒）。ボスは浮かない
+func lift_up(v: float) -> void:
+	if boss or state == "dying":
+		return
+	lift_v = maxf(lift_v, v)
+	stun = maxf(stun, 0.45)
 
 ## ラナの攻撃が当たった
 func take_hit(d: float, dir: int, strong: bool) -> void:

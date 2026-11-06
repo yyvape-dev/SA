@@ -123,6 +123,8 @@ def main():
         out.setdefault("pages", []).append("lily_%d.webp" % i)
         print("page", i, pg.size, os.path.getsize(os.path.join(OUT, "lily_%d.webp" % i)) // 1024, "KB")
     json.dump(out, open(os.path.join(OUT, "lily.json"), "w"), ensure_ascii=False)
+    import subprocess, sys   # つま先の点（軌跡の元）を書き足す（2026-11-06、specs/lily_attack_fx.md）
+    subprocess.run([sys.executable, "-I", os.path.join(ROOT, "sequel/tools/lily_tips.py")], check=True)
 
 
 if __name__ == "__main__":

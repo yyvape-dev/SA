@@ -6,6 +6,10 @@ const SH := preload("res://scripts/fx_add.gdshader")
 const SH_DARK := preload("res://scripts/fx_dark.gdshader")
 const BLUE := [Color8(70, 145, 255), Color8(135, 195, 255), Color8(255, 255, 255)]
 const GOLD := [Color8(255, 150, 40), Color8(255, 210, 110), Color8(255, 250, 225)]
+## リリィ（2026-11-06、specs/lily_attack_fx.md）：芯＝白・本体＝白銀・外のにじみ＝蒼。縁にごく淡い紫
+const SILVER := [Color8(79, 184, 255), Color8(216, 228, 240), Color8(255, 255, 255)]
+const BOLT_BLUE := Color8(79, 184, 255)
+const BOLT_VIOLET := Color8(154, 140, 255)
 const RED := [Color8(200, 20, 30), Color8(255, 70, 60), Color8(255, 210, 200)]
 
 var cam: Camera3D
@@ -324,6 +328,12 @@ func _process(delta: float) -> void:
 			"warn":
 				m.set_shader_parameter("fill", k)
 				m.set_shader_parameter("fade", 0.6 + 0.4 * sin(it.t * 40.0) * 0.5 + k * 0.4)
+			"bolt":   # 稲妻：明滅しながら消える
+				m.set_shader_parameter("fade", (1.0 - k) * (1.0 if randf() > 0.35 else 0.25))
+			"charge":   # 溜め：外から中心へ集まって濃くなる
+				var sc2: float = it.size.x * lerpf(1.7, 0.35, k)
+				node.scale = Vector3(sc2, sc2, 1)
+				m.set_shader_parameter("fade", 0.3 + 0.9 * k)
 			"dust":
 				var e2 := 1.0 - pow(1.0 - k, 2.0)
 				node.scale = Vector3.ONE * it.size.x * (0.5 + 0.9 * e2)
@@ -426,3 +436,142 @@ func dust(p: Vector3, w: float) -> void:
 		add_child(mi)
 		var sz := randf_range(0.7, 1.2)
 		items.append({"node": mi, "t": -i * 0.03, "life": randf_range(0.5, 0.8), "kind": "dust", "size": Vector2(sz, sz), "y0": pos.y})
+
+
+# ---------- リリィの軌跡（2026-11-06、specs/lily_attack_fx.md） ----------
+## 点の列（世界の座標）から、太さ付きの光の帯を作る。太さは中央で最大・両端で細る。帯の面は視線に向ける（画面に立つ）。
+## spec：{w（最大の太さ m）, life, draw（先端が走る秒）, pal, bolts（縁の稲妻の本数）, dissolve（余韻で粒に散る）}
+func ribbon(pts: Array, spec: Dictionary) -> void:
+	if pts.size() < 2:
+		return
+	var pal: Array = spec.get("pal", SILVER)
+	var w: float = spec.get("w", 0.4)
+	var mi := MeshInstance3D.new()
+	mi.mesh = _strip(pts, w, 1.0)
+	mi.material_override = _mat(0, pal)
+	mi.material_override.set_shader_parameter("noise", noise_tex)
+	mi.material_override.set_shader_parameter("n_amt", spec.get("noise", 0.5))
+	mi.material_override.set_shader_parameter("seed", randf() * 10.0)
+	mi.material_override.set_shader_parameter("tail", spec.get("tail", 2.2))   # 尾を長く（余韻）
+	var dk := MeshInstance3D.new()
+	dk.mesh = _strip(pts, w * 1.9, 1.0)
+	dk.material_override = _dark(0, 0.85)
+	dk.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	dk.position = Vector3(0, 0, -0.03)
+	mi.add_child(dk)
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.sorting_offset = 0.06
+	add_child(mi)
+	var life: float = spec.get("life", 0.42)
+	items.append({"node": mi, "t": 0.0, "life": life, "kind": "slash", "draw": spec.get("draw", 0.06)})
+	# 縁の稲妻のひび（外側の縁に沿って、細い折れ線）
+	for b in spec.get("bolts", 2):
+		var a: int = randi_range(0, maxi(0, pts.size() - 3))
+		var e: int = mini(pts.size() - 1, a + randi_range(2, 4))
+		var path := []
+		for j in range(a, e + 1):
+			path.append(pts[j] + Vector3(0, 0, 0.05))
+		bolt(path, 0.035, BOLT_BLUE if b % 3 != 2 else BOLT_VIOLET, life * 0.8, 0.02 + b * 0.03, 0.12)
+	# 余韻：帯が稲妻の粒になって散る（すぐ消さない）
+	if spec.get("dissolve", true):
+		for j in pts.size() * 3:
+			var u := randf()
+			var q: Vector3 = _along(pts, u)
+			var v := Vector3(randf_range(-1, 1), randf_range(-0.3, 1.2), randf_range(-0.4, 0.4)) * randf_range(0.6, 2.2)
+			_spark(q, v, randf_range(0.25, 0.5), 0.02, pal[1] if j % 3 else pal[0], life * randf_range(0.35, 0.7))
+
+func _along(pts: Array, u: float) -> Vector3:
+	var f := u * (pts.size() - 1)
+	var i := clampi(int(f), 0, pts.size() - 2)
+	return (pts[i] as Vector3).lerp(pts[i + 1], f - i)
+
+## 帯のメッシュ：UV.x＝始め→終わり、UV.y＝外の縁 0 → 内 1（mode 0 と同じ）。外＝曲がりの外側
+func _strip(pts: Array, w: float, taper: float) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var n := pts.size()
+	var o := []
+	var ii := []
+	var center := Vector3.ZERO
+	for p in pts:
+		center += p
+	center /= n
+	for i in n:
+		var p: Vector3 = pts[i]
+		var tg: Vector3 = (pts[mini(i + 1, n - 1)] - pts[maxi(i - 1, 0)])
+		tg.z = 0.0
+		tg = tg.normalized() if tg.length() > 0.0001 else Vector3.RIGHT
+		var nm := Vector3(-tg.y, tg.x, 0)
+		if nm.dot(p - center) < 0.0:
+			nm = -nm   # 外側へ
+		var u := float(i) / (n - 1)
+		var th := w * pow(sin(PI * clampf(u * 0.9 + 0.1, 0.0, 1.0)), 0.6 * taper)
+		o.append([p + nm * th * 0.5, u])
+		ii.append([p - nm * th * 0.5, u])
+	for i in n - 1:
+		for q in [[o[i], 0.0], [o[i + 1], 0.0], [ii[i + 1], 1.0], [o[i], 0.0], [ii[i + 1], 1.0], [ii[i], 1.0]]:
+			st.set_uv(Vector2(q[0][1], q[1]))
+			st.add_vertex(q[0][0])
+	return st.commit()
+
+## 稲妻：点の列を折れ線にゆがめた細い帯（加算、明滅）。delay 秒後に出る
+func bolt(path: Array, w: float, col: Color, life: float, delay: float, jitter: float, on_floor: bool = false) -> void:
+	var pts := []
+	for i in path.size() - 1:
+		var a: Vector3 = path[i]
+		var b: Vector3 = path[i + 1]
+		var segs := 3
+		for k in segs:
+			var q := a.lerp(b, float(k) / segs)
+			if k > 0 or i > 0:
+				q += (Vector3(randf_range(-1, 1), 0, randf_range(-0.6, 0.6)) if on_floor else Vector3(randf_range(-1, 1), randf_range(-1, 1), 0)) * jitter
+			pts.append(q)
+	pts.append(path[path.size() - 1])
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for i in pts.size() - 1:
+		var a: Vector3 = pts[i]
+		var b: Vector3 = pts[i + 1]
+		var d := (b - a)
+		var nm := Vector3(-d.y, d.x, 0).normalized() * w if absf(d.z) < absf(d.x) + absf(d.y) else Vector3(-d.z, 0, d.x).normalized() * w
+		for v in [a + nm, b + nm, b - nm, a + nm, b - nm, a - nm]:
+			st.set_color(col)
+			st.add_vertex(v)
+	var mi := MeshInstance3D.new()
+	mi.mesh = st.commit()
+	mi.material_override = _mat(2)
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(mi)
+	items.append({"node": mi, "t": -delay, "life": life, "kind": "bolt"})
+
+## 当たった所で稲妻が弾ける：短い折れ線の放射＋粒
+func zap(p: Vector3, n: int, r: float) -> void:
+	for i in n:
+		var a := randf() * TAU
+		var d := Vector3(cos(a), sin(a), 0)
+		var len := r * randf_range(0.5, 1.0)
+		bolt([p, p + d * len * 0.5, p + d * len], 0.03, BOLT_BLUE if i % 4 else BOLT_VIOLET, randf_range(0.14, 0.24), 0.0, 0.12)
+	for i in 14:
+		var a2 := randf() * TAU
+		_spark(p, Vector3(cos(a2), sin(a2) + 0.3, randf_range(-0.3, 0.3)) * randf_range(3.0, 8.0), randf_range(0.15, 0.35), 0.026, SILVER[1] if i % 2 else SILVER[0], 0.0)
+	_quad(p + Vector3(0, 0, 0.2), Vector2(1.6, 1.6), _mat(1, SILVER), "flash", 0.12, 0.0)
+
+## 溜め：つま先に蒼い光が集まる（0.1〜0.15 秒）
+func charge(p: Vector3, size: float, life: float) -> void:
+	var m := _mat(1, SILVER)
+	m.set_shader_parameter("core_gain", 0.9)
+	_quad(p + Vector3(0, 0, 0.15), Vector2(size, size), m, "charge", life, 0.0)
+	for i in 6:
+		var a := randf() * TAU
+		var off := Vector3(cos(a), sin(a), 0) * size * 0.8
+		_spark(p + off, -off / life, life, 0.02, SILVER[0], 0.0)
+
+## 床を走る稲妻（かかと落としの着地）：中心から放射状に、床に寝かせた折れ線
+func floor_bolts(p: Vector3, n: int, r: float) -> void:
+	for i in n:
+		var a := (float(i) + randf_range(-0.3, 0.3)) / n * TAU
+		var d := Vector3(cos(a), 0, sin(a) * 0.6)
+		var path := [p + Vector3(0, 0.03, 0)]
+		for k in 3:
+			path.append(p + d * r * float(k + 1) / 3.0 * randf_range(0.8, 1.1) + Vector3(0, 0.03, 0))
+		bolt(path, 0.045, BOLT_BLUE if i % 3 else BOLT_VIOLET, randf_range(0.3, 0.45), randf_range(0.0, 0.05), 0.18, true)

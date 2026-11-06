@@ -808,7 +808,10 @@ func _capture_fx() -> void:
 	player.debug_state("atk")
 	_place_cam(true)
 	var shots := {"slash": [2, 5, 9, 13], "wave": [3, 8, 14, 20], "kill": [6, 16, 26, 36]}
-	for scene in ["slash", "wave", "kill"]:
+	var scenes := ["slash", "wave", "kill"]
+	if OS.get_environment("FX_ONLY") == "lily":
+		scenes = []
+	for scene in scenes:
 		var e = battle.spawn("3", Vector3(0.6, 0, 0.8))
 		e.atk_cd = 99.0
 		e.face = -1
@@ -831,8 +834,50 @@ func _capture_fx() -> void:
 			battle.remove_enemy(x)
 		for f in 30:
 			await get_tree().physics_frame
+	await _capture_lily_fx(dir)
 	print("FX DONE")
 	get_tree().quit()
+
+## リリィの5本（specs/lily_attack_fx.md）：溜め・頂点・余韻を撮る → captures/fx_lily_<技>_<1〜3>.png
+func _capture_lily_fx(dir: String) -> void:
+	for w in 240:   # 仲間の絵（地区 pck al1）を読み終えるまで待つ
+		if battle.ally != null:
+			break
+		await get_tree().physics_frame
+	var a = battle.ally
+	if a == null:
+		print("LILY FX: 仲間がいない")
+		return
+	a.visible = true
+	a.set_physics_process(true)
+	player.visible = false
+	for pat in ["atk_jabkick", "atk_highkick", "atk_roundhouse", "atk_heeldrop", "atk_rush"]:
+		for x in battle.enemies.duplicate():
+			battle.remove_enemy(x)
+		var rush: bool = pat == "atk_rush"
+		player.position = Vector3(1.6 if rush else 0.4, 0, 0.8)
+		_place_cam(true)
+		a.position = Vector3(-1.2, 0, 0.8)
+		var foes := []
+		for ex in ([1.4, 3.6] if rush else [0.4]):   # 普通の技は 1.6m 先（当たる距離）
+			var e = battle.spawn("3", Vector3(ex, 0, 0.8))
+			e.atk_cd = 99.0
+			e.face = -1
+			foes.append(e)
+		for f in 3:
+			await get_tree().physics_frame
+		a.force_attack(pat, foes[0])
+		var c: Dictionary = a.data.clips[pat]
+		var h: int = int(c.hits[c.hits.size() - 1])
+		var hit_f: int = int(ceil(h / (float(c.fps) * a.SPD) * 60.0))
+		var at := {hit_f - 4: 1, hit_f + 2: 2, hit_f + 15: 3}
+		for f in hit_f + 16:
+			await get_tree().physics_frame
+			await RenderingServer.frame_post_draw
+			if at.has(f):
+				get_viewport().get_texture().get_image().save_png(dir + "/fx_lily_%s_%d.png" % [pat.substr(4), at[f]])
+		for f in 50:
+			await get_tree().physics_frame
 
 ## 背の並べ比べ（CAPTURE_LINEUP=1）：ラナの待機と、リリィの構えを背の高さ違いで横に並べて撮る → captures/lineup_*.png
 ## 左から ラナ 1.85m ／ リリィ 1.80m（2026-11-06 決定）の構え・歩き・走り。もう1枚はリリィの攻撃の当たりのコマ。
