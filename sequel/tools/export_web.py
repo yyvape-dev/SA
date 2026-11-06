@@ -13,6 +13,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DISTRICTS = {
     "d1": {"res": ["art/painted/*.png", "assets/ground/*.png"],   # 歓楽街：塗った部品・遠景・地面
            "files": ["assets/ground/glints.json"]},                # 映り込みの元（json は include_filter で入れる）
+    "dg1": {"res": ["assets/foe/gen_g1.webp", "assets/foe/foeduel_g1_*.webp"],   # ダンジョンのボス（仮置きの敵将 g1）。入るときに読む
+            "files": []},
 }
 MAIN_EXCLUDE = ["captures/*", "art/guide/*.png", "tools/*", "districts/*", "art/incoming/*"]
 

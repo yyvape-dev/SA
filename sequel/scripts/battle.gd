@@ -22,6 +22,11 @@ var hp_max := 100.0
 var combo := 0
 var combo_t := 0.0
 var auto_spawn := true
+var atk_mul := 1.0        # ラナの攻撃の倍率（レベル・武器。progress.gd）
+var foe_hp_mul := 1.0     # 敵の体力・攻撃の倍率（ダンジョンのハード）
+var foe_dmg_mul := 1.0
+var hits_taken := 0       # ラナが攻撃を受けた回数（数え続ける。ダンジョンは入った時との差）
+signal foe_killed(e)
 var shadow_mat: StandardMaterial3D
 var glints: Array = []   # 看板・灯りの位置と色（assets/ground/glints.json）。キャラの縁取り・染めに使う
 const REFL := preload("res://scripts/sprite_refl.gdshader")
@@ -146,6 +151,16 @@ func spawn(kind: String, pos: Vector3) -> Node3D:
 	enemies.append(e)
 	return e
 
+func on_kill(e) -> void:
+	foe_killed.emit(e)
+
+func alive_count() -> int:
+	var n := 0
+	for e in enemies:
+		if e.state != "dying":
+			n += 1
+	return n
+
 func remove_enemy(e) -> void:
 	enemies.erase(e)
 	e.queue_free()
@@ -178,7 +193,7 @@ func player_attack(spec: Dictionary) -> void:
 		var dx: float = (e.position.x - p.position.x) * dir
 		var dz: float = absf(e.position.z - p.position.z)
 		if dx > -0.42 and dx < spec.r and dz < spec.lane:
-			var d: float = spec.dmg * randf_range(0.9, 1.1)
+			var d: float = spec.dmg * atk_mul * randf_range(0.9, 1.1)
 			var edir := 1 if e.position.x >= p.position.x else -1
 			e.take_hit(d, edir, spec.strong)
 			var hp_pos: Vector3 = e.position + Vector3(0, e.height() * 0.55, 0)
@@ -203,6 +218,7 @@ func enemy_hits_player(e) -> void:
 	if not p.can_be_hit():
 		return
 	var d: int = e.dmg
+	hits_taken += 1
 	hp = maxf(0.0, hp - d)
 	var dir := 1 if p.position.x >= e.position.x else -1
 	fx.hurt(p.position + Vector3(0, 1.0, 0), dir)

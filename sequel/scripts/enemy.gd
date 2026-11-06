@@ -4,7 +4,7 @@ extends Node3D
 ## 数値は前作 battle/ の値を、ラナの背（205px＝1.85m）で m に直したもの。
 
 const SPR := preload("res://scripts/sprite_bb.gdshader")
-const HEIGHT := {"1": 2.10, "3": 2.03}   # 前作の HEIGHT（f1 233・f3 225 px）÷205×1.85
+const HEIGHT := {"1": 2.10, "3": 2.03, "g1": 2.7}   # 前作の HEIGHT（f1 233・f3 225 px）÷205×1.85。g1＝ボス（前作の敵将。大きめに）
 const FOE_SPD := 2.4       # 攻撃の連番の速さ（一騎打ちの何倍か。前作は3.3。予兆を読めるよう少し遅く）
 const ATK_START := 1.15    # この左右の距離で攻撃を始める
 const ATK_REACH := 1.45    # 当たりの瞬間に、この距離までなら当たる
@@ -37,19 +37,45 @@ var flash := 0.0
 var bar_t := 0.0
 var die_t := 0.0
 var die_dir := 1
+# ボス（前作の敵将を仮置き）：体力が大きい・のけぞらない・3回に1回は左右両側の大振り（床の予兆が長い）
+var boss := false
+var reach := ATK_REACH
+var lane := ATK_LANE
+var atk_start := ATK_START
+var stop_d := STOP
+var atk_n := 0
+var spd := FOE_SPD
 
 func setup(b, k: String, c: Dictionary, level: int) -> void:
 	battle = b
 	kind = k
 	clips = c
 	size = randf_range(0.94, 1.06)
-	hp_max = 60.0 + level * 10.0   # 前作（22+5n）は2振りで倒れ、連携を見せる前に終わったので硬く
+	hp_max = (60.0 + level * 10.0) * b.foe_hp_mul   # 前作（22+5n）は2振りで倒れ、連携を見せる前に終わったので硬く
 	hp = hp_max
-	dmg = 7 + level
+	dmg = int(round((7 + level) * b.foe_dmg_mul))
 	sp = (1.13 + randf_range(0.0, 0.38) + level * 0.03)
 	yo = randf_range(-1.0, 1.0) * 1.1
 	t = randf_range(0.0, 6.0)
 	atk_cd = randf_range(0.05, 0.6)
+
+## ボスにする（spawn の直後に呼ぶ）
+func make_boss(hp_val: float, dmg_val: int) -> void:
+	boss = true
+	size = 1.0
+	hp_max = hp_val
+	hp = hp_val
+	dmg = dmg_val
+	sp = 1.05
+	reach = 2.6
+	lane = 0.75
+	atk_start = 2.1
+	stop_d = 1.7
+	atk_cd = 1.2
+	spd = 2.0
+	yo = 0.0
+	if shadow:
+		shadow.scale = Vector3(1.6, 1, 1.6)
 
 func _ready() -> void:
 	sprite = Sprite3D.new()
@@ -105,16 +131,18 @@ func _physics_process(delta: float) -> void:
 	if dt <= 0.0:
 		return
 	t += dt
+	if boss:   # 立ち絵1枚の歩き＝構えの揺れ（前作と同じ）
+		sprite.position.y = absf(sin(t * 3.2)) * 0.05 if state == "walk" else 0.0
 	var pl: Node3D = battle.player
 	match state:
 		"dying":
 			die_t += dt
-			var k := die_t / 0.45
+			var k := die_t / (1.2 if boss else 0.45)
 			position.x += die_dir * 1.4 * dt * (1.0 - k)
 			mat.set_shader_parameter("rot", -die_dir * 1.25 * (1.0 - pow(1.0 - minf(k * 1.6, 1.0), 3.0)))
 			mat.set_shader_parameter("tint", Color(1, 1, 1, 1.0 - k))
 			shadow.transparency = k
-			if k >= 1.0:
+			if k >= (3.0 if boss else 1.0):
 				battle.remove_enemy(self)
 			return
 		"stun":
@@ -136,15 +164,17 @@ func _physics_process(delta: float) -> void:
 				atk.warn = null
 				var dx: float = (pl.position.x - position.x) * face
 				var dz: float = absf(pl.position.z - position.z)
-				if dx > -0.3 and dx < ATK_REACH * size and dz < ATK_LANE:
+				if atk.wide:
+					dx = absf(pl.position.x - position.x)
+				if dx > -0.3 and dx < float(atk.reach) and dz < float(atk.lane):
 					battle.enemy_hits_player(self)
 			if atk.t >= atk.end_t:
 				state = "walk"
-				atk_cd = 1.0
+				atk_cd = 0.8 if boss else 1.0
 		"walk":
 			var dx: float = pl.position.x - position.x
 			face = 1 if dx >= 0 else -1
-			if absf(dx) > STOP * size:
+			if absf(dx) > stop_d * size:
 				position.x += signf(dx) * sp * dt
 			# 遠いほど奥行きにばらけ、近づくとラナの奥行きへ寄る
 			var fk := clampf((absf(dx) - 0.5) / 2.2, 0.25, 1.0)
@@ -153,14 +183,15 @@ func _physics_process(delta: float) -> void:
 			if absf(dz) > 0.05:
 				position.z += signf(dz) * minf(absf(dz), sp * 0.6 * dt)
 			atk_cd -= dt
-			if absf(dx) < ATK_START * size and absf(pl.position.z - position.z) < ATK_LANE * 0.8 and atk_cd <= 0.0 and battle.player_alive():
+			if absf(dx) < atk_start * size and absf(pl.position.z - position.z) < lane * 0.8 and atk_cd <= 0.0 and battle.player_alive():
 				_start_atk()
 			else:
 				var wc: Dictionary = clips.walk
-				var moving: bool = absf(dx) > STOP * size or absf(dz) > 0.05
+				var moving: bool = absf(dx) > stop_d * size or absf(dz) > 0.05
 				var wf: int = int((t + yo) * wc.fps * sp / 1.2) % wc.frames.size() if moving else 0
 				_show("walk", wf)
 	position.z = clampf(position.z, battle.BELT_Z.x - 0.1, battle.BELT_Z.y + 0.1)
+	position.x = clampf(position.x, battle.ROOM_X.x - 0.6, battle.ROOM_X.y + 0.6)
 
 func _start_atk() -> void:
 	var names := []
@@ -169,19 +200,27 @@ func _start_atk() -> void:
 			names.append(k)
 	var c: String = names[randi() % names.size()]
 	var cl: Dictionary = clips[c]
+	atk_n += 1
+	var wide := boss and atk_n % 3 == 0
+	var s_: float = spd * (0.7 if wide else 1.0)   # 大振りは遅い（予兆が長い）
 	var acc := 0.0
 	var starts := []
 	var hit_t := 0.0
 	for i in cl.durs.size():
-		starts.append(acc / 1000.0 / FOE_SPD)
+		starts.append(acc / 1000.0 / s_)
 		if i == int(cl.hit):
-			hit_t = acc / 1000.0 / FOE_SPD
+			hit_t = acc / 1000.0 / s_
 		acc += float(cl.durs[i])
 	state = "atk"
-	atk = {"clip": c, "t": 0.0, "starts": starts, "hit_t": hit_t, "end_t": acc / 1000.0 / FOE_SPD, "done": false}
-	# 床の予兆：当たる範囲（前へ ATK_REACH、奥行き ±ATK_LANE）
-	var cx := position.x + face * ATK_REACH * size * 0.5
-	atk.warn = battle.fx.warn(Vector3(cx, 0, position.z), Vector2(ATK_REACH * size, ATK_LANE * 2.0), hit_t)
+	var r: float = (3.4 if wide else reach) * size
+	var ln: float = 1.25 if wide else lane
+	atk = {"clip": c, "t": 0.0, "starts": starts, "hit_t": hit_t, "end_t": acc / 1000.0 / s_, "done": false,
+		"wide": wide, "reach": r, "lane": ln}
+	# 床の予兆：当たる範囲（前へ reach、奥行き ±lane。大振りは左右両側）
+	var cx := position.x if wide else position.x + face * r * 0.5
+	var w := r * 2.0 if wide else r
+	atk.area = Rect2(cx - w * 0.5, position.z - ln, w, ln * 2.0)
+	atk.warn = battle.fx.warn(Vector3(cx, 0, position.z), Vector2(w, ln * 2.0), hit_t)
 
 ## ラナの攻撃が当たった
 func take_hit(d: float, dir: int, strong: bool) -> void:
@@ -189,8 +228,20 @@ func take_hit(d: float, dir: int, strong: bool) -> void:
 		return
 	hp -= d
 	flash = 0.1
-	bar_t = 1.6
+	bar_t = 0.0 if boss else 1.6
 	hpbar.material_override.set_shader_parameter("ratio", maxf(0.0, hp / hp_max))
+	if boss:   # のけぞらない（少しだけ押される）
+		position.x += dir * (0.12 if strong else 0.04)
+		if hp <= 0.0:
+			if atk.get("warn") != null and not atk.done:
+				battle.fx.drop(atk.warn)
+			atk = {}
+			state = "dying"
+			die_t = 0.0
+			die_dir = dir
+			battle.fx.kill(position, dir, height())
+			battle.on_kill(self)
+		return
 	if atk.get("warn") != null and not atk.done:
 		battle.fx.drop(atk.warn)
 	atk = {}
@@ -202,3 +253,4 @@ func take_hit(d: float, dir: int, strong: bool) -> void:
 		die_t = 0.0
 		die_dir = dir
 		battle.fx.kill(position, dir, height())
+		battle.on_kill(self)

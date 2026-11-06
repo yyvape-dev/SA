@@ -47,6 +47,7 @@ var kb := 0.0
 var down_dir := 1
 var tab := {}         # clip -> {starts, total, hits:[[t, spec]], cancel}
 var hit_i := 0
+var locked := false   # 選ぶ画面・結果の画面の間は動かない
 
 func _ready() -> void:
 	clips = JSON.parse_string(FileAccess.get_file_as_string("res://assets/rana/rana.json"))
@@ -144,6 +145,8 @@ func _frames(c: String) -> int:
 	return clips[c].frames.size()
 
 func attack() -> void:
+	if locked:
+		return
 	if state == "atk" or state == "dodge":
 		queued = true
 		return
@@ -163,6 +166,8 @@ func _start_attack() -> void:
 	queued = false
 
 func dodge() -> void:
+	if locked:
+		return
 	if state == "dodge" or state == "down" or state == "hurt":
 		return
 	state = "dodge"
@@ -194,6 +199,8 @@ func _physics_process(delta: float) -> void:
 	if Input.is_action_pressed("ui_up") or Input.is_key_pressed(KEY_W): mv.y -= 1
 	if Input.is_action_pressed("ui_down") or Input.is_key_pressed(KEY_S): mv.y += 1
 	if mv.length() > 1.0: mv = mv.normalized()
+	if locked:
+		mv = Vector2.ZERO
 	flash = maxf(0.0, flash - delta)
 	var blink := inv > 0.0 and state != "down" and int(Time.get_ticks_msec() / 42) % 2 == 0
 	mat.set_shader_parameter("flash", Color(1.0, 0.25, 0.2, 0.7 if flash > 0.0 else 0.0))

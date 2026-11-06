@@ -33,6 +33,18 @@ const Loading := preload("res://scripts/loading.gd")
 var district: Node
 var loading: CanvasLayer
 var district_nodes: Array = []   # 今の地区の絵で作った物（地区を出るときに捨てて、絵を解放する）
+var level: Node3D                 # 今の場所（街の区画／ダンジョンの部屋）の物をまとめる。場所を変えるときに丸ごと捨てる
+var glints_src: Array = []        # glints.json（区画の元の位置）
+var cam_x := CAM_X                # カメラが動ける左右（部屋ごとに変わる）
+var progress                      # progress.gd（レベル・武器・セーブ）
+var dungeon: Node                 # dungeon.gd（入っている間だけ）
+var hud: CanvasLayer              # dungeon_hud.gd
+var gate: Node3D                  # 街の端のダンジョンの入口
+var gate_armed := true            # 入口から離れたら、また選べる
+const DungeonRun := preload("res://scripts/dungeon.gd")
+const DungeonHud := preload("res://scripts/dungeon_hud.gd")
+const Progress := preload("res://scripts/progress.gd")
+const GATE_X := 16.0              # 入口の位置（区画の右端、高架の下）
 
 func _ready() -> void:
 	loading = Loading.new()
@@ -44,11 +56,14 @@ func _ready() -> void:
 	var ok: bool = await district.ensure("d1")
 	if not ok:
 		push_error("地区 d1 の絵を読み込めない")
-	var n0 := get_children().size()
-	_build_floor()
-	for p in City.pieces():
-		_build_piece(p)
-	district_nodes = get_children().slice(n0)
+	_load_glints()
+	progress = Progress.new()
+	if OS.has_environment("CAPTURE_DUNGEON") or OS.has_environment("DUNGEON_TEST"):
+		progress.path = "user://sa2_capture_save.json"
+		progress.reset()
+	else:
+		progress.load_save()
+	build_city()
 	cam = Camera3D.new()
 	cam.fov = CAM_FOV
 	cam.near = 0.3
@@ -72,12 +87,16 @@ func _ready() -> void:
 	add_child(player)
 	player.position = Vector3(-4, 0, 1.0)
 	_place_cam(true)
-	_build_crowd()
 	_build_vignette()
 	ui = TouchUI.new()
 	ui.player = player
 	ui.battle = battle
 	add_child(ui)
+	apply_progress()
+	battle.foe_killed.connect(_on_foe_killed)
+	hud = DungeonHud.new()
+	hud.main = self
+	add_child(hud)
 	var capture := OS.has_environment("CAPTURE_GUIDE") or OS.has_environment("CAPTURE_PLAY") or OS.has_environment("CAPTURE_REUSE")
 	if capture:
 		loading.visible = false
@@ -85,6 +104,10 @@ func _ready() -> void:
 		loading.hide_soon()
 	if OS.has_feature("web"):
 		JavaScriptBridge.eval("window.__sa_ready = performance.now()")
+		# 確認用：?at=gate で入口の前から始める
+		if str(JavaScriptBridge.eval("window.location.search")).contains("at=gate"):
+			player.position = Vector3(GATE_X - 0.5, 0, BELT_Z.x + 1.6)
+			_place_cam(true)
 	if OS.has_environment("DISTRICT_RELEASE_TEST"):
 		_release_test.call_deferred()
 	if OS.has_environment("CAPTURE_GUIDE"):
@@ -93,11 +116,20 @@ func _ready() -> void:
 		_capture_play.call_deferred()
 	elif OS.has_environment("CAPTURE_REUSE"):
 		_capture_reuse.call_deferred()
+	elif OS.has_environment("CAPTURE_DUNGEON") or OS.has_environment("DUNGEON_TEST"):
+		var Bot = load("res://scripts/bot.gd")
+		var bot: Node = Bot.new()
+		bot.main = self
+		add_child(bot)
+	if OS.has_environment("DUNGEON_LAYOUT_TEST"):
+		load("res://scripts/dungeon_map.gd").self_test()
+		get_tree().quit()
 
 func _process(delta: float) -> void:
 	if player == null:
 		return   # 地区の読み込み中
 	_place_cam(false, delta)
+	_check_gate()
 	# 手前の板：ラナと重なったら半分ほど透ける
 	for f in fg_list:
 		var over: bool = absf(player.position.x - f.node.position.x) < f.half + 0.45
@@ -137,7 +169,7 @@ func _build_lanterns() -> void:
 			seg.mesh = bm
 			seg.material_override = rope
 			seg.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			add_child(seg)
+			level.add_child(seg)
 			seg.look_at_from_position((p0 + p1) * 0.5, p1, Vector3.UP)
 		var z := -5.4
 		while z < 4.8:
@@ -150,7 +182,7 @@ func _build_lanterns() -> void:
 			q.material_override = lm
 			q.position = Vector3(x, y, z)
 			q.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			add_child(q)
+			level.add_child(q)
 			glints.append({"x": x, "y": y, "z": z, "w": 0.45, "col": [1.0, 0.32, 0.16], "p": 0.45, "len": 3.2, "k": 0.6})
 			z += 1.4
 
@@ -174,7 +206,7 @@ func _build_crowd() -> void:
 		var v := rng.randf_range(0.7, 1.4) * (1.0 if i % 2 == 0 else -1.0)
 		s.flip_h = v > 0.0
 		s.position = Vector3(rng.randf_range(-32.0, 32.0), h * 0.5, rng.randf_range(-6.2, -4.7))
-		add_child(s)
+		level.add_child(s)
 		crowd.append({"node": s, "v": v, "ph": rng.randf() * 6.0, "h": h})
 
 func _build_vignette() -> void:
@@ -190,7 +222,7 @@ func _build_vignette() -> void:
 	add_child(cl)
 
 func _cam_pos_for(x: float) -> Vector3:
-	return Vector3(clampf(x, CAM_X.x, CAM_X.y), 0, 0) + CAM_OFS
+	return Vector3(clampf(x, cam_x.x, cam_x.y), 0, 0) + CAM_OFS
 
 func _place_cam(snap: bool, delta: float = 0.0) -> void:
 	var want := _cam_pos_for(player.position.x)
@@ -249,8 +281,7 @@ func _build_floor() -> void:
 	fgm.shader = FAR_GROUND_SHADER
 	fgm.set_shader_parameter("fog_col", Color8(98, 72, 96))
 	fg_mi.material_override = fgm
-	add_child(fg_mi)
-	_build_glints()
+	level.add_child(fg_mi)
 
 ## 地面の素材は地区 d1 の pck に入る（本体には入れない）→ 読み込み後に load する
 var cobble_tex: Texture2D
@@ -290,19 +321,20 @@ func _ground(c: Vector3, size: Vector2, tex: Texture2D, tile: float) -> void:
 	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	mi.material_override = m
 	mi.position = c
-	add_child(mi)
+	level.add_child(mi)
 
 ## 濡れた路面の映り込み：assets/ground/glints.json（tools/make_glints.py が塗った絵から作る）の光ごとに、
 ## 建物の根元から手前へ、その色の筋を地面に寝かせて足す。高い所の光ほど筋が長く、強い光ほど明るい。
-func _build_glints() -> void:
+func _load_glints() -> void:
 	var f := FileAccess.open("res://assets/ground/glints.json", FileAccess.READ)
 	if f == null:
 		return
 	var list = JSON.parse_string(f.get_as_text())
-	if not (list is Array):
-		return
-	glints = list
-	_build_lanterns()
+	if list is Array:
+		glints_src = list
+
+func _build_glints() -> void:
+	var list: Array = glints
 	for g in list:
 		var length: float = float(g.len) if g.has("len") else clampf(7.0 + float(g.y) * 0.8, 7.0, 12.0)
 		var mi := MeshInstance3D.new()
@@ -319,7 +351,7 @@ func _build_glints() -> void:
 		m.set_shader_parameter("z0", float(g.z))
 		mi.material_override = m
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		add_child(mi)
+		level.add_child(mi)
 
 func _slab(c: Vector3, s: Vector3, col: Color) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
@@ -331,7 +363,7 @@ func _slab(c: Vector3, s: Vector3, col: Color) -> MeshInstance3D:
 	m.roughness = 0.95
 	mi.material_override = m
 	mi.position = c
-	add_child(mi)
+	level.add_child(mi)
 	return mi
 
 ## ofs：同じ部品（同じ絵）を別の位置に置くときのずれ（使い回し）。key：その置き場所の名前（既定は部品の id）。
@@ -339,7 +371,7 @@ func _build_piece(p: Dictionary, ofs: Vector3 = Vector3.ZERO, key: String = "") 
 	var root := Node3D.new()
 	root.name = p.id if key == "" else key
 	root.position = ofs
-	add_child(root)
+	level.add_child(root)
 	piece_nodes[root.name] = root
 	var painted: Texture2D = _load_painted(p.id)
 	if p.kind == "far" and painted != null:
@@ -523,7 +555,9 @@ func _capture_guides() -> void:
 	for c in crowd:
 		c.node.visible = false
 	var floor_nodes := []
-	for ch in get_children():
+	if gate:
+		gate.visible = false
+	for ch in level.get_children():
 		if ch is MeshInstance3D:
 			floor_nodes.append(ch)
 	# CAPTURE_GUIDE=<部品のid> なら、その部品だけ撮り直す（ほかの下絵と guide.json の他の項目は変えない）
@@ -615,10 +649,11 @@ func _capture_guides() -> void:
 
 ## 地区を出る：その地区の絵で作った物を捨て、絵への参照を手放す（参照が無くなった絵は Godot が解放する）。
 func release_district() -> void:
-	for n in district_nodes:
-		if is_instance_valid(n):
-			n.queue_free()
-	district_nodes.clear()
+	if level:
+		level.queue_free()
+		level = null
+	gate = null
+	crowd.clear()
 	piece_nodes.clear()
 	fg_list.clear()
 	glints = []
@@ -655,8 +690,10 @@ func _capture_reuse() -> void:
 		if mi is MeshInstance3D and mi.material_override is ShaderMaterial:
 			mi.material_override.set_shader_parameter("ofs", Vector3.ZERO)
 	battle.process_mode = Node.PROCESS_MODE_DISABLED
-	for ch in get_children():
-		if ch is Node3D and ch != cam and not (ch is DirectionalLight3D):
+	for ch in get_children() + level.get_children():
+		if ch == level:
+			continue
+		if ch is Node3D and ch != cam and not (ch is DirectionalLight3D) and not roots.values().has(ch):
 			ch.visible = false
 		elif ch is CanvasLayer:
 			ch.visible = false
@@ -714,3 +751,238 @@ func _capture_play() -> void:
 			get_viewport().get_texture().get_image().save_png(dir + "/play_%03d.png" % f)
 	print("PLAY DONE")
 	get_tree().quit()
+
+# ---------- 場所の組み立て（街の区画／ダンジョンの部屋） ----------
+func _clear_level() -> void:
+	if level:
+		remove_child(level)
+		level.queue_free()
+	level = Node3D.new()
+	level.name = "Level"
+	add_child(level)
+	move_child(level, 0)
+	piece_nodes.clear()
+	fg_list.clear()
+	crowd.clear()
+	glints = []
+	gate = null
+
+## 街の区画（縦切り1）
+func build_city() -> void:
+	_clear_level()
+	_build_floor()
+	for p in City.pieces():
+		_build_piece(p)
+	glints = glints_src.duplicate(true)
+	_build_lanterns()
+	_build_gate()
+	_build_glints()
+	_build_crowd()
+	cam_x = CAM_X
+	if battle:
+		battle.glints = glints
+		battle.ROOM_X = ROOM_X
+	if player:
+		player.room_x = ROOM_X
+
+## ダンジョンの部屋：歓楽街の部品を並べ替えて置く（ofs の使い回し）。spec は dungeon_map.gd の部屋。
+func build_room(spec: Dictionary) -> void:
+	_clear_level()
+	_build_floor()
+	var by_id := {}
+	for p in City.pieces():
+		by_id[p.id] = p
+	var rw: float = spec.rw
+	# 裏通りの列と遠景はそのまま（少し横へずらして毎回の見え方を変える）
+	_build_piece(by_id["b0_backrow"], Vector3(spec.back_ofs, 0, 0), "b0_room")
+	_build_piece(by_id["z_skyline"])
+	glints = []
+	for i in spec.slots.size():
+		var id: String = spec.slots[i]
+		var p: Dictionary = by_id[id]
+		var ext := _piece_x_range(p)
+		var cx: float = (ext.x + ext.y) * 0.5
+		var ofs := Vector3(float(spec.slot_x[i]) - cx, 0, 0)
+		_build_piece(p, ofs, "%s_%d" % [id, i])
+		for g in glints_src:   # その建物の看板・灯りの映り込みも一緒に動かす
+			if float(g.x) >= ext.x - 0.5 and float(g.x) <= ext.y + 0.5 and float(g.z) < -5.0:
+				var q: Dictionary = g.duplicate(true)
+				q.x = float(g.x) + ofs.x
+				glints.append(q)
+	for i in spec.fg.size():
+		var f: Array = spec.fg[i]
+		var p: Dictionary = by_id[f[0]]
+		var ext := _piece_x_range(p)
+		_build_piece(p, Vector3(float(f[1]) - (ext.x + ext.y) * 0.5, 0, 0), "%s_fg%d" % [f[0], i])
+	_build_glints()
+	cam_x = Vector2(-maxf(0.0, rw - 9.5), maxf(0.0, rw - 9.5))
+	battle.glints = glints
+	battle.ROOM_X = Vector2(-rw, rw)
+	player.room_x = Vector2(-rw, rw)
+
+func _piece_x_range(p: Dictionary) -> Vector2:
+	var x0 := INF
+	var x1 := -INF
+	for b in p.boxes:
+		x0 = minf(x0, b[0].x - b[1].x * 0.5)
+		x1 = maxf(x1, b[0].x + b[1].x * 0.5)
+	return Vector2(x0, x1)
+
+## 出口・入口の印：床の光の帯＋2本の柱の灯。色で状態を見せる（文字なし）。
+func make_portal(center: Vector3, along_x: bool, length: float, col: Color, posts: bool = true) -> Node3D:
+	var root := Node3D.new()
+	root.position = center
+	var band := MeshInstance3D.new()
+	var pm := PlaneMesh.new()
+	pm.size = Vector2(length, 0.9) if along_x else Vector2(0.9, length)
+	band.mesh = pm
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	m.albedo_color = Color(col.r, col.g, col.b, 0.55)
+	band.material_override = m
+	band.position.y = 0.025
+	band.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	band.name = "band"
+	root.add_child(band)
+	if posts:
+		var pm2 := StandardMaterial3D.new()
+		pm2.albedo_color = Color(0.08, 0.08, 0.1)
+		var lm := StandardMaterial3D.new()
+		lm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		lm.albedo_color = col
+		for sgn in [-1.0, 1.0]:
+			var post := MeshInstance3D.new()
+			var bm := BoxMesh.new()
+			bm.size = Vector3(0.22, 2.6, 0.22)
+			post.mesh = bm
+			post.material_override = pm2
+			var off := Vector3(sgn * length * 0.5, 1.3, 0) if along_x else Vector3(0, 1.3, sgn * length * 0.5)
+			post.position = off
+			root.add_child(post)
+			var lamp := MeshInstance3D.new()
+			var lb := BoxMesh.new()
+			lb.size = Vector3(0.3, 0.5, 0.3)
+			lamp.mesh = lb
+			lamp.material_override = lm
+			lamp.position = off + Vector3(0, 1.45, 0)
+			lamp.name = "lamp"
+			root.add_child(lamp)
+	level.add_child(root)
+	return root
+
+func set_portal_color(n: Node3D, col: Color, a: float) -> void:
+	for ch in n.get_children():
+		var m = ch.material_override
+		if m is StandardMaterial3D and m.shading_mode == BaseMaterial3D.SHADING_MODE_UNSHADED:
+			if ch.name == "band":
+				m.albedo_color = Color(col.r, col.g, col.b, a)
+			else:
+				m.albedo_color = col
+
+## 街の端（高架の下）のダンジョンの入口：奥の歩道側の門。紫＝どちらの陣営でもない。
+const GATE_COL := Color(0.72, 0.5, 1.0)
+const GATE_SHADER := preload("res://scripts/gate.gdshader")
+func _build_gate() -> void:
+	gate = make_portal(Vector3(GATE_X, 0, BELT_Z.x - 0.15), true, 2.6, GATE_COL)
+	# 柱の間の光る扉（縦の板、下ほど明るい）と上の梁。遠くからでも入口と分かるように
+	var door := MeshInstance3D.new()
+	var qm := QuadMesh.new()
+	qm.size = Vector2(2.4, 2.9)
+	door.mesh = qm
+	var dm := ShaderMaterial.new()
+	dm.shader = GATE_SHADER
+	dm.set_shader_parameter("col", GATE_COL)
+	door.material_override = dm
+	door.position = Vector3(0, 1.45, -0.05)
+	door.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	gate.add_child(door)
+	var beam := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = Vector3(3.0, 0.22, 0.26)
+	beam.mesh = bm
+	var lm := StandardMaterial3D.new()
+	lm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	lm.albedo_color = GATE_COL
+	beam.material_override = lm
+	beam.position = Vector3(0, 2.95, 0)
+	beam.name = "lamp_beam"
+	gate.add_child(beam)
+	glints.append({"x": GATE_X, "y": 2.0, "z": BELT_Z.x - 0.2, "w": 1.6, "col": [GATE_COL.r, GATE_COL.g, GATE_COL.b], "p": 0.8, "len": 4.0})
+
+func _check_gate() -> void:
+	if gate == null or dungeon != null or player == null:
+		return
+	set_portal_color(gate, GATE_COL, 0.4 + 0.25 * sin(Time.get_ticks_msec() * 0.004))
+	var near: bool = absf(player.position.x - GATE_X) < 1.4 and player.position.z < BELT_Z.x + 0.7
+	if near and gate_armed and not hud.menu_open:
+		gate_armed = false
+		hud.open_menu()
+	elif not near:
+		gate_armed = true
+
+var next_seed := -1   # 撮影の自動入力が決めた間取りの種（-1＝毎回ランダム）
+func dungeon_seed() -> int:
+	var s := next_seed
+	next_seed = -1
+	return s
+
+func enter_dungeon(diff: String, seed_val: int = -1) -> void:
+	for e in battle.enemies.duplicate():
+		battle.remove_enemy(e)
+	battle.auto_spawn = false
+	# ボスの絵はダンジョン用の pck（dg1）。起動を重くしないよう、入るときに読む
+	player.locked = true
+	if not district.ensure_cached("dg1"):
+		loading.show_now()
+		await district.ensure("dg1")
+		loading.hide_soon()
+	player.locked = false
+	dungeon = DungeonRun.new()
+	dungeon.main = self
+	dungeon.diff = diff
+	dungeon.seed_val = seed_val
+	add_child(dungeon)
+	dungeon.start()
+
+func leave_dungeon() -> void:
+	if dungeon:
+		dungeon.queue_free()
+		dungeon = null
+	battle.foe_hp_mul = 1.0
+	battle.foe_dmg_mul = 1.0
+	battle.hp = battle.hp_max
+	for e in battle.enemies.duplicate():
+		battle.remove_enemy(e)
+	build_city()
+	player.position = Vector3(GATE_X - 2.0, 0, 0.5)
+	player.face = -1
+	gate_armed = false
+	_place_cam(true)
+	battle.auto_spawn = not OS.has_environment("CAPTURE_DUNGEON") and not OS.has_environment("DUNGEON_TEST")
+	battle.next_t = 3.0
+
+## 成長をラナと戦闘に反映する
+func apply_progress() -> void:
+	var r: float = battle.hp / battle.hp_max
+	battle.hp_max = progress.hp_max()
+	battle.hp = battle.hp_max * r
+	battle.atk_mul = progress.atk_mul()
+
+func _on_foe_killed(e) -> void:
+	if dungeon:
+		dungeon.on_foe_killed(e)
+		return
+	gain_exp(5)
+
+func gain_exp(n: int) -> void:
+	var up: int = progress.add_exp(n)
+	if up > 0:
+		var r: float = battle.hp / battle.hp_max
+		apply_progress()
+		battle.hp = minf(battle.hp_max, battle.hp_max * r + 30.0)
+		fx.number(player.position + Vector3(0, 2.6, 0), progress.lv, "strong")
+		fx.levelup(player.position)
+		hud.flash_lv()
+	progress.save()

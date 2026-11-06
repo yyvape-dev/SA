@@ -321,3 +321,18 @@ func _draw_sparks(delta: float) -> void:
 		spark_mesh.surface_add_vertex(Vector3.ZERO)
 		spark_mesh.surface_add_vertex(Vector3.ZERO)
 	spark_mesh.surface_end()
+
+# ---------- レベルが上がった（金の輪が足元から広がり、火の粉が昇る） ----------
+func levelup(p: Vector3) -> void:
+	var ring := MeshInstance3D.new()
+	ring.mesh = _arc_mesh(1.2, 0.18, -180, 180, "h", 1, 0.55)
+	ring.material_override = _mat(0, GOLD)
+	ring.material_override.set_shader_parameter("head", 1.3)
+	ring.material_override.set_shader_parameter("tail", 0.0)
+	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	ring.position = p + Vector3(0, 0.05, 0)
+	add_child(ring)
+	items.append({"node": ring, "t": 0.0, "life": 0.5, "kind": "ring"})
+	for i in 16:
+		var a := randf() * TAU
+		_spark(p + Vector3(cos(a) * 0.6, 0.1, sin(a) * 0.4), Vector3(0, randf_range(2.5, 5.0), 0), randf_range(0.4, 0.8), 0.02, GOLD[1], i * 0.02)

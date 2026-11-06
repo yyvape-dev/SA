@@ -17,6 +17,11 @@ static func _read_ver(path: String) -> String:
 	var d = JSON.parse_string(FileAccess.get_file_as_string(path))
 	return str(d.get("ver", "")) if d is Dictionary else ""
 
+## もう読み込み済み（または手元でファイルがある）か
+func ensure_cached(id: String) -> bool:
+	var have := _read_ver("res://districts/%s_ver.json" % id)
+	return have != "" and (have == build_ver() or not OS.has_feature("web"))
+
 ## 地区 id の絵を使える状態にする。true＝使える。
 func ensure(id: String) -> bool:
 	var ver_path := "res://districts/%s_ver.json" % id
