@@ -5,6 +5,8 @@ var _a := 1.0
 var _hiding := false
 var _rect: ColorRect
 var _spin: Control
+var error_text := ""   # 地区の絵を読み込めなかったとき：左下に小さな赤い印と番号（文字の説明は出さない）
+var _err: Label
 
 func _ready() -> void:
 	layer = 100
@@ -30,6 +32,16 @@ func hide_soon() -> void:
 
 func _process(delta: float) -> void:
 	_t += delta
+	if error_text != "" and _err == null:
+		_err = Label.new()
+		_err.text = "!  " + error_text
+		_err.add_theme_color_override("font_color", Color(1, 0.3, 0.3))
+		_err.add_theme_font_size_override("font_size", 22)
+		var cl := CanvasLayer.new()
+		cl.layer = 101
+		get_parent().add_child(cl)
+		cl.add_child(_err)
+		_err.position = Vector2(8, 4)
 	if _hiding:
 		_a = maxf(0.0, _a - delta / 0.3)
 		if _a <= 0.0:

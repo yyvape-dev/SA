@@ -56,6 +56,7 @@ func _ready() -> void:
 	var ok: bool = await district.ensure("d1")
 	if not ok:
 		push_error("地区 d1 の絵を読み込めない")
+		loading.error_text = district.last_error
 	_load_glints()
 	progress = Progress.new()
 	if OS.has_environment("CAPTURE_DUNGEON") or OS.has_environment("DUNGEON_TEST"):
@@ -936,7 +937,8 @@ func enter_dungeon(diff: String, seed_val: int = -1) -> void:
 	player.locked = true
 	if not district.ensure_cached("dg1"):
 		loading.show_now()
-		await district.ensure("dg1")
+		if not await district.ensure("dg1"):
+			loading.error_text = district.last_error
 		loading.hide_soon()
 	player.locked = false
 	dungeon = DungeonRun.new()
