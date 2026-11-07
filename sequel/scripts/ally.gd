@@ -191,6 +191,10 @@ func _physics_process(delta: float) -> void:
 	inv = maxf(0.0, inv - dt)
 	flash = maxf(0.0, flash - delta)
 	mat.set_shader_parameter("flash", Color(1.0, 0.25, 0.2, 0.6 if flash > 0.0 else 0.0))
+	if not world.fx.legacy:   # 2026-11-07：被弾の白光り、必殺技が満タンの間は蒼の縁の光
+		mat.set_shader_parameter("flash_mix", Color(1, 1, 1, 0.9 if flash > 0.15 else 0.0))
+		var full: bool = world.ally_ult >= world.ULT_MAX
+		mat.set_shader_parameter("aura", Color(0.31, 0.72, 1.0, (0.7 + 0.3 * sin(Time.get_ticks_msec() * 0.008)) if full else 0.0))
 	var pl: Node3D = world.player
 	# ラナから離れすぎたら（部屋の移動など）すぐそばへ
 	if absf(pl.position.x - position.x) > 9.0:
@@ -561,6 +565,9 @@ func _skill_hit(spec: Dictionary) -> void:
 			fx.floor_bolts(g2, 16, 3.6)
 			fx.storm_ring(g2, 3.6)
 			fx.shockwave(g2 + Vector3(0, 1.0, 0), 2.2, 0.6, 0.9)
+			fx.screen_hit(0.0, 0.7)
+			if world.main and world.main.burst:
+				world.main.burst.emit_at(g2 + Vector3(0, 1.2, 0), 1.0)
 			fx.dust(g2, 2.4)
 			world.shake = maxf(world.shake, 24.0)
 			if world.main and world.main.lily_cutin:

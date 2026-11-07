@@ -121,6 +121,8 @@ func dt(delta: float) -> float:
 	return 0.0 if (freeze > 0.0 or cine) else delta
 
 func _physics_process(delta: float) -> void:
+	if fx:
+		fx.low_hp = clampf((0.3 - hp / maxf(hp_max, 1.0)) / 0.3, 0.0, 1.0)   # 体力 30％ 未満で周辺の赤が脈打つ
 	freeze = maxf(0.0, freeze - delta)
 	shake = maxf(0.0, shake - delta * 60.0)
 	combo_t = maxf(0.0, combo_t - delta)
@@ -328,6 +330,7 @@ func enemy_hits_player(e) -> void:
 	hp = maxf(0.0, hp - d)
 	var dir := 1 if p.position.x >= e.position.x else -1
 	fx.hurt(p.position + Vector3(0, 1.0, 0), dir)
+	fx.screen_hit(0.85, 1.0)   # 周辺の赤＋色収差（specs/vfx_recipes.md）
 	fx.number(p.position + Vector3(0, 2.1, 0), d, "hurt")
 	freeze = maxf(freeze, 0.06)
 	shake = maxf(shake, 7.0)

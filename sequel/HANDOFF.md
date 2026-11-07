@@ -1,7 +1,7 @@
 # 続編（SA2・融合都市）引き継ぎ
 
 ## 新しいチャットへ（2026-11-07 時点の要約。詳しくは下の各節）
-- 遊べる URL：https://yyvape-dev.github.io/SA/sequel/web/ （ダンジョンの入口の前から `?at=gate`、読み込みの状態を見る `?diag=1`）。2026-11-07：リリィのスキル3つ＋必殺技を追加（下の「リリィのスキル」）。
+- 遊べる URL：https://yyvape-dev.github.io/SA/sequel/web/ （ダンジョンの入口の前から `?at=gate`、読み込みの状態を見る `?diag=1`）。2026-11-07：リリィのスキル3つ＋必殺技を追加（下の「リリィのスキル」）、VFX レシピ4つと粒子の混ぜ撒き（下の「VFX レシピ」、`?burst=1`）。
 - できていること：街の区画（塗った絵の投影・夜・映り込み）→ インスタントダンジョン（3×3 に6部屋・波・ボス g1・地図・結果・成長・セーブ）。ラナは新しい絵（A→B→C の連撃・長押しの回転斬り・回避・被弾・ダウン）、スキル3枠（乱れ斬り・地走り・金の渦、街でスロット設定）、必殺技（ゲージ・寄り・立ち絵のカットイン）。仲間リリィ（5本の蹴り、白銀＋蒼雷の軌跡。スキル 迅雷・雷連打・雷陣を待ち明けに自動、必殺技 天雷はゲージ満タンで自動）。Godot 4.7.2・Web（スレッド無し）。
 - 道具：撮影・書き出し・push は Skill `sa2-godot-check`（4.7.2 版。ユーザーに zip を渡したが、アカウントへの差し替えは未確認）、技の作り方は Skill `sa2-skill-craft`。書き出しは必ず `python3 -I sequel/tools/export_web.py`。手元のブラウザ確認は `python3 -I sequel/tools/serve_gzip.py sequel`（Pages と同じく .pck を gzip で送る）。自動の4周 `DUNGEON_TEST=1`（--headless **--fixed-fps 60** で約12秒。付けないと実時間で回り約5分かかる＝事実 2026-11-07）。
 - ユーザーの決まり（今回の会話）：解像度を下げる方法は使わない（ラナの絵は可逆、画面の画素数に合わせた大きさ＝構え 431px。元絵より小さく持つのは「下げた」に入らない、と確認して A）。カメラは遊ぶとき約35％（`PLAY_OFS`）。キャラの縁取りは柔らかい光（`RIM_MODE` soft）。
@@ -11,6 +11,13 @@
   3. 乱れ斬りの金の弧が細く目立ちにくい。リリィのジャブ・上段は頂点の閃光が強く、弧が隠れる。
   4. ダンジョンで倒れても失敗にならない（全快で起き上がる）。途中で戻る扉が無い。敵は2種だけ。
   5. 別のチャット（Claude）も同じ main に push している（リリィ・仕様書）。push の前に rebase、書き出しの成果物がぶつかったら向こうを取り、書き出し直す。
+
+## VFX レシピと粒子の混ぜ撒き（2026-11-07、specs/vfx_recipes.md）
+- 指定の PooDoge/godot-mcp-skills は無かった（404）→ 同じ名前の Skill の写し（emmahyde/dotfiles の shader-recipes.md、12個とも同じ）を読んだ。ライセンスが無いので考え方だけ使用。MCP は入れていない。
+- 採用4つ：被弾の白光り（`sprite_bb` の `flash_mix`）、ダメージの周辺の赤と体力 30％ 未満の脈打ち（`vignette` の `dmg`・`low`）、画面の色収差（`ca`、ラナの被弾・必殺技の決め）、縁の光（`aura`、必殺技が満タンの間 ラナ金・リリィ蒼）。`fx.screen_hit(赤, 色ずれ)`。`FX_OLD=1` で前の見た目。採否の表は spec。
+- 粒子の混ぜ撒き：`scripts/burst2d.gd`（GPUParticles2D、`?cpu=1` で CPUParticles2D）、4×4 の仮のシート `assets/fx/burst_sheet.png`（素材が届いたら同じ並びで差し替え）。金・紅・桃・シアンを粒ごと、芯は白、速く出て強く減速、花びらは回転＋横幅の伸縮。必殺技の決めで出る。確認 URL `?burst=1`。
+- 事実：Web（chromium＋swiftshader）で GPU・CPU とも動く、エラー 0。glow は 3D には Web でも効く（`?glow=0` で看板のにじみが消える）が、2D の粒（CanvasLayer）には効かない。
+- 撮影：`CAPTURE_FX=1 FX_ONLY=recipes`（`FX_OLD=1` で前）→ `captures/rc_*.png`。比較画像は `specs/vfx_recipes_img/`（.gdignore あり＝ゲームに入らない）。
 
 ## リリィのスキル（2026-11-07、ユーザー決定「基本は戦闘中にクール明けに合わせて自動判断して発動」）
 - 表：`scripts/lily_skills.gd`（1技＝1辞書。frames＝使うコマの列〈並べ替え・往復で別の動き。別 clip は [clip, 番号]〉・fps・cd・ev＝[コマの位置, 当たり]・dash）。処理：`ally.gd` の `_pick_skill`（判断）・`_skill_step`・`_skill_hit`（見た目）・`_ult_process`。`LILY_SKILLS=0` で出さない（比べる用）。リリィの1発 DMG＝11（×ラナの攻撃の倍率）。

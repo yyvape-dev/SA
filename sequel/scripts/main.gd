@@ -27,6 +27,10 @@ const PLAY_HALF_W := 5.7
 const ULT_OFS := Vector3(0.0, 1.5, 2.7)
 const ULT_LOOK := Vector3(0, 1.25, 0)
 const Cutin := preload("res://scripts/ult_cutin.gd")
+const Burst := preload("res://scripts/burst2d.gd")
+var burst                # 粒子の混ぜ撒き（burst2d.gd、2026-11-07）
+var env: Environment     # glow の確認（?glow=0 で切る）
+var burst_demo := -1.0   # ?burst=1：ラナの前に 1.6 秒おきに撒く（実機の確認用）
 var lily_cutin           # リリィの必殺技のカットイン（仲間の絵を読み終えてから作る）
 var cutin                # 遊ぶカメラで、帯の真ん中（z=0）に見える左右の半分（横持ち 19.5:9、m）
 const CAM_FOV := 36.0
@@ -108,6 +112,9 @@ func _ready() -> void:
 	_place_cam(true)
 	_load_ally()
 	_build_vignette()
+	burst = Burst.new()   # UI より先に足す（同じ layer 1 で UI の下に描く）
+	burst.cam = cam
+	add_child(burst)
 	ui = TouchUI.new()
 	ui.player = player
 	ui.main = self
@@ -132,6 +139,14 @@ func _ready() -> void:
 		if str(JavaScriptBridge.eval("window.location.search")).contains("diag=1"):
 			loading.error_text = "ver %s | d1 %s | glints %d | painted %s | url %s" % [District.build_ver(), str(district.status.get("d1", "-")),
 				glints_src.size(), str(ResourceLoader.exists("res://art/painted/b1_tavern.png")), str(JavaScriptBridge.eval("location.href"))]
+		# 確認用：?burst=1 で粒子の混ぜ撒きを繰り返す、?glow=0 で glow を切る、?hdr=2 で粒を明るく（glow が 2D に効くかを見る）
+		var q := str(JavaScriptBridge.eval("window.location.search"))
+		if q.contains("burst=1"):
+			burst_demo = 1.0
+		if q.contains("glow=0"):
+			env.glow_enabled = false
+		if q.contains("hdr=2"):
+			burst.hdr = 2.0
 		# 確認用：?at=gate で入口の前から始める
 		if str(JavaScriptBridge.eval("window.location.search")).contains("at=gate"):
 			player.position = Vector3(GATE_X - 0.5, 0, BELT_Z.x + 1.6)
@@ -184,6 +199,11 @@ func _process(delta: float) -> void:
 		return   # 地区の読み込み中
 	_place_cam(false, delta)
 	_check_gate()
+	if burst_demo >= 0.0:
+		burst_demo -= delta
+		if burst_demo <= 0.0:
+			burst_demo = 1.6
+			burst.emit_at(player.position + Vector3(player.face * 1.6, 1.3, 0), 1.0)
 	# 手前の板：ラナと重なったら半分ほど透ける
 	for f in fg_list:
 		var over: bool = absf(player.position.x - (f.node.global_position.x)) < f.half + 2.5   # カメラを寄せたので広めに、薄く
@@ -301,7 +321,7 @@ func _place_cam(snap: bool, delta: float = 0.0) -> void:
 # ---------- 見た目 ----------
 func _build_env() -> void:
 	var we := WorldEnvironment.new()
-	var env := Environment.new()
+	env = Environment.new()
 	env.background_mode = Environment.BG_COLOR
 	env.background_color = Color("1b1730")
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
@@ -866,6 +886,11 @@ func _capture_fx() -> void:
 		print("FX DONE")
 		get_tree().quit()
 		return
+	if OS.get_environment("FX_ONLY") == "recipes":
+		await _capture_recipes(dir)
+		print("FX DONE")
+		get_tree().quit()
+		return
 	if OS.get_environment("FX_ONLY") == "lilyskill":
 		await _capture_lily_skill(dir)
 		print("FX DONE")
@@ -955,6 +980,94 @@ func _capture_skill_fx(dir: String) -> void:
 		await RenderingServer.frame_post_draw
 	get_viewport().get_texture().get_image().save_png(dir + "/ui_slots.png")
 	hud.close_slots()
+
+## specs/vfx_recipes.md の採用分と粒子の混ぜ撒き（2026-11-07）→ captures/rc_<場面>.png。前の見た目は FX_OLD=1（粒は出さない）
+func _snap(dir: String, name: String, frames: int = 1) -> void:
+	for f in frames:
+		await get_tree().physics_frame
+		await RenderingServer.frame_post_draw
+	get_viewport().get_texture().get_image().save_png(dir + "/rc_%s.png" % name)
+
+func _capture_recipes(dir: String) -> void:
+	for w in 240:
+		if battle.ally != null:
+			break
+		await get_tree().physics_frame
+	var a = battle.ally
+	player.visible = true
+	player.set_physics_process(true)
+	player.position = Vector3(-1.5, 0, 0.8)
+	player.face = 1
+	player.state = "move"
+	if a:
+		a.visible = true
+		a.set_physics_process(false)
+		a.position = Vector3(-3.4, 0, 0.2)
+		a.face = 1
+		a.debug_pose("idle", 0)
+	_place_cam(true)
+	var e = battle.spawn("3", Vector3(0.4, 0, 0.8))
+	e.atk_cd = 99.0
+	e.face = -1
+	e.hp_max = 999.0
+	e.hp = 999.0
+	await _snap(dir, "0_base", 6)
+	# 1. 敵の被弾の白光り（当てた直後の1コマ）
+	e.take_hit(10.0, 1, false)
+	await _snap(dir, "1_enemy_hit", 1)
+	await _snap(dir, "1b_enemy_hit_later", 4)
+	# 2. ラナの被弾：白→赤、周辺の赤、色収差
+	for f in 30:
+		await get_tree().physics_frame
+	player.inv = 0.0
+	player.state = "move"
+	battle.enemy_hits_player(e)
+	await _snap(dir, "2_rana_hurt", 2)
+	await _snap(dir, "2b_rana_hurt_later", 12)
+	# 3. 体力が少ない（30％ 未満）
+	for f in 60:
+		await get_tree().physics_frame
+	battle.hp = battle.hp_max * 0.12
+	await _snap(dir, "3_low_hp", 20)
+	battle.hp = battle.hp_max
+	# 4. 必殺技が満タン（ラナ金・リリィ蒼の縁の光）
+	battle.ult = battle.ULT_MAX
+	battle.ally_ult = battle.ULT_MAX
+	if a:
+		a.set_physics_process(true)
+		a.state = "move"
+		a.cd = 99.0
+		a.skills_on = false
+	for x in battle.enemies.duplicate():
+		battle.remove_enemy(x)
+	await _snap(dir, "4_ult_ready", 20)
+	battle.ult = 0.0
+	battle.ally_ult = 0.0
+	# 5. 粒子の混ぜ撒き（出た直後・広がり・減速して漂う）
+	for f in 20:
+		await get_tree().physics_frame
+	var at := player.position + Vector3(1.6, 1.3, 0)
+	if not fx.legacy:
+		burst.emit_at(at, 1.0)
+	await _snap(dir, "5a_burst", 4)
+	await _snap(dir, "5b_burst", 10)
+	await _snap(dir, "5c_burst", 30)
+	# 6. glow が 2D の粒に効くか：明るさ 2 倍の粒を glow あり／なしで
+	if not fx.legacy:
+		for g in [true, false]:
+			env.glow_enabled = g
+			burst.hdr = 2.0
+			burst.fixed_seed = 7
+			for f in 90:
+				await get_tree().physics_frame
+			burst.emit_at(at, 1.0)
+			await _snap(dir, "6_glow_%s" % ("on" if g else "off"), 10)
+			for f in 120:   # 粒が消えるのを待って、粒なしの同じ場面（glow の差が 3D だけか 2D の粒にも出るかを分ける）
+				await get_tree().physics_frame
+			await _snap(dir, "6_glow_%s_nop" % ("on" if g else "off"), 1)
+		env.glow_enabled = true
+		burst.hdr = 1.0
+		burst.fixed_seed = -1
 
 ## リリィのスキル（2026-11-07）：技ごとに 3〜5 枚 → captures/fx_lskill_<id>_<n>.png
 func _capture_lily_skill(dir: String) -> void:

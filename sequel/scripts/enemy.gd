@@ -126,7 +126,12 @@ func _show(c: String, i: int) -> void:
 func _physics_process(delta: float) -> void:
 	var dt: float = battle.dt(delta)
 	flash = maxf(0.0, flash - delta)
-	mat.set_shader_parameter("flash", Color(0.75, 0.88, 1.0, 0.3 * flash / 0.1 if flash > 0.0 else 0.0))
+	if battle.fx.legacy:
+		mat.set_shader_parameter("flash", Color(0.75, 0.88, 1.0, 0.3 * flash / 0.1 if flash > 0.0 else 0.0))
+	else:   # 2026-11-07：被弾の白光り（色を白へ置き換え、0.1 秒で引く。specs/vfx_recipes.md）
+		var fk: float = flash / 0.1
+		mat.set_shader_parameter("flash_mix", Color(1.0, 1.0, 1.0, 0.85 * fk * fk))
+		mat.set_shader_parameter("flash", Color(0.75, 0.88, 1.0, 0.15 * fk))
 	battle.apply_light(sprite, mat, refl, position)
 	bar_t = maxf(0.0, bar_t - delta)
 	hpbar.visible = bar_t > 0.0 and state != "dying"
