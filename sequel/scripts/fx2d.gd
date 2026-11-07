@@ -39,11 +39,20 @@ var env: Environment
 var items := []          # {node, wp, life, t}
 var tex := {}
 var enabled := true
-var assets_ok := false    # 絵（地区 pck fx1）を読み終えたか。main._load_fx が立てる
+var assets_ok := false
+## 重さ（specs/web_perf.md の 1）：エフェクトが無い間は層の描画を止めて隠す（事実：空でも全画面の HDR の層と glow を毎コマ描き、fps −約27％）
+var idle_stop := true
+var half := false         # 層を半分の解像度で描く（?fxhalf=1・環境変数 FXHALF=1。採否はユーザー判定）
+var active := true    # 絵（地区 pck fx1）を読み終えたか。main._load_fx が立てる
 
 func _ready() -> void:
 	layer = 1
 	enabled = not OS.has_environment("FX2D_OFF")
+	half = OS.has_environment("FXHALF")
+	if OS.has_feature("web"):
+		var q0 := str(JavaScriptBridge.eval("window.location.search"))
+		half = half or q0.contains("fxhalf=1")
+		idle_stop = not q0.contains("fxidle=0")   # 比べる用：?fxidle=0 で前と同じく毎コマ描く
 	var q := str(JavaScriptBridge.eval("window.location.search")) if OS.has_feature("web") else ""
 	if q.contains("fx2d=0"):   # 確認用：?fx2d=0 で 2D の層を出さない（従来の当たり）、?fxglow=0 で層の glow だけ切る
 		enabled = false
@@ -90,6 +99,8 @@ func _fit() -> void:
 	var win := Vector2(DisplayServer.window_get_size()) if not OS.has_feature("web") else vis * get_viewport().get_final_transform().get_scale()
 	if win.x < 8.0:
 		win = vis
+	if half:
+		win *= 0.5
 	sv.size = Vector2i(maxi(8, int(win.x)), maxi(8, int(win.y)))
 	sv.size_2d_override = Vector2i(int(vis.x), int(vis.y))
 	sv.size_2d_override_stretch = true
@@ -108,7 +119,15 @@ func px_per_m(wp: Vector3) -> float:
 	var r := cam.global_transform.basis.x
 	return (cam.unproject_position(wp + r) - cam.unproject_position(wp)).length()
 
+func _set_active(on: bool) -> void:
+	if on == active:
+		return
+	active = on
+	sv.render_target_update_mode = SubViewport.UPDATE_ALWAYS if on else SubViewport.UPDATE_DISABLED
+	view.visible = on
+
 func _track(n: Node2D, wp: Vector3, life: float) -> void:
+	_set_active(true)
 	n.position = cam.unproject_position(wp) if cam else Vector2.ZERO   # 足す前に置く（粒子が原点から尾を引かないように）
 	root2d.add_child(n)
 	items.append({"node": n, "wp": wp, "life": life, "t": 0.0})
@@ -131,6 +150,8 @@ func _process(delta: float) -> void:
 			it.node.scale = Vector2(-sk if it.flip else sk, sk)
 		if it.has("book"):
 			it.node.frame = mini(int(it.t * float(it.book.fps)), int(it.book.frames) - 1)
+	if idle_stop and items.is_empty():   # 何も無ければ層を止める（glow の余韻は items の寿命の中で消えている）
+		_set_active(false)
 
 func _book(name: String) -> Dictionary:
 	if books.is_empty():

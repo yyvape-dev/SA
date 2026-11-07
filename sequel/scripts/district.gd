@@ -18,16 +18,28 @@ func _download(url: String, file: String) -> Array:
 	http.download_chunk_size = 4 * 1024 * 1024   # 既定の 64KB だと 1コマに 64KB しか受け取らず、遅い端末で何十秒もかかる
 	var st := {"done": false, "res": [-1, 0], "body": PackedByteArray()}
 	http.request_completed.connect(func(r, code, _h, b): st.res = [r, code]; st.body = b; st.done = true)
+	var name := url.get_file().get_slice("?", 0)
+	var t0 := Time.get_ticks_msec()
+	print("DL %s start %dms" % [name, t0])   # 時系列の記録（specs/web_perf.md の 4）
 	var err := http.request(url)
 	if err != OK:
 		http.queue_free()
 		return [-2, err]
+	var last_log := t0
+	var frames := 0
 	while not st.done:
 		var total := http.get_body_size()
 		if total > 0:
 			progress.emit(float(http.get_downloaded_bytes()) / total)
+		frames += 1
+		var now := Time.get_ticks_msec()
+		if now - last_log >= 2000:
+			last_log = now
+			print("DL %s +%dms got=%.1fMB total=%.1fMB frames=%d status=%d" % [name, now - t0, http.get_downloaded_bytes() / 1e6, total / 1e6, frames, http.get_http_client_status()])
 		await get_tree().process_frame
 	http.queue_free()
+	var t1 := Time.get_ticks_msec()
+	print("DL %s done +%dms result=%d code=%d size=%.1fMB frames=%d" % [name, t1 - t0, int(st.res[0]), int(st.res[1]), st.body.size() / 1e6, frames])
 	var body: PackedByteArray = st.body
 	if int(st.res[0]) == HTTPRequest.RESULT_SUCCESS and body.size() > 0:
 		var f := FileAccess.open(file, FileAccess.WRITE)
@@ -35,6 +47,7 @@ func _download(url: String, file: String) -> Array:
 			return [-3, FileAccess.get_open_error()]
 		f.store_buffer(body)
 		f.close()
+		print("DL %s written +%dms" % [name, Time.get_ticks_msec() - t0])
 	return st.res
 
 static func build_ver() -> String:
@@ -75,7 +88,10 @@ func ensure(id: String) -> bool:
 	var res: Array = []
 	for attempt in 2:   # 失敗したら1回だけやり直す
 		res = await _download(url, file)
-		if int(res[0]) == HTTPRequest.RESULT_SUCCESS and int(res[1]) == 200 and ProjectSettings.load_resource_pack(file, false):
+		var tl := Time.get_ticks_msec()
+		var packed: bool = int(res[0]) == HTTPRequest.RESULT_SUCCESS and int(res[1]) == 200 and ProjectSettings.load_resource_pack(file, false)
+		print("DL %s.pck load_resource_pack %dms ok=%s" % [id, Time.get_ticks_msec() - tl, str(packed)])
+		if packed:
 			res = []
 			break
 		var fb := FileAccess.get_file_as_bytes(file)

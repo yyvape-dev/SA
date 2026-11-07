@@ -15,9 +15,9 @@ dest_files=["res://.godot/imported/foeduel_3_2_p.webp-06ce633de57d035d3c8dad0ab2
 
 [params]
 
-compress/mode=0
+compress/mode=1
 compress/high_quality=false
-compress/lossy_quality=0.7
+compress/lossy_quality=0.95
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1

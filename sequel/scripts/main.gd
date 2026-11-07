@@ -38,6 +38,7 @@ var perf_t := 0.0
 var perf_frames := []
 var perf_t0 := 0
 var perf_last_fx := ""
+var perf_label: Label    # ?perf=1 の画面の隅の表示（iPhone で読める大きさ）
 var lily_cutin           # リリィの必殺技のカットイン（仲間の絵を読み終えてから作る）
 var cutin                # 遊ぶカメラで、帯の真ん中（z=0）に見える左右の半分（横持ち 19.5:9、m）
 const CAM_FOV := 36.0
@@ -168,6 +169,17 @@ func _ready() -> void:
 			perf_on = true
 			perf_t0 = Time.get_ticks_msec()
 			RenderingServer.viewport_set_measure_render_time(get_viewport().get_viewport_rid(), true)
+			var cl := CanvasLayer.new()
+			cl.layer = 120
+			perf_label = Label.new()
+			perf_label.position = Vector2(12, 150)
+			perf_label.add_theme_font_size_override("font_size", 30)
+			perf_label.add_theme_color_override("font_color", Color(1, 1, 0.6))
+			perf_label.add_theme_color_override("font_outline_color", Color(0, 0, 0))
+			perf_label.add_theme_constant_override("outline_size", 8)
+			perf_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			cl.add_child(perf_label)
+			add_child(cl)
 		# 確認用：?at=gate で入口の前から始める
 		if str(JavaScriptBridge.eval("window.location.search")).contains("at=gate"):
 			player.position = Vector3(GATE_X - 0.5, 0, BELT_Z.x + 1.6)
@@ -234,6 +246,11 @@ func _perf(delta: float) -> void:
 		win.x, win.y, str(fx2d.sv.size) if fx2d else "-", n_items, cover,
 		RenderingServer.viewport_get_measured_render_time_cpu(vp), RenderingServer.viewport_get_measured_render_time_gpu(vp)])
 	perf_frames.clear()
+	if perf_label:
+		# 日本語のフォントがまだ無いので英数字だけ（frame＝1コマの時間、GPU＝Godot が数える映像のメモリ）
+		perf_label.text = "%.0f fps\nframe avg %.0f ms / max %.0f ms\nGPU mem ~%.0f MB\nfx2d %s%s" % [Engine.get_frames_per_second(), avg,
+			arr[-1] if arr.size() > 0 else 0.0, Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED) / 1e6,
+			"ON" if fx2d and fx2d.active else "OFF", " (half)" if fx2d and fx2d.half else ""]
 
 ## エフェクトの絵（地区 pck「fx1」：焼いた REEBO・Kenney の粒）。起動の後に読み、読み終えるまで 2D の層と絵の板は出さない
 func _load_fx() -> void:
