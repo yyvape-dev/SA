@@ -128,10 +128,10 @@ func _physics_process(delta: float) -> void:
 	flash = maxf(0.0, flash - delta)
 	if battle.fx.legacy:
 		mat.set_shader_parameter("flash", Color(0.75, 0.88, 1.0, 0.3 * flash / 0.1 if flash > 0.0 else 0.0))
-	else:   # 2026-11-07：当たった最初の2コマ（0.034 秒）だけ真っ白、そのあと前の淡い青を短く
+	else:   # 2026-11-07：当たった最初の2コマ（0.034 秒）だけ白を加算 50％（game-vfx-juice：塗り替えると絵が消えてシルエットになる）、そのあと前の淡い青を短く
 		var white: bool = flash > 0.1 - 0.034
-		mat.set_shader_parameter("flash_mix", Color(1, 1, 1, 1.0 if white else 0.0))
-		mat.set_shader_parameter("flash", Color(0.75, 0.88, 1.0, 0.0 if white else 0.2 * flash / 0.1))
+		mat.set_shader_parameter("flash_mix", Color(1, 1, 1, 0.0))
+		mat.set_shader_parameter("flash", Color(1.0, 1.0, 1.0, 0.5) if white else Color(0.75, 0.88, 1.0, 0.2 * flash / 0.1))
 	battle.apply_light(sprite, mat, refl, position)
 	bar_t = maxf(0.0, bar_t - delta)
 	hpbar.visible = bar_t > 0.0 and state != "dying"
