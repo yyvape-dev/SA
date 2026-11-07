@@ -1,0 +1,6 @@
+STYLE BASE v2 (2026-11-07):
+Painting technique: painterly digital oil-paint concept art for a game background. Visible thick brushstrokes, rich color, strong light-and-shadow contrast. Not a classical old-master painting, not a photograph, not anime line art.
+World: the back town of an empire's capital, a chaotic slum and pleasure quarter like the Kowloon Walled City, built from stacked and patched buildings, iron scaffolding, tangled cables and pipes. Magitech everywhere (magic fused with over-advanced technology): neon magic-circle signs, rune circuits glowing along pipes, lamps that mix crystals and machinery, projected vision screens showing abstract shapes. Colors: dark violet, iron and brass, with neon in violet, green, cyan and pink, and a few warm windows. Not medieval, not a modern city, not a Japanese Showa-era alley.
+View: a flat front elevation facing the viewer straight on. No perspective, no vanishing point, no street receding into the distance. Vertical lines stay vertical, horizontal lines stay horizontal.
+Lighting (most important): 60 to 70 percent of the image is in deep shadow. At most 2 or 3 strongly glowing signs or lamps; everything else is dim and low in contrast. Dense detail is grouped and sits in the shadows.
+Signs and screens show only abstract symbols and shapes, never readable letters. Do not draw any people, UI or text.
