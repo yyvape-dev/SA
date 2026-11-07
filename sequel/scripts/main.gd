@@ -27,6 +27,7 @@ const PLAY_HALF_W := 5.7
 const ULT_OFS := Vector3(0.0, 1.5, 2.7)
 const ULT_LOOK := Vector3(0, 1.25, 0)
 const Cutin := preload("res://scripts/ult_cutin.gd")
+var lily_cutin           # リリィの必殺技のカットイン（仲間の絵を読み終えてから作る）
 var cutin                # 遊ぶカメラで、帯の真ん中（z=0）に見える左右の半分（横持ち 19.5:9、m）
 const CAM_FOV := 36.0
 const MAGENTA := Color(1, 0, 1)
@@ -170,6 +171,13 @@ func _load_ally() -> void:
 	a.position = player.position + Vector3(-1.4, 0, 0.7)
 	battle.add_child(a)
 	battle.ally = a
+	lily_cutin = Cutin.new()   # 立ち絵 assets/lily/cutin.webp（al1 に入っている）、蒼の帯
+	lily_cutin.tex_path = "res://assets/lily/cutin.webp"
+	lily_cutin.band_col = Color(0.02, 0.07, 0.16, 0.85)
+	lily_cutin.line_col = Color(0.45, 0.8, 1.0, 0.95)
+	lily_cutin.streak_col = Color(0.75, 0.9, 1.0, 0.35)
+	lily_cutin.flash_col = Color(0.88, 0.95, 1.0)
+	add_child(lily_cutin)
 
 func _process(delta: float) -> void:
 	if player == null:
@@ -273,13 +281,15 @@ func _cam_pos_for(x: float, ofs: Vector3 = CAM_OFS) -> Vector3:
 	return Vector3(clampf(x, cam_x.x, cam_x.y), 0, 0) + ofs
 
 func _place_cam(snap: bool, delta: float = 0.0) -> void:
-	var want := _cam_pos_for(player.position.x, PLAY_OFS)
+	var fo0: Node3D = battle.cam_focus if battle and battle.cam_focus else player   # リリィの必殺技の間はリリィを追う
+	var want := _cam_pos_for(fo0.position.x, PLAY_OFS)
 	var z: float = battle.cam_zoom if battle else 0.0
 	if z > 0.0:   # 必殺技：ラナへ寄る（なめらかに）
 		var zz := z * z * (3.0 - 2.0 * z)
-		var near := Vector3(player.position.x + player.face * 0.6, 0, player.position.z) + ULT_OFS
+		var fo: Node3D = battle.cam_focus if battle.cam_focus else player   # リリィの必殺技ではリリィへ寄る
+		var near := Vector3(fo.position.x + fo.face * 0.6, 0, fo.position.z) + ULT_OFS
 		cam.position = want.lerp(near, zz)
-		cam.look_at(Vector3(cam.position.x, 0, player.position.z * zz) + PLAY_LOOK.lerp(ULT_LOOK, zz), Vector3.UP)
+		cam.look_at(Vector3(cam.position.x, 0, fo.position.z * zz) + PLAY_LOOK.lerp(ULT_LOOK, zz), Vector3.UP)
 	else:
 		cam.position = want if snap else cam.position.lerp(want, minf(1.0, delta * 5.0))
 		cam.look_at(Vector3(cam.position.x, 0, 0) + PLAY_LOOK, Vector3.UP)
@@ -856,6 +866,11 @@ func _capture_fx() -> void:
 		print("FX DONE")
 		get_tree().quit()
 		return
+	if OS.get_environment("FX_ONLY") == "lilyskill":
+		await _capture_lily_skill(dir)
+		print("FX DONE")
+		get_tree().quit()
+		return
 	if OS.get_environment("FX_ONLY") == "skill":
 		await _capture_skill_fx(dir)
 		print("FX DONE")
@@ -940,6 +955,59 @@ func _capture_skill_fx(dir: String) -> void:
 		await RenderingServer.frame_post_draw
 	get_viewport().get_texture().get_image().save_png(dir + "/ui_slots.png")
 	hud.close_slots()
+
+## リリィのスキル（2026-11-07）：技ごとに 3〜5 枚 → captures/fx_lskill_<id>_<n>.png
+func _capture_lily_skill(dir: String) -> void:
+	for w in 240:
+		if battle.ally != null:
+			break
+		await get_tree().physics_frame
+	var a = battle.ally
+	if a == null:
+		print("LILY SKILL: 仲間がいない")
+		return
+	a.visible = true
+	a.set_physics_process(true)
+	player.visible = true
+	player.set_physics_process(true)
+	var at := {"rush": [0.12, 0.25, 0.45], "barrage": [0.6, 1.0, 1.5, 1.7], "storm": [0.47, 0.8, 1.18], "ult": [0.15, 0.75, 1.42, 2.0, 2.45, 2.7]}
+	var spots := {"rush": [[7.0, 0.3], [8.0, -0.4]], "barrage": [[1.3, 0.0], [1.9, 0.4]], "storm": [[2.4, 0.9], [-2.6, -0.3], [1.6, -1.4], [-1.5, 1.2], [3.6, 0.0]],
+		"ult": [[4.0, 0.2], [2.4, -1.0], [5.6, 1.0]]}
+	for id in ["rush", "barrage", "storm", "ult"]:
+		for x in battle.enemies.duplicate():
+			battle.remove_enemy(x)
+		a.position = Vector3(-3.0 if id == "rush" else -1.0, 0, 0.4)
+		a.face = 1
+		a.state = "move"
+		a.cd = 99.0
+		player.position = a.position + Vector3(-1.6, 0, 1.2)
+		player.face = 1
+		player.state = "move"
+		_place_cam(true)
+		var first = null
+		for sp in spots[id]:
+			var e = battle.spawn("3", a.position + Vector3(sp[0], 0, sp[1]))
+			e.atk_cd = 99.0
+			e.hp_max = 2999.0
+			e.hp = 2999.0 if first == null else 999.0
+			if first == null:
+				first = e
+		for f in 3:
+			await get_tree().physics_frame
+		if id == "ult":
+			battle.ally_ult = battle.ULT_MAX
+		a.force_skill(id, first)
+		var marks: Array = at[id]
+		var n := 0
+		for f in int(marks[-1] * 60.0) + 2:
+			await get_tree().physics_frame
+			await RenderingServer.frame_post_draw
+			if n < marks.size() and f >= int(marks[n] * 60.0):
+				get_viewport().get_texture().get_image().save_png(dir + "/fx_lskill_%s_%d.png" % [id, n + 1])
+				n += 1
+		print("LSKILL ", id, " 狙った敵の体力 ", first.hp, " / ほか ", battle.enemies.map(func(x): return int(x.hp)))
+		for f in 50:
+			await get_tree().physics_frame
 
 ## リリィの5本（specs/lily_attack_fx.md）：溜め・頂点・余韻を撮る → captures/fx_lily_<技>_<1〜3>.png
 func _capture_lily_fx(dir: String) -> void:

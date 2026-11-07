@@ -246,6 +246,8 @@ var ult_i := 0
 var ult_t := 0.0
 
 func can_use_ult() -> bool:
+	if world.cine or (world.ally and world.ally.state == "ult"):   # リリィの必殺技の最中は出さない
+		return false
 	return not locked and world.ult >= world.ULT_MAX and (state == "move" or (state == "atk" and tab.has(clip) and t >= float(tab[clip].cancel)))
 
 func use_ult() -> bool:

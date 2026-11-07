@@ -16,6 +16,11 @@ var ult_gain := true
 var cine := false
 var cam_zoom := 0.0
 var ally: Node3D = null   # 仲間（ally.gd）。絵を読み終えるまで null
+## リリィの必殺技のゲージ（2026-11-07）：リリィの当たり 1 体 ALLY_ULT_GAIN。満タンで自動。cam_focus＝寄る相手（null ならラナ）
+const ALLY_ULT_GAIN := 1.2
+var ally_ult := 0.0
+var ally_ult_gain := true
+var cam_focus: Node3D = null
 var fx: Node3D
 var cam: Camera3D
 var enemies := []
@@ -208,8 +213,8 @@ func player_attack(spec: Dictionary) -> void:
 	_attack_from(player, spec, atk_mul)
 
 ## 仲間（ally.gd）の攻撃。強さはラナのレベルの倍率に合わせる
-func ally_attack(a: Node3D, spec: Dictionary) -> void:
-	_attack_from(a, spec, atk_mul)
+func ally_attack(a: Node3D, spec: Dictionary) -> int:
+	return _attack_from(a, spec, atk_mul)
 
 func _attack_from(p: Node3D, spec: Dictionary, mul: float) -> int:
 	var dir: int = p.face * (spec.side if spec.side != 0 else 1)
@@ -221,7 +226,11 @@ func _attack_from(p: Node3D, spec: Dictionary, mul: float) -> int:
 		var dx: float = (e.position.x - p.position.x) * dir
 		var dz: float = absf(e.position.z - p.position.z)
 		var inside := false
+		if spec.has("only"):   # 1体だけに当てる（リリィの必殺技）
+			shape = "only"
 		match shape:
+			"only":
+				inside = e == spec.only
 			"both":   # 前後両方（回転斬り・連続斬り・回し蹴り）
 				inside = absf(e.position.x - p.position.x) < spec.r and dz < spec.lane
 			"circle":   # 足元の円（かかと落とし）：中心は前へ cx
@@ -260,6 +269,8 @@ func _attack_from(p: Node3D, spec: Dictionary, mul: float) -> int:
 		fx.shockwave(p.position + Vector3(dir * minf(spec.r, 2.0) * 0.5, 0.9, 0), 0.9 + mini(hits, 5) * 0.12)
 	if hits > 0 and p == player and ult_gain:
 		ult = minf(ULT_MAX, ult + hits * 1.5)
+	if hits > 0 and p == ally and ally_ult_gain:
+		ally_ult = minf(ULT_MAX, ally_ult + hits * ALLY_ULT_GAIN)
 	if hits > 0:
 		freeze = maxf(freeze, 0.045 + mini(hits, 10) * 0.006 + (0.03 if spec.strong else 0.0) + float(spec.get("freeze_add", 0.0)))
 		shake = maxf(shake, 5.0 + mini(hits, 12) * 1.1 + (4.0 if spec.strong else 0.0))

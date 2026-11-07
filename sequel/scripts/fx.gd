@@ -700,3 +700,48 @@ func vortex_burst(p: Vector3, r: float) -> void:
 		_spark(p + Vector3(0, randf_range(0.3, 1.3), 0), Vector3(cos(a) * randf_range(6, 11), randf_range(0.5, 3.0), sin(a) * randf_range(3, 6)), randf_range(0.3, 0.55), 0.03, GOLD[1] if i % 2 else GOLD[2], 0.0)
 	_quad(p + Vector3(0, 0.9, 0.2), Vector2(2.6, 2.6), _mat(1, GOLD), "flash", 0.16, 0.0)
 	shockwave(p + Vector3(0, 0.8, 0), 1.5, 0.5, 0.75)
+
+# ---------- リリィのスキル（2026-11-07） ----------
+## 空から落ちる稲妻（雷陣・天雷）：上から足元へ太い稲妻＋落ちた所の光と床の稲妻と粒。big で太く高く
+func sky_bolt(g: Vector3, delay: float = 0.0, big: bool = false) -> void:
+	var h := 9.0 if big else 6.5
+	var top := g + Vector3(randf_range(-0.8, 0.8), h, 0.1)
+	bolt([top, g + Vector3(randf_range(-0.3, 0.3), h * 0.55, 0.1), g + Vector3(randf_range(-0.15, 0.15), h * 0.2, 0.1), g + Vector3(0, 0.05, 0.1)],
+		0.09 if big else 0.045, BOLT_BLUE if not big else SILVER[1], 0.4, delay, 0.22, false, 1 if not big else 2)
+	if big:   # 2026-11-07：小さい落雷は1本＋足元の光だけ（重なると画面が白く飛んだ）
+		bolt([top + Vector3(0.3, 0, 0), g + Vector3(0, 0.05, 0.1)], 0.035, BOLT_VIOLET, 0.35, delay + 0.03, 0.2, false, 1)
+		var m := _mat(1, SILVER)
+		m.set_shader_parameter("core_gain", 0.3)
+		_quad(g + Vector3(0, h * 0.4, 0.15), Vector2(1.0, h), m, "flash", 0.18, delay)
+	_quad(g + Vector3(0, 0.2, 0.2), Vector2(1.6 if not big else 3.6, 0.7 if not big else 1.6), _mat(1, SILVER), "flash", 0.16, delay)
+	for i in (10 if not big else 22):
+		var a := randf() * TAU
+		_spark(g + Vector3(0, 0.1, 0), Vector3(cos(a) * randf_range(2, 6), randf_range(2.0, 6.0), sin(a) * randf_range(1, 3)), randf_range(0.25, 0.45), 0.026, SILVER[0] if i % 2 else SILVER[2], delay)
+
+## 雷陣の締め：蒼い輪が外へ弾けて、白銀の粒が外へ飛ぶ（金の渦の締めの蒼い版）
+func storm_ring(p: Vector3, r: float) -> void:
+	for k in 2:   # 太さの違う2重の輪（均一にしない）
+		var ring := MeshInstance3D.new()
+		ring.mesh = _arc_mesh(r * (0.5 if k == 0 else 0.38), 0.4 if k == 0 else 0.18, -180, 180, "h", 1, 0.6)
+		ring.material_override = _mat(0, SILVER)
+		ring.material_override.set_shader_parameter("head", 1.3)
+		ring.material_override.set_shader_parameter("tail", 0.0)
+		ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		ring.position = p + Vector3(0, 0.06 + k * 0.03, 0)
+		add_child(ring)
+		items.append({"node": ring, "t": 0.0, "life": 0.42 + k * 0.1, "kind": "ring"})
+	for i in 30:
+		var a := randf() * TAU
+		_spark(p + Vector3(0, randf_range(0.2, 1.2), 0), Vector3(cos(a) * randf_range(6, 11), randf_range(0.5, 3.0), sin(a) * randf_range(3, 6)), randf_range(0.3, 0.55), 0.028, SILVER[0] if i % 2 else SILVER[2], 0.0)
+	_quad(p + Vector3(0, 0.9, 0.2), Vector2(3.0, 2.6), _mat(1, SILVER), "flash", 0.16, 0.0)
+	shockwave(p + Vector3(0, 0.8, 0), 1.5, 0.5, 0.75)
+
+## 迅雷の通り道：床を走る蒼い稲妻と、腰の高さの光の帯（a→b）
+func dash_trail(a: Vector3, b: Vector3) -> void:
+	var fa := Vector3(a.x, 0.03, a.z)
+	var fb := Vector3(b.x, 0.03, b.z)
+	bolt([fa, fa.lerp(fb, 0.5), fb], 0.06, BOLT_BLUE, 0.5, 0.0, 0.22, true, 2)
+	bolt([fa + Vector3(0, 0, 0.12), fb + Vector3(0, 0, -0.1)], 0.035, BOLT_VIOLET, 0.4, 0.03, 0.18, true, 1)
+	var y := Vector3(0, 1.0, 0.12)
+	ribbon([a + y, a.lerp(b, 0.5) + y + Vector3(0, 0.08, 0), b + y], {"w": 0.5, "life": 0.42, "bolts": 1})
+	dust(fa.lerp(fb, 0.2), 1.0)

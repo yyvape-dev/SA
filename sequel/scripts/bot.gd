@@ -339,6 +339,8 @@ func _finish() -> void:
 		print("note: ", n)
 	print("ハードの鍵（保存）：", main.progress.hard_open, "  保存：Lv ", main.progress.lv, " 武器 ", main.progress.weapon, " 最速 ", main.progress.best)
 	print("スキルを使った回数：", main.player.skill_uses, "  必殺技：", ult_uses)
+	if main.battle.ally:
+		print("リリィの技の回数：", main.battle.ally.sk_used)
 	print("DUNGEON DONE")
 	await get_tree().create_timer(0.5).timeout
 	get_tree().quit()

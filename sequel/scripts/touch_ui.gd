@@ -46,6 +46,14 @@ class _Hud extends Control:
 		var full := g >= 1.0
 		var gc := Color("ffc94d") if not full else Color("ffc94d").lerp(Color(1, 1, 0.9), 0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.012))
 		draw_rect(Rect2(gp, Vector2(w * g, 9 * u)), gc)
+		# リリィの必殺技のゲージ（蒼の細い帯、2026-11-07）。仲間がいる時だけ。満タンで自動で出る
+		if ui.battle.ally:
+			var lg: float = ui.battle.ally_ult / ui.battle.ULT_MAX
+			var lp := gp + Vector2(0, 9 * u + 6 * u)
+			var lw := w * 0.6
+			draw_rect(Rect2(lp - Vector2(2, 2) * u, Vector2(lw, 5 * u) + Vector2(4, 4) * u), Color(0.02, 0.03, 0.07, 0.75))
+			var lc := Color("4fb8ff") if lg < 1.0 else Color("4fb8ff").lerp(Color(0.9, 0.97, 1.0), 0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.012))
+			draw_rect(Rect2(lp, Vector2(lw * lg, 5 * u)), lc)
 
 class _Pad extends Control:
 	## 右下（specs/skill_ui.md）：攻撃・回避・スキル3枠（攻撃の中心から半径 175u の弧、165°・115°・65°）。4枠目 215° は空けておく。
