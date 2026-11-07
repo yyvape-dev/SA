@@ -1,0 +1,2 @@
+github.com/omer-metin/skills-for-antigravity (Apache-2.0)
+要点の日本語版と SA2 の事実は game-vfx-juice。食い違うときは game-vfx-juice の★を優先。
