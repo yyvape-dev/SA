@@ -1038,6 +1038,11 @@ func _capture_fx() -> void:
 		print("FX DONE")
 		get_tree().quit()
 		return
+	if OS.get_environment("FX_ONLY") == "camdepth":
+		await _capture_camdepth(dir)
+		print("FX DONE")
+		get_tree().quit()
+		return
 	if OS.get_environment("FX_ONLY") == "camcmp":
 		await _capture_camcmp(dir)
 		print("FX DONE")
@@ -1093,6 +1098,53 @@ func _capture_ult(dir: String) -> void:
 		if n < marks.size() and f >= int(marks[n] * 60.0):
 			n += 1
 			get_viewport().get_texture().get_image().save_png(dir + "/fx_ult_%d.png" % n)
+
+## カメラの比較の重ね合わせ用（specs/camera_depth.md）：ラナを一番奥・中央・一番手前に（左右をずらして）立たせて 1 枚ずつ、
+##   ラナを隠した背景の 1 枚も撮る → captures/cd_<案>_<back|mid|front|bg>.png。画面の座標（足元・頭・帯の線・建物の足元の線）を CDPOS で出す
+func _capture_camdepth(dir: String) -> void:
+	var tag := cam_variant if cam_variant != "" else "now"
+	player.visible = true
+	player.set_physics_process(false)
+	for x in battle.enemies.duplicate():
+		battle.remove_enemy(x)
+	battle.auto_spawn = false
+	if battle.ally:
+		battle.ally.visible = false
+		battle.ally.set_physics_process(false)
+	var zs := {"back": BELT_Z.x, "mid": (BELT_Z.x + BELT_Z.y) * 0.5, "front": BELT_Z.y}
+	var xs := {"back": -2.6, "mid": -0.6, "front": 1.4}
+	player.position = Vector3(-0.6, 0, zs.mid)
+	player.face = 1
+	_place_cam(true)
+	var cx := cam.position.x
+	var keep_cam_x := cam_x
+	cam_x = Vector2(cx - cam.position.x + _cam_pos_for(player.position.x, play_ofs).x, cx - cam.position.x + _cam_pos_for(player.position.x, play_ofs).x)   # 撮影の間はカメラを止める（ラナを動かしても背景がずれない）
+	if ui:
+		ui.visible = false
+	var vh := get_viewport().get_visible_rect().size
+	for key in ["back", "mid", "front"]:
+		player.position = Vector3(cx + float(xs[key]), 0, float(zs[key]))
+		player._show_frame("idle", 0)
+		battle.apply_light(player.sprite, player.mat, player.refl, player.position)
+		for f in 4:
+			await get_tree().process_frame
+			await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png(dir + "/cd_%s_%s.png" % [tag, key])
+		var foot := cam.unproject_position(player.position)
+		var head := cam.unproject_position(player.position + Vector3(0, player.HEIGHT_M, 0))
+		print("CDPOS %s %s %.4f %.4f %.4f" % [tag, key, foot.x / vh.x, foot.y / vh.y, head.y / vh.y])
+	player.visible = false
+	for f in 4:
+		await get_tree().process_frame
+		await RenderingServer.frame_post_draw
+	get_viewport().get_texture().get_image().save_png(dir + "/cd_%s_bg.png" % tag)
+	for nm in [["belt_back", BELT_Z.x], ["belt_front", BELT_Z.y], ["bld", -6.5]]:
+		var l := cam.unproject_position(Vector3(cx, 0, float(nm[1])))
+		print("CDLINE %s %s %.4f" % [tag, nm[0], l.y / vh.y])
+	player.visible = true
+	cam_x = keep_cam_x
+	if ui:
+		ui.visible = true
 
 ## カメラの比較（specs/camera_depth.md）：一番奥・中央・一番手前で、同じ場面（ラナと敵、突きの当たり）→ captures/cam_<案>_<奥|中|手前>.png
 func _capture_camcmp(dir: String) -> void:
