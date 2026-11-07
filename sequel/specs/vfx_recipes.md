@@ -1,5 +1,7 @@
 # VFX レシピの取り込みと粒子の混ぜ撒き（2026-11-07）
 
+> **2026-11-07 ユーザー判断：とりあえず不採用。** ゲームのコードは commit 6dc08a5 の前に戻した（この文書と比較画像だけ記録として残す）。作り直しは `specs/vfx_overhaul.md`。
+
 ## 0. 元の資料（事実）
 - 指定の `https://github.com/PooDoge/godot-mcp-skills` は無い（GitHub のページが 404、ユーザー名 PooDoge の検索も 0 件）。
 - 同じ名前の Skill `godot-shader-lab` を GitHub の検索で2つ見つけた：

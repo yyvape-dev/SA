@@ -3,6 +3,7 @@ shader_type spatial;
 // UV.y＝建物の根元 0 → 手前 1。石の目地（暗い所）は映りにくく、石の上は映る。
 render_mode unshaded, cull_disabled, blend_add, depth_draw_never, shadows_disabled;
 
+global uniform float bg_dim;
 uniform vec4 col : source_color = vec4(1.0);
 uniform float power = 1.0;
 uniform sampler2D stone : filter_linear_mipmap, repeat_enable;
@@ -29,4 +30,5 @@ void fragment() {
 	float lum = dot(texture(stone, wpos.xz / tile).rgb, vec3(0.333));
 	float wet = smoothstep(0.10, 0.30, lum);
 	ALBEDO = col.rgb * power * across * along * rip * (0.35 + 0.65 * wet);
+	ALBEDO *= bg_dim;   // 大技の暗転（specs/vfx_overhaul.md）
 }

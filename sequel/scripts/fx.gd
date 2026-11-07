@@ -20,9 +20,6 @@ var spark_mi: MeshInstance3D
 var noise_tex: Texture2D        # 継ぎ目の無いノイズ（斬撃の模様・撃破の溶け消えに使う）
 var screen_mat: ShaderMaterial  # 画面の仕上げ（vignette.gdshader）。衝撃波のゆがみを入れる
 var waves := []                 # 衝撃波 {p, t, life, str, r}
-var dmg_v := 0.0                # 周辺の赤（被弾の瞬間）。0.5 秒で引く
-var ca_v := 0.0                 # 画面全体の色収差。0.28 秒で引く
-var low_hp := 0.0               # 体力が少ない度合い 0〜1（battle が毎コマ入れる）
 var legacy := OS.has_environment("FX_OLD")   # 比較の撮影用：2026-11-06 より前の見た目（模様・ゆがみ・溶け消え無し）
 
 func _ready() -> void:
@@ -135,22 +132,9 @@ func shockwave(p: Vector3, str: float = 1.0, life: float = 0.42, r: float = 0.55
 		waves.pop_front()
 	waves.append({"p": p, "t": 0.0, "life": life, "str": str, "r": r})
 
-## 被弾・大技の決めの画面（specs/vfx_recipes.md、2026-11-07）：d＝周辺の赤、c＝色収差
-func screen_hit(d: float, c: float) -> void:
-	if legacy:
-		return
-	dmg_v = maxf(dmg_v, d)
-	ca_v = maxf(ca_v, c)
-
 func _update_waves(delta: float) -> void:
 	if screen_mat == null:
 		return
-	dmg_v = maxf(0.0, dmg_v - delta / 0.5)
-	ca_v = maxf(0.0, ca_v - delta / 0.28)
-	var lowp: float = 0.0 if legacy else low_hp * (0.6 + 0.25 * sin(Time.get_ticks_msec() * 0.006))
-	screen_mat.set_shader_parameter("dmg", dmg_v * dmg_v)
-	screen_mat.set_shader_parameter("low", lowp)
-	screen_mat.set_shader_parameter("ca", ca_v)
 	var vp := get_viewport().get_visible_rect().size
 	screen_mat.set_shader_parameter("aspect", vp.x / maxf(vp.y, 1.0))
 	var arr := []

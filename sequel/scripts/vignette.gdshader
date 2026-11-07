@@ -9,10 +9,7 @@ uniform float grade = 1.0;
 uniform vec4 wave[4];
 uniform float wave_w = 0.06;      // 輪の太さ（画面の高さに対する割合）
 uniform float aspect = 2.164;     // 画面の横÷縦（スクリプトが入れる）
-// 2026-11-07（specs/vfx_recipes.md）：ダメージの周辺の赤（dmg＝被弾の瞬間、low＝体力が少ない間の脈打ち）と、画面全体の色収差（ca、中心から外へ）
-uniform float dmg = 0.0;
-uniform float low = 0.0;
-uniform float ca = 0.0;
+uniform float chroma = 0.0;       // 大技の一瞬の色収差（2026-11-07、specs/vfx_overhaul.md）。中心から外へ、端ほど大きく
 
 void fragment() {
 	vec2 uv = SCREEN_UV;
@@ -32,12 +29,12 @@ void fragment() {
 	uv += ofs;
 	vec3 c;
 	if (ab > 0.001) {   // 輪の上だけ色をずらす（赤と青を外と内へ）
-		vec2 cs = ofs * 0.22;   // 色ずれは控えめ（強いと虹色に見えて安っぽい）
-		c = vec3(texture(screen_tex, uv + cs).r, texture(screen_tex, uv).g, texture(screen_tex, uv - cs).b);
+		vec2 ca = ofs * 0.22;   // 色ずれは控えめ（強いと虹色に見えて安っぽい）
+		c = vec3(texture(screen_tex, uv + ca).r, texture(screen_tex, uv).g, texture(screen_tex, uv - ca).b);
 		c += vec3(0.7, 0.85, 1.0) * min(ab, 1.0) * 0.05;   // 輪がうっすら光る（青白＝味方の技）
-	} else if (ca > 0.001) {   // 中心から外へ、端ほど大きくずらす（中央はほぼずれない）
-		vec2 dc = (SCREEN_UV - 0.5);
-		vec2 co = dc * length(dc * vec2(aspect, 1.0)) * ca * 0.018;
+	} else if (chroma > 0.001) {
+		vec2 dc = SCREEN_UV - 0.5;
+		vec2 co = dc * length(dc * vec2(aspect, 1.0)) * chroma * 0.02;
 		c = vec3(texture(screen_tex, uv + co).r, texture(screen_tex, uv).g, texture(screen_tex, uv - co).b);
 	} else {
 		c = texture(screen_tex, uv).rgb;
@@ -49,10 +46,5 @@ void fragment() {
 	vec2 dd = (UV - 0.5) * vec2(1.6, 1.0);
 	float v = smoothstep(0.45, 1.05, length(dd)) * strength;
 	c = mix(c, vec3(0.03, 0.02, 0.06), v);
-	float dr = max(dmg, low);
-	if (dr > 0.001) {   // 周辺だけ暗い赤へ（中央は残す。赤＝敵の色＝痛い）
-		float ring = smoothstep(0.38, 1.0, length(dd));
-		c = mix(c, c * vec3(0.55, 0.12, 0.14) + vec3(0.32, 0.0, 0.03), ring * dr);
-	}
 	COLOR = vec4(c, 1.0);
 }

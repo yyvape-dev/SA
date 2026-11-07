@@ -191,10 +191,6 @@ func _physics_process(delta: float) -> void:
 	inv = maxf(0.0, inv - dt)
 	flash = maxf(0.0, flash - delta)
 	mat.set_shader_parameter("flash", Color(1.0, 0.25, 0.2, 0.6 if flash > 0.0 else 0.0))
-	if not world.fx.legacy:   # 2026-11-07：被弾の白光り、必殺技が満タンの間は蒼の縁の光
-		mat.set_shader_parameter("flash_mix", Color(1, 1, 1, 0.9 if flash > 0.15 else 0.0))
-		var full: bool = world.ally_ult >= world.ULT_MAX
-		mat.set_shader_parameter("aura", Color(0.31, 0.72, 1.0, (0.7 + 0.3 * sin(Time.get_ticks_msec() * 0.008)) if full else 0.0))
 	var pl: Node3D = world.player
 	# ラナから離れすぎたら（部屋の移動など）すぐそばへ
 	if absf(pl.position.x - position.x) > 9.0:
@@ -380,7 +376,7 @@ func _hit_new(c: Dictionary, h: int, n: int, last_hit: bool) -> void:
 	for f in range(maxi(0, h - 6), h + 1):
 		tipm = maxf(tipm, float(c.tip_f[f][0]))
 	var r := clampf(tipm * TRAIL_K + 0.3, 2.0, 2.6)   # 見た目より少し広い（目安 2.0〜2.6m）
-	var hs := {"side": 1, "r": r, "lane": 1.0, "dmg": DMG * (1.3 if last_hit else 1.0), "strong": last_hit, "zap": true}
+	var hs := {"side": 1, "r": r, "lane": 1.0, "dmg": DMG * (1.3 if last_hit else 1.0), "strong": last_hit, "zap": true, "shake": 8.0 if last_hit else 4.0}
 	for k in ["lift", "kb"]:
 		if spec.has(k):
 			hs[k] = spec[k]
@@ -470,6 +466,7 @@ func _start_skill(id: String, e: Node3D) -> void:
 	dash_from = position
 	var side := -face
 	dash_to = Vector3(e.position.x + side * 1.0, 0, e.position.z)
+	world.big_moment(float(sk.frames.size()) / float(sk.fps) * 0.85)
 	dash_to.x = clampf(dash_to.x, world.ROOM_X.x, world.ROOM_X.y)
 
 ## 1コマ進める（t は呼ぶ側で進める）。終わったら true
@@ -543,6 +540,7 @@ func _skill_hit(spec: Dictionary) -> void:
 			world.shake = maxf(world.shake, 7.0)
 		"storm_end":
 			fx.storm_ring(position, float(spec.r))
+			world.chroma_hit(0.8)
 			fx.floor_bolts(position, 14, float(spec.r))
 			world.shake = maxf(world.shake, 16.0)
 		"ult_hit":
@@ -565,9 +563,9 @@ func _skill_hit(spec: Dictionary) -> void:
 			fx.floor_bolts(g2, 16, 3.6)
 			fx.storm_ring(g2, 3.6)
 			fx.shockwave(g2 + Vector3(0, 1.0, 0), 2.2, 0.6, 0.9)
-			fx.screen_hit(0.0, 0.7)
-			if world.main and world.main.burst:
-				world.main.burst.emit_at(g2 + Vector3(0, 1.2, 0), 1.0)
+			world.chroma_hit(1.0)
+			if world.fx2d and not fx.legacy:
+				world.fx2d.big(g2 + Vector3(0, 1.2, 0), world.fx2d.SILVER)
 			fx.dust(g2, 2.4)
 			world.shake = maxf(world.shake, 24.0)
 			if world.main and world.main.lily_cutin:
@@ -605,6 +603,7 @@ func _start_ult(e: Node3D) -> void:
 	ev_i = 0
 	world.cine = true
 	world.cam_focus = self
+	world.big_moment(2.9)
 
 func _ult_process(delta: float) -> void:
 	ult_t += delta

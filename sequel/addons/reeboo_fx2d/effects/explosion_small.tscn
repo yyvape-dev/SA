@@ -1,0 +1,187 @@
+[gd_scene load_steps=18 format=3]
+
+[ext_resource type="Script" path="res://addons/reeboo_fx2d/reeboo_fx2d.gd" id="1_1"]
+[ext_resource type="Shader" path="res://addons/reeboo_fx2d/shaders/fx2d_flash.gdshader" id="2_2"]
+[ext_resource type="Texture2D" path="res://addons/reeboo_fx2d/textures/noise.png" id="3_3"]
+[ext_resource type="Texture2D" path="res://addons/reeboo_fx2d/textures/quad.png" id="4_4"]
+[ext_resource type="Shader" path="res://addons/reeboo_fx2d/shaders/fx2d_blob.gdshader" id="5_5"]
+[ext_resource type="Shader" path="res://addons/reeboo_fx2d/shaders/fx2d_ring.gdshader" id="6_6"]
+[ext_resource type="Texture2D" path="res://addons/reeboo_fx2d/textures/spark.png" id="7_7"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_8"]
+resource_local_to_scene = true
+shader = ExtResource("2_2")
+shader_parameter/fx_time = 0.09
+shader_parameter/delay = 0.0
+shader_parameter/life = 0.12
+shader_parameter/looping = null
+shader_parameter/color_core = Color(1, 1, 1, 1)
+shader_parameter/color_mid = Color(1, 0.945098, 0.721569, 1)
+shader_parameter/color_edge = Color(1, 0.788235, 0.301961, 1)
+shader_parameter/intensity = null
+shader_parameter/glow = 0.8
+shader_parameter/additive = 0.6
+shader_parameter/bands = null
+shader_parameter/seed = null
+shader_parameter/noise_tex = ExtResource("3_3")
+shader_parameter/peak = 0.2
+shader_parameter/core_size = 0.5
+shader_parameter/distort = null
+shader_parameter/cross_amount = null
+shader_parameter/cross_width = null
+shader_parameter/cross_angle = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_9"]
+resource_local_to_scene = true
+shader = ExtResource("5_5")
+shader_parameter/fx_time = 0.09
+shader_parameter/delay = 0.0
+shader_parameter/life = 0.55
+shader_parameter/looping = null
+shader_parameter/color_core = Color(1, 0.984314, 0.878431, 1)
+shader_parameter/color_mid = Color(1, 0.760784, 0.239216, 1)
+shader_parameter/color_edge = Color(0.941176, 0.32549, 0.109804, 1)
+shader_parameter/intensity = null
+shader_parameter/glow = 0.5
+shader_parameter/additive = 0.0
+shader_parameter/bands = null
+shader_parameter/seed = 0.3
+shader_parameter/noise_tex = ExtResource("3_3")
+shader_parameter/size_start = 0.25
+shader_parameter/size_end = 0.75
+shader_parameter/grow_power = null
+shader_parameter/distort = 0.5
+shader_parameter/noise_scale = null
+shader_parameter/erosion_start = null
+shader_parameter/erosion_end = 0.95
+shader_parameter/drift = 0.4
+shader_parameter/cool_speed = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_10"]
+resource_local_to_scene = true
+shader = ExtResource("5_5")
+shader_parameter/fx_time = 0.09
+shader_parameter/delay = 0.12
+shader_parameter/life = 0.85
+shader_parameter/looping = null
+shader_parameter/color_core = Color(0.643137, 0.603922, 0.65098, 1)
+shader_parameter/color_mid = Color(0.423529, 0.384314, 0.439216, 1)
+shader_parameter/color_edge = Color(0.227451, 0.196078, 0.243137, 1)
+shader_parameter/intensity = null
+shader_parameter/glow = 0.0
+shader_parameter/additive = 0.0
+shader_parameter/bands = null
+shader_parameter/seed = 1.7
+shader_parameter/noise_tex = ExtResource("3_3")
+shader_parameter/size_start = 0.35
+shader_parameter/size_end = 0.85
+shader_parameter/grow_power = null
+shader_parameter/distort = 0.55
+shader_parameter/noise_scale = null
+shader_parameter/erosion_start = 0.05
+shader_parameter/erosion_end = 0.97
+shader_parameter/drift = 0.6
+shader_parameter/cool_speed = 0.3
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_11"]
+resource_local_to_scene = true
+shader = ExtResource("6_6")
+shader_parameter/fx_time = 0.09
+shader_parameter/delay = 0.0
+shader_parameter/life = 0.3
+shader_parameter/looping = null
+shader_parameter/color_core = Color(1, 0.984314, 0.878431, 1)
+shader_parameter/color_mid = Color(1, 0.760784, 0.239216, 1)
+shader_parameter/color_edge = Color(0.941176, 0.32549, 0.109804, 1)
+shader_parameter/intensity = null
+shader_parameter/glow = null
+shader_parameter/additive = 0.6
+shader_parameter/bands = null
+shader_parameter/seed = 2.2
+shader_parameter/noise_tex = ExtResource("3_3")
+shader_parameter/radius_start = 0.2
+shader_parameter/radius_end = 0.92
+shader_parameter/width_start = 0.16
+shader_parameter/width_end = null
+shader_parameter/expand_power = null
+shader_parameter/breakup = 0.6
+shader_parameter/noise_scale = null
+
+[sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_12"]
+blend_mode = 1
+
+[sub_resource type="Gradient" id="Gradient_13"]
+offsets = PackedFloat32Array(0, 0.25, 0.7, 1)
+colors = PackedColorArray(1, 0.984314, 0.878431, 1, 1, 0.760784, 0.239216, 1, 0.941176, 0.32549, 0.109804, 0.85, 0.941176, 0.32549, 0.109804, 0)
+
+[sub_resource type="GradientTexture1D" id="GradientTexture1D_14"]
+gradient = SubResource("Gradient_13")
+width = 64
+
+[sub_resource type="Curve" id="Curve_15"]
+_data = [Vector2(0, 1), 0.0, 0.0, 0, 0, Vector2(1, 0), 0.0, 0.0, 0, 0]
+point_count = 2
+
+[sub_resource type="CurveTexture" id="CurveTexture_16"]
+width = 64
+curve = SubResource("Curve_15")
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_17"]
+lifetime_randomness = 0.35
+particle_flag_align_y = true
+particle_flag_disable_z = true
+spread = 180.0
+initial_velocity_min = 240.0
+initial_velocity_max = 520.0
+gravity = Vector3(0, 450, 0)
+damping_min = 300.0
+damping_max = 600.0
+scale_min = 0.3
+scale_max = 0.6
+scale_curve = SubResource("CurveTexture_16")
+color_ramp = SubResource("GradientTexture1D_14")
+
+[node name="ExplosionSmall" type="Node2D"]
+script = ExtResource("1_1")
+duration = 1.02
+impact_strength = 0.5
+
+[node name="Flash" type="Sprite2D" parent="."]
+z_index = 4
+material = SubResource("ShaderMaterial_8")
+scale = Vector2(42.5, 42.5)
+texture = ExtResource("4_4")
+
+[node name="Fireball" type="Sprite2D" parent="."]
+z_index = 2
+material = SubResource("ShaderMaterial_9")
+scale = Vector2(50, 50)
+texture = ExtResource("4_4")
+
+[node name="Smoke" type="Sprite2D" parent="."]
+z_index = 1
+material = SubResource("ShaderMaterial_10")
+position = Vector2(0, -14)
+scale = Vector2(57.5, 57.5)
+texture = ExtResource("4_4")
+
+[node name="Ring" type="Sprite2D" parent="."]
+z_index = 3
+material = SubResource("ShaderMaterial_11")
+scale = Vector2(62.5, 62.5)
+texture = ExtResource("4_4")
+
+[node name="Sparks" type="GPUParticles2D" parent="."]
+z_index = 1
+material = SubResource("CanvasItemMaterial_12")
+emitting = false
+amount = 12
+texture = ExtResource("7_7")
+lifetime = 0.5
+one_shot = true
+explosiveness = 1.0
+randomness = 0.2
+fixed_fps = 0
+visibility_rect = Rect2(-500, -500, 1000, 1000)
+process_material = SubResource("ParticleProcessMaterial_17")
+metadata/fx_delay = 0.0

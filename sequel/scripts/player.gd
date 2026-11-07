@@ -106,19 +106,19 @@ func _build_tables() -> void:
 			spec.lane = float(spec.lane) + LANE_ADD
 			hs.append([float(h[0]) / 72.0 / sp, spec])
 		return {"total": tot, "hits": hs, "cancel": hs[hs.size() - 1][0] + cancel_after}
-	var a: Dictionary = mk.call("atkA", [[18, {"side": 1, "r": 2.4, "lane": 0.85, "dmg": 18.0, "strong": false, "slash": SL_THRUST}]], CANCEL_AFTER)
-	var b: Dictionary = mk.call("atkB", [[33, {"side": 1, "r": 2.2, "lane": 1.0, "dmg": 26.0, "strong": false, "slash": SL_DOWN}]], CANCEL_AFTER)
+	var a: Dictionary = mk.call("atkA", [[18, {"side": 1, "r": 2.4, "lane": 0.85, "dmg": 18.0, "strong": false, "shake": 4.0, "slash": SL_THRUST}]], CANCEL_AFTER)
+	var b: Dictionary = mk.call("atkB", [[33, {"side": 1, "r": 2.2, "lane": 1.0, "dmg": 26.0, "strong": false, "shake": 6.0, "slash": SL_DOWN}]], CANCEL_AFTER)
 	var c_hits := []
 	var k := 0
 	for f in [15, 24, 33, 42]:
-		c_hits.append([f, {"side": 0, "r": 2.1, "lane": 1.1, "dmg": 12.0, "strong": false, "slash": SL_SWEEP if k % 2 == 0 else SL_BACK}])
+		c_hits.append([f, {"side": 0, "r": 2.1, "lane": 1.1, "dmg": 12.0, "strong": false, "shake": 4.0, "slash": SL_SWEEP if k % 2 == 0 else SL_BACK}])
 		k += 1
-	c_hits.append([60, {"side": 1, "r": 2.6, "lane": 1.2, "dmg": 24.0, "strong": true, "slash": SL_BIG}])
+	c_hits.append([60, {"side": 1, "r": 2.6, "lane": 1.2, "dmg": 24.0, "strong": true, "shake": 11.0, "slash": SL_BIG}])
 	var c: Dictionary = mk.call("atkC", c_hits, CANCEL_AFTER)
 	var h_hits := []
 	for f in [24, 36, 45, 57, 66]:
-		h_hits.append([f, {"side": 0, "r": 2.3, "lane": 1.3, "dmg": 14.0, "strong": false, "slash": SL_SPIN}])
-	h_hits.append([75, {"side": 0, "r": 2.4, "lane": 1.4, "dmg": 26.0, "strong": true, "slash": SL_SPIN}])
+		h_hits.append([f, {"side": 0, "r": 2.3, "lane": 1.3, "dmg": 14.0, "strong": false, "shake": 5.0, "slash": SL_SPIN}])
+	h_hits.append([75, {"side": 0, "r": 2.4, "lane": 1.4, "dmg": 26.0, "strong": true, "shake": 12.0, "slash": SL_SPIN}])
 	var h: Dictionary = mk.call("hold", h_hits, 0.08)
 	tab = {"atkA": a, "atkB": b, "atkC": c, "hold": h}
 
@@ -228,6 +228,7 @@ func use_skill(id: String) -> bool:
 	atk_next = "atkA"
 	skill_cd[id] = float(sk.cd)
 	skill_uses[id] = int(skill_uses.get(id, 0)) + 1
+	world.big_moment(float(sk.total) * 0.85)   # 大技の暗転（specs/vfx_overhaul.md）
 	return true
 
 func _skill_event(spec: Dictionary) -> void:
@@ -265,6 +266,7 @@ func use_ult() -> bool:
 	queued_hold = false
 	atk_next = "atkA"
 	world.cine = true
+	world.big_moment(2.3)
 	return true
 
 func _ult_process(delta: float) -> void:
@@ -301,9 +303,9 @@ func _ult_process(delta: float) -> void:
 		world._attack_from(self, {"side": 0, "shape": "both", "r": 8.0, "lane": 4.0, "dmg": 18.0 * 4.0, "strong": true, "kb": 3.0, "freeze_add": 0.2, "slash": big}, world.atk_mul)
 		fx.vortex_burst(position, 6.0)
 		fx.shockwave(position + Vector3(0, 1.0, 0), 2.2, 0.6, 0.9)
-		fx.screen_hit(0.0, 0.7)
-		if world.main and world.main.burst:
-			world.main.burst.emit_at(position + Vector3(0, 1.2, 0), 1.0)
+		world.chroma_hit(1.0)
+		if world.fx2d and not fx.legacy:
+			world.fx2d.big(position + Vector3(0, 1.2, 0), world.fx2d.GOLD)
 		world.shake = maxf(world.shake, 22.0)
 		if world.main and world.main.cutin:
 			world.main.cutin.flash_white()
@@ -390,10 +392,6 @@ func _physics_process(delta: float) -> void:
 	_update_ghosts(delta)
 	var blink := inv > 0.0 and state != "down" and int(Time.get_ticks_msec() / 42) % 2 == 0
 	mat.set_shader_parameter("flash", Color(1.0, 0.25, 0.2, 0.7 if flash > 0.0 else 0.0))
-	if not world.fx.legacy:   # 2026-11-07：被弾の最初の 0.07 秒は白く飛ぶ → 赤。必殺技が満タンの間は金の縁の光が脈打つ
-		mat.set_shader_parameter("flash_mix", Color(1, 1, 1, 0.9 if flash > 0.18 else 0.0))
-		var full: bool = world.ult >= world.ULT_MAX and state != "ult"
-		mat.set_shader_parameter("aura", Color(1.0, 0.72, 0.25, (0.7 + 0.3 * sin(Time.get_ticks_msec() * 0.008)) if full else 0.0))
 	for id in skill_cd:   # 待ちは止め（ヒットストップ）中も進める
 		if float(skill_cd[id]) > 0.0:
 			skill_cd[id] = maxf(0.0, float(skill_cd[id]) - delta)

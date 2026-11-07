@@ -22,6 +22,17 @@ var ally_ult := 0.0
 var ally_ult_gain := true
 var cam_focus: Node3D = null
 var fx: Node3D
+var fx2d                  # 2D のエフェクトの層（fx2d.gd）。無ければ従来の fx.hit
+## 大技の暗転（specs/vfx_overhaul.md）：bg_dim＝背景の明るさ（1→0.4 を 0.15 秒、戻り 0.25 秒）、dim_hold＝暗いままの残り
+const DIM_TO := 0.4
+var bg_dim := 1.0
+var dim_hold := 0.0
+var chroma := 0.0         # 一瞬の色収差（0.25 秒で引く）
+## ヒットストップ（秒）：通常 HS_NORMAL、強い当たり（各技の最後・大技）HS_BIG。揺れは技ごとの spec.shake（無ければ 通常 SHAKE_NORMAL／強い SHAKE_BIG）
+const HS_NORMAL := 0.05
+const HS_BIG := 0.09
+const SHAKE_NORMAL := 5.0
+const SHAKE_BIG := 10.0
 var cam: Camera3D
 var enemies := []
 var foe_clips := {}
@@ -120,9 +131,31 @@ func apply_light(spr: Sprite3D, mat: ShaderMaterial, refl: Sprite3D, p: Vector3)
 func dt(delta: float) -> float:
 	return 0.0 if (freeze > 0.0 or cine) else delta
 
+## 大技の始まり：背景を暗くし、hold 秒そのまま
+func big_moment(hold: float) -> void:
+	if fx and fx.legacy:
+		return
+	dim_hold = maxf(dim_hold, hold)
+
+## 大技の決めの一瞬：色収差
+func chroma_hit(v: float = 1.0) -> void:
+	if fx and fx.legacy:
+		return
+	chroma = maxf(chroma, v)
+
+func _update_dim(delta: float) -> void:
+	dim_hold = maxf(0.0, dim_hold - delta)
+	if dim_hold > 0.0:
+		bg_dim = maxf(DIM_TO, bg_dim - delta * (1.0 - DIM_TO) / 0.15)
+	else:
+		bg_dim = minf(1.0, bg_dim + delta * (1.0 - DIM_TO) / 0.25)
+	RenderingServer.global_shader_parameter_set("bg_dim", bg_dim)
+	chroma = maxf(0.0, chroma - delta / 0.25)
+	if fx and fx.screen_mat:
+		fx.screen_mat.set_shader_parameter("chroma", chroma)
+
 func _physics_process(delta: float) -> void:
-	if fx:
-		fx.low_hp = clampf((0.3 - hp / maxf(hp_max, 1.0)) / 0.3, 0.0, 1.0)   # 体力 30％ 未満で周辺の赤が脈打つ
+	_update_dim(delta)
 	freeze = maxf(0.0, freeze - delta)
 	shake = maxf(0.0, shake - delta * 60.0)
 	combo_t = maxf(0.0, combo_t - delta)
@@ -260,13 +293,23 @@ func _attack_from(p: Node3D, spec: Dictionary, mul: float) -> int:
 			if spec.has("lift") and e.has_method("lift_up"):   # 浮かせる（強めののけぞり＋絵を持ち上げる）
 				e.lift_up(float(spec.lift))
 			var hp_pos: Vector3 = e.position + Vector3(0, e.height() * 0.55, 0)
-			fx.hit(hp_pos, edir, spec.strong, hits < 4)
+			if fx2d and fx2d.enabled and not fx.legacy:   # 当たり：REEBO の火花＋Kenney の細い火花（2D の層で光る）
+				if hits < 4:
+					fx2d.hit(hp_pos, edir, spec.strong, "silver" if p == ally else "blue")
+			else:
+				fx.hit(hp_pos, edir, spec.strong, hits < 4)
 			if spec.get("zap", false):   # 当たった所で稲妻が弾ける（リリィ）
 				fx.zap(hp_pos, 6 if spec.strong else 4, 0.9 if spec.strong else 0.6)
 			fx.number(e.position + Vector3(0, e.height() + 0.5, 0), int(round(d)), "strong" if spec.strong else "")
 			hits += 1
 	if spec.has("slash"):
 		fx.slash(p.position, dir, spec.slash)
+		if fx2d and fx2d.enabled and not fx.legacy and p == player:   # 振りの弧に REEBO の三日月を重ねる（光る縁）
+			var sl: Dictionary = spec.slash
+			var big: bool = spec.strong
+			var ang: float = 0.0 if sl.get("plane", "h") == "h" else -55.0
+			var col: Color = fx2d.GOLD if sl.has("pal") else fx2d.BLUE
+			fx2d.slash(p.position + Vector3(dir * float(sl.get("r", 2.0)) * 0.35, float(sl.get("y", 1.0)) + 0.1, 0.2), dir, float(sl.get("r", 2.0)) * (0.8 if big else 0.6), ang + randf_range(-12.0, 12.0), col)
 	if hits > 0 and spec.strong:   # 強い当たり：画面のゆがみの輪（2026-11-06）
 		fx.shockwave(p.position + Vector3(dir * minf(spec.r, 2.0) * 0.5, 0.9, 0), 0.9 + mini(hits, 5) * 0.12)
 	if hits > 0 and p == player and ult_gain:
@@ -274,8 +317,12 @@ func _attack_from(p: Node3D, spec: Dictionary, mul: float) -> int:
 	if hits > 0 and p == ally and ally_ult_gain:
 		ally_ult = minf(ULT_MAX, ally_ult + hits * ALLY_ULT_GAIN)
 	if hits > 0:
-		freeze = maxf(freeze, 0.045 + mini(hits, 10) * 0.006 + (0.03 if spec.strong else 0.0) + float(spec.get("freeze_add", 0.0)))
-		shake = maxf(shake, 5.0 + mini(hits, 12) * 1.1 + (4.0 if spec.strong else 0.0))
+		if fx.legacy:   # 前の値（比較用）
+			freeze = maxf(freeze, 0.045 + mini(hits, 10) * 0.006 + (0.03 if spec.strong else 0.0) + float(spec.get("freeze_add", 0.0)))
+			shake = maxf(shake, 5.0 + mini(hits, 12) * 1.1 + (4.0 if spec.strong else 0.0))
+		else:   # 2026-11-07：通常 50ms・大技 90ms（＋必殺技などの freeze_add）、揺れは技ごと
+			freeze = maxf(freeze, (HS_BIG if spec.strong else HS_NORMAL) + float(spec.get("freeze_add", 0.0)))
+			shake = maxf(shake, float(spec.get("shake", SHAKE_BIG if spec.strong else SHAKE_NORMAL)))
 		combo += hits
 		combo_t = 2.4
 	else:
@@ -302,16 +349,27 @@ func player_skill(spec: Dictionary, p: Node3D) -> void:
 			var big: Dictionary = p.SL_BIG.duplicate()
 			big.pal = GOLD_PAL
 			spec.slash = big
+			chroma_hit(0.8)
 		"rift":
 			fx.rift(float(spec.x0), float(spec.x1), p.position.z, int(spec.n))
+			if fx2d and not fx.legacy:   # 割れ目の先端で金の火花と、上へ飛ぶ細い光（Kenney trace）
+				var tip := Vector3(float(spec.x1), 0.4, p.position.z)
+				fx2d.spawn(fx2d.HIT, tip, 0.8 + int(spec.n) * 0.2, fx2d.raw(fx2d.GOLD), 0.0)
+				fx2d.burst(["trace_02", "spark_06"], tip, 10, [fx2d.raw(fx2d.GOLD), fx2d.raw(fx2d.BLUE)], Vector2(3.0, 8.0), 0.45, Vector2(0.2, 0.5), 8.0, 1.5, false)
 		"vortex":
 			if int(spec.n) == 0:
 				fx.vortex(p, 3.2, 1.25)
+				if fx2d and not fx.legacy:
+					fx2d.twirl(p, 3.2, 1.25, fx2d.GOLD)
 		"vortex_end":
 			fx.vortex_burst(p.position, 3.4)
+			if fx2d and not fx.legacy:
+				fx2d.big(p.position + Vector3(0, 1.0, 0), fx2d.GOLD)
+			chroma_hit(1.0)
 	var hits := _attack_from(p, spec, atk_mul)
 	if spec.get("fx", "") == "rift" and int(spec.n) == 2:
 		fx.shockwave(Vector3(float(spec.x1), 0.5, p.position.z), 1.1)
+		chroma_hit(0.8)
 
 func hit_count_in_skill(p: Node3D) -> int:
 	return int(p.hit_i)
@@ -330,7 +388,6 @@ func enemy_hits_player(e) -> void:
 	hp = maxf(0.0, hp - d)
 	var dir := 1 if p.position.x >= e.position.x else -1
 	fx.hurt(p.position + Vector3(0, 1.0, 0), dir)
-	fx.screen_hit(0.85, 1.0)   # 周辺の赤＋色収差（specs/vfx_recipes.md）
 	fx.number(p.position + Vector3(0, 2.1, 0), d, "hurt")
 	freeze = maxf(freeze, 0.06)
 	shake = maxf(shake, 7.0)

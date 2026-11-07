@@ -3,6 +3,7 @@
 shader_type spatial;
 render_mode unshaded, cull_back;
 
+global uniform float bg_dim;
 uniform sampler2D paint : source_color, filter_linear_mipmap, repeat_disable;
 uniform mat4 ref_vp;
 uniform vec4 fallback : source_color = vec4(0.5, 0.5, 0.5, 1.0);
@@ -55,4 +56,5 @@ void fragment() {
 	col = mix(col, vec3(lum), clamp(f * 0.55, 0.0, 1.0)) * (1.0 - f * 0.3);
 	col = mix(col, fog_col.rgb, clamp(f * 0.42, 0.0, 1.0));
 	ALBEDO = col;
+	ALBEDO *= bg_dim;   // 大技の暗転（specs/vfx_overhaul.md）
 }

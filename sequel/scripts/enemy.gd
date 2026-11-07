@@ -128,10 +128,10 @@ func _physics_process(delta: float) -> void:
 	flash = maxf(0.0, flash - delta)
 	if battle.fx.legacy:
 		mat.set_shader_parameter("flash", Color(0.75, 0.88, 1.0, 0.3 * flash / 0.1 if flash > 0.0 else 0.0))
-	else:   # 2026-11-07：被弾の白光り（色を白へ置き換え、0.1 秒で引く。specs/vfx_recipes.md）
-		var fk: float = flash / 0.1
-		mat.set_shader_parameter("flash_mix", Color(1.0, 1.0, 1.0, 0.85 * fk * fk))
-		mat.set_shader_parameter("flash", Color(0.75, 0.88, 1.0, 0.15 * fk))
+	else:   # 2026-11-07：当たった最初の2コマ（0.034 秒）だけ真っ白、そのあと前の淡い青を短く
+		var white: bool = flash > 0.1 - 0.034
+		mat.set_shader_parameter("flash_mix", Color(1, 1, 1, 1.0 if white else 0.0))
+		mat.set_shader_parameter("flash", Color(0.75, 0.88, 1.0, 0.0 if white else 0.2 * flash / 0.1))
 	battle.apply_light(sprite, mat, refl, position)
 	bar_t = maxf(0.0, bar_t - delta)
 	hpbar.visible = bar_t > 0.0 and state != "dying"
@@ -271,6 +271,8 @@ func take_hit(d: float, dir: int, strong: bool) -> void:
 			die_t = 0.0
 			die_dir = dir
 			battle.fx.kill(position, dir, height())
+			if battle.fx2d and not battle.fx.legacy:
+				battle.fx2d.kill(position + Vector3(0, height() * 0.5, 0))
 			battle.on_kill(self)
 		return
 	if atk.get("warn") != null and not atk.done:
@@ -284,4 +286,6 @@ func take_hit(d: float, dir: int, strong: bool) -> void:
 		die_t = 0.0
 		die_dir = dir
 		battle.fx.kill(position, dir, height())
+		if battle.fx2d and not battle.fx.legacy:
+			battle.fx2d.kill(position + Vector3(0, height() * 0.5, 0))
 		battle.on_kill(self)

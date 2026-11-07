@@ -281,6 +281,8 @@ func _update_drops(delta: float) -> void:
 func _pickup(d: Dictionary) -> void:
 	var val: int = d.val
 	var pos: Vector3 = d.node.position + Vector3(0, 1.6, 0)
+	if main.fx2d and not main.fx.legacy:
+		main.fx2d.pickup(d.node.position + Vector3(0, 0.5, 0))
 	if val > main.progress.weapon:
 		main.progress.weapon = val
 		main.apply_progress()

@@ -1,0 +1,92 @@
+[gd_scene load_steps=13 format=3]
+
+[ext_resource type="Script" path="res://addons/reeboo_fx2d/reeboo_fx2d.gd" id="1_1"]
+[ext_resource type="Shader" path="res://addons/reeboo_fx2d/shaders/fx2d_slash.gdshader" id="2_2"]
+[ext_resource type="Texture2D" path="res://addons/reeboo_fx2d/textures/noise.png" id="3_3"]
+[ext_resource type="Texture2D" path="res://addons/reeboo_fx2d/textures/quad.png" id="4_4"]
+[ext_resource type="Texture2D" path="res://addons/reeboo_fx2d/textures/dot.png" id="5_5"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_6"]
+resource_local_to_scene = true
+shader = ExtResource("2_2")
+shader_parameter/fx_time = 0.09
+shader_parameter/delay = 0.0
+shader_parameter/life = 0.28
+shader_parameter/looping = null
+shader_parameter/color_core = Color(1, 1, 1, 1)
+shader_parameter/color_mid = Color(0.662745, 0.894118, 1, 1)
+shader_parameter/color_edge = Color(0.239216, 0.545098, 1, 1)
+shader_parameter/intensity = null
+shader_parameter/glow = 0.6
+shader_parameter/additive = 0.3
+shader_parameter/bands = null
+shader_parameter/seed = 0.2
+shader_parameter/noise_tex = ExtResource("3_3")
+shader_parameter/straight = null
+shader_parameter/radius = 0.8
+shader_parameter/thickness = 0.27
+shader_parameter/arc_start = -2.3
+shader_parameter/arc_end = 0.9
+shader_parameter/head_speed = 2.6
+shader_parameter/streaks = 0.55
+
+[sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_7"]
+blend_mode = 1
+
+[sub_resource type="Gradient" id="Gradient_8"]
+offsets = PackedFloat32Array(0, 0.25, 0.7, 1)
+colors = PackedColorArray(1, 1, 1, 1, 0.662745, 0.894118, 1, 1, 0.239216, 0.545098, 1, 0.85, 0.239216, 0.545098, 1, 0)
+
+[sub_resource type="GradientTexture1D" id="GradientTexture1D_9"]
+gradient = SubResource("Gradient_8")
+width = 64
+
+[sub_resource type="Curve" id="Curve_10"]
+_data = [Vector2(0, 0.35), 0.0, 0.0, 0, 0, Vector2(0.12, 1), 0.0, 0.0, 0, 0, Vector2(1, 0), 0.0, 0.0, 0, 0]
+point_count = 3
+
+[sub_resource type="CurveTexture" id="CurveTexture_11"]
+width = 64
+curve = SubResource("Curve_10")
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_12"]
+lifetime_randomness = 0.35
+particle_flag_disable_z = true
+direction = Vector3(0.287348, 0.957826, 0)
+spread = 60.0
+initial_velocity_min = 80.0
+initial_velocity_max = 200.0
+gravity = Vector3(0, 200, 0)
+damping_min = 60.0
+damping_max = 160.0
+scale_min = 0.1
+scale_max = 0.2
+scale_curve = SubResource("CurveTexture_11")
+color_ramp = SubResource("GradientTexture1D_9")
+
+[node name="SlashArc" type="Node2D"]
+script = ExtResource("1_1")
+duration = 0.35
+impact_time = 0.06
+impact_strength = 0.15
+
+[node name="Slash" type="Sprite2D" parent="."]
+material = SubResource("ShaderMaterial_6")
+scale = Vector2(57.5, 57.5)
+texture = ExtResource("4_4")
+
+[node name="Dots" type="GPUParticles2D" parent="."]
+z_index = 1
+material = SubResource("CanvasItemMaterial_7")
+position = Vector2(70, 40)
+emitting = false
+amount = 5
+texture = ExtResource("5_5")
+lifetime = 0.3
+one_shot = true
+explosiveness = 1.0
+randomness = 0.2
+fixed_fps = 0
+visibility_rect = Rect2(-500, -500, 1000, 1000)
+process_material = SubResource("ParticleProcessMaterial_12")
+metadata/fx_delay = 0.0

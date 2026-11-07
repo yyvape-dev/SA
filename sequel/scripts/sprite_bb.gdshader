@@ -22,11 +22,10 @@ uniform vec4 burn_col : source_color = vec4(1.0, 0.62, 0.18, 1.0);   // 焼け�
 uniform int rim_mode = 0;                         // 0＝くっきりした線（前）、1＝柔らかい光（輪郭から内側へなだらかに薄れる）
 uniform vec4 amb_col = vec4(1.0, 1.0, 1.0, 0.0);  // 周りの夜の色へ寄せる（a＝量）。影の部分ほど強く寄せる
 uniform float edge_soft = 0.0;                    // 輪郭の不透明の境目をなだらかに（0＝しない）
-// 2026-11-07（specs/vfx_recipes.md）：被弾の白光り＝色を置き換える（足し算の flash と違い、暗い服も白く飛ぶ）。a＝量
+// 2026-11-07（specs/vfx_overhaul.md）：被弾の白光り（色を置き換える。a＝量）、背景の部品（手前の板・人の流れ）は大技の暗転 bg_dim に従う
 uniform vec4 flash_mix = vec4(1.0, 1.0, 1.0, 0.0);
-// 縁の光（オーラ）：輪郭の全周を aura_px 画素の幅で光らせる（光の側だけの rim と別）。a＝強さ（脈打ちはスクリプト）
-uniform vec4 aura = vec4(1.0, 1.0, 1.0, 0.0);
-uniform float aura_px = 6.0;
+uniform float bg_layer = 0.0;
+global uniform float bg_dim;
 
 void vertex() {
 	float c = cos(rot);
@@ -96,18 +95,8 @@ void fragment() {
 		col = mix(col, burn_col.rgb * 3.0, burn);
 		a_out *= keep;
 	}
-	if (aura.a > 0.0) {   // 輪郭の外側から内側へなだらかに：周り8方向の透明の割合
-		float open2 = 0.0;
-		for (int i = 0; i < 8; i++) {
-			float an = float(i) * 0.785398;
-			vec2 o = vec2(cos(an), sin(an)) * ts * aura_px;
-			open2 += 1.0 - texture(tex, UV + o).a;
-			open2 += (1.0 - texture(tex, UV + o * 0.5).a) * 0.6;
-		}
-		open2 = clamp(open2 / 6.0, 0.0, 1.0);
-		col += aura.rgb * aura.a * open2 * c.a * 1.6;
-	}
 	col = mix(col, flash_mix.rgb, flash_mix.a * c.a);
+	col *= mix(1.0, bg_dim, bg_layer);
 	ALBEDO = col + flash.rgb * flash.a * c.a;
 	ALPHA = a_out;
 }

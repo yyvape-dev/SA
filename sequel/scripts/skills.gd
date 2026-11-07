@@ -15,8 +15,8 @@ static func table() -> Dictionary:
 	var fl := []
 	for i in 10:
 		fl.append([0.25 + i * 0.095, {"shape": "fwd", "side": 1, "r": 2.3, "lane": 1.1, "k": 0.45, "strong": false, "kb": 0.3,
-			"pull": "front", "pull_m": 0.25, "fx": "flurry"}])
-	fl.append([1.27, {"shape": "fwd", "side": 1, "r": 2.5, "lane": 1.2, "k": 2.0, "strong": true, "kb": 1.6, "fx": "flurry_end", "freeze_add": 0.08}])
+			"pull": "front", "pull_m": 0.25, "fx": "flurry", "shake": 3.0}])
+	fl.append([1.27, {"shape": "fwd", "side": 1, "r": 2.5, "lane": 1.2, "k": 2.0, "strong": true, "kb": 1.6, "fx": "flurry_end", "freeze_add": 0.08, "shake": 12.0}])
 	t["flurry"] = {"clip": "flurry", "spd": 1.0, "cd": 8.0, "total": 1.54, "ev": fl}
 	# 地走り：斬り下ろしの当たりから、前方へ地割れの衝撃が3回（0.12 秒おき）
 	var hb := 33.0 / 72.0 / 1.5
@@ -24,13 +24,13 @@ static func table() -> Dictionary:
 	var rng := [[0.0, 3.0], [2.0, 5.5], [4.5, 8.0]]
 	for i in 3:
 		rf.append([hb + i * 0.12, {"shape": "band", "side": 1, "r": 2.0, "x0": rng[i][0], "x1": rng[i][1], "lane": 0.9, "k": 1.1,
-			"strong": i == 2, "lift": 2.5, "fx": "rift", "n": i}])
+			"strong": i == 2, "lift": 2.5, "fx": "rift", "n": i, "shake": 13.0 if i == 2 else 8.0}])
 	t["rift"] = {"clip": "atkB", "spd": 1.5, "cd": 7.0, "total": 0.85, "ev": rf}
 	# 金の渦：半径 3.2m の円に 0.15 秒おき 8 回、毎回ラナへ引き寄せる。最後に外へ大きく弾く
 	var vx := []
 	for i in 8:
 		vx.append([0.15 * (i + 1), {"shape": "circle", "side": 1, "r": 3.2, "cx": 0.0, "lane": 9.0, "k": 0.5, "strong": false, "kb": 0.2,
-			"pull": "in", "pull_m": 0.6, "fx": "vortex", "n": i}])
-	vx.append([1.32, {"shape": "circle", "side": 1, "r": 3.4, "cx": 0.0, "lane": 9.0, "k": 1.8, "strong": true, "kb": 2.6, "fx": "vortex_end", "freeze_add": 0.06}])
+			"pull": "in", "pull_m": 0.6, "fx": "vortex", "n": i, "shake": 3.0}])
+	vx.append([1.32, {"shape": "circle", "side": 1, "r": 3.4, "cx": 0.0, "lane": 9.0, "k": 1.8, "strong": true, "kb": 2.6, "fx": "vortex_end", "freeze_add": 0.06, "shake": 14.0}])
 	t["vortex"] = {"clip": "hold", "spd": 1.25, "cd": 12.0, "total": 1.45, "ev": vx}
 	return t
