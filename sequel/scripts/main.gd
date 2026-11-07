@@ -13,7 +13,7 @@ const PAINT_SHADER := preload("res://scripts/proj_paint.gdshader")
 const SPRITE_SHADER := preload("res://scripts/sprite_bb.gdshader")
 
 const ROOM_X := Vector2(-19.0, 19.0)   # 歩ける左右
-const BELT_Z := Vector2(-3.2, 3.5)     # 歩ける奥行き
+var BELT_Z := Vector2(-3.2, 3.5)       # 歩ける奥行き（カメラの比較の案 A で狭める。specs/camera_depth.md）
 const CAM_X := Vector2(-12.0, 12.0)    # カメラが動ける左右
 const CAM_OFS := Vector3(0, 3.8, 13.5) # 下絵（塗ってもらった絵）を撮ったカメラ。下絵の撮り直し・使い回しの確認はこれ
 const CAM_LOOK := Vector3(0, 2.1, 0)
@@ -42,6 +42,11 @@ var perf_label: Label    # ?perf=1 の画面の隅の表示（iPhone で読め�
 var lily_cutin           # リリィの必殺技のカットイン（仲間の絵を読み終えてから作る）
 var cutin                # 遊ぶカメラで、帯の真ん中（z=0）に見える左右の半分（横持ち 19.5:9、m）
 const CAM_FOV := 36.0
+## カメラと奥行きの比較（specs/camera_depth.md。採用はユーザー判定）：環境変数 CAMV または URL ?cam= に A・B・C
+##   A＝帯を狭く（奥と手前の倍率 1.3）、B＝カメラを遠く・画角を狭く（帯はそのまま、倍率 1.3）、C＝正投影（比較用）
+var cam_variant := ""
+var play_ofs := PLAY_OFS
+var play_fov := CAM_FOV
 const MAGENTA := Color(1, 0, 1)
 
 var cam: Camera3D
@@ -107,7 +112,8 @@ func _ready() -> void:
 	build_city()
 	_boot("after_build_city")
 	cam = Camera3D.new()
-	cam.fov = CAM_FOV
+	_apply_cam_variant()
+	cam.fov = play_fov
 	cam.near = 0.3
 	cam.far = 300.0
 	add_child(cam)
@@ -408,12 +414,31 @@ func _build_vignette() -> void:
 	if fx:
 		fx.screen_mat = m   # 衝撃波の画面のゆがみ
 
+func _apply_cam_variant() -> void:
+	cam_variant = OS.get_environment("CAMV")
+	if OS.has_feature("web"):
+		var q := str(JavaScriptBridge.eval("window.location.search"))
+		for v in ["A", "B", "C"]:
+			if q.contains("cam=" + v):
+				cam_variant = v
+	match cam_variant:
+		"A":   # 帯を狭く：中心 z=0.15 のまわり ±1.02m（(8−奥)/(8−手前)=1.3）
+			BELT_Z = Vector2(-0.87, 1.17)
+		"B":   # 遠く・画角を狭く：帯の中心から 25.7m（(25.7+3.35)/(25.7−3.35)=1.3）。見下ろす角度は今と同じ 8.9°、中央のラナの大きさも同じ（見える高さ 5.21m）
+			play_ofs = Vector3(0, 1.35 + 25.85 * 1.25 / 8.0, 25.85)
+			play_fov = rad_to_deg(2.0 * atan(5.21 * 0.5 / 25.85))
+		"C":   # 正投影：見える高さ 5.21m（中央のラナの大きさを今と同じに）
+			cam.projection = Camera3D.PROJECTION_ORTHOGONAL
+			cam.size = 5.21
+	if cam_variant != "":
+		print("CAMV %s belt=%s ofs=%s fov=%.2f" % [cam_variant, str(BELT_Z), str(play_ofs), play_fov])
+
 func _cam_pos_for(x: float, ofs: Vector3 = CAM_OFS) -> Vector3:
 	return Vector3(clampf(x, cam_x.x, cam_x.y), 0, 0) + ofs
 
 func _place_cam(snap: bool, delta: float = 0.0) -> void:
 	var fo0: Node3D = battle.cam_focus if battle and battle.cam_focus else player   # リリィの必殺技の間はリリィを追う
-	var want := _cam_pos_for(fo0.position.x, PLAY_OFS)
+	var want := _cam_pos_for(fo0.position.x, play_ofs)
 	var z: float = battle.cam_zoom if battle else 0.0
 	if z > 0.0:   # 必殺技：ラナへ寄る（なめらかに）
 		var zz := z * z * (3.0 - 2.0 * z)
@@ -1006,6 +1031,11 @@ func _capture_fx() -> void:
 		print("FX DONE")
 		get_tree().quit()
 		return
+	if OS.get_environment("FX_ONLY") == "camcmp":
+		await _capture_camcmp(dir)
+		print("FX DONE")
+		get_tree().quit()
+		return
 	if OS.get_environment("FX_ONLY") == "vfxlab":
 		await _capture_vfxlab(dir)
 		print("FX DONE")
@@ -1056,6 +1086,52 @@ func _capture_ult(dir: String) -> void:
 		if n < marks.size() and f >= int(marks[n] * 60.0):
 			n += 1
 			get_viewport().get_texture().get_image().save_png(dir + "/fx_ult_%d.png" % n)
+
+## カメラの比較（specs/camera_depth.md）：一番奥・中央・一番手前で、同じ場面（ラナと敵、突きの当たり）→ captures/cam_<案>_<奥|中|手前>.png
+func _capture_camcmp(dir: String) -> void:
+	var tag := cam_variant if cam_variant != "" else "now"
+	player.visible = true
+	player.set_physics_process(true)
+	if battle.ally:
+		battle.ally.visible = false
+		battle.ally.set_physics_process(false)
+	battle.auto_spawn = false
+	var zs := {"back": BELT_Z.x, "mid": (BELT_Z.x + BELT_Z.y) * 0.5, "front": BELT_Z.y}
+	for key in ["back", "mid", "front"]:
+		for x in battle.enemies.duplicate():
+			battle.remove_enemy(x)
+		var z: float = zs[key]
+		player.position = Vector3(-1.0, 0, z)
+		player.face = 1
+		player.state = "move"
+		player.inv = 99.0
+		battle.freeze = 0.0
+		_place_cam(true)
+		var e = battle.spawn("3", Vector3(0.6, 0, z))
+		e.atk_cd = 99.0
+		e.face = -1
+		e.hp_max = 9999.0
+		e.hp = 9999.0
+		for f in 4:
+			await get_tree().physics_frame
+		var foot := cam.unproject_position(player.position)
+		var head := cam.unproject_position(player.position + Vector3(0, player.HEIGHT_M, 0))
+		var vh := get_viewport().get_visible_rect().size.y
+		print("CAMH %s %s z=%.2f ラナの画面の高さ %.1f%%（%.0f/%.0f 単位）" % [tag, key, z, absf(foot.y - head.y) / vh * 100.0, absf(foot.y - head.y), vh])
+		player._start_attack("atkA")
+		var got := false
+		for f in 40:
+			await get_tree().physics_frame
+			await RenderingServer.frame_post_draw
+			if not got and battle.freeze > 0.0:
+				got = true
+				for g in 3:
+					await get_tree().physics_frame
+					await RenderingServer.frame_post_draw
+				get_viewport().get_texture().get_image().save_png(dir + "/cam_%s_%s.png" % [tag, key])
+		for f in 30:
+			await get_tree().physics_frame
+	player.inv = 0.0
 
 ## 共通シェーダーの素材を単体で撮る（向き・出方・消え方の確認）→ captures/lab_<名前>_<コマ>.png
 func _capture_vfxlab(dir: String) -> void:
