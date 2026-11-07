@@ -32,6 +32,12 @@ var fx2d                 # 2D のエフェクトの層（fx2d.gd、specs/vfx_ove
 var ground_mats := []    # [StandardMaterial3D, 元の色]：大技の暗転で暗くする
 var fx_demo := -1.0      # ?fxtest=1：ラナの前に 2D の層のエフェクトを順に出す（実機・ブラウザの確認用）
 var fx_demo_i := 0
+## 重さの記録（?perf=1、specs/web_perf.md）：1 秒ごとに fps・コマの時間・draw call・2D の層の大きさと重なりを console へ。止まり（50ms 超）はその都度
+var perf_on := false
+var perf_t := 0.0
+var perf_frames := []
+var perf_t0 := 0
+var perf_last_fx := ""
 var lily_cutin           # リリィの必殺技のカットイン（仲間の絵を読み終えてから作る）
 var cutin                # 遊ぶカメラで、帯の真ん中（z=0）に見える左右の半分（横持ち 19.5:9、m）
 const CAM_FOV := 36.0
@@ -64,7 +70,16 @@ const Progress := preload("res://scripts/progress.gd")
 const Ally := preload("res://scripts/ally.gd")
 const GATE_X := 16.0              # 入口の位置（区画の右端、高架の下）
 
+## 起動の各段の時刻（console に BOOT。specs/web_perf.md）
+func _boot(stage: String) -> void:
+	print("BOOT %s %dms" % [stage, Time.get_ticks_msec()])
+
+## 重さの切り分け用（?perf=1 と一緒に使う）：?glow3d=0 3D の glow を切る、?vig=0 画面の仕上げ（画面を読む層）を出さない
+func _q(key: String) -> bool:
+	return OS.has_feature("web") and str(JavaScriptBridge.eval("window.location.search")).contains(key)
+
 func _ready() -> void:
+	_boot("main_ready")
 	# 撮影・確認では乱数の種を固定する（版どうしで同じ場面・同じコマを比べるため）
 	for k in ["CAPTURE_FX", "CAPTURE_LINEUP", "CAPTURE_PLAY", "CAPTURE_DUNGEON", "DUNGEON_TEST", "CAPTURE_GUIDE", "CAPTURE_REUSE"]:
 		if OS.has_environment(k):
@@ -75,7 +90,9 @@ func _ready() -> void:
 	add_child(district)
 	_load_guide_meta()
 	_build_env()
+	_boot("before_d1")
 	var ok: bool = await district.ensure("d1")
+	_boot("after_d1")
 	if not ok:
 		push_error("地区 d1 の絵を読み込めない")
 		loading.error_text = district.last_error
@@ -87,6 +104,7 @@ func _ready() -> void:
 	else:
 		progress.load_save()
 	build_city()
+	_boot("after_build_city")
 	cam = Camera3D.new()
 	cam.fov = CAM_FOV
 	cam.near = 0.3
@@ -103,6 +121,7 @@ func _ready() -> void:
 	fx.cam = cam
 	add_child(fx)
 	battle.fx = fx
+	_boot("before_player")
 	player = Player.new()
 	player.world = battle
 	player.room_x = ROOM_X
@@ -110,6 +129,7 @@ func _ready() -> void:
 	battle.player = player
 	add_child(player)
 	player.position = Vector3(-4, 0, 1.0)
+	_boot("after_player")
 	_place_cam(true)
 	_load_ally()
 	_build_vignette()
@@ -144,6 +164,10 @@ func _ready() -> void:
 				glints_src.size(), str(ResourceLoader.exists("res://art/painted/b1_tavern.png")), str(JavaScriptBridge.eval("location.href"))]
 		if str(JavaScriptBridge.eval("window.location.search")).contains("fxtest=1"):
 			fx_demo = 2.0
+		if str(JavaScriptBridge.eval("window.location.search")).contains("perf=1"):
+			perf_on = true
+			perf_t0 = Time.get_ticks_msec()
+			RenderingServer.viewport_set_measure_render_time(get_viewport().get_viewport_rid(), true)
 		# 確認用：?at=gate で入口の前から始める
 		if str(JavaScriptBridge.eval("window.location.search")).contains("at=gate"):
 			player.position = Vector3(GATE_X - 0.5, 0, BELT_Z.x + 1.6)
@@ -170,12 +194,54 @@ func _ready() -> void:
 		get_tree().quit()
 
 ## 仲間リリィ：絵（地区 pck「al1」）を読み終えたら出す。起動を待たせないよう、本体の起動の後に読む。
+func _perf(delta: float) -> void:
+	perf_frames.append(delta * 1000.0)
+	if delta > 0.05:
+		print("PERF_SPIKE t=%dms frame=%.0fms last_fx=%s" % [Time.get_ticks_msec() - perf_t0, delta * 1000.0, perf_last_fx])
+	perf_t += delta
+	if perf_t < 1.0:
+		return
+	perf_t = 0.0
+	var arr: Array = perf_frames.duplicate()
+	arr.sort()
+	var avg := 0.0
+	for v in arr:
+		avg += v
+	avg /= maxf(1.0, arr.size())
+	var vp := get_viewport().get_viewport_rid()
+	var dc_main := RenderingServer.viewport_get_render_info(vp, RenderingServer.VIEWPORT_RENDER_INFO_TYPE_VISIBLE, RenderingServer.VIEWPORT_RENDER_INFO_DRAW_CALLS_IN_FRAME)
+	var obj_main := RenderingServer.viewport_get_render_info(vp, RenderingServer.VIEWPORT_RENDER_INFO_TYPE_VISIBLE, RenderingServer.VIEWPORT_RENDER_INFO_OBJECTS_IN_FRAME)
+	var dc_tr := RenderingServer.viewport_get_render_info(vp, RenderingServer.VIEWPORT_RENDER_INFO_TYPE_CANVAS, RenderingServer.VIEWPORT_RENDER_INFO_DRAW_CALLS_IN_FRAME)
+	var cover := 0.0   # 2D の層の絵の面積の合計 ÷ 画面（重なりの目安）
+	var n_items := 0
+	if fx2d:
+		var scr := get_viewport().get_visible_rect().size
+		for it in fx2d.items:
+			if is_instance_valid(it.node):
+				n_items += 1
+				if it.node is Sprite2D and it.node.texture:
+					var sz: Vector2 = it.node.texture.get_size() * it.node.scale.abs()
+					if it.node.hframes > 1:
+						sz /= Vector2(it.node.hframes, it.node.vframes)
+					cover += sz.x * sz.y / (scr.x * scr.y)
+				elif it.node is CPUParticles2D:
+					var s: float = (it.node.scale_amount_min + it.node.scale_amount_max) * 0.5 * it.node.texture.get_width()
+					cover += it.node.amount * s * s / (scr.x * scr.y)
+	var win := DisplayServer.window_get_size()
+	print("PERF fps=%.1f avg=%.1fms p95=%.1fms max=%.1fms dc3d=%d obj3d=%d dc2d=%d vram=%.0fMB tex=%.0fMB win=%dx%d fx2d_vp=%s fx_items=%d cover=%.2f cpu=%.1fms gpu=%.1fms" % [
+		Engine.get_frames_per_second(), avg, arr[int(arr.size() * 0.95)] if arr.size() > 0 else 0.0, arr[-1] if arr.size() > 0 else 0.0,
+		dc_main, obj_main, dc_tr, Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED) / 1e6, Performance.get_monitor(Performance.RENDER_TEXTURE_MEM_USED) / 1e6,
+		win.x, win.y, str(fx2d.sv.size) if fx2d else "-", n_items, cover,
+		RenderingServer.viewport_get_measured_render_time_cpu(vp), RenderingServer.viewport_get_measured_render_time_gpu(vp)])
+	perf_frames.clear()
+
 ## エフェクトの絵（地区 pck「fx1」：焼いた REEBO・Kenney の粒）。起動の後に読み、読み終えるまで 2D の層と絵の板は出さない
 func _load_fx() -> void:
 	if OS.has_feature("web"):
 		if not await district.ensure("fx1"):
 			push_warning("エフェクトの絵 fx1 を読めない: " + district.last_error)
 			return
+	_boot("fx1_loaded")
 	if fx:
 		fx.assets_ok = true
 	if fx2d:
@@ -193,6 +259,7 @@ func _load_ally() -> void:
 	a.setup(battle, d)
 	a.position = player.position + Vector3(-1.4, 0, 0.7)
 	battle.add_child(a)
+	_boot("ally_loaded")
 	battle.ally = a
 	lily_cutin = Cutin.new()   # 立ち絵 assets/lily/cutin.webp（al1 に入っている）、蒼の帯
 	lily_cutin.tex_path = "res://assets/lily/cutin.webp"
@@ -212,12 +279,15 @@ func _process(delta: float) -> void:
 		if fx_demo <= 0.0:
 			fx_demo = 1.0
 			var wp := player.position + Vector3(player.face * 1.8, 1.1, 0.3)
+			perf_last_fx = "fx%d@%dms" % [fx_demo_i % 4, Time.get_ticks_msec() - perf_t0]
 			match fx_demo_i % 4:
 				0: fx2d.hit(wp, player.face, false)
 				1: fx2d.slash(wp, player.face, 1.4, -20.0, fx2d.BLUE)
 				2: fx2d.hit(wp, player.face, true)
 				3: fx2d.big(wp, fx2d.GOLD)
 			fx_demo_i += 1
+	if perf_on:
+		_perf(delta)
 	if battle:   # 大技の暗転：路面（StandardMaterial3D）は色で。ほかの背景はシェーダーの global uniform bg_dim
 		for i in range(ground_mats.size() - 1, -1, -1):
 			var gm = ground_mats[i]
@@ -306,6 +376,8 @@ func _build_crowd() -> void:
 		crowd.append({"node": s, "v": v, "ph": rng.randf() * 6.0, "h": h})
 
 func _build_vignette() -> void:
+	if _q("vig=0"):
+		return
 	var cl := CanvasLayer.new()
 	cl.layer = 0
 	var r := ColorRect.new()
@@ -357,6 +429,8 @@ func _build_env() -> void:
 	env.glow_bloom = 0.0
 	env.glow_hdr_threshold = 0.78
 	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_SCREEN
+	if _q("glow3d=0"):
+		env.glow_enabled = false
 	we.environment = env
 	add_child(we)
 	var sun := DirectionalLight3D.new()

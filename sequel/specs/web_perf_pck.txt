@@ -1,0 +1,72 @@
+index.pck 件数 124 合計 46.6 MB
+
+種類ごと
+  テクスチャ(可逆/無圧縮): 46.29MB  29件
+  スクリプト: 0.21MB  20件
+  設定/json: 0.06MB  57件
+  シェーダー: 0.03MB  16件
+  その他(bin): 0.00MB  1件
+  シーン/リソース: 0.00MB  1件
+
+上位30件
+    4.59MB  .godot/imported/rana2_1.webp-8c98f3dd20a297238d7ec442ec9ef127.ctex
+    4.01MB  .godot/imported/rana2_2.webp-cad1a86dd057a881a09fb0afbc6b0e8c.ctex
+    3.82MB  .godot/imported/rana2_3.webp-054846c40590e894271718a71475d37b.ctex
+    3.55MB  .godot/imported/rana2_0.webp-b3f8d1b60c92e6c787a28ebd2bf3c816.ctex
+    2.97MB  .godot/imported/rana2_4.webp-8adde125a979ac2e8c487afa53ed07d5.ctex
+    2.94MB  .godot/imported/rana2_6.webp-6a120b0c8a5d7f0d8ea0d6e67cd05cc2.ctex
+    2.88MB  .godot/imported/rana2_7.webp-bc5706ffad552731d55d2153f2316299.ctex
+    2.86MB  .godot/imported/rana2_5.webp-778e7168939f6b802b5503f29b99331e.ctex
+    2.78MB  .godot/imported/rana2_8.webp-b6edc31e478e11ef638b28455921cb07.ctex
+    2.77MB  .godot/imported/foeduel_1_1_p.webp-008af19b5ce8339ef50cce2f841b2024.ctex
+    2.66MB  .godot/imported/rana2_9.webp-063ddbe7493847b5ad61baf01df27aeb.ctex
+    2.65MB  .godot/imported/foeduel_1_2_p.webp-01bd85733efbd634a6bf09d55732e634.ctex
+    2.57MB  .godot/imported/foeduel_3_2_p.webp-06ce633de57d035d3c8dad0ab204365d.ctex
+    2.55MB  .godot/imported/foeduel_3_1_p.webp-dea9c2545f1e5c758dc8ab066c663de2.ctex
+    1.15MB  .godot/imported/cutin.webp-f63e459a4f7b5cfb0ceadbc313a1aec8.ctex
+    0.30MB  .godot/imported/foewalk_1.webp-f618ff26aa0fea44ffb4e45a38401908.ctex
+    0.26MB  .godot/imported/foewalk_3.webp-f6b3bec68019d9371db1100bd6052383.ctex
+    0.09MB  .godot/imported/work_2.webp-73222c2ed37f97fe23aeed5557cebf37.ctex
+    0.09MB  .godot/imported/woman_3.webp-e11f6776426349fcfd06ab523bdf61f1.ctex
+    0.08MB  .godot/imported/man_3.webp-0f868485d0244c8cecfb095b1f33c46d.ctex
+    0.08MB  .godot/imported/work_1.webp-d95369aefa32708e9ef3fe8c37db66c4.ctex
+    0.08MB  .godot/imported/work_4.webp-7bd90c3218c4769a7a5c3b65b87a28e2.ctex
+    0.08MB  .godot/imported/work_3.webp-55a895ad605c0fd647339c2ac2456986.ctex
+    0.08MB  .godot/imported/woman_4.webp-06ed631783ac74fc81313c697d7a9c66.ctex
+    0.08MB  .godot/imported/woman_2.webp-c35523a21299179d0c0769bfed4bad66.ctex
+    0.08MB  .godot/imported/woman_1.webp-074852342501aba84ec8bc1cf3d07b91.ctex
+    0.07MB  .godot/imported/man_2.webp-82070669697510031bbfb5bd7e25df8c.ctex
+    0.07MB  .godot/imported/man_4.webp-d68d808e9e2d7e2a5e9198bf329f86cd.ctex
+    0.07MB  .godot/imported/man_1.webp-a03fa0206dd363dadccecf63bb607764.ctex
+    0.04MB  scripts/main.gdc
+
+パソコン用とスマホ用の2形式で入っている絵: 0 件、計 0.0 MB
+
+index.wasm 39.51 MB の内訳（セクション）
+  code: 34.49MB
+  data: 4.72MB
+  element: 0.22MB
+  function: 0.07MB
+  type: 0.01MB
+  import: 0.00MB
+  export: 0.00MB
+  global: 0.00MB
+
+テクスチャを展開したときの大きさ（RGBA8。GPU のメモリ）
+  assets/rana2/cutin.webp: 850x1472 展開 5.0MB（ファイル 1.05MB）
+  assets/rana2/rana2_0.webp: 2048x1805 展開 14.8MB（ファイル 3.24MB）
+  assets/rana2/rana2_1.webp: 2048x1732 展開 14.2MB（ファイル 4.24MB）
+  assets/rana2/rana2_2.webp: 2048x1728 展開 14.2MB（ファイル 3.71MB）
+  assets/rana2/rana2_3.webp: 2048x1703 展開 14.0MB（ファイル 3.49MB）
+  assets/rana2/rana2_4.webp: 2048x1646 展開 13.5MB（ファイル 2.71MB）
+  assets/rana2/rana2_5.webp: 2048x2011 展開 16.5MB（ファイル 2.61MB）
+  assets/rana2/rana2_6.webp: 2048x1954 展開 16.0MB（ファイル 2.64MB）
+  assets/rana2/rana2_7.webp: 2048x1877 展開 15.4MB（ファイル 2.57MB）
+  assets/rana2/rana2_8.webp: 2048x1816 展開 14.9MB（ファイル 2.53MB）
+  assets/rana2/rana2_9.webp: 2048x1516 展開 12.4MB（ファイル 2.42MB）
+  assets/foe/foeduel_1_1_p.webp: 1485x3392 展開 20.1MB（ファイル 1.05MB）
+  assets/foe/foeduel_1_2_p.webp: 1459x3447 展開 20.1MB（ファイル 0.99MB）
+  assets/foe/foeduel_3_1_p.webp: 3959x1059 展開 16.8MB（ファイル 0.94MB）
+  assets/foe/foeduel_3_2_p.webp: 3611x1086 展開 15.7MB（ファイル 0.96MB）
+  assets/rana2/cutin.webp: 850x1472 展開 5.0MB（ファイル 1.05MB）
+  合計 展開 228.5 MB
