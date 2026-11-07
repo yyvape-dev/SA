@@ -1,0 +1,3 @@
+[submodule "tools/agent-sprite-forge"]
+	path = tools/agent-sprite-forge
+	url = https://github.com/0x0funky/agent-sprite-forge.git
