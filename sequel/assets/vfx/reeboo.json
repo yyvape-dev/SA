@@ -1,0 +1,30 @@
+{
+  "coin_pickup": {
+    "cell": 320,
+    "cols": 8,
+    "fps": 30,
+    "frames": 28,
+    "scale": 1.2
+  },
+  "explosion_small": {
+    "cell": 320,
+    "cols": 8,
+    "fps": 30,
+    "frames": 32,
+    "scale": 1.2
+  },
+  "hit_spark": {
+    "cell": 320,
+    "cols": 8,
+    "fps": 30,
+    "frames": 16,
+    "scale": 1.2
+  },
+  "slash_arc": {
+    "cell": 320,
+    "cols": 8,
+    "fps": 30,
+    "frames": 12,
+    "scale": 1.2
+  }
+}

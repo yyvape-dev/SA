@@ -7,10 +7,13 @@ extends CanvasLayer
 ## 素材：REEBO0 godot-stylized-2d-vfx-lite（MIT、addons/reeboo_fx2d）、Kenney Particle Pack（CC0、addons/kenney_particle_pack）。
 ## 位置は世界の座標で受け取り、毎コマ画面へ写す（カメラが動いても付いてくる）。時間は実時間（ヒットストップ中も動く）。
 
-const HIT := preload("res://addons/reeboo_fx2d/effects/hit_spark.tscn")
-const SLASH := preload("res://addons/reeboo_fx2d/effects/slash_arc.tscn")
-const BOOM := preload("res://addons/reeboo_fx2d/effects/explosion_small.tscn")
-const PICK := preload("res://addons/reeboo_fx2d/effects/coin_pickup.tscn")
+## REEBO の4種は tools/bake_reeboo.gd で連番の絵（assets/vfx/reeboo_<名前>.png、白黒、黒地）に焼いたものを使う。
+## 事実（2026-11-07）：iPhone の Safari では REEBO のシェーダーが動かず、白い四角（quad.png）が光って見えた → 絵をめくるだけにした。
+const HIT := "hit_spark"
+const SLASH := "slash_arc"
+const BOOM := "explosion_small"
+const PICK := "coin_pickup"
+var books := {}          # 名前 -> {tex, frames, fps, cols, rows, cell, scale}
 const KP := "res://addons/kenney_particle_pack/"
 const GLOW_RAW := 1.3
 const GLOW_TH := 0.7
@@ -112,34 +115,44 @@ func _process(delta: float) -> void:
 			continue
 		if cam and not cam.is_position_behind(it.wp):
 			it.node.position = cam.unproject_position(it.wp)
+		if it.has("book"):
+			it.node.frame = mini(int(it.t * float(it.book.fps) * float(it.spd)), int(it.book.frames) - 1)
 
-## REEBO の場面を出す。size_m＝世界での大きさ（m）、angle＝画面での向き（度、右が 0、時計回り）、col は RAW で渡す
-func spawn(scene: PackedScene, wp: Vector3, size_m: float, col: Color, angle: float = 0.0, flip: bool = false, spd: float = 1.0) -> Node2D:
+func _book(name: String) -> Dictionary:
+	if books.is_empty():
+		var meta = JSON.parse_string(FileAccess.get_file_as_string("res://assets/vfx/reeboo.json"))
+		for k in meta:
+			var m: Dictionary = meta[k]
+			books[k] = {"tex": load("res://assets/vfx/reeboo_%s.png" % k), "frames": int(m.frames), "fps": float(m.fps),
+				"cols": int(m.cols), "rows": int(ceil(float(m.frames) / float(m.cols))), "cell": float(m.cell), "scale": float(m.scale)}
+	return books[name]
+
+## 焼いた連番を出す。size_m＝世界での大きさ（m）、angle＝画面での向き（度、右が 0、時計回り）、col は RAW で渡す
+func spawn(name: String, wp: Vector3, size_m: float, col: Color, angle: float = 0.0, flip: bool = false, spd: float = 1.0) -> Node2D:
 	if not enabled or cam == null or cam.is_position_behind(wp):
 		return null
-	var fx = scene.instantiate()
-	_fix_align(fx)
-	fx.tint = col
-	fx.speed = spd
-	var s := px_per_m(wp) * size_m / NATIVE_PX
-	fx.scale = Vector2(-s if flip else s, s)
-	fx.rotation_degrees = angle
-	_track(fx, wp, 3.0)
-	return fx
+	var b := _book(name)
+	var sp := Sprite2D.new()
+	sp.texture = b.tex
+	sp.hframes = b.cols
+	sp.vframes = b.rows
+	sp.frame = 0
+	var cm := CanvasItemMaterial.new()
+	cm.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	sp.material = cm
+	sp.modulate = col
+	var s: float = px_per_m(wp) * size_m / NATIVE_PX / float(b.scale)
+	sp.scale = Vector2(-s if flip else s, s)
+	sp.rotation_degrees = angle
+	var life: float = float(b.frames) / float(b.fps) / spd
+	_track(sp, wp, life)
+	items[items.size() - 1]["book"] = b
+	items[items.size() - 1]["spd"] = spd
+	return sp
 
-## REEBO の火花（hit_spark・explosion_small）は「速さの向きにそろえる＋強い減速」。止まった粒の向きが決まらず、
-## 画面の端から端まで白い線が出た（事実、2026-11-07）→ 向きをそろえるのをやめ、出た時の角度をランダムに
-func _fix_align(n: Node) -> void:
-	for c in n.get_children():
-		if c is GPUParticles2D and c.process_material is ParticleProcessMaterial and c.process_material.particle_flag_align_y:
-			var pm: ParticleProcessMaterial = c.process_material.duplicate()
-			pm.particle_flag_align_y = false
-			pm.angle_min = -180.0
-			pm.angle_max = 180.0
-			c.process_material = pm
-		_fix_align(c)
+## 事実（2026-11-07）：REEBO の火花は「粒を速さの向きにそろえる＋強い減速」で、止まった粒が画面の端まで白い線になった → 焼く時に外した（tools/bake_reeboo.gd）
 
-## Kenney の粒を撒く（GPUParticles2D、加算）。names＝使う絵（粒ごとにどれか）、n＝数、spd_m＝出る速さ（m/秒）、damp＝減速、size_m＝粒の大きさ
+## Kenney の粒を撒く（CPUParticles2D、加算。iPhone で確実に動く方を使う）。names＝使う絵（粒ごとにどれか）、n＝数、spd_m＝出る速さ（m/秒）、damp＝減速、size_m＝粒の大きさ
 func burst(names: Array, wp: Vector3, n: int, cols: Array, spd_m: Vector2, life: float, size_m: Vector2, damp: float = 6.0, up: float = 0.0, align: bool = false, spin: float = 0.0) -> void:
 	if not enabled or cam == null or cam.is_position_behind(wp):
 		return
@@ -147,25 +160,22 @@ func burst(names: Array, wp: Vector3, n: int, cols: Array, spd_m: Vector2, life:
 	var per := maxi(1, n / names.size())
 	for k in names.size():
 		var t := _tex(String(names[k]))
-		var p := GPUParticles2D.new()
-		var pm := ParticleProcessMaterial.new()
-		pm.particle_flag_disable_z = true
-		pm.direction = Vector3(0, -1, 0)
-		pm.spread = 180.0
-		pm.initial_velocity_min = spd_m.x * ppm
-		pm.initial_velocity_max = spd_m.y * ppm
-		pm.damping_min = damp * ppm * 0.7
-		pm.damping_max = damp * ppm * 1.3
-		pm.gravity = Vector3(0, -up * ppm, 0)
+		var p := CPUParticles2D.new()
+		p.texture = t
+		p.direction = Vector2(0, -1)
+		p.spread = 180.0
+		p.initial_velocity_min = spd_m.x * ppm
+		p.initial_velocity_max = spd_m.y * ppm
+		p.damping_min = damp * ppm * 0.7
+		p.damping_max = damp * ppm * 1.3
+		p.gravity = Vector2(0, -up * ppm)
 		var px: float = float(t.get_width())
-		pm.scale_min = size_m.x * ppm / px
-		pm.scale_max = size_m.y * ppm / px
+		p.scale_amount_min = size_m.x * ppm / px
+		p.scale_amount_max = size_m.y * ppm / px
 		var sc := Curve.new()
 		sc.add_point(Vector2(0, 1))
 		sc.add_point(Vector2(1, 0.15))
-		var sct := CurveTexture.new()
-		sct.curve = sc
-		pm.scale_curve = sct
+		p.scale_amount_curve = sc
 		var g := Gradient.new()   # 粒ごとの色（混ぜない階段）
 		g.interpolation_mode = Gradient.GRADIENT_INTERPOLATE_CONSTANT
 		var offs := PackedFloat32Array()
@@ -175,25 +185,17 @@ func burst(names: Array, wp: Vector3, n: int, cols: Array, spd_m: Vector2, life:
 			cs.append(cols[j])
 		g.offsets = offs
 		g.colors = cs
-		var gt := GradientTexture1D.new()
-		gt.gradient = g
-		pm.color_initial_ramp = gt
+		p.color_initial_ramp = g
 		var fade := Gradient.new()
 		fade.offsets = PackedFloat32Array([0.0, 0.5, 1.0])
 		fade.colors = PackedColorArray([Color(1, 1, 1, 1), Color(1, 1, 1, 0.8), Color(1, 1, 1, 0)])
-		var ft := GradientTexture1D.new()
-		ft.gradient = fade
-		pm.color_ramp = ft
-		if align:   # 注意（事実）：減速で速さが 0 になった粒は向きが決まらず、画面の端まで伸びた → 向きは出た時の角度で決める
-			pm.angle_min = -180.0
-			pm.angle_max = 180.0
+		p.color_ramp = fade
+		if align or spin > 0.0:   # 向きは出た時の角度で（速さの向きにそろえると、止まった粒が画面の端まで伸びた）
+			p.angle_min = -180.0
+			p.angle_max = 180.0
 		if spin > 0.0:
-			pm.angle_min = -180.0
-			pm.angle_max = 180.0
-			pm.angular_velocity_min = -spin
-			pm.angular_velocity_max = spin
-		p.process_material = pm
-		p.texture = t
+			p.angular_velocity_min = -spin
+			p.angular_velocity_max = spin
 		var cm := CanvasItemMaterial.new()
 		cm.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 		p.material = cm
@@ -203,8 +205,6 @@ func burst(names: Array, wp: Vector3, n: int, cols: Array, spd_m: Vector2, life:
 		p.explosiveness = 1.0
 		p.randomness = 0.5
 		p.local_coords = false
-		p.interpolate = false
-		p.visibility_rect = Rect2(-4000, -4000, 8000, 8000)
 		_track(p, wp, life + 0.2)
 		p.emitting = true
 

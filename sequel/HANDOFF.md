@@ -17,6 +17,7 @@
 - 土台：`scripts/fx2d.gd`＝2D のエフェクト専用の SubViewport（hdr_2d・背景 Canvas の glow・黒地）を 3D の上・UI の下へ加算。光らせる色は RAW 1.3（`fx2d.raw`）。**画面全体の hdr_2d は使わない**（事実：画面を読む仕上げと組み合わさり白い帯が出た）。
 - 手応え：ヒットストップ 通常 0.05・強い 0.09 秒、揺れは技ごとの `shake`、敵の白光り 2 コマ。大技の暗転（背景だけ 60％、`bg_dim` のグローバルなシェーダーの値）、決めの一瞬の色収差（`vignette` の `chroma`）。`FX_OLD=1` で前の値・見た目。
 - 素材：`addons/kenney_particle_pack`（CC0）・`addons/reeboo_fx2d`（MIT）・`addons/gdquest_shaders`（MIT、5本）。本体 pck 46.6→52.2MB。REEBO の火花の「向きをそろえる」は外した（止まった粒が画面の端まで伸びた）。
+- iPhone で光る四角が出た（ユーザー報告）→ REEBO の4種を連番の絵に焼いて使う（`tools/bake_reeboo.gd`、`assets/vfx/`）。シェーダーは使わない。Kenney の粒は CPUParticles2D。白黒（L8）の絵は Web で出ないので RGB で保存。
 - 確認：`?fxtest=1`（ラナの前に当たり・斬撃・爆発を順に）、`?fxglow=0`、`?fx2d=0`。撮影 `CAPTURE_FX=1 FX_ONLY=overhaul`（セーブを消してから）。不足（絵の発注・既製の連番）は spec の C。
 
 ## リリィのスキル（2026-11-07、ユーザー決定「基本は戦闘中にクール明けに合わせて自動判断して発動」）
