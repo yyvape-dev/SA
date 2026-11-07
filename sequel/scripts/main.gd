@@ -419,7 +419,7 @@ func _apply_cam_variant() -> void:
 	cam_variant = OS.get_environment("CAMV")
 	if OS.has_feature("web"):
 		var q := str(JavaScriptBridge.eval("window.location.search"))
-		for v in ["A", "B", "C", "D"]:
+		for v in ["A", "B", "C", "D", "D2"]:   # D2 は D より後に見る（"cam=D" は "cam=D2" にも含まれるため）
 			if q.contains("cam=" + v):
 				cam_variant = v
 	match cam_variant:
@@ -434,6 +434,12 @@ func _apply_cam_variant() -> void:
 			play_ofs = Vector3(0, 3.0, 15.3)
 			play_look = Vector3(0, 1.70, 0)
 			play_fov = 19.6
+		"D2":  # 案 D2（specs/camera_depth.md）：位置はほぼ D（距離 15.3m、高さ 3.0→3.2m）、画角を 19.6→16.8° に狭めて中央のラナを約 40％ に。
+			#   見る点の高さ 1.50m（見下ろす 6.3°）。計算：中央 40.1％、帯の一番奥 上から 74.5％、一番手前 92.7％、建物の足元の線 61.9％
+			BELT_Z = Vector2(-2.0, 2.0)
+			play_ofs = Vector3(0, 3.2, 15.3)
+			play_look = Vector3(0, 1.50, 0)
+			play_fov = 16.8
 		"C":   # 正投影：見える高さ 5.21m（中央のラナの大きさを今と同じに）
 			cam.projection = Camera3D.PROJECTION_ORTHOGONAL
 			cam.size = 5.21
