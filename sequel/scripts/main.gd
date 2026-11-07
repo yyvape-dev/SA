@@ -915,6 +915,11 @@ func _capture_fx() -> void:
 		print("FX DONE")
 		get_tree().quit()
 		return
+	if OS.get_environment("FX_ONLY") == "vfxlab":
+		await _capture_vfxlab(dir)
+		print("FX DONE")
+		get_tree().quit()
+		return
 	if OS.get_environment("FX_ONLY") == "hitwin":
 		await _capture_hitwin(dir)
 		print("FX DONE")
@@ -960,6 +965,29 @@ func _capture_ult(dir: String) -> void:
 		if n < marks.size() and f >= int(marks[n] * 60.0):
 			n += 1
 			get_viewport().get_texture().get_image().save_png(dir + "/fx_ult_%d.png" % n)
+
+## 共通シェーダーの素材を単体で撮る（向き・出方・消え方の確認）→ captures/lab_<名前>_<コマ>.png
+func _capture_vfxlab(dir: String) -> void:
+	for x in battle.enemies.duplicate():
+		battle.remove_enemy(x)
+	player.position = Vector3(-3.0, 0, 0.6)
+	player.face = 1
+	_place_cam(true)
+	for f in 30:
+		await get_tree().physics_frame
+	var wp := player.position + Vector3(1.2, 1.1, 0.2)
+	var tests := {"slashH": func(): fx2d.slash(wp, 1, 1.5, 0.0, fx2d.BLUE), "slashV": func(): fx2d.slash(wp, 1, 1.5, 25.0, fx2d.BLUE),
+		"slashL": func(): fx2d.slash(wp, -1, 1.5, 0.0, fx2d.BLUE), "hit": func(): fx2d.hit(wp + Vector3(1.0, 0, 0), 1, false),
+		"hitS": func(): fx2d.hit(wp + Vector3(1.0, 0, 0), 1, true), "kill": func(): fx2d.kill(wp + Vector3(1.0, -0.3, 0), fx, player.position + Vector3(2.2, 0, 0))}
+	for name in tests:
+		tests[name].call()
+		for f in 37:
+			await get_tree().physics_frame
+			await RenderingServer.frame_post_draw
+			if f in [1, 3, 6, 10, 18, 36]:
+				get_viewport().get_texture().get_image().save_png(dir + "/lab_%s_%02d.png" % [name, f])
+		for f in 60:
+			await get_tree().physics_frame
 
 ## 当たりの前 60ms〜後 600ms（specs/vfx_overhaul.md の 6）：毎コマ記憶して、当たりの瞬間を基準に選ぶ → captures/hw_<場面>_<ms>.png
 ##   基準：atkA＝最初の当たり（止めが始まったコマ）、技＝最後の強い当たり（止め 0.085 秒以上）、撃破＝敵が倒れ始めたコマ

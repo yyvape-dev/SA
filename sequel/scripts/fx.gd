@@ -271,12 +271,31 @@ func number(p: Vector3, val: int, kind: String) -> void:
 		"strong": l.modulate = Color8(255, 236, 165)
 		"hurt": l.modulate = Color8(255, 107, 107)
 		_: l.modulate = Color(1, 1, 1)
-	# 同じ所に続けて出た数字は、少しずつ上へずらして重ならないように
-	var lift := 0.0
-	for it in items:
-		if it.kind == "num" and it.t < 0.25 and absf(it.node.position.x - p.x) < 0.5:
-			lift += 0.28
-	l.position = p + Vector3(randf_range(-0.15, 0.15), lift, 0.3)
+	# 重ならないように（2026-11-07、game-vfx-juice）：横にランダムにずらし、近くの新しい数字と重なる位置は避ける。それでも重なれば少し上へ
+	var pos := p + Vector3(0, 0, 0.3)
+	if not legacy:
+		var best := pos
+		var best_d := -1.0
+		for tries in 6:
+			var c := p + Vector3(randf_range(-0.55, 0.55), randf_range(0.0, 0.15), 0.3)
+			var dmin := 9.0
+			for it in items:
+				if it.kind == "num" and it.t < 0.35:
+					var q: Vector3 = it.node.position
+					dmin = minf(dmin, Vector2((q.x - c.x) / 0.5, (q.y - c.y) / 0.3).length())
+			if dmin > best_d:
+				best_d = dmin
+				best = c
+		pos = best
+		if best_d < 1.0:
+			pos.y += 0.3 * (1.0 - best_d)
+	else:
+		var lift := 0.0
+		for it in items:
+			if it.kind == "num" and it.t < 0.25 and absf(it.node.position.x - p.x) < 0.5:
+				lift += 0.28
+		pos = p + Vector3(randf_range(-0.15, 0.15), lift, 0.3)
+	l.position = pos
 	l.render_priority = 10
 	add_child(l)
 	items.append({"node": l, "t": 0.0, "life": 0.6, "kind": "num", "y0": l.position.y})
@@ -751,6 +770,28 @@ func dash_trail(a: Vector3, b: Vector3) -> void:
 # ---------- 絵を貼った板（2026-11-07、specs/vfx_overhaul.md の 3：敵より奥・足元に出す効果） ----------
 const TEX_FX := preload("res://scripts/tex_fx.gdshader")
 const KEN := "res://assets/vfx/kenney/"
+## 3D の板の色の帯（左＝芯 → 右＝外、最後は透明）。色はさらに col を掛ける
+const TQ_BANDS := {
+	"white": [[0.0, Color(1, 1, 1, 1)], [0.6, Color(0.85, 0.85, 0.85, 1)], [1.0, Color(0.5, 0.5, 0.5, 0)]],
+	"gold": [[0.0, Color(1, 1, 1, 1)], [0.35, Color(1.0, 0.86, 0.45, 1)], [0.7, Color(1.0, 0.5, 0.12, 0.9)], [1.0, Color(0.6, 0.1, 0.1, 0)]],
+	"smoke": [[0.0, Color(1, 1, 1, 1)], [0.5, Color(0.8, 0.78, 0.85, 0.9)], [1.0, Color(0.5, 0.45, 0.55, 0)]],
+}
+var tq_band := {}
+func band(name: String) -> GradientTexture1D:
+	if not tq_band.has(name):
+		var g := Gradient.new()
+		var offs := PackedFloat32Array()
+		var cs := PackedColorArray()
+		for st in TQ_BANDS[name]:
+			offs.append(float(st[0]))
+			cs.append(st[1])
+		g.offsets = offs
+		g.colors = cs
+		var t := GradientTexture1D.new()
+		t.gradient = g
+		t.width = 64
+		tq_band[name] = t
+	return tq_band[name]
 var tq := []          # {node, mat, t, life, kind...}
 var assets_ok := false   # 絵（地区 pck fx1）を読み終えたか
 var ken_tex := {}
@@ -778,6 +819,11 @@ func tex_quad(name: String, pos: Vector3, life: float, o: Dictionary) -> void:
 	var m := ShaderMaterial.new()
 	m.shader = TEX_FX
 	m.set_shader_parameter("tex", ken(name))
+	m.set_shader_parameter("grad", band(String(o.get("band", "white" if o.get("add", true) else "smoke"))))
+	m.set_shader_parameter("noise_tex", noise_tex)
+	m.set_shader_parameter("seed", randf() * 10.0)
+	if o.has("erode_from"):
+		m.set_shader_parameter("erode_from", float(o.erode_from))
 	m.set_shader_parameter("col", o.get("col", Color(1, 1, 1, 1)))
 	m.set_shader_parameter("raw", float(o.get("raw", 1.0)))
 	m.set_shader_parameter("additive", 1.0 if o.get("add", true) else 0.0)
@@ -812,5 +858,6 @@ func _update_tq(delta: float) -> void:
 			q.node.position.z = q.follow.position.z
 		q.ang += q.spin * delta
 		q.mat.set_shader_parameter("spin", q.ang)
+		q.mat.set_shader_parameter("life", k)
 		var a: float = clampf(q.t / maxf(q.fade_in, 0.001), 0.0, 1.0) * (1.0 - smoothstep(0.55, 1.0, k))   # 最後は必ず 0 へ
 		q.mat.set_shader_parameter("alpha", a)
