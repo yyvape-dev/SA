@@ -24,7 +24,7 @@ DISTRICTS = {
     "al1": {"res": ["assets/lily/*.webp"],                           # 仲間リリィ（起動の後に読む。読み終えてから出てくる）
             "files": []},
 }
-MAIN_EXCLUDE = ["captures/*", "art/guide/*.png", "tools/*", "districts/*", "art/incoming/*", "addons/*"]   # addons/＝取得した素材の元（使う絵は assets/vfx/ に写した。2026-11-07）
+MAIN_EXCLUDE = ["captures/*", "art/guide/*.png", "art/guide_bt/*", "tools/*", "districts/*", "art/incoming/*", "addons/*"]   # addons/＝取得した素材の元（使う絵は assets/vfx/ に写した。2026-11-07）
 
 
 def pck_files(path):
