@@ -305,7 +305,7 @@ func _ult_process(delta: float) -> void:
 		fx.shockwave(position + Vector3(0, 1.0, 0), 2.2, 0.6, 0.9)
 		world.chroma_hit(1.0)
 		if world.fx2d and not fx.legacy:
-			world.fx2d.big(position + Vector3(0, 1.2, 0), world.fx2d.GOLD)
+			world.fx2d.big(position + Vector3(0, 1.2, 0), world.fx2d.GOLD, fx, position)
 		world.shake = maxf(world.shake, 22.0)
 		if world.main and world.main.cutin:
 			world.main.cutin.flash_white()

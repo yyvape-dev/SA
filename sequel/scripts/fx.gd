@@ -286,6 +286,7 @@ func _spark(p: Vector3, v: Vector3, life: float, w: float, c: Color, delay: floa
 	sparks.append({"p": p, "v": v, "t": -delay, "life": life, "w": w, "c": c})
 
 func _process(delta: float) -> void:
+	_update_tq(delta)
 	_update_waves(delta)
 	for i in range(items.size() - 1, -1, -1):
 		var it: Dictionary = items[i]
@@ -745,3 +746,71 @@ func dash_trail(a: Vector3, b: Vector3) -> void:
 	var y := Vector3(0, 1.0, 0.12)
 	ribbon([a + y, a.lerp(b, 0.5) + y + Vector3(0, 0.08, 0), b + y], {"w": 0.5, "life": 0.42, "bolts": 1})
 	dust(fa.lerp(fb, 0.2), 1.0)
+
+
+# ---------- 絵を貼った板（2026-11-07、specs/vfx_overhaul.md の 3：敵より奥・足元に出す効果） ----------
+const TEX_FX := preload("res://scripts/tex_fx.gdshader")
+const KEN := "res://assets/vfx/kenney/"
+var tq := []          # {node, mat, t, life, kind...}
+var assets_ok := false   # 絵（地区 pck fx1）を読み終えたか
+var ken_tex := {}
+
+func ken(name: String) -> Texture2D:
+	if not ken_tex.has(name):
+		ken_tex[name] = load(KEN + name + ".png")
+	return ken_tex[name]
+
+## 板を出す。o：floor（床に寝かせる）・add（加算）・raw・col・size（m、始め）・grow（終わりの倍率）・rise（m/秒）・spin（ラジアン/秒）・
+##   fade_in（秒）・prio（描く順。床は −2 でキャラより先＝足元・奥に見える）
+func tex_quad(name: String, pos: Vector3, life: float, o: Dictionary) -> void:
+	if legacy or not assets_ok:
+		return
+	var mi := MeshInstance3D.new()
+	var floor: bool = o.get("floor", false)
+	if floor:
+		var pm := PlaneMesh.new()
+		pm.size = Vector2.ONE
+		mi.mesh = pm
+	else:
+		var qm := QuadMesh.new()
+		qm.size = Vector2.ONE
+		mi.mesh = qm
+	var m := ShaderMaterial.new()
+	m.shader = TEX_FX
+	m.set_shader_parameter("tex", ken(name))
+	m.set_shader_parameter("col", o.get("col", Color(1, 1, 1, 1)))
+	m.set_shader_parameter("raw", float(o.get("raw", 1.0)))
+	m.set_shader_parameter("additive", 1.0 if o.get("add", true) else 0.0)
+	m.set_shader_parameter("floor_mode", 1.0 if floor else 0.0)
+	m.render_priority = int(o.get("prio", -2 if floor else 0))
+	mi.material_override = m
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.position = pos + (Vector3(0, 0.03, 0) if floor else Vector3.ZERO)
+	var sz: float = float(o.get("size", 1.0))
+	mi.scale = Vector3(sz, sz if not floor else 1.0, sz * (0.6 if floor else 1.0))
+	add_child(mi)
+	tq.append({"node": mi, "mat": m, "t": 0.0, "life": life * randf_range(0.85, 1.15), "size": sz, "grow": float(o.get("grow", 1.0)),
+		"rise": float(o.get("rise", 0.0)), "spin": float(o.get("spin", 0.0)), "ang": randf() * TAU, "fade_in": float(o.get("fade_in", 0.04)),
+		"floor": floor, "follow": o.get("follow", null)})
+
+func _update_tq(delta: float) -> void:
+	for i in range(tq.size() - 1, -1, -1):
+		var q: Dictionary = tq[i]
+		q.t += delta
+		var k: float = q.t / q.life
+		if k >= 1.0 or not is_instance_valid(q.node):
+			if is_instance_valid(q.node):
+				q.node.queue_free()
+			tq.remove_at(i)
+			continue
+		var e := 1.0 - pow(1.0 - k, 2.0)   # 速く広がり、ゆっくり止まる
+		var sz: float = q.size * lerpf(1.0, q.grow, e)
+		q.node.scale = Vector3(sz, sz if not q.floor else 1.0, sz * (0.6 if q.floor else 1.0))
+		q.node.position.y += q.rise * delta * (1.0 - k)
+		if q.follow != null and is_instance_valid(q.follow):
+			q.node.position.x = q.follow.position.x
+			q.node.position.z = q.follow.position.z
+		q.ang += q.spin * delta
+		q.mat.set_shader_parameter("spin", q.ang)
+		var a: float = clampf(q.t / maxf(q.fade_in, 0.001), 0.0, 1.0) * (1.0 - smoothstep(0.55, 1.0, k))   # 最後は必ず 0 へ
+		q.mat.set_shader_parameter("alpha", a)

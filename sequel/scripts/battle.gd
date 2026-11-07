@@ -310,7 +310,7 @@ func _attack_from(p: Node3D, spec: Dictionary, mul: float) -> int:
 			var ang: float = 0.0 if sl.get("plane", "h") == "h" else -55.0
 			var col: Color = fx2d.GOLD if sl.has("pal") else fx2d.BLUE
 			fx2d.slash(p.position + Vector3(dir * float(sl.get("r", 2.0)) * 0.35, float(sl.get("y", 1.0)) + 0.1, 0.2), dir, float(sl.get("r", 2.0)) * (0.8 if big else 0.6), ang + randf_range(-12.0, 12.0), col)
-	if hits > 0 and spec.strong:   # 強い当たり：画面のゆがみの輪（2026-11-06）
+	if hits > 0 and spec.strong and (fx.legacy or spec.get("wave", false)):   # 画面のゆがみは大技の一瞬だけ（2026-11-07。iPhone で重い）。前は強い当たりすべて
 		fx.shockwave(p.position + Vector3(dir * minf(spec.r, 2.0) * 0.5, 0.9, 0), 0.9 + mini(hits, 5) * 0.12)
 	if hits > 0 and p == player and ult_gain:
 		ult = minf(ULT_MAX, ult + hits * 1.5)
@@ -355,16 +355,21 @@ func player_skill(spec: Dictionary, p: Node3D) -> void:
 			if fx2d and not fx.legacy:   # 割れ目の先端で金の火花と、上へ飛ぶ細い光（Kenney trace）
 				var tip := Vector3(float(spec.x1), 0.4, p.position.z)
 				fx2d.spawn(fx2d.HIT, tip, 0.8 + int(spec.n) * 0.2, fx2d.raw(fx2d.GOLD), 0.0)
-				fx2d.burst(["trace_02", "spark_06"], tip, 10, [fx2d.raw(fx2d.GOLD), fx2d.raw(fx2d.BLUE)], Vector2(3.0, 8.0), 0.45, Vector2(0.2, 0.5), 8.0, 1.5, false)
+				# 割れ目の焦げ跡と、割れ目から漏れる光（床の板＝足元・奥）
+				var mid := Vector3((float(spec.x0) + float(spec.x1)) * 0.5, 0, p.position.z)
+				fx.tex_quad("scorch_01", mid, 1.4, {"floor": true, "add": false, "col": Color(0.04, 0.03, 0.05, 0.65), "size": absf(float(spec.x1) - float(spec.x0)) * 0.9, "fade_in": 0.05})
+				fx.tex_quad("light_01", mid, 0.45, {"floor": true, "add": true, "col": Color(1.0, 0.72, 0.28), "raw": 1.3, "size": absf(float(spec.x1) - float(spec.x0)) * 0.8, "grow": 1.2})
+				fx2d.burst(["trace_02", "spark_06"], tip, 10, [fx2d.GOLD, fx2d.BLUE], Vector2(3.0, 8.0), 0.45, Vector2(0.2, 0.5), 8.0, 1.5, false)
 		"vortex":
 			if int(spec.n) == 0:
 				fx.vortex(p, 3.2, 1.25)
-				if fx2d and not fx.legacy:
-					fx2d.twirl(p, 3.2, 1.25, fx2d.GOLD)
+				# 床の渦：3D の板（キャラより先に描く＝足元・奥に見える）。Kenney の渦巻き 2 枚を逆に回す
+				fx.tex_quad("twirl_02", p.position, 1.3, {"floor": true, "add": true, "col": Color(1.0, 0.72, 0.28), "raw": 1.3, "size": 6.4, "grow": 0.55, "spin": -7.0, "follow": p})
+				fx.tex_quad("twirl_03", p.position, 1.2, {"floor": true, "add": true, "col": Color(1.0, 0.85, 0.5), "raw": 1.0, "size": 4.6, "grow": 0.6, "spin": 5.0, "follow": p})
 		"vortex_end":
 			fx.vortex_burst(p.position, 3.4)
 			if fx2d and not fx.legacy:
-				fx2d.big(p.position + Vector3(0, 1.0, 0), fx2d.GOLD)
+				fx2d.big(p.position + Vector3(0, 1.0, 0), fx2d.GOLD, fx, p.position)
 			chroma_hit(1.0)
 	var hits := _attack_from(p, spec, atk_mul)
 	if spec.get("fx", "") == "rift" and int(spec.n) == 2:

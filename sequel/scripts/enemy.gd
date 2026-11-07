@@ -272,7 +272,7 @@ func take_hit(d: float, dir: int, strong: bool) -> void:
 			die_dir = dir
 			battle.fx.kill(position, dir, height())
 			if battle.fx2d and not battle.fx.legacy:
-				battle.fx2d.kill(position + Vector3(0, height() * 0.5, 0))
+				battle.fx2d.kill(position + Vector3(0, height() * 0.5, 0), battle.fx, position)
 			battle.on_kill(self)
 		return
 	if atk.get("warn") != null and not atk.done:
@@ -287,5 +287,5 @@ func take_hit(d: float, dir: int, strong: bool) -> void:
 		die_dir = dir
 		battle.fx.kill(position, dir, height())
 		if battle.fx2d and not battle.fx.legacy:
-			battle.fx2d.kill(position + Vector3(0, height() * 0.5, 0))
+			battle.fx2d.kill(position + Vector3(0, height() * 0.5, 0), battle.fx, position)
 		battle.on_kill(self)

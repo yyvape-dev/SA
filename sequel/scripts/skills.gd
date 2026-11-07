@@ -16,7 +16,7 @@ static func table() -> Dictionary:
 	for i in 10:
 		fl.append([0.25 + i * 0.095, {"shape": "fwd", "side": 1, "r": 2.3, "lane": 1.1, "k": 0.45, "strong": false, "kb": 0.3,
 			"pull": "front", "pull_m": 0.25, "fx": "flurry", "shake": 3.0}])
-	fl.append([1.27, {"shape": "fwd", "side": 1, "r": 2.5, "lane": 1.2, "k": 2.0, "strong": true, "kb": 1.6, "fx": "flurry_end", "freeze_add": 0.08, "shake": 12.0}])
+	fl.append([1.27, {"shape": "fwd", "side": 1, "r": 2.5, "lane": 1.2, "k": 2.0, "strong": true, "kb": 1.6, "fx": "flurry_end", "freeze_add": 0.08, "shake": 12.0, "wave": true}])
 	t["flurry"] = {"clip": "flurry", "spd": 1.0, "cd": 8.0, "total": 1.54, "ev": fl}
 	# 地走り：斬り下ろしの当たりから、前方へ地割れの衝撃が3回（0.12 秒おき）
 	var hb := 33.0 / 72.0 / 1.5

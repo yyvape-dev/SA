@@ -8,7 +8,7 @@ extends SceneTree
 const CELL := 320
 const COLS := 8
 const FPS := 30
-const LIST := {"hit_spark": 0.5, "slash_arc": 0.35, "explosion_small": 1.02, "coin_pickup": 0.9}
+const LIST := {"hit_spark": 0.5, "slash_arc": 0.35, "coin_pickup": 0.9}   # 爆発（explosion_small）は撃破を Kenney で組み直したので焼かない（2026-11-07）
 const SCALE := 1.2     # 元の大きさ（爆発の輪で約 250px）を 1.2 倍で焼く（はみ出さない）
 
 func _init() -> void:

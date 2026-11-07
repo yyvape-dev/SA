@@ -117,6 +117,7 @@ func _ready() -> void:
 	fx2d.cam = cam
 	add_child(fx2d)
 	battle.fx2d = fx2d
+	_load_fx()
 	ui = TouchUI.new()
 	ui.player = player
 	ui.main = self
@@ -169,6 +170,17 @@ func _ready() -> void:
 		get_tree().quit()
 
 ## 仲間リリィ：絵（地区 pck「al1」）を読み終えたら出す。起動を待たせないよう、本体の起動の後に読む。
+## エフェクトの絵（地区 pck「fx1」：焼いた REEBO・Kenney の粒）。起動の後に読み、読み終えるまで 2D の層と絵の板は出さない
+func _load_fx() -> void:
+	if OS.has_feature("web"):
+		if not await district.ensure("fx1"):
+			push_warning("エフェクトの絵 fx1 を読めない: " + district.last_error)
+			return
+	if fx:
+		fx.assets_ok = true
+	if fx2d:
+		fx2d.assets_ok = true
+
 func _load_ally() -> void:
 	if OS.has_feature("web"):
 		if not await district.ensure("al1"):
@@ -903,6 +915,11 @@ func _capture_fx() -> void:
 		print("FX DONE")
 		get_tree().quit()
 		return
+	if OS.get_environment("FX_ONLY") == "hitwin":
+		await _capture_hitwin(dir)
+		print("FX DONE")
+		get_tree().quit()
+		return
 	if OS.get_environment("FX_ONLY") == "overhaul":
 		await _capture_overhaul(dir)
 		print("FX DONE")
@@ -943,6 +960,73 @@ func _capture_ult(dir: String) -> void:
 		if n < marks.size() and f >= int(marks[n] * 60.0):
 			n += 1
 			get_viewport().get_texture().get_image().save_png(dir + "/fx_ult_%d.png" % n)
+
+## 当たりの前 60ms〜後 600ms（specs/vfx_overhaul.md の 6）：毎コマ記憶して、当たりの瞬間を基準に選ぶ → captures/hw_<場面>_<ms>.png
+##   基準：atkA＝最初の当たり（止めが始まったコマ）、技＝最後の強い当たり（止め 0.085 秒以上）、撃破＝敵が倒れ始めたコマ
+const HW_MS := [-60, 0, 60, 150, 300, 600]
+func _capture_hitwin(dir: String) -> void:
+	player.visible = true
+	player.set_physics_process(true)
+	for id in ["atkA", "flurry", "rift", "vortex", "kill"]:
+		for x in battle.enemies.duplicate():
+			battle.remove_enemy(x)
+		player.position = Vector3(-2.0 if id != "rift" else -4.5, 0, 0.6)
+		player.face = 1
+		player.state = "move"
+		player.inv = 99.0
+		battle.freeze = 0.0
+		_place_cam(true)
+		var spots := {"rift": [[1.6, 0.0], [3.8, -0.2], [6.2, 0.2]], "vortex": [[2.4, 0.9], [-2.6, -0.3], [1.8, -1.4]]}
+		var foes := []
+		for sp in spots.get(id, [[1.5, 0.0], [2.2, 0.5]]):
+			var e = battle.spawn("3", player.position + Vector3(sp[0], 0, sp[1]))
+			e.atk_cd = 99.0
+			e.face = -1
+			e.hp_max = 9999.0 if id != "kill" else 5.0
+			e.hp = e.hp_max
+			foes.append(e)
+		for f in 4:
+			await get_tree().physics_frame
+		player.skill_cd.clear()
+		match id:
+			"atkA":
+				player._start_attack("atkA")
+			"kill":
+				player._start_attack("atkB")
+			_:
+				player.use_skill(id)
+		var frames := []
+		var anchor := -1
+		var prev_freeze := 0.0
+		for f in 220:
+			await get_tree().physics_frame
+			await RenderingServer.frame_post_draw
+			frames.append(get_viewport().get_texture().get_image())
+			if anchor < 0:
+				match id:
+					"atkA":
+						if battle.freeze > 0.0:
+							anchor = f
+					"kill":
+						for e in foes:
+							if is_instance_valid(e) and e.state == "dying":
+								anchor = f
+					_:
+						if battle.freeze >= 0.085 and battle.freeze > prev_freeze:
+							anchor = f
+			prev_freeze = battle.freeze
+			if anchor >= 0 and f >= anchor + 37:
+				break
+		if anchor < 0:
+			print("HITWIN: 当たりが見つからない ", id)
+			continue
+		for ms in HW_MS:
+			var k := clampi(anchor + int(round(ms / 1000.0 * 60.0)), 0, frames.size() - 1)
+			frames[k].save_png(dir + "/hw_%s_%+04d.png" % [id, ms])
+		print("HITWIN ", id, " 基準のコマ ", anchor)
+		for f in 50:
+			await get_tree().physics_frame
+	player.inv = 0.0
 
 ## エフェクトの作り直し（specs/vfx_overhaul.md）：前後を同じ瞬間で撮る → captures/ov_<場面>_<n>.png
 ##   通常攻撃（A の突き・C の最後）、技3つ、撃破。開始からのコマ数で撮る（--fixed-fps 60）

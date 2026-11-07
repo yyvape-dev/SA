@@ -565,7 +565,7 @@ func _skill_hit(spec: Dictionary) -> void:
 			fx.shockwave(g2 + Vector3(0, 1.0, 0), 2.2, 0.6, 0.9)
 			world.chroma_hit(1.0)
 			if world.fx2d and not fx.legacy:
-				world.fx2d.big(g2 + Vector3(0, 1.2, 0), world.fx2d.SILVER)
+				world.fx2d.big(g2 + Vector3(0, 1.2, 0), world.fx2d.SILVER, fx, g2)
 			fx.dust(g2, 2.4)
 			world.shake = maxf(world.shake, 24.0)
 			if world.main and world.main.lily_cutin:
