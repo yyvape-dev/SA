@@ -47,6 +47,7 @@ const CAM_FOV := 36.0
 var cam_variant := ""
 var play_ofs := PLAY_OFS
 var play_fov := CAM_FOV
+var play_look := PLAY_LOOK
 const MAGENTA := Color(1, 0, 1)
 
 var cam: Camera3D
@@ -418,7 +419,7 @@ func _apply_cam_variant() -> void:
 	cam_variant = OS.get_environment("CAMV")
 	if OS.has_feature("web"):
 		var q := str(JavaScriptBridge.eval("window.location.search"))
-		for v in ["A", "B", "C"]:
+		for v in ["A", "B", "C", "D"]:
 			if q.contains("cam=" + v):
 				cam_variant = v
 	match cam_variant:
@@ -427,6 +428,12 @@ func _apply_cam_variant() -> void:
 		"B":   # 遠く・画角を狭く：帯の中心から 25.7m（(25.7+3.35)/(25.7−3.35)=1.3）。見下ろす角度は今と同じ 8.9°、中央のラナの大きさも同じ（見える高さ 5.21m）
 			play_ofs = Vector3(0, 1.35 + 25.85 * 1.25 / 8.0, 25.85)
 			play_fov = rad_to_deg(2.0 * atan(5.21 * 0.5 / 25.85))
+		"D":   # A＋B（specs/camera_depth.md の案 D）：帯 4m（z −2〜2）、距離 15.3m・高さ 3.0m・縦 19.6°、見る点の高さ 1.70m（見下ろす 4.9°）。
+			#   計算の目標：中央のラナ 35％、奥と手前の差 1.3 倍、建物の足元の線（z −6.5）が上から 65％（床 35％）、手前の足元が上から 90％
+			BELT_Z = Vector2(-2.0, 2.0)
+			play_ofs = Vector3(0, 3.0, 15.3)
+			play_look = Vector3(0, 1.70, 0)
+			play_fov = 19.6
 		"C":   # 正投影：見える高さ 5.21m（中央のラナの大きさを今と同じに）
 			cam.projection = Camera3D.PROJECTION_ORTHOGONAL
 			cam.size = 5.21
@@ -445,10 +452,10 @@ func _place_cam(snap: bool, delta: float = 0.0) -> void:
 		var fo: Node3D = battle.cam_focus if battle.cam_focus else player   # リリィの必殺技ではリリィへ寄る
 		var near := Vector3(fo.position.x + fo.face * 0.6, 0, fo.position.z) + ULT_OFS
 		cam.position = want.lerp(near, zz)
-		cam.look_at(Vector3(cam.position.x, 0, fo.position.z * zz) + PLAY_LOOK.lerp(ULT_LOOK, zz), Vector3.UP)
+		cam.look_at(Vector3(cam.position.x, 0, fo.position.z * zz) + play_look.lerp(ULT_LOOK, zz), Vector3.UP)
 	else:
 		cam.position = want if snap else cam.position.lerp(want, minf(1.0, delta * 5.0))
-		cam.look_at(Vector3(cam.position.x, 0, 0) + PLAY_LOOK, Vector3.UP)
+		cam.look_at(Vector3(cam.position.x, 0, 0) + play_look, Vector3.UP)
 	# 画面の揺れ（px 相当 → 画面の高さ 720px ≒ 8.8m）
 	var sk: float = battle.shake * 0.012 if battle else 0.0
 	cam.h_offset = randf_range(-1.0, 1.0) * sk
@@ -1117,7 +1124,9 @@ func _capture_camcmp(dir: String) -> void:
 		var foot := cam.unproject_position(player.position)
 		var head := cam.unproject_position(player.position + Vector3(0, player.HEIGHT_M, 0))
 		var vh := get_viewport().get_visible_rect().size.y
-		print("CAMH %s %s z=%.2f ラナの画面の高さ %.1f%%（%.0f/%.0f 単位）" % [tag, key, z, absf(foot.y - head.y) / vh * 100.0, absf(foot.y - head.y), vh])
+		var line := cam.unproject_position(Vector3(player.position.x, 0, -6.5))   # 建物の正面の足元（z −6.5）
+		print("CAMH %s %s z=%.2f ラナの画面の高さ %.1f%%（足元 上から %.1f%%）／建物の足元の線 上から %.1f%%（床 %.1f%%）" % [tag, key, z, absf(foot.y - head.y) / vh * 100.0,
+			foot.y / vh * 100.0, line.y / vh * 100.0, 100.0 - line.y / vh * 100.0])
 		player._start_attack("atkA")
 		var got := false
 		for f in 40:
