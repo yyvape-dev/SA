@@ -106,7 +106,7 @@ func set_height(h: float) -> void:
 func can_be_hit() -> bool:
 	return inv <= 0.0 and data.clips.has("hit") and state != "skill" and state != "ult"
 
-func on_hurt(dir: int) -> void:
+func on_hurt(dir: int, _dead: bool = false) -> void:
 	state = "hurt"
 	clip = "hit"
 	mv = ""
