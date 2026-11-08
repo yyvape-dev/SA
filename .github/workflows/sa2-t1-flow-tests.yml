@@ -12,7 +12,7 @@ jobs:
       - name: Install virtual display and software GL
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y xvfb libgl1-mesa-dri libgl1
+          sudo apt-get install -y xvfb libgl1-mesa-dri libgl1 ffmpeg
       - name: Download Godot 4.4.1 stable
         run: |
           curl -fL --retry 3 -o /tmp/godot.zip https://github.com/godotengine/godot/releases/download/4.4.1-stable/Godot_v4.4.1-stable_linux.x86_64.zip
@@ -47,6 +47,14 @@ jobs:
           for name in 01_explore 02_dialogue 03_instance_state 04_completed; do
             test -s "godot-viewport-test/captures/sa2_t1/${name}.png"
           done
+      - name: Assemble review MP4 from actual Godot captures (static frames, not gameplay recording)
+        run: |
+          set -e
+          cd godot-viewport-test/captures/sa2_t1
+          printf "file '01_explore.png'\nduration 2\nfile '02_dialogue.png'\nduration 2\nfile '03_instance_state.png'\nduration 2\nfile '04_completed.png'\nduration 2\nfile '04_completed.png'\n" > /tmp/sa2_t1_frames.txt
+          ffmpeg -hide_banner -loglevel error -y -f concat -safe 0 -i /tmp/sa2_t1_frames.txt -vf "fps=12,scale=1280:720:flags=lanczos,format=yuv420p" -c:v libx264 -preset veryfast -crf 22 -movflags +faststart sa2_t1_screen_review.mp4
+          ffprobe -v error -show_entries format=duration,size -of default=noprint_wrappers=1 sa2_t1_screen_review.mp4
+          test -s sa2_t1_screen_review.mp4
       - name: Upload actual Godot PNG evidence and test logs
         if: always()
         uses: actions/upload-artifact@v4
@@ -54,5 +62,6 @@ jobs:
           name: sa2-t1-real-viewport-and-logs
           path: |
             godot-viewport-test/captures/sa2_t1/*.png
+            godot-viewport-test/captures/sa2_t1/*.mp4
             /tmp/sa2-t1-*.log
           if-no-files-found: warn
