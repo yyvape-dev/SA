@@ -10,9 +10,9 @@ const DEMO_SAVE := "user://sa2_t2_demo_save.json"
 const NORMAL_SAVE := "user://sa2_t2_progress.json"
 
 var t2_flow = Flow.new()
-var t2_manual: Node
-var t2_lily: Node3D
-var t2_rana: Node3D
+var t2_manual
+var t2_lily
+var t2_rana
 var t2_layer: CanvasLayer
 var t2_dialogue: Control
 var t2_label: Label
@@ -150,7 +150,7 @@ func _t2_start_training(resume: bool) -> void:
     battle.hp_max = 100.0
     battle.hp = battle.hp_max
     for x in [2.3, 4.4]:
-        var foe: Node3D = battle.spawn("1", Vector3(x, 0, 0))
+        var foe = battle.spawn("1", Vector3(x, 0, 0))
         foe.hp_max = 24.0
         foe.hp = 24.0
         foe.dmg = 5
@@ -248,7 +248,7 @@ func _t2_movie_demo() -> void:
     for attempt in 90:
         if t2_done:
             break
-        var e: Node3D = t2_lily._nearest()
+        var e = t2_lily._nearest()
         if e != null and e.position.x - t2_lily.position.x > 1.6:
             t2_manual.move_in = Vector2.RIGHT
             await _t2_frames(8)
