@@ -36,6 +36,12 @@ jobs:
           /tmp/godot --headless --path sequel --script res://tests/sa2_t1_5_dialogue_test.gd 2>&1 | tee /tmp/t2-dialogue.log
           grep -q 'SA2_T1_5_PASS' /tmp/t2-dialogue.log
           if grep -E 'SCRIPT ERROR|ERROR:|SA2_T1_5_FAIL' /tmp/t2-dialogue.log; then exit 1; fi
+      - name: T2 Lily manual combat contract
+        run: |
+          set -o pipefail
+          /tmp/godot --headless --path sequel --script res://tests/sa2_t2_lily_manual_test.gd 2>&1 | tee /tmp/t2-lily.log
+          grep -q 'SA2_T2_LILY_MANUAL_PASS' /tmp/t2-lily.log
+          if grep -E 'SCRIPT ERROR|ERROR:|SA2_T2_LILY_MANUAL_FAIL' /tmp/t2-lily.log; then exit 1; fi
       - name: Upload logs
         if: always()
         uses: actions/upload-artifact@v4
@@ -45,4 +51,5 @@ jobs:
             /tmp/t2-import.log
             /tmp/t2-dialogue.log
             /tmp/t2-flow.log
+            /tmp/t2-lily.log
           if-no-files-found: warn
