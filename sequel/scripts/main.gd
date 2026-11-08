@@ -1595,6 +1595,8 @@ func build_city() -> void:
 var bt_marks := []   # 撮影の書き込み用 [種類, 名前, 世界の位置]
 var bt_tex := {}
 var bt_lights := []  # 床の映り込みの元 [絵/種類, x, y, z, 幅]
+var bt_hang_rects := []    # 24章：吊り物 [名前, x0, y0, x1, y1, z]（ふさいでいないかの確かめ）
+var bt_target_rects := []  # 24章：ふさいではいけない物 [名前, x0, y0, x1, y1, z]（扉・光る看板・屋台の天幕・路地の口・ビジョン）
 var bt_fg := []      # 手前の物 [{node, mat, half}]（ラナから左右 2.5m 以内で透ける）
 ## 床の映り込みの色（光る部品・灯り・屋台）
 const BT_GLINT_COL := {"sign_sigil": [0.35, 1.0, 0.5], "sign_vneon": [1.0, 0.3, 0.75], "sign_rune": [0.25, 0.9, 1.0], "vision_screen": [0.3, 0.85, 1.0],
@@ -1695,6 +1697,12 @@ func _bt_npc(parent: Node3D, x: float, z: float, idx: int) -> void:
 	s.position = Vector3(x, 0.86, z)
 	parent.add_child(s)
 
+## 24章：吊るす所 → [上端の y, z]（綱は BT.ROPES、軒・手すりは BT.ANCHORS）
+func _bt_anchor(id: String) -> Array:
+	if BT.ROPES.has(id):
+		return [BT.ROPES[id].y, BT.ROPES[id].z]
+	return [BT.ANCHORS[id][0], BT.ANCHORS[id][1]]
+
 ## ---- 22章：小屋の形の部品（色の付いた下絵） ----
 ## 板：[x0, y0, x1, y1, 前の面の z, 素材, 奥行き(既定 0.03)]
 func _bt_plate(parent: Node3D, b: Array) -> MeshInstance3D:
@@ -1729,12 +1737,17 @@ func _bt_stairs(parent: Node3D, s2: Array) -> void:
 		var xa: float = lerpf(s2[0], s2[1], float(i) / n)
 		var xb: float = lerpf(s2[0], s2[1], float(i + 1) / n)
 		var yt: float = s2[2] * float(i + 1) / n
-		_bt_box(parent, Vector3((xa + xb) * 0.5, yt - 0.06, s2[3] - s2[4] * 0.5), Vector3(absf(xb - xa) + 0.02, 0.12, s2[4]), "wood")
-		_bt_box(parent, Vector3((xa + xb) * 0.5, (yt - 0.12) * 0.5, s2[3] - s2[4] * 0.5 - 0.1), Vector3(absf(xb - xa) + 0.02, maxf(0.01, yt - 0.12), 0.02), "shadow")
+		_bt_box(parent, Vector3((xa + xb) * 0.5, yt - 0.06, s2[3] - s2[4] * 0.5), Vector3(absf(xb - xa) + 0.02, 0.12, s2[4]), "wood_lt")   # 24章：明るい木
+		_bt_box(parent, Vector3((xa + xb) * 0.5, (yt - 0.12) * 0.5, s2[3] - s2[4] * 0.5 - 0.1), Vector3(absf(xb - xa) + 0.02, maxf(0.01, yt - 0.12), 0.02), "wood")   # 24章：段の下を暗い影から木に（後ろの明るい地と分ける）
+		_bt_box(parent, Vector3((xa + xb) * 0.5, yt - 0.135, s2[3] + 0.005), Vector3(absf(xb - xa) + 0.02, 0.03, 0.02), "shadow")   # 段の縁の影の線
 	for i in range(0, n + 1, 2):   # 手すりの柱
 		var xs: float = lerpf(s2[0], s2[1], float(i) / n)
 		var ys: float = s2[2] * float(i) / n
-		_bt_box(parent, Vector3(xs, ys + 0.45, s2[3] + 0.02), Vector3(0.05, 0.9, 0.05), "iron")
+		_bt_box(parent, Vector3(xs, ys + 0.45, s2[3] + 0.02), Vector3(0.05, 0.9, 0.05), "wood_lt")
+	for i in n:   # 24章：手すりの横木（段ごとの短い棒で斜めに見せる）
+		var xa2: float = lerpf(s2[0], s2[1], float(i) / n)
+		var xb2: float = lerpf(s2[0], s2[1], float(i + 1) / n)
+		_bt_box(parent, Vector3((xa2 + xb2) * 0.5, s2[2] * (i + 0.5) / n + 0.9, s2[3] + 0.02), Vector3(absf(xb2 - xa2) + 0.03, 0.06, 0.04), "wood_lt")
 
 ## 円柱（樽・釜・ガラス管）
 func _bt_cyl(parent: Node3D, x: float, y0: float, z: float, r: float, h: float, key: String) -> MeshInstance3D:
@@ -1770,6 +1783,24 @@ func _bt_shack(root: Node3D, sg: Dictionary) -> void:
 		_bt_rail(root, rl)
 	for s2 in sg.get("stairs", []):
 		_bt_stairs(root, s2)
+	for sh in sg.get("silh", []):   # 24章：カーテン越しの人影（全身。頭・肩と胴・裾の広い服）
+		var hx: float = sh[0]
+		var fy: float = sh[1]
+		var hgt: float = sh[2]
+		var hz := BT.WALL_Z + 0.06
+		_bt_box(root, Vector3(hx, fy + hgt * 0.9, hz), Vector3(hgt * 0.16, hgt * 0.18, 0.01), "silh")
+		_bt_box(root, Vector3(hx, fy + hgt * 0.66, hz), Vector3(hgt * 0.3, hgt * 0.3, 0.01), "silh")
+		_bt_box(root, Vector3(hx, fy + hgt * 0.27, hz), Vector3(hgt * 0.4, hgt * 0.54, 0.01), "silh")
+		bt_marks.append(["chk", "silh_head", Vector3(hx, fy + hgt, hz)])
+		bt_marks.append(["chk", "silh_foot", Vector3(hx, fy, hz)])
+	for r in sg.get("roofs", []):   # 24章：軒・天幕の前の縁（画面に映るかの確かめ）
+		bt_marks.append(["eave", sg.id, Vector3((r[0] + r[1]) * 0.5, r[4], r[5])])
+		bt_marks.append(["fix", "3", Vector3((r[0] + r[1]) * 0.5, (r[2] + r[4]) * 0.5, (r[3] + r[5]) * 0.5)])
+	for pt in sg.get("parts", []):   # 24章：2階の窓・ネオン（3.0m より上）の上端
+		if pt[1] >= 3.0 and pt[4] in ["window", "curtain", "neon_p", "neon_g"]:
+			bt_marks.append(["chk", "win2f_top:" + pt[4], Vector3((pt[0] + pt[2]) * 0.5, pt[3], BT.WALL_Z)])
+			bt_marks.append(["win2f", sg.id, Vector3((pt[0] + pt[2]) * 0.5, pt[3], BT.WALL_Z)])
+			bt_marks.append(["fix", "2", Vector3((pt[0] + pt[2]) * 0.5, (pt[1] + pt[3]) * 0.5, BT.WALL_Z)])
 	for c in sg.get("cyls", []):
 		if c[5] == "crate":
 			_bt_barrel(root, c[0], c[1], c[2], c[3], c[4])
@@ -1790,6 +1821,14 @@ func _bt_extras(st: Node3D) -> void:
 		g.name = sb.id
 		ex.add_child(g)
 		var x: float = sb.x
+		if sb.id == "sbar_a":   # 24章：A の移動先の案（SBAR_A_X で別の案を撮る。未決）
+			if OS.get_environment("SBAR_A_X") != "":
+				x = float(OS.get_environment("SBAR_A_X"))
+			for ai in BT.SBAR_A_PEOPLE.size():
+				var ap: Array = BT.SBAR_A_PEOPLE[ai]
+				_bt_npc(st, x + ap[0], ap[1], 3 + ai * 4)
+				bt_marks.append(["person", ap[2], Vector3(x + ap[0], 1.9, ap[1])])
+			bt_marks.append(["fix", "4", Vector3(x, 1.6, z)])
 		var sw: float = sb.w
 		var hw: float = sw * 0.5
 		_bt_box(g, Vector3(x, 0.52, z), Vector3(sw, 1.04, 0.05), "wood")                  # 立ち飲みのカウンター
@@ -1804,17 +1843,18 @@ func _bt_extras(st: Node3D) -> void:
 		if sw > 1.9:
 			_bt_barrel(g, x + hw * 0.55, 0.0, z + 0.75, 0.26, 0.9)
 		bt_marks.append(["streetbar", sb.id, Vector3(x, 2.4, z)])
+		bt_hang_rects.append(["sbar_roof:" + sb.id, x - hw - 0.15, 2.28, x + hw + 0.15, 2.55, z + 0.25])
 		bt_lights.append(["stall", x, 2.0, z, sw * 0.6])
-	for c in BT.CLOTHS:   # 吊り布（下の端に切れ込み＝短い布 2 枚）
-		var top: float = BT.FRAME_BEAM_Y - 0.08 if c[4] == "beam" else 3.75
-		var cz: float = BT.FRAME_Z + 0.1 if c[4] == "beam" else -5.0
+	for c in BT.CLOTHS:   # 吊り布（24章：手すりに掛けるか綱から。下の端に切れ込み＝短い布 2 枚）
+		var ay: Array = _bt_anchor(c[4])
+		var top: float = ay[0]
+		var cz: float = ay[1] + 0.05
 		var w: float = c[1]
 		var d: float = c[2]
 		_bt_box(ex, Vector3(c[0], top - d * 0.4, cz), Vector3(w, d * 0.8, 0.02), c[3])
 		_bt_box(ex, Vector3(c[0] - w * 0.25, top - d * 0.9, cz), Vector3(w * 0.45, d * 0.2, 0.02), c[3])
 		_bt_box(ex, Vector3(c[0] + w * 0.25, top - d * 0.9, cz), Vector3(w * 0.45, d * 0.2, 0.02), c[3])
-		if c[4] == "rope":
-			_bt_box(ex, Vector3(c[0], top + 0.02, cz), Vector3(w + 0.6, 0.025, 0.02), "cable")
+		bt_hang_rects.append(["cloth:" + c[3] + "@" + c[4], c[0] - w * 0.5, top - d, c[0] + w * 0.5, top, cz])
 	for t in BT.TUBES:   # 緑に光るガラス管（真鍮の口金）
 		_bt_cyl(ex, t[0], t[1], t[2], t[3], t[4], "glass_g")
 		_bt_cyl(ex, t[0], t[1] - 0.18, t[2], t[3] + 0.05, 0.2, "brass")
@@ -1854,12 +1894,17 @@ func _bt_extras(st: Node3D) -> void:
 		for e in [[x0, y0, x1, y0 + 0.04], [x0, y1 - 0.04, x1, y1], [x0, y0, x0 + 0.04, y1], [x1 - 0.04, y0, x1, y1]]:
 			_bt_box(ex, Vector3((e[0] + e[2]) * 0.5, (e[1] + e[3]) * 0.5, nz), Vector3(e[2] - e[0], e[3] - e[1], 0.02), "slot")
 		bt_marks.append(["slot", ns[0], Vector3((x0 + x1) * 0.5, (y0 + y1) * 0.5, nz)])
+		for cpt in [Vector3(x0, y1, nz), Vector3(x1, y1, nz), Vector3(x0, y0, nz), Vector3(x1, y0, nz)]:
+			bt_marks.append(["chk", "slot_corner:" + ns[0], cpt])
+		bt_target_rects.append(["slot:" + ns[0], x0, y0, x1, y1, nz])
 
 func build_backtown() -> void:
 	_clear_level()
 	_build_floor()
 	bt_marks.clear()
 	bt_lights.clear()
+	bt_hang_rects.clear()
+	bt_target_rects.clear()
 	bt_fg.clear()
 	BELT_Z = BT.BELT_Z
 	var wz: float = BT.WALL_Z
@@ -1918,62 +1963,47 @@ func build_backtown() -> void:
 		var hh: float = w * float(tex.get_height()) / float(tex.get_width())
 		var y0: float = sn[2]
 		var z: float = wz + (0.3 if sn[0] == "sign_vneon" else 0.06)
-		if sn[4] == "beam":   # 梁から吊るす（上端＝梁の下、天幕の手前）
-			y0 = BT.FRAME_BEAM_Y - 0.12 - hh
-			z = BT.FRAME_Z + 0.08
+		if BT.ROPES.has(sn[4]):   # 24章：小屋の間の綱から吊るす（上端＝綱の下）
+			var rp: Dictionary = BT.ROPES[sn[4]]
+			y0 = rp.y - 0.06 - hh
+			z = rp.z + 0.04
 		elif sn[4] == "roof":   # 22章：飲み屋の屋根の上に立てる
 			z = -4.55
 		_bt_quad(glow, sn[0], sn[1] - w * 0.5, y0, sn[1] + w * 0.5, y0 + hh, z, BT_GLOW, [0.0, 0.0, 1.0, 1.0], 1)
 		bt_marks.append(["sign", sn[0], Vector3(sn[1], y0 + hh * 0.5, z)])
 		bt_lights.append([sn[0], sn[1], y0 + hh * 0.5, z, w])
+		bt_target_rects.append(["sign:" + sn[0], sn[1] - w * 0.5, y0, sn[1] + w * 0.5, y0 + hh, z])
 	for gb in BT.GLOW_BLOCKOUT:
 		bt_marks.append(["sign", gb[0], Vector3(gb[1], 3.0, wz)])
 	bt_lights.append(["cabaret_neon", 1.6, 3.5, wz + 0.05, 4.4])
 	bt_lights.append(["cabaret_bulbs", 1.6, 1.5, wz + 0.05, 2.8])
-	bt_lights.append(["shady", 20.1, 2.8, wz + 0.05, 1.0])
+	bt_lights.append(["shady", 21.3, 3.25, wz + 0.05, 1.0])
 	bt_lights.append(["gate", 17.1, 2.2, wz - 2.0, 1.6])
-	# 足場の枠（新規の層、色の付いた下絵）：柱と横の梁。梁からペンダントライト・垂れ幕（届いた絵）
+	# 24章：足場の枠（柱・梁）と、柱で支えた布の天幕は外した。吊る物は小屋の軒・バルコニーの手すり・小屋の間の綱から（hangs）
 	var fr := Node3D.new()
-	fr.name = "frame"
+	fr.name = "hangs"
 	level.add_child(fr)
-	piece_nodes["frame"] = fr
-	var fz: float = BT.FRAME_Z
-	for px in BT.FRAME_POSTS:
-		_bt_box(fr, Vector3(px, (BT.FRAME_BEAM_Y + 0.2) * 0.5, fz), Vector3(0.22, BT.FRAME_BEAM_Y + 0.2, 0.22), "scaffold")
-	_bt_box(fr, Vector3(0, BT.FRAME_BEAM_Y, fz), Vector3(53.0, 0.18, 0.18), "scaffold")
-	_bt_box(fr, Vector3(0, BT.FRAME_BEAM_Y + 0.9, fz), Vector3(53.0, 0.12, 0.12), "scaffold")
-	# 布の天幕（15・19章、下絵の色の帯）：区間ごとに、柱と端で支えたたるんだ布。上端 3.8m、下端は支えで 3.2m・真ん中で 2.9m
-	var cz: float = BT.CANOPY_Z
-	var cols := ["cloth2", "cloth", "linen"]
-	var ci := 0
-	for span in BT.CANOPY_SPANS:
-		var sup: Array = [span[0]]
-		for px in BT.FRAME_POSTS:
-			if px > span[0] + 0.5 and px < span[1] - 0.5:
-				sup.append(px)
-		sup.append(span[1])
-		for k in sup.size() - 1:
-			var a0: float = sup[k]
-			var a1: float = sup[k + 1]
-			var nseg := maxi(4, int((a1 - a0) / 0.25))
-			for q in nseg:
-				var u0 := float(q) / nseg
-				var u1 := float(q + 1) / nseg
-				var xm := lerpf(a0, a1, (u0 + u1) * 0.5)
-				var t := (u0 + u1) * 0.5
-				var bot := lerpf(BT.CANOPY_BOT.x, BT.CANOPY_BOT.y, pow(2.0 * t - 1.0, 2.0))   # たるみ
-				_bt_box(fr, Vector3(xm, (bot + BT.CANOPY_TOP) * 0.5, cz), Vector3((a1 - a0) / nseg + 0.01, BT.CANOPY_TOP - bot, 0.03), cols[ci % 3])
-			ci += 1
+	piece_nodes["hangs"] = fr
+	for rk in BT.ROPES:   # 綱と両端の壁の金具
+		var rp: Dictionary = BT.ROPES[rk]
+		_bt_box(fr, Vector3((rp.x0 + rp.x1) * 0.5, rp.y, rp.z), Vector3(rp.x1 - rp.x0, 0.025, 0.02), "cable")
+		for ex in [rp.x0, rp.x1]:
+			_bt_box(fr, Vector3(ex, rp.y, (rp.z + BT.WALL_Z) * 0.5), Vector3(0.06, 0.06, absf(rp.z - BT.WALL_Z)), "iron")
+		bt_marks.append(["rope", rk, Vector3((rp.x0 + rp.x1) * 0.5, rp.y, rp.z)])
 	for hg in BT.HANGS:
 		var tex := _bt_art(hg[2])
 		if tex == null:
 			continue
 		var w: float = BT.PEND_W if hg[0] == "pend" else BT.BANNER_W
 		var hh: float = w * float(tex.get_height()) / float(tex.get_width())
-		var top: float = BT.FRAME_BEAM_Y - 0.05
-		_bt_quad(fr, hg[2], hg[1] - w * 0.5, top - hh, hg[1] + w * 0.5, top, fz + 0.12, BT_GLOW if hg[0] == "pend" else BT_ART_DIM, [0.0, 0.0, 1.0, 1.0], 0)
+		var ay: Array = _bt_anchor(hg[3])
+		var top: float = ay[0] - 0.04
+		var hz: float = ay[1] + 0.04
+		_bt_quad(fr, hg[2], hg[1] - w * 0.5, top - hh, hg[1] + w * 0.5, top, hz, BT_GLOW if hg[0] == "pend" else BT_ART_DIM, [0.0, 0.0, 1.0, 1.0], 0)
+		_bt_box(fr, Vector3(hg[1], top + 0.02, hz), Vector3(0.02, 0.05, 0.02), "cable")   # 吊り紐
+		bt_hang_rects.append([hg[0] + ":" + hg[2] + "@" + hg[3], hg[1] - w * 0.5, top - hh, hg[1] + w * 0.5, top, hz])
 		if hg[0] == "pend":
-			bt_lights.append([hg[2], hg[1], top - hh * 0.8, fz + 0.12, 0.5])
+			bt_lights.append([hg[2], hg[1], top - hh * 0.8, hz, 0.5])
 	# 屋台（届いた絵は 2 層：奥の層 → 店の人 → カウンターの層）
 	var st := Node3D.new()
 	st.name = "stalls"
@@ -2031,6 +2061,16 @@ func build_backtown() -> void:
 	for d in BT.DOORS:
 		_bt_box(mk, Vector3(d.x, 0.015, wz + 0.8), Vector3(d.w, 0.02, 1.4), "neon_g")
 		bt_marks.append(["door", d.id, Vector3(d.x, d.h, wz)])
+		bt_target_rects.append(["door:" + d.id, d.x - d.w * 0.5, 0.0, d.x + d.w * 0.5, d.h, wz])
+	for al in BT.ALLEYS:
+		bt_target_rects.append(["alley:" + al.id, al.x - al.w * 0.5, 0.0, al.x + al.w * 0.5, 3.9, wz])
+	for s3 in BT.STALLS:   # 屋台の天幕（絵の上 30％）
+		bt_target_rects.append(["stall_awning:" + s3.id, s3.x - s3.w * 0.5, s3.h * 0.7, s3.x + s3.w * 0.5, s3.h, BT.STALL_Z - 0.2])
+	bt_target_rects.append(["sign:cabaret_neon", -0.6, 3.05, 3.0, 3.75, wz + 0.05])
+	bt_target_rects.append(["sign:cabaret_bulbs", 0.2, 0.0, 3.0, 2.5, wz + 0.05])
+	bt_target_rects.append(["sign:shady_small", 20.8, 3.05, 21.8, 3.45, wz + 0.05])
+	for fx in [-19.1, -9.5, 0.0, 9.5, 19.1]:   # 番号 1：外した足場の梁があった所
+		bt_marks.append(["fix", "1", Vector3(fx - 2.5, 3.2, -4.1)])
 	for al in BT.ALLEYS:
 		_bt_box(mk, Vector3(al.x, 0.015, wz + 0.3), Vector3(al.w, 0.02, 0.4), "lamp")
 		bt_marks.append(["alley", al.id, Vector3(al.x, 2.0, wz)])
@@ -2076,53 +2116,102 @@ func _capture_backtown(dir: String) -> void:
 			await get_tree().process_frame
 			await RenderingServer.frame_post_draw
 		get_viewport().get_texture().get_image().save_png(dir + "/bt_play_%d.png" % n)
-		# 頭上の物（足場の枠・天幕・吊るした物・梁から吊るした看板）を隠した 1 枚（上 1/4 の埋まり方を比べる）
-		var hid := []
-		for ch in level.get_children():
-			if String(ch.name) == "frame":
-				ch.visible = false
-				hid.append(ch)
-			elif String(ch.name) == "glow":
-				for q in ch.get_children():
-					if q.position.z > BT.WALL_Z + 1.0:
-						q.visible = false
-						hid.append(q)
-		for f in 3:
-			await get_tree().process_frame
-			await RenderingServer.frame_post_draw
-		get_viewport().get_texture().get_image().save_png(dir + "/bt_play_%d_noover.png" % n)
-		for hn in hid:
-			hn.visible = true
 		var nsign := 0
 		for m in bt_marks:
 			var sp := cam.unproject_position(m[2])
 			var on: bool = not cam.is_position_behind(m[2]) and sp.x > 0 and sp.x < vh.x
-			if on:
-				print("BTMARK %d %s %s %.4f %.4f" % [n, m[0], m[1], sp.x / vh.x, sp.y / vh.y])
+			if on or m[0] in ["chk", "eave", "win2f"]:
+				print("BTMARK %d %s %s %.4f %.4f%s" % [n, m[0], m[1], sp.x / vh.x, sp.y / vh.y, "" if on else " off"])
 				if m[0] == "sign":
 					nsign += 1
 		print("BTSIGNS %d cam_x=%.1f 光る看板 %d 枚" % [n, cams[n], nsign])
-	# 細かく：カメラを 0.5m おきに動かしたときの、画面の光る看板の数の最小・最大
+		_bt_occlusion(n, vh)
+	# 細かく：カメラを 0.5m おきに動かしたときの、画面の光る看板の数の最小・最大。
+	#   24章：前の数え方（置いた直後に数える）と、カメラを動かして 2 コマ待ってから数える方法を並べる
 	var mn := 99
 	var mxn := 0
+	var mn0 := 99
+	var mx0 := 0
+	var lows := []
 	var cxx: float = cam_x.x
 	while cxx <= cam_x.y + 0.01:
 		player.position = Vector3(cxx, 0, 0)
 		_place_cam(true)
-		var c := 0
-		for m in bt_marks:
-			if m[0] == "sign":
-				var sp2 := cam.unproject_position(m[2])
-				if sp2.x > 0 and sp2.x < vh.x:
-					c += 1
+		var c0 := _bt_count_signs(vh)
+		for f in 2:
+			await get_tree().process_frame
+			await RenderingServer.frame_post_draw
+		var c := _bt_count_signs(vh)
+		mn0 = mini(mn0, c0)
+		mx0 = maxi(mx0, c0)
 		mn = mini(mn, c)
 		mxn = maxi(mxn, c)
+		if c < 4 or c > 6 or c != c0:
+			lows.append("%.1f:%d/%d" % [cxx, c0, c])
 		cxx += 0.5
+	print("BTSIGNS_RANGE_OLD 最小 %d 最大 %d（置いた直後）" % [mn0, mx0])
+	print("BTSIGNS_LOW %s" % " ".join(lows))
+	_bt_belt_check()
 	print("BTSIGNS_RANGE 最小 %d 最大 %d" % [mn, mxn])
 	ui.visible = true
 	await _bt_front(dir)
 	if OS.get_environment("BT_GUIDES") == "1":   # 22章：下絵の書き出しは判定のあと（BT_GUIDES=1 のときだけ art/guide_bt を上書き）
 		await _bt_guides_v2()
+
+## 24章：画面の光る看板の数（印の中心が画面の左右の内側）
+func _bt_count_signs(vh: Vector2) -> int:
+	var c := 0
+	for m in bt_marks:
+		if m[0] == "sign":
+			var sp2 := cam.unproject_position(m[2])
+			if not cam.is_position_behind(m[2]) and sp2.x > 0 and sp2.x < vh.x:
+				c += 1
+	return c
+
+## 24章：吊り物・手前の柱・屋台風の飲み屋の屋根が、扉・光る看板・屋台の天幕・路地の口・ビジョン・ネオンの枠をふさいでいないか（画面の四角の重なり、手前にある物だけ）
+func _bt_rect_on_screen(r: Array) -> Rect2:
+	var a := cam.unproject_position(Vector3(r[1], r[2], r[5]))
+	var b := cam.unproject_position(Vector3(r[3], r[4], r[5]))
+	return Rect2(Vector2(minf(a.x, b.x), minf(a.y, b.y)), Vector2(absf(b.x - a.x), absf(b.y - a.y)))
+
+func _bt_occlusion(n: int, vh: Vector2) -> void:
+	var covers := bt_hang_rects.duplicate()
+	for f in bt_fg:   # 手前の柱（ラナから 2.5m 以内は透ける）
+		var fp: Vector3 = f.node.position
+		var hh: float = (f.node.mesh as QuadMesh).size.y
+		var alpha: float = 0.3 if absf(fp.x - player.position.x) < 2.5 else 1.0
+		covers.append(["fg_pillar(%.1f,透明度%.1f)" % [fp.x, alpha], fp.x - f.half, 0.0, fp.x + f.half, hh, fp.z])
+	var screen := Rect2(Vector2.ZERO, vh)
+	for t in bt_target_rects:
+		var tr := _bt_rect_on_screen(t)
+		var tvis := tr.intersection(screen)
+		if tvis.get_area() <= 1.0:
+			continue
+		for cv in covers:
+			if cv[5] <= t[5]:
+				continue
+			var cr := _bt_rect_on_screen(cv).intersection(tvis)
+			var ratio := cr.get_area() / tr.get_area()
+			if ratio > 0.01:
+				print("OCCL %d %s が %s を %.0f%% 隠す" % [n, cv[0], t[0], ratio * 100.0])
+
+## 24章：ラナの歩く帯（z −2〜2）に物が無いか（床・映り込みの板・ラナ自身は除く）
+func _bt_belt_check() -> void:
+	var cnt := 0
+	var stack: Array = [level]
+	while stack.size() > 0:
+		var nd: Node = stack.pop_back()
+		for ch in nd.get_children():
+			stack.append(ch)
+		if nd is GeometryInstance3D and nd.visible:
+			var gi: GeometryInstance3D = nd
+			if gi is MeshInstance3D and ((gi as MeshInstance3D).mesh is PlaneMesh):
+				continue
+			var bb := gi.global_transform * gi.get_aabb()
+			if bb.end.z > BT.BELT_Z.x and bb.position.z < BT.BELT_Z.y and bb.end.y > 0.05:
+				cnt += 1
+				print("BELT %s %s z %.2f〜%.2f y 〜%.2f" % [gi.name, gi.get_class(), bb.position.z, bb.end.z, bb.end.y])
+	print("BELT_COUNT %d" % cnt)
 
 ## 下絵の書き出し（19章）：新しい建物の下の帯（棟の中心 ±3.75m × 0〜5m → 1536×1024、1m＝204.8px）と遊技の屋台（1024×1536、1m＝380px）。
 ##   マゼンタの地、その部品だけを写す（正投影）。art/guide_bt/<名前>.png と guide.json の "v2"（範囲・1m の画素・凡例・扉・屋台・路地・人）
