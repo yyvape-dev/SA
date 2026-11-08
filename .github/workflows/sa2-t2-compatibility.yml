@@ -24,6 +24,12 @@ jobs:
         run: |
           set -o pipefail
           /tmp/godot --headless --path sequel --editor --import --quit 2>&1 | tee /tmp/t2-import.log
+      - name: Run inherited T1 state contract in sequel
+        run: |
+          set -o pipefail
+          /tmp/godot --headless --path sequel --script res://tests/sa2_t1_flow_test.gd 2>&1 | tee /tmp/t2-flow.log
+          grep -q 'SA2_T1_PASS: 37 checks' /tmp/t2-flow.log
+          if grep -E 'SCRIPT ERROR|ERROR:|SA2_T1_FAIL' /tmp/t2-flow.log; then exit 1; fi
       - name: Run inherited T1.5 dialogue contract in sequel
         run: |
           set -o pipefail
@@ -38,4 +44,5 @@ jobs:
           path: |
             /tmp/t2-import.log
             /tmp/t2-dialogue.log
+            /tmp/t2-flow.log
           if-no-files-found: warn
