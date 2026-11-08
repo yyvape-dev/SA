@@ -150,7 +150,9 @@ func _run() -> void:
     await frames(30)
     var attack_button: Button = scene.t2_combat_controls.get_child(0)
     var attack_count: int = scene.t2_manual.attack_count
+    print("T2_5_GUI_BEFORE: state=", scene.t2_lily.state, " dodge=", scene.t2_manual.dodge_left, " inv=", scene.t2_lily.inv, " count=", attack_count)
     await click(attack_button)
+    print("T2_5_GUI_AFTER: state=", scene.t2_lily.state, " count=", scene.t2_manual.attack_count)
     if not require(scene.t2_manual.attack_count == attack_count + 1, "GUI attack fires once"): return
     # Remaining attacks are actual J inputs; movement keys keep the target in reach.
     for i in 120:
