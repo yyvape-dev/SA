@@ -1,0 +1,7 @@
+[gd_resource type="Resource" load_steps=3 format=3]
+[ext_resource type="Script" path="res://scripts/sa2_encounter_definition.gd" id="1"]
+[ext_resource type="Resource" path="res://enemies/cutting_machine.tres" id="2"]
+[resource]
+script = ExtResource("1")
+profile = ExtResource("2")
+routes = [PackedVector3Array(11.6,2.6,-5.95,12.7,2.6,-5.85,14.05,0,-5.85,13.7,0,-3.6,10.8,0,-3.6),PackedVector3Array(10.8,2.6,-5.95,12.7,2.6,-5.85,14.05,0,-5.85,13.7,0,-3.6,10.8,0,-3.6),PackedVector3Array(10,2.6,-5.95,12.7,2.6,-5.85,14.05,0,-5.85,13.7,0,-3.6,10.8,0,-3.6)]

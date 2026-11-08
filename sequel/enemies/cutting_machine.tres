@@ -1,0 +1,5 @@
+[gd_resource type="Resource" load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/sa2_enemy_profile.gd" id="1"]
+[resource]
+script = ExtResource("1")
+clips = {"walk":{"frames":[["machine.svg",0,0,256,256,-128,-256]],"h":256,"face":1,"fps":8},"atk_blade":{"frames":[["machine.svg",0,0,256,256,-128,-256],["machine.svg",0,0,256,256,-128,-256],["machine.svg",0,0,256,256,-128,-256],["machine.svg",0,0,256,256,-128,-256],["machine.svg",0,0,256,256,-128,-256],["machine.svg",0,0,256,256,-128,-256]],"h":256,"face":1,"durs":[200,200,200,220,220,240],"hit":3}}
