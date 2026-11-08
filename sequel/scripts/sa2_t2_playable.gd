@@ -311,6 +311,22 @@ func _t2_movie_demo() -> void:
         push_error("SA2_T2_MOVIE_FAIL: battle did not start")
         get_tree().quit(1)
         return
+    # Lose once to a real enemy hit, and retry through the actual FlowState transition.
+    battle.hp = 4.0
+    for i in 300:
+        if t2_flow.mode == Flow.RESULT:
+            break
+        await _t2_frames(1)
+    if t2_flow.result != "lose":
+        push_error("SA2_T2_MOVIE_FAIL: enemy damage did not produce defeat")
+        get_tree().quit(1)
+        return
+    _t2_result_action()
+    if t2_flow.mode != Flow.INSTANCE or int(t2_flow.attempts.get(EVENT_ID, 0)) != 2:
+        push_error("SA2_T2_MOVIE_FAIL: retry state/attempt count")
+        get_tree().quit(1)
+        return
+    await _t2_frames(8)
     # Use a real enemy attack wind-up, then the same dodge button for a successful timed guard.
     var guarding_foe = battle.enemies[0]
     guarding_foe.position = t2_lily.position + Vector3(1.2, 0, 0)
@@ -349,7 +365,7 @@ func _t2_movie_demo() -> void:
         push_error("SA2_T2_MOVIE_FAIL: exploration restore")
         get_tree().quit(1)
         return
-    print("SA2_T2_MOVIE_PASS: dialogue, Lily manual movement/attack/dodge, two actual targets, win, exploration restore")
+    print("SA2_T2_MOVIE_PASS: dialogue, real enemy-hit defeat/retry, Lily move/attack/dodge/just-guard, two targets, win, exploration restore")
     get_tree().quit(0)
 
 func _t2_frames(n: int) -> void:
