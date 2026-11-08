@@ -215,3 +215,9 @@
 - `backtown_img/v2c_mock_vs_composite_short.png`：14章と同じ形式（モック＋2画面）。
 - `backtown_img/v2c_before_after.png`：同じ2画面の、17章（前）と19章（後）。
 - `backtown_img/v2c_mock_vs_composite.png`：モック＋5か所。
+
+## 21. 20章の判定と、飲み屋の発注（2026-11-08 チャット）
+- 判定：布の天幕は画面の上の帯として見えるようになった（比較画像の「後」）。下絵の段階として合格（チャット）。最終の密度は、新しい4棟の絵が入ってから判断する。
+- 飲み屋の発注票：https://claude.ai/artifact/J2pUcek3xzb3azkbMzm1sw （1件。添付＝① `art/guide_bt/w_bar_low.png` ② `art/painted_bt_src/w3_vision_off.png`（画風） ③ `art/concept/mock_dark_a.png`（世界・密度）。プロンプトは `art/guide_bt/order/prompts_bar.json`）。
+- 発注の前に照らした必須要素：飲み屋（店先の奥に酒瓶の棚・銅の蒸留の機械・カウンター・暖かい灯り・扉から漏れる光）＝この1枚で入る。看板は真鍮の板（光らない）で、酒の記号のネオンは光る部品として後で頼む。人は描かせていない。
+- **取り込みで先に潰す点（Claude Code）：飲み屋のカウンターは壁の絵の中にある。店の人をカウンターの後ろに立たせるには、屋台と同じく壁の絵を2層に分ける**（下絵の木のカウンターの上の線＝下の帯の 798 行目より下を「カウンターの層」として、店の人の手前に描く。開いた店先の範囲だけ）。
