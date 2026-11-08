@@ -4,7 +4,7 @@ extends "res://scripts/main.gd"
 const Manual := preload("res://scripts/sa2_t2_lily_manual.gd")
 const Flow := preload("res://scripts/sa2_flow_state.gd")
 const DB := preload("res://scripts/sa2_dialogue_database.gd")
-const Panel := preload("res://ui/sa2_dialogue_panel.tscn")
+const DialogueScene := preload("res://ui/sa2_dialogue_panel.tscn")
 const EVENT_ID := "C1-06"
 const DEMO_SAVE := "user://sa2_t2_demo_save.json"
 const NORMAL_SAVE := "user://sa2_t2_progress.json"
@@ -78,7 +78,7 @@ func _t2_build_ui() -> void:
     t2_layer = CanvasLayer.new()
     t2_layer.layer = 20
     add_child(t2_layer)
-    t2_dialogue = Panel.instantiate()
+    t2_dialogue = DialogueScene.instantiate()
     t2_layer.add_child(t2_dialogue)
     t2_dialogue.dialogue_closed.connect(_t2_on_dialogue_closed)
     t2_dialogue.line_changed.connect(_t2_on_line_changed)
