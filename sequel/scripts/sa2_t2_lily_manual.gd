@@ -42,7 +42,7 @@ static func guard_candidate(e, at: Vector3) -> bool:
     var rem: float = float(e.atk.get("hit_t", -1.0)) - float(e.atk.get("t", 0.0))
     if rem < GUARD_MIN or rem > GUARD_MAX:
         return false
-    var offset := e.position - at
+    var offset: Vector3 = e.position - at
     return absf(offset.x) <= GUARD_REACH and absf(offset.z) <= 0.9
 
 func attack_press() -> void:
