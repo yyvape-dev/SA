@@ -2,6 +2,7 @@ extends SceneTree
 
 const Loader = preload("res://scripts/sa2_dialogue_database.gd")
 const UI = preload("res://ui/sa2_dialogue_panel.tscn")
+const Flow = preload("res://scripts/sa2_flow_state.gd")
 var failures: Array[String] = []
 
 func _initialize() -> void:
@@ -51,6 +52,24 @@ func _run() -> void:
 	check(not view.start(c1), "no duplicate start")
 	var bad := {"id":"C1-06","lines":[{"speaker":"X","text":""}]}
 	check(not view.start(bad), "do not replace active dialogue")
+	var flow = Flow.new()
+	check(flow.begin_dialogue("C1-06", Vector3(3.0, 0.04, 2.0)), "begin saveable dialogue")
+	check(flow.set_dialogue_line_index(2), "store line cursor")
+	check(flow.save_to("user://sa2_t1_5_resume_test.json"), "save dialogue cursor")
+	var resumed = Flow.new()
+	check(resumed.load_from("user://sa2_t1_5_resume_test.json"), "reload line cursor")
+	check(resumed.mode == Flow.DIALOGUE and resumed.dialogue_line_index == 2, "resume at exact line")
+	check(not flow.set_dialogue_line_index(-1), "reject negative cursor")
+	check(not resumed.begin_dialogue("C1-06", Vector3.ZERO), "prevent duplicate trigger on resume")
+	var restored_ui = UI.instantiate()
+	root.add_child(restored_ui)
+	await process_frame
+	check(restored_ui.start(c1, resumed.dialogue_line_index), "resume UI at saved cursor")
+	check(restored_ui.line_index == 2, "restored visible speaker line")
+	restored_ui.advance()
+	restored_ui.advance()
+	check(not restored_ui.active, "resume closes normally")
+	restored_ui.queue_free()
 	view.queue_free()
 	if failures.is_empty():
 		print("SA2_T1_5_PASS: external dialogue, JSON guardrails, typing, fast-forward, advance, close, reopen")
