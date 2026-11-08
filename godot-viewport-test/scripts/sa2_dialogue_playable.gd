@@ -38,7 +38,7 @@ func _ready() -> void:
 func _build_npc() -> void:
 	npc = Node3D.new()
 	npc.name = "Conversation NPC (temporary 3D marker)"
-	npc.position = Vector3(-13.0, 0, -0.25)
+	npc.position = Vector3(-11.0, 0, -0.25)
 	add_child(npc)
 	var body := MeshInstance3D.new()
 	var cylinder := CylinderMesh.new()
