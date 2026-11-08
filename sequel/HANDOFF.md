@@ -12,6 +12,10 @@
   4. ダンジョンで倒れても失敗にならない（全快で起き上がる）。途中で戻る扉が無い。敵は2種だけ。
   5. 別のチャット（Claude）も同じ main に push している（リリィ・仕様書）。push の前に rebase、書き出しの成果物がぶつかったら向こうを取り、書き出し直す。
 
+## 裏の町の入り口 v2（2026-11-08、specs/backtown_entrance_v2.md の 14。合成の判定待ち・発注していない）
+- 区画 x −24〜24m・12章の並び（w3・飲み屋・キャバレー・娼館風の宿・怪しい店、路地2、足場の枠）。届いた絵は `tools/cut_bt.py` で切り抜き `art/painted_bt/`（書き出しには入れない）。光る看板はどの画面でも 4〜6 枚。比較画像 `specs/backtown_img/v2_mock_vs_composite*.png`。
+- `art/painted_bt_src/` に .gdignore を足した（元の絵がゲームに入る状態だった）。
+
 ## 裏の町の入り口の下絵（2026-11-08、specs/backtown_blockout.md の「結果」。塗る前の判定待ち）
 - `scripts/backtown_block.gd`＋`main.build_backtown`。Web `?town=back`（カメラ D2 自動）。正面図 `art/guide_bt/`（書き出しには入れない）。撮影 `TOWN=back FX_ONLY=backtown`。
 - D2 では建物の正面で地面〜4.0m だけが映る（計算と撮影が一致）。予定の絵 8 枚・約 5〜6MB・GPU 約 57MB。判定事項 4 つは spec。

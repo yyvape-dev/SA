@@ -1,0 +1,98 @@
+{
+ "w3_vision_off": [
+  1536,
+  1024
+ ],
+ "vision_screen": [
+  902,
+  491
+ ],
+ "stall_food": [
+  957,
+  1331
+ ],
+ "stall_crystal": [
+  953,
+  1331
+ ],
+ "stall_parts": [
+  963,
+  1333
+ ],
+ "sign_sigil": [
+  899,
+  312
+ ],
+ "sign_rune": [
+  471,
+  249
+ ],
+ "sign_vneon": [
+  187,
+  849
+ ],
+ "pend_cyan": [
+  197,
+  412
+ ],
+ "pend_violet": [
+  198,
+  412
+ ],
+ "pend_green": [
+  198,
+  412
+ ],
+ "pend_warm": [
+  196,
+  412
+ ],
+ "banner_red": [
+  292,
+  458
+ ],
+ "banner_violet": [
+  291,
+  458
+ ],
+ "fg_pillar": [
+  179,
+  1181
+ ],
+ "fg_pillar_lamp": [
+  227,
+  1181
+ ],
+ "fg_crate": [
+  442,
+  372
+ ],
+ "fg_crates": [
+  162,
+  476
+ ],
+ "back_alley_1": [
+  415,
+  960
+ ],
+ "back_alley_2": [
+  288,
+  960
+ ],
+ "tex_brick": [
+  1254,
+  1254
+ ],
+ "tex_iron": [
+  1254,
+  1254
+ ],
+ "tex_plaster": [
+  1254,
+  1254
+ ],
+ "tex_boards": [
+  1254,
+  1254
+ ]
+}
