@@ -8,7 +8,7 @@ var failures: Array[String] = []
 func _initialize() -> void:
 	_run()
 	if failures.is_empty():
-		print("SA2_T1_PASS: 32 checks: dialogue, trigger guards, battle adapters, save/reload, retry, restore")
+		print("SA2_T1_PASS: 37 checks: dialogue, trigger guards, battle adapters, save/reload, retry, restore")
 		quit(0)
 	else:
 		for failure in failures:
