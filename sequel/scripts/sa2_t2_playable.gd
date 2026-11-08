@@ -23,6 +23,7 @@ var t2_done := false
 var t2_demo := false
 var t2_finger := -1
 var t2_touch_origin := Vector2.ZERO
+var t2_arena: Node3D
 
 func _ready() -> void:
     await super._ready()
@@ -139,6 +140,7 @@ func _t2_start_training(resume: bool) -> void:
         return
     for e in battle.enemies.duplicate():
         battle.remove_enemy(e)
+    _t2_build_arena()
     t2_kills = 0
     t2_done = false
     t2_result_button.hide()
@@ -155,9 +157,76 @@ func _t2_start_training(resume: bool) -> void:
         foe.hp = 24.0
         foe.dmg = 5
         foe.sp = 0.65
+        _t2_build_target(foe)
     t2_active = true
     t2_label.text = "模擬標的 0/2   HP 100   [WASD] 移動 [J] 攻撃 [K] 回避・防御"
     _t2_save()
+
+## A distinct, nonlethal greybox training area; existing Enemy objects still own real hit/HP logic.
+func _t2_build_arena() -> void:
+    if t2_arena != null and is_instance_valid(t2_arena):
+        t2_arena.queue_free()
+    t2_arena = Node3D.new()
+    t2_arena.name = "T2 Nonlethal Training Area"
+    add_child(t2_arena)
+    var floor_mesh := MeshInstance3D.new()
+    var floor_shape := PlaneMesh.new()
+    floor_shape.size = Vector2(11.0, 6.0)
+    floor_mesh.mesh = floor_shape
+    floor_mesh.position = Vector3(2.0, 0.025, 0)
+    var floor_mat := StandardMaterial3D.new()
+    floor_mat.albedo_color = Color(0.12, 0.16, 0.21, 0.88)
+    floor_mat.metallic = 0.25
+    floor_mesh.material_override = floor_mat
+    t2_arena.add_child(floor_mesh)
+    for x in [-3.3, 7.3]:
+        for z in [-2.6, 2.6]:
+            var post := MeshInstance3D.new()
+            var post_mesh := CylinderMesh.new()
+            post_mesh.top_radius = 0.12
+            post_mesh.bottom_radius = 0.17
+            post_mesh.height = 1.8
+            post.mesh = post_mesh
+            post.position = Vector3(x, 0.9, z)
+            var post_mat := StandardMaterial3D.new()
+            post_mat.albedo_color = Color(0.29, 0.25, 0.2)
+            post_mat.metallic = 0.75
+            post.material_override = post_mat
+            t2_arena.add_child(post)
+
+func _t2_build_target(foe) -> void:
+    # Replace the soldier appearance with an unmistakably mechanical practice dummy.
+    foe.sprite.hide()
+    var shell := Node3D.new()
+    shell.name = "Nonlethal mechanical target"
+    foe.add_child(shell)
+    var metal := StandardMaterial3D.new()
+    metal.albedo_color = Color(0.32, 0.48, 0.58)
+    metal.metallic = 0.8
+    metal.roughness = 0.42
+    var torso := MeshInstance3D.new()
+    var body := CylinderMesh.new()
+    body.top_radius = 0.27
+    body.bottom_radius = 0.37
+    body.height = 1.18
+    torso.mesh = body
+    torso.position.y = 0.88
+    torso.material_override = metal
+    shell.add_child(torso)
+    var head := MeshInstance3D.new()
+    var cap := SphereMesh.new()
+    cap.radius = 0.23
+    cap.height = 0.46
+    head.mesh = cap
+    head.position.y = 1.66
+    head.material_override = metal
+    shell.add_child(head)
+    var mark := Label3D.new()
+    mark.text = "TARGET"
+    mark.font_size = 34
+    mark.position.y = 2.22
+    mark.modulate = Color(0.54, 0.9, 1.0)
+    shell.add_child(mark)
 
 func _on_foe_killed(_e) -> void:
     if t2_active:
@@ -204,6 +273,8 @@ func _t2_result_action() -> void:
         battle.ally = t2_lily
         t2_manual.locked = true
         t2_manual.queue_free()
+        if t2_arena != null and is_instance_valid(t2_arena):
+            t2_arena.queue_free()
         t2_lily.set_physics_process(true)
         t2_rana.show()
         t2_rana.locked = false
@@ -240,6 +311,18 @@ func _t2_movie_demo() -> void:
         push_error("SA2_T2_MOVIE_FAIL: battle did not start")
         get_tree().quit(1)
         return
+    # Use a real enemy attack wind-up, then the same dodge button for a successful timed guard.
+    var guarding_foe = battle.enemies[0]
+    guarding_foe.position = t2_lily.position + Vector3(1.2, 0, 0)
+    guarding_foe.face = -1
+    guarding_foe._start_atk()
+    guarding_foe.atk.t = float(guarding_foe.atk.hit_t) - 0.24
+    t2_manual.dodge()
+    if t2_manual.guard_count != 1:
+        push_error("SA2_T2_MOVIE_FAIL: timed guard did not activate")
+        get_tree().quit(1)
+        return
+    await _t2_frames(8)
     t2_manual.move_in = Vector2.RIGHT
     await _t2_frames(9)
     t2_manual.move_in = Vector2.ZERO
@@ -255,7 +338,7 @@ func _t2_movie_demo() -> void:
             t2_manual.move_in = Vector2.ZERO
         t2_manual.attack_press()
         await _t2_frames(28)
-    if not t2_done or t2_flow.result != "win" or t2_manual.attack_count == 0 or t2_manual.dodge_count == 0:
+    if not t2_done or t2_flow.result != "win" or t2_manual.attack_count == 0 or t2_manual.dodge_count == 0 or t2_manual.guard_count == 0:
         push_error("SA2_T2_MOVIE_FAIL: not a complete real combat loop")
         get_tree().quit(1)
         return
