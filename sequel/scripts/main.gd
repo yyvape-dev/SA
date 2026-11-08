@@ -2241,6 +2241,32 @@ func _bt_guides_v2() -> void:
 			var stn: Node3D = piece_nodes["stalls"].get_node(NodePath(s2.id))
 			var hw := 1024.0 / 380.0 * 0.5
 			shots.append({"name": s2.id, "node": stn, "box": [s2.x - hw, -0.3, s2.x + hw, -0.3 + 1536.0 / 380.0], "size": Vector2i(1024, 1536), "note": s2.note})
+	# 26章：BT_GUIDE_ONLY="<棟の id>=<名前>" のときはその 1 枚だけ（他の下絵は上書きしない）。guide.json は "v2_<名前>" に書く（"v2" は触らない）。
+	#   飲み屋は上の小屋の酒の記号の枠（NEON_SLOTS の neon_liquor_tavern）も一緒に写す（人・手前の柱・ペンダントライト・光る看板は写さない）
+	var only := OS.get_environment("BT_GUIDE_ONLY")
+	var meta_key := "v2"
+	var temp_nodes := []
+	if only != "":
+		var oid := only.get_slice("=", 0)
+		var oname := only.get_slice("=", 1)
+		meta_key = "v2_" + oname
+		var keep := []
+		for sh0 in shots:
+			if sh0.node == piece_nodes.get(oid, null):
+				sh0.name = oname
+				if oid == "n1_tavern":
+					var tn := Node3D.new()
+					tn.name = "guide_slot"
+					level.add_child(tn)
+					temp_nodes.append(tn)
+					for ns in BT.NEON_SLOTS:
+						if ns[0] == "neon_liquor_tavern":
+							_bt_box(tn, Vector3((ns[1] + ns[3]) * 0.5, (ns[2] + ns[4]) * 0.5, ns[5] - 0.01), Vector3(ns[3] - ns[1], ns[4] - ns[2], 0.01), "dark")
+							for e in [[ns[1], ns[2], ns[3], ns[2] + 0.04], [ns[1], ns[4] - 0.04, ns[3], ns[4]], [ns[1], ns[2], ns[1] + 0.04, ns[4]], [ns[3] - 0.04, ns[2], ns[3], ns[4]]]:
+								_bt_box(tn, Vector3((e[0] + e[2]) * 0.5, (e[1] + e[3]) * 0.5, ns[5]), Vector3(e[2] - e[0], e[3] - e[1], 0.02), "slot")
+					sh0["extra"] = tn
+				keep.append(sh0)
+		shots = keep
 	var meta := {"px_note": "x0〜x1・y0〜y1 は世界の m。1m の画素＝w÷(x1−x0)", "legend": {}, "parts": {}, "doors": BT.DOORS, "alleys": BT.ALLEYS, "stalls": BT.STALLS,
 		"people": BT.PEOPLE, "low_h": BT.LOW_H, "visible_top_m": 3.98}
 	for k in BT.LEGEND:
@@ -2257,6 +2283,8 @@ func _bt_guides_v2() -> void:
 			vis_state.append([ch, ch.visible])
 			ch.visible = false
 		var nd: Node3D = sh.node
+		if sh.has("extra"):
+			sh.extra.visible = true
 		var p := nd
 		while p != level and p != null:
 			p.visible = true
@@ -2277,11 +2305,13 @@ func _bt_guides_v2() -> void:
 				c2.visible = true
 	player.visible = true
 	vp.queue_free()
+	for tn2 in temp_nodes:
+		tn2.queue_free()
 	var gpath := out + "/guide.json"
 	var g = JSON.parse_string(FileAccess.get_file_as_string(gpath)) if FileAccess.file_exists(gpath) else {}
 	if not (g is Dictionary):
 		g = {}
-	g["v2"] = meta
+	g[meta_key] = meta
 	var f2 := FileAccess.open(gpath, FileAccess.WRITE)
 	f2.store_string(JSON.stringify(g, "  "))
 	f2.close()

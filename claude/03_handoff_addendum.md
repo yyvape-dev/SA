@@ -1,7 +1,11 @@
 # 03 引き継ぎの追記（2026-10-31 10:30 以降）
 
+## 2026-11-08（Claude Code）続編：裏の町 v2 の 26章
+- 飲み屋（屋台風の小屋）の発注用の下絵 `sequel/art/guide_bt/w_bar_shack_low.png` を1枚だけ書き出した（1536×1024・10.1KB・204.8px/m）。3層の切り分けの線は spec の 26 章。発注票はまだ。
+
 ## 2026-11-08（Claude Code）続編：裏の町の入り口 v2 の 24章
 - `sequel/specs/backtown_entrance_v2.md` の 25 章に結果。比較画像 `sequel/specs/backtown_img/v2e_*.png` で止めた（発注・下絵の書き出しなし）。判定待ち：飲み屋A の場所（案 x 6.1 のみ）、D が画面の外、人影の大きさの解釈、屋台風の飲み屋の屋根が縦のネオンの端を隠す件。
+
 ## 2026-11-08（Claude Code）続編：裏の町の入り口 v2 の 22章
 - `sequel/specs/backtown_entrance_v2.md` の 23 章に結果。元のコンセプトの下半分と並べた比較画像 `sequel/specs/backtown_img/v2d_*.png` で止めた（発注していない）。判定待ち：屋台風の飲み屋の場所（4案）、密度。
 

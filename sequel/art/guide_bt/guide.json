@@ -277,50 +277,50 @@
     "low_h": 5.0,
     "parts": {
       "stall_game": {
-        "h": 1536,
+        "h": 1536.0,
         "note": "遊技の屋台（歯車仕掛けの機械）。絵は未発注",
         "px_per_m": 380.0,
-        "w": 1024,
+        "w": 1024.0,
         "x0": 2.95263157894737,
         "x1": 5.64736842105263,
         "y0": -0.3,
         "y1": 3.7421052631579
       },
       "w_bar_low": {
-        "h": 1024,
+        "h": 1024.0,
         "note": "飲み屋・酒場（主役）",
         "px_per_m": 204.8,
-        "w": 1536,
+        "w": 1536.0,
         "x0": -11.45,
         "x1": -3.95,
         "y0": 0.0,
         "y1": 5.0
       },
       "w_brothel_low": {
-        "h": 1024,
+        "h": 1024.0,
         "note": "娼館風の宿",
         "px_per_m": 204.8,
-        "w": 1536,
+        "w": 1536.0,
         "x0": 6.85,
         "x1": 14.35,
         "y0": 0.0,
         "y1": 5.0
       },
       "w_cabaret_low": {
-        "h": 1024,
+        "h": 1024.0,
         "note": "劇場・キャバレーの入口",
         "px_per_m": 204.8,
-        "w": 1536,
+        "w": 1536.0,
         "x0": -2.15,
         "x1": 5.35,
         "y0": 0.0,
         "y1": 5.0
       },
       "w_shady_low": {
-        "h": 1024,
+        "h": 1024.0,
         "note": "怪しい店（薬・売人）",
         "px_per_m": 204.8,
-        "w": 1536,
+        "w": 1536.0,
         "x0": 18.15,
         "x1": 25.65,
         "y0": 0.0,
@@ -367,6 +367,366 @@
         23.6,
         -5.6,
         "売人"
+      ]
+    ],
+    "px_note": "x0〜x1・y0〜y1 は世界の m。1m の画素＝w÷(x1−x0)",
+    "stalls": [
+      {
+        "art": "stall_food",
+        "h": 3.45,
+        "id": "stall_food",
+        "keeper": true,
+        "w": 2.48,
+        "x": -23.6
+      },
+      {
+        "art": "stall_crystal",
+        "h": 3.45,
+        "id": "stall_crystal",
+        "keeper": true,
+        "w": 2.48,
+        "x": -15.6
+      },
+      {
+        "art": "",
+        "h": 3.0,
+        "id": "stall_game",
+        "keeper": false,
+        "note": "遊技の屋台（歯車仕掛けの機械）。絵は未発注",
+        "w": 2.4,
+        "x": 4.3
+      },
+      {
+        "art": "stall_parts",
+        "h": 3.45,
+        "id": "stall_parts",
+        "keeper": true,
+        "w": 2.48,
+        "x": 20.6
+      }
+    ],
+    "visible_top_m": 3.98
+  },
+  "v2_w_bar_shack_low": {
+    "alleys": [
+      {
+        "id": "alley_towers",
+        "w": 2.4,
+        "x": -13.2
+      },
+      {
+        "id": "alley_gate",
+        "note": "門へ向かう道",
+        "w": 2.2,
+        "x": 17.1
+      }
+    ],
+    "doors": [
+      {
+        "h": 2.2,
+        "id": "door_tavern",
+        "w": 1.1,
+        "x": -5.45
+      },
+      {
+        "h": 2.3,
+        "id": "door_cabaret",
+        "w": 2.4,
+        "x": 1.6
+      },
+      {
+        "h": 2.2,
+        "id": "door_brothel",
+        "w": 1.4,
+        "x": 9.0
+      },
+      {
+        "h": 2.2,
+        "id": "door_shady",
+        "w": 1.2,
+        "x": 22.9
+      }
+    ],
+    "legend": {
+      "#141219": {
+        "en": "dark opening, shop interior",
+        "ja": "暗い開口・店の奥",
+        "key": "dark"
+      },
+      "#223448": {
+        "en": "dark glass, poster frame",
+        "ja": "暗いガラス・貼り紙の枠",
+        "key": "glass"
+      },
+      "#2a1420": {
+        "en": "silhouette behind curtain",
+        "ja": "カーテン越しの人影",
+        "key": "silh"
+      },
+      "#2c2018": {
+        "en": "dark plank back wall",
+        "ja": "小屋の奥の暗い板壁",
+        "key": "wood_dk"
+      },
+      "#30e0ff": {
+        "en": "cyan screen of game machine (unlit)",
+        "ja": "水色の光る窓（遊技の機械、消灯）",
+        "key": "neon_c"
+      },
+      "#363a42": {
+        "en": "iron (pipes, grille, ledge)",
+        "ja": "鉄（配管・格子・床の縁）",
+        "key": "iron"
+      },
+      "#383a42": {
+        "en": "corrugated tin (roof, add-on)",
+        "ja": "トタン・鉄板（屋根・増築）",
+        "key": "tin"
+      },
+      "#38c078": {
+        "en": "glowing green glass tube",
+        "ja": "緑に光るガラス管",
+        "key": "glass_g"
+      },
+      "#3a6a50": {
+        "en": "shelves of liquor bottles",
+        "ja": "酒瓶の棚",
+        "key": "bottle"
+      },
+      "#40ff90": {
+        "en": "small green sign (unlit)",
+        "ja": "緑の小さな看板（消灯）",
+        "key": "neon_g"
+      },
+      "#4a2a62": {
+        "en": "cloth awning",
+        "ja": "布の天幕・庇",
+        "key": "awning"
+      },
+      "#4a3020": {
+        "en": "dim shop interior",
+        "ja": "鈍い灯りの暗い店内",
+        "key": "warm_dim"
+      },
+      "#4a3424": {
+        "en": "wood (door, counter, stairs, stand)",
+        "ja": "木（扉・カウンター・階段・台）",
+        "key": "wood"
+      },
+      "#4a3a28": {
+        "en": "crates, barrels",
+        "ja": "木箱・樽",
+        "key": "crate"
+      },
+      "#4a4652": {
+        "en": "stone wall",
+        "ja": "石の壁",
+        "key": "stone"
+      },
+      "#553832": {
+        "en": "brick wall",
+        "ja": "レンガの壁",
+        "key": "brick"
+      },
+      "#701830": {
+        "en": "velvet curtain",
+        "ja": "ビロードの幕",
+        "key": "velvet"
+      },
+      "#7a2828": {
+        "en": "red cloth",
+        "ja": "紅い布",
+        "key": "red"
+      },
+      "#7a4a26": {
+        "en": "copper (pipes, eave)",
+        "ja": "銅（配管・庇）",
+        "key": "copper"
+      },
+      "#7a6e5c": {
+        "en": "linen cloth",
+        "ja": "生成りの布",
+        "key": "linen"
+      },
+      "#857a88": {
+        "en": "wall behind stairs",
+        "ja": "外階段の後ろの壁",
+        "key": "stairwall"
+      },
+      "#8a6a2c": {
+        "en": "brass (sign board, machine)",
+        "ja": "真鍮（看板・機械）",
+        "key": "brass"
+      },
+      "#8c877c": {
+        "en": "white cloth",
+        "ja": "白い布",
+        "key": "white"
+      },
+      "#a04a6a": {
+        "en": "lit window behind curtains",
+        "ja": "カーテン越しに光る窓",
+        "key": "curtain"
+      },
+      "#a07a4c": {
+        "en": "light wood (outside stairs)",
+        "ja": "明るい木（外階段）",
+        "key": "wood_lt"
+      },
+      "#b8743a": {
+        "en": "warm lit shop interior",
+        "ja": "暖かく光る店内",
+        "key": "warm_in"
+      },
+      "#c070a0": {
+        "en": "space for neon sign (leave empty)",
+        "ja": "光るネオンの置き場所（空ける）",
+        "key": "slot"
+      },
+      "#c88a44": {
+        "en": "warm lit window, doorway",
+        "ja": "暖かく灯る窓・戸口",
+        "key": "window"
+      },
+      "#d86080": {
+        "en": "pink neon (draw unlit)",
+        "ja": "ピンクのネオン（消灯で描く）",
+        "key": "neon_p"
+      },
+      "#fff0a0": {
+        "en": "frame of light bulbs",
+        "ja": "電球の縁取り",
+        "key": "bulb"
+      }
+    },
+    "low_h": 5.0,
+    "parts": {
+      "w_bar_shack_low": {
+        "h": 1024,
+        "note": "飲み屋・酒場（主役、屋台風の小屋）",
+        "px_per_m": 204.8,
+        "w": 1536,
+        "x0": -11.45,
+        "x1": -3.95,
+        "y0": 0.0,
+        "y1": 5.0
+      }
+    },
+    "people": [
+      [
+        -8.9,
+        -6.0,
+        "飲み屋の店の人（カウンターの後ろ）"
+      ],
+      [
+        -10.3,
+        -5.05,
+        "飲み屋の客（カウンター）"
+      ],
+      [
+        -7.0,
+        -5.05,
+        "飲み屋の客（カウンター）"
+      ],
+      [
+        -9.5,
+        -4.45,
+        "飲み屋の客（樽のテーブル）"
+      ],
+      [
+        -8.1,
+        -4.4,
+        "飲み屋の客（樽のテーブル）"
+      ],
+      [
+        -5.9,
+        -4.6,
+        "飲み屋の客（戸口）"
+      ],
+      [
+        -2.9,
+        -4.8,
+        "屋台風の飲み屋B の店の人"
+      ],
+      [
+        -3.6,
+        -3.85,
+        "客"
+      ],
+      [
+        -1.9,
+        -3.85,
+        "客"
+      ],
+      [
+        15.2,
+        -4.8,
+        "屋台風の飲み屋C の店の人"
+      ],
+      [
+        14.5,
+        -3.85,
+        "客"
+      ],
+      [
+        -25.4,
+        -3.85,
+        "屋台風の飲み屋D の客"
+      ],
+      [
+        2.9,
+        -5.3,
+        "キャバレーの客引き"
+      ],
+      [
+        -1.0,
+        -5.3,
+        "キャバレーの客"
+      ],
+      [
+        0.7,
+        -5.15,
+        "キャバレーの客"
+      ],
+      [
+        8.0,
+        -5.6,
+        "客引きの女（戸口）"
+      ],
+      [
+        10.3,
+        -5.3,
+        "娼館の客"
+      ],
+      [
+        12.9,
+        -5.5,
+        "客引きの女（階段）"
+      ],
+      [
+        17.1,
+        -5.9,
+        "用心棒（門の路地の口）"
+      ],
+      [
+        17.9,
+        -5.3,
+        "通行人"
+      ],
+      [
+        23.6,
+        -5.6,
+        "売人"
+      ],
+      [
+        22.0,
+        -4.9,
+        "売人の客"
+      ],
+      [
+        -13.6,
+        -5.2,
+        "路地の口の女"
       ]
     ],
     "px_note": "x0〜x1・y0〜y1 は世界の m。1m の画素＝w÷(x1−x0)",
