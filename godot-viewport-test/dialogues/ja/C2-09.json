@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "id": "C2-09",
+  "lines": [
+    {
+      "line_id": "c2-09-001",
+      "speaker_id": "guide",
+      "speaker": "案内係",
+      "text": "この区域は現在、通行を制限しています。",
+      "portrait_id": ""
+    }
+  ]
+}
