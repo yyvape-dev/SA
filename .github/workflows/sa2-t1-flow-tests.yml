@@ -51,8 +51,8 @@ jobs:
         run: |
           set -e
           cd godot-viewport-test/captures/sa2_t1
-          printf "file '01_explore.png'\nduration 2\nfile '02_dialogue.png'\nduration 2\nfile '03_instance_state.png'\nduration 2\nfile '04_completed.png'\nduration 2\nfile '04_completed.png'\n" > /tmp/sa2_t1_frames.txt
-          ffmpeg -hide_banner -loglevel error -y -f concat -safe 0 -i /tmp/sa2_t1_frames.txt -vf "fps=12,scale=1280:720:flags=lanczos,format=yuv420p" -c:v libx264 -preset veryfast -crf 22 -movflags +faststart sa2_t1_screen_review.mp4
+          printf "file '01_explore.png'\nduration 2\nfile '02_dialogue.png'\nduration 2\nfile '03_instance_state.png'\nduration 2\nfile '04_completed.png'\nduration 2\nfile '04_completed.png'\n" > sa2_t1_frames.txt
+          ffmpeg -hide_banner -loglevel error -y -f concat -safe 0 -i sa2_t1_frames.txt -vf "fps=12,scale=1280:720:flags=lanczos,format=yuv420p" -c:v libx264 -preset veryfast -crf 22 -movflags +faststart sa2_t1_screen_review.mp4
           ffprobe -v error -show_entries format=duration,size -of default=noprint_wrappers=1 sa2_t1_screen_review.mp4
           test -s sa2_t1_screen_review.mp4
       - name: Upload actual Godot PNG evidence and test logs
