@@ -1,0 +1,154 @@
+{
+ "note": "発注用の下絵（GPT の出せる大きさに、マゼンタで余白を足して並べた）。届いた絵は sheet と同じ大きさで、dst_box を切り出し、src_box の大きさ（元の部品の画素の比）に戻して使う。届いた絵が大きさ違いなら、まず sheet の大きさへ縮尺を合わせる。",
+ "orders": {
+  "w1_bazaar_low": {
+   "sheet": "w1_bazaar_low.png",
+   "pieces": [
+    {
+     "src": "w1_bazaar_low",
+     "src_box": [
+      0,
+      0,
+      1536,
+      1024
+     ],
+     "dst_box": [
+      0,
+      0,
+      1536,
+      1024
+     ]
+    }
+   ]
+  },
+  "w2_sigil_low": {
+   "sheet": "w2_sigil_low.png",
+   "pieces": [
+    {
+     "src": "w2_sigil_low",
+     "src_box": [
+      0,
+      0,
+      1536,
+      1024
+     ],
+     "dst_box": [
+      0,
+      0,
+      1536,
+      1024
+     ]
+    }
+   ]
+  },
+  "w3_vision_low": {
+   "sheet": "w3_vision_low.png",
+   "pieces": [
+    {
+     "src": "w3_vision_low",
+     "src_box": [
+      0,
+      0,
+      1536,
+      1024
+     ],
+     "dst_box": [
+      0,
+      0,
+      1536,
+      1024
+     ]
+    }
+   ]
+  },
+  "w4_inn_low": {
+   "sheet": "w4_inn_low.png",
+   "pieces": [
+    {
+     "src": "w4_inn_low",
+     "src_box": [
+      0,
+      0,
+      1536,
+      1024
+     ],
+     "dst_box": [
+      0,
+      0,
+      1536,
+      1024
+     ]
+    }
+   ]
+  },
+  "w5_boiler_low": {
+   "sheet": "w5_boiler_low.png",
+   "pieces": [
+    {
+     "src": "w5_boiler_low",
+     "src_box": [
+      0,
+      0,
+      1536,
+      1024
+     ],
+     "dst_box": [
+      0,
+      0,
+      1536,
+      1024
+     ]
+    }
+   ]
+  },
+  "back_alleys": {
+   "sheet": "back_alleys_sheet.png",
+   "scale": 2.5,
+   "pieces": [
+    {
+     "src": "back_alley_1",
+     "src_box": [
+      0,
+      0,
+      166,
+      384
+     ],
+     "dst_box": [
+      40,
+      32,
+      455,
+      992
+     ]
+    },
+    {
+     "src": "back_alley_2",
+     "src_box": [
+      0,
+      0,
+      115,
+      384
+     ],
+     "dst_box": [
+      575,
+      32,
+      863,
+      992
+     ]
+    }
+   ]
+  },
+  "overhead_props": {
+   "sheet": "overhead_props.png",
+   "mode": "props",
+   "note": "上の段＝ペンダントライト4（水色・紫・緑・暖色）、下の段＝垂れ幕2（紅・紫）。1つずつ切り抜き、ゲームが配置する。"
+  },
+  "foreground_props": {
+   "sheet": "foreground_props.png",
+   "mode": "props",
+   "note": "左＝足場の柱2（2本目は小さな吊り灯り付き）、右＝木箱・積んだ箱。1つずつ切り抜き、ゲームが配置する。"
+  }
+ },
+ "skipped": {
+  "walls_upper": "発注しない。普段は映らないので、下の帯の絵を暗く・ぼかして伸ばすか、コードの暗い色で埋める。"
+ }
+}
