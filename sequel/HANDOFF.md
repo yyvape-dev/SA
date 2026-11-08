@@ -17,6 +17,7 @@
 - `art/painted_bt_src/` に .gdignore を足した（元の絵がゲームに入る状態だった）。
 - 17章（spec の 18）：梁 3.2m・布の天幕（下絵）・看板6枚を梁から吊るす・手前の柱2本でラナの近くで透ける・床の映り込みをデータから。画面の上1/4 が頭上の物で 26〜59％。比較画像 `v2b_*.png`。発注はまだ。
 - 19章（spec の 20）：布の天幕 上端3.8m・下端2.9〜3.2m（全体が画面に映る）、区間5つ。下絵 `art/guide_bt/w_{bar,cabaret,brothel,shady}_low.png`・`stall_game.png`＋`guide.json` の v2 凡例。比較画像 `v2c_*.png`。発注はまだ（飲み屋から、チャットが発注票を作る）。
+- 22章（spec の 23）：元のコンセプトに合わせ、飲み屋を屋台風の小屋（3層）・屋台風の飲み屋4台・キャバレー/娼館/怪しい店を小屋の形（バルコニー・外階段・庇・増築）・吊り布18・ガラス管3・歯車の輪1・ネオンの置き場所3・手前の樽3・人の立ち位置 8→26。比較画像 `v2d_*.png`。下絵の書き出しは `BT_GUIDES=1` のときだけ。発注はまだ（判定待ち）。
 
 ## 裏の町の入り口の下絵（2026-11-08、specs/backtown_blockout.md の「結果」。塗る前の判定待ち）
 - `scripts/backtown_block.gd`＋`main.build_backtown`。Web `?town=back`（カメラ D2 自動）。正面図 `art/guide_bt/`（書き出しには入れない）。撮影 `TOWN=back FX_ONLY=backtown`。

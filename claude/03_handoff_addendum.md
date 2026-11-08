@@ -1,5 +1,8 @@
 # 03 引き継ぎの追記（2026-10-31 10:30 以降）
 
+## 2026-11-08（Claude Code）続編：裏の町の入り口 v2 の 22章
+- `sequel/specs/backtown_entrance_v2.md` の 23 章に結果。元のコンセプトの下半分と並べた比較画像 `sequel/specs/backtown_img/v2d_*.png` で止めた（発注していない）。判定待ち：屋台風の飲み屋の場所（4案）、密度。
+
 ## 2026-11-07 11:40（チャット）エフェクトの知識を Skill に集約
 - `.claude/skills/game-vfx-juice/SKILL.md`：SA2 のエフェクト工程の全体・SA2 の事実（★）・既存知識の索引（sa2-skill-craft／sa-vfx-texture／sa-battle-fx-check／naraku-vfx ほか）。エフェクト・手応えの作業の前に必ず読む。
 - 公開 Skill を追加：game-feel・vfx-realtime・godot-particles・godot-shaders・godot-export（各フォルダに SOURCE.txt・LICENSE）。食い違いは game-vfx-juice の★を優先（例：止めは battle.freeze、Engine.time_scale は使わない）。
