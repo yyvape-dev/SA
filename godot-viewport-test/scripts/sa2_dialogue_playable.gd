@@ -21,6 +21,7 @@ var speaker: Label
 var dialogue_text: Label
 var advance_button: Button
 var demonstration := false
+var japanese_font: SystemFont
 
 func _ready() -> void:
 	stage = Stage.instantiate()
@@ -63,9 +64,12 @@ func _label(text_value: String, size: int = 24) -> Label:
 	var lbl := Label.new()
 	lbl.text = text_value
 	lbl.add_theme_font_size_override("font_size", size)
+	lbl.add_theme_font_override("font", japanese_font)
 	return lbl
 
 func _build_hud() -> void:
+	japanese_font = SystemFont.new()
+	japanese_font.font_names = PackedStringArray(["Noto Sans CJK JP", "Yu Gothic", "Hiragino Sans", "sans-serif"])
 	hud = CanvasLayer.new()
 	add_child(hud)
 	var top := PanelContainer.new()
@@ -96,6 +100,7 @@ func _build_hud() -> void:
 	advance_button = Button.new()
 	advance_button.text = "次へ  ▶  [Space / Enter]"
 	advance_button.add_theme_font_size_override("font_size", 21)
+	advance_button.add_theme_font_override("font", japanese_font)
 	advance_button.pressed.connect(_advance)
 	foot.add_child(advance_button)
 	dialogue_panel.visible = false
