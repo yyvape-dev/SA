@@ -23,6 +23,25 @@ func _initialize() -> void:
     e.position.x = 1.2
     e.atk.done = true
     if Manual.guard_candidate(e, Vector3.ZERO): n += 1; printerr("guard must reject already-completed hit")
+    e.atk.done = false
+    e.atk.t = 0.0
+    for remaining in [Manual.GUARD_MIN, Manual.GUARD_MAX]:
+        e.atk.hit_t = remaining
+        if not Manual.guard_candidate(e, Vector3.ZERO): n += 1; printerr("guard must include timing boundary")
+    for remaining in [Manual.GUARD_MIN - 0.0001, Manual.GUARD_MAX + 0.0001]:
+        e.atk.hit_t = remaining
+        if Manual.guard_candidate(e, Vector3.ZERO): n += 1; printerr("guard must exclude outside timing boundary")
+    e.atk.hit_t = 0.24
+    e.position = Vector3(Manual.GUARD_REACH, 0.0, 0.9)
+    if not Manual.guard_candidate(e, Vector3.ZERO): n += 1; printerr("guard must include reach boundary")
+    e.position.x += 0.001
+    if Manual.guard_candidate(e, Vector3.ZERO): n += 1; printerr("guard must exclude outside reach")
+    e.position = Vector3(1.2, 0.0, 0.901)
+    if Manual.guard_candidate(e, Vector3.ZERO): n += 1; printerr("guard must exclude outside lane")
+    e.position.z = 0.0
+    e.state = "stun"
+    if Manual.guard_candidate(e, Vector3.ZERO): n += 1; printerr("guard must reject non-attacking enemy")
+    e.free()
     if n == 0:
         print("SA2_T2_LILY_MANUAL_PASS: guard timing and geometry")
         quit(0)

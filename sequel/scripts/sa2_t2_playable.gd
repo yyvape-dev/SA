@@ -14,6 +14,7 @@ var t2_manual
 var t2_lily
 var t2_rana
 var t2_layer: CanvasLayer
+var t2_combat_controls: Control
 var t2_dialogue: Control
 var t2_label: Label
 var t2_result_button: Button
@@ -58,20 +59,26 @@ func _ready() -> void:
     t2_manual.locked = true
     add_child(t2_manual)
     _t2_build_ui()
-    if not t2_demo:
-        t2_flow.load_from(NORMAL_SAVE)
-    if t2_flow.mode == Flow.DIALOGUE:
-        _t2_open_dialogue(t2_flow.event_id, t2_flow.dialogue_line_index)
-    elif t2_flow.mode == Flow.INSTANCE:
-        _t2_start_training(true)
-    else:
+    var restored: bool = not t2_demo and t2_flow.load_from(NORMAL_SAVE)
+    if not restored:
         t2_flow = Flow.new()
         if not t2_flow.begin_dialogue(EVENT_ID, t2_rana.position):
             push_error("SA2_T2_FAIL: cannot start event")
             get_tree().quit(1)
             return
         _t2_save()
-        _t2_open_dialogue(EVENT_ID)
+    if t2_flow.mode == Flow.DIALOGUE:
+        _t2_open_dialogue(t2_flow.event_id, t2_flow.dialogue_line_index)
+    elif t2_flow.mode == Flow.INSTANCE:
+        _t2_start_training(true)
+    elif t2_flow.mode == Flow.RESULT:
+        t2_done = true
+        _t2_show_result()
+    elif t2_flow.mode == Flow.EXPLORE:
+        if t2_flow.event_id == EVENT_ID and t2_flow.dialogue_finished:
+            _t2_start_training(false)
+        else:
+            _t2_restore_exploration()
     if t2_demo:
         call_deferred("_t2_movie_demo")
 
@@ -87,18 +94,21 @@ func _t2_build_ui() -> void:
     t2_label.position = Vector2(22, 72)
     t2_label.add_theme_font_size_override("font_size", 22)
     t2_layer.add_child(t2_label)
+    t2_combat_controls = Control.new()
+    t2_combat_controls.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    t2_layer.add_child(t2_combat_controls)
     var attack_button := Button.new()
     attack_button.text = "攻撃"
     attack_button.position = Vector2(1080, 525)
     attack_button.custom_minimum_size = Vector2(150, 78)
     attack_button.pressed.connect(func(): t2_manual.attack_press())
-    t2_layer.add_child(attack_button)
+    t2_combat_controls.add_child(attack_button)
     var dodge_button := Button.new()
     dodge_button.text = "回避／防御"
     dodge_button.position = Vector2(900, 614)
     dodge_button.custom_minimum_size = Vector2(184, 78)
     dodge_button.pressed.connect(func(): t2_manual.dodge())
-    t2_layer.add_child(dodge_button)
+    t2_combat_controls.add_child(dodge_button)
     t2_result_button = Button.new()
     t2_result_button.position = Vector2(520, 440)
     t2_result_button.custom_minimum_size = Vector2(260, 90)
@@ -256,6 +266,10 @@ func _t2_end(won: bool) -> void:
         push_error("SA2_T2_FAIL: invalid battle finish")
         return
     _t2_save()
+    _t2_show_result()
+
+func _t2_show_result() -> void:
+    var won: bool = t2_flow.result == "win"
     t2_label.text = "演習クリア" if won else "演習失敗"
     t2_result_button.text = "探索へ戻る" if won else "再挑戦"
     t2_result_button.show()
@@ -267,26 +281,30 @@ func _t2_result_action() -> void:
         return
     _t2_save()
     if won:
-        # Restore original sequel controls without changing its source.
-        player = t2_rana
-        battle.player = t2_rana
-        battle.ally = t2_lily
-        t2_manual.locked = true
-        t2_manual.queue_free()
-        if t2_arena != null and is_instance_valid(t2_arena):
-            t2_arena.queue_free()
-        t2_lily.set_physics_process(true)
-        t2_rana.show()
-        t2_rana.locked = false
-        t2_rana.set_physics_process(true)
-        t2_rana.position = t2_flow.player_position
-        ui.show()
-        if ui.pad:
-            ui.pad.set_process_input(true)
-        t2_result_button.hide()
-        t2_label.text = "演習完了・探索へ復帰"
+        _t2_restore_exploration()
     else:
         _t2_start_training(false)
+
+func _t2_restore_exploration() -> void:
+    # Shared by live victory and a saved exploration state.
+    player = t2_rana
+    battle.player = t2_rana
+    battle.ally = t2_lily
+    t2_manual.locked = true
+    t2_manual.queue_free()
+    t2_combat_controls.queue_free()
+    if t2_arena != null and is_instance_valid(t2_arena):
+        t2_arena.queue_free()
+    t2_lily.set_physics_process(true)
+    t2_rana.show()
+    t2_rana.locked = false
+    t2_rana.set_physics_process(true)
+    t2_rana.position = t2_flow.player_position
+    ui.show()
+    if ui.pad:
+        ui.pad.set_process_input(true)
+    t2_result_button.hide()
+    t2_label.text = "演習完了・探索へ復帰"
 
 func _input(event: InputEvent) -> void:
     if not t2_active or t2_manual == null:
