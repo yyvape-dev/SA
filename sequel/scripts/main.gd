@@ -1628,7 +1628,7 @@ func build_backtown() -> void:
 		_bt_box(root, Vector3((x0 + x1) * 0.5, h * 0.5, wz - 1.5), Vector3(x1 - x0, h, 3.0), "side")   # 胴（側面は暗い）
 		_bt_box(root, Vector3((x0 + x1) * 0.5, h * 0.5, wz - 0.02), Vector3(x1 - x0, h, 0.04), w.base, "face")   # 正面の板（ここに絵を貼る）
 		for pt in w.parts:
-			var dep: float = pt[5]
+			var dep: float = 0.0 if BT.FLAT else pt[5]   # 判定 1：出っ張りも平らに（絵の中に描く）
 			var sz := Vector3(pt[2] - pt[0], pt[3] - pt[1], maxf(dep, 0.02))
 			_bt_box(root, Vector3((pt[0] + pt[2]) * 0.5, (pt[1] + pt[3]) * 0.5, wz + sz.z * 0.5 + 0.01), sz, pt[4])
 		bt_marks.append(["wall", w.id, Vector3((x0 + x1) * 0.5, 0, wz)])
@@ -1639,9 +1639,10 @@ func build_backtown() -> void:
 		if g.kind == "pillar":
 			_bt_box(level, Vector3(gx, h * 0.5, wz + 0.15), Vector3(gw, h, 0.5), "scaffold")
 		else:
+			var ad: float = BT.ALLEY_DEPTH
 			for sx in [g.x0, g.x1]:
-				_bt_box(level, Vector3(sx, h * 0.5, wz - 7.0), Vector3(0.2, h, 14.0), "shadow")
-			_bt_box(level, Vector3(gx, -0.01, wz - 7.0), Vector3(gw, 0.02, 14.0), "dark")
+				_bt_box(level, Vector3(sx, h * 0.5, wz - ad * 0.5), Vector3(0.2, h, ad), "shadow")
+			_bt_box(level, Vector3(gx, -0.01, wz - ad * 0.5), Vector3(gw, 0.02, ad), "dark")
 	# 4. 頭上：垂れ幕・灯り・渡り廊下の桁、提灯のたるみ
 	var ov := Node3D.new()
 	ov.name = "overhead"
@@ -1649,6 +1650,11 @@ func build_backtown() -> void:
 	piece_nodes["overhead"] = ov
 	for o in BT.overhead():
 		_bt_box(ov, Vector3((o[0] + o[2]) * 0.5, (o[1] + o[3]) * 0.5, o[4]), Vector3(o[2] - o[0], o[3] - o[1], 0.05), o[5])
+	for pd in BT.PENDANTS:   # ペンダントライト：桁（8m）から下がる綱＋真鍮の笠＋結晶
+		var py: float = pd[2]
+		_bt_box(ov, Vector3(pd[0], (8.0 + py + 0.55) * 0.5, pd[1]), Vector3(0.04, 8.0 - py - 0.55, 0.04), "cable")
+		_bt_box(ov, Vector3(pd[0], py + 0.45, pd[1]), Vector3(0.42, 0.2, 0.42), "brass")
+		_bt_box(ov, Vector3(pd[0], py + 0.18, pd[1]), Vector3(0.22, 0.36, 0.22), pd[3])
 	for sg in BT.SAGS:
 		var n := 24
 		for i in n:
@@ -1659,10 +1665,6 @@ func build_backtown() -> void:
 			var mid := (pa + pb) * 0.5
 			var seg := _bt_box(ov, mid, Vector3((pb - pa).length(), 0.04, 0.04), "cable")
 			seg.rotation.z = atan2(pb.y - pa.y, pb.x - pa.x)
-		for k in int(sg[5]):
-			var u := (float(k) + 0.5) / float(sg[5])
-			var y: float = lerpf(sg[2], sg[3], 1.0 - pow(2.0 * u - 1.0, 2.0))
-			_bt_box(ov, Vector3(lerpf(sg[0], sg[1], u), y - 0.25, sg[4]), Vector3(0.28, 0.36, 0.28), "lamp")
 	# 1. 手前の物（帯の手前）
 	var fgn := Node3D.new()
 	fgn.name = "foreground"
@@ -1670,24 +1672,27 @@ func build_backtown() -> void:
 	piece_nodes["foreground"] = fgn
 	for f in BT.FG:
 		_bt_box(fgn, Vector3(f[0], f[4] + f[2] * 0.5, BT.FG_Z), Vector3(f[1], f[2], 0.3), f[3])
-	# 5. 遠景：見える窓（z −62 で 0〜7m）だけの横長の書き割り。塔の影と、地平で紫に光る門
-	var far := Node3D.new()
-	far.name = "far"
-	level.add_child(far)
-	piece_nodes["far"] = far
-	_bt_box(far, Vector3(0, BT.FAR_H * 0.5, BT.FAR_Z), Vector3(BT.FAR_W, BT.FAR_H, 0.1), "cloth2")
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 5
-	var tx := -BT.FAR_W * 0.5 + 1.0
-	while tx < BT.FAR_W * 0.5 - 1.0:
-		var tw := rng.randf_range(1.2, 3.0)
-		_bt_box(far, Vector3(tx + tw * 0.5, rng.randf_range(2.5, 6.5) * 0.5, BT.FAR_Z + 0.1), Vector3(tw, 0, 0.1), "dark")
-		var th := rng.randf_range(2.5, 6.8)
-		far.get_child(far.get_child_count() - 1).mesh.size.y = th
-		far.get_child(far.get_child_count() - 1).position.y = th * 0.5
-		tx += tw + rng.randf_range(0.3, 1.5)
-	_bt_box(far, Vector3(0, 2.2, BT.FAR_Z + 0.2), Vector3(5.0, 4.4, 0.1), "neon_v")   # 門の光（中央）
-	_bt_box(far, Vector3(0, 2.2, BT.FAR_Z + 0.25), Vector3(3.0, 3.6, 0.1), "dark")
+	# 5. 路地の奥の書き割り（判定 4）：路地ごとに小さな板。alley_1＝紫に光る門、alley_2＝塔の影
+	var backs := Node3D.new()
+	backs.name = "alley_backs"
+	level.add_child(backs)
+	piece_nodes["alley_backs"] = backs
+	for ab in BT.ALLEY_BACKS:
+		var al: Dictionary = {}
+		for a2 in BT.ALLEYS:
+			if a2.id == ab.alley:
+				al = a2
+		var bz: float = wz - BT.ALLEY_DEPTH
+		var bw: float = al.w + 0.4
+		var bh: float = BT.ALLEY_BACK_H
+		_bt_box(backs, Vector3(al.x, bh * 0.5, bz), Vector3(bw, bh, 0.1), "cloth2")
+		if ab.kind == "gate":
+			_bt_box(backs, Vector3(al.x, 2.2, bz + 0.06), Vector3(bw * 0.8, 3.6, 0.05), "neon_v")
+			_bt_box(backs, Vector3(al.x, 2.0, bz + 0.1), Vector3(bw * 0.45, 3.0, 0.05), "dark")
+		else:
+			for t in 3:
+				var tx: float = al.x - bw * 0.3 + t * bw * 0.3
+				_bt_box(backs, Vector3(tx, 2.2 + t * 0.6, bz + 0.06), Vector3(bw * 0.24, 4.4 + t * 1.2, 0.05), "dark")
 	# 印（扉・屋台・路地・人混みの帯）。撮影の書き込みと、後で作る扉の仕組みの位置。下絵（正面図）には写さない
 	var mk := Node3D.new()
 	mk.name = "marks"
@@ -1780,23 +1785,33 @@ func _bt_guides() -> void:
 		if ch is MeshInstance3D and (ch.mesh is PlaneMesh):
 			floor_nodes.append(ch)
 	const PX_PER_M := 64.0   # 正面図の細かさ（1m＝64px。壁 1 棟 5m×14m で約 320×900px）
-	var walls := {}
-	for w in BT.walls():
-		walls[w.id] = [w.x0 - 0.4, 0.0, w.x1 + 0.4, BT.WALL_H]
+	# 判定（2026-11-08）：壁は下の帯（地面〜LOW_H、1536×1024＝GPT の横長。棟の中心 ±3.75m）と、上（全棟の上を 1 本の帯で。暗い共通の 1 枚の参考）
 	var shots := {"key_front": [-16.0, 0.0, 16.0, BT.WALL_H], "overhead": [-16.0, 2.5, 16.0, 9.0], "foreground": [-14.5, 0.0, 14.5, 6.0],
-		"far": [-BT.FAR_W * 0.5, 0.0, BT.FAR_W * 0.5, BT.FAR_H]}
-	for k in walls:
-		shots[k] = walls[k]
-	var meta := {"px_per_m": PX_PER_M, "wall_z": BT.WALL_Z, "visible_top_m": {"wall": 3.98, "overhead_z-4": 3.89, "far": 5.98},
+		"walls_upper": [-16.0, BT.LOW_H, 16.0, BT.WALL_H]}
+	var sizes := {}
+	for w in BT.walls():
+		var cxw: float = (w.x0 + w.x1) * 0.5
+		var hw: float = BT.LOW_H * 1.5 * 0.5   # 3:2
+		shots[w.id + "_low"] = [cxw - hw, 0.0, cxw + hw, BT.LOW_H]
+		sizes[w.id + "_low"] = Vector2i(1536, 1024)
+	for ab in BT.ALLEY_BACKS:
+		for a2 in BT.ALLEYS:
+			if a2.id == ab.alley:
+				var bw: float = a2.w + 0.4
+				shots["back_" + ab.alley] = [a2.x - bw * 0.5, 0.0, a2.x + bw * 0.5, BT.ALLEY_BACK_H]
+	var meta := {"px_per_m": PX_PER_M, "wall_z": BT.WALL_Z, "low_h": BT.LOW_H, "visible_top_m": {"wall": 3.98, "wall_shake": 4.18, "wall_ult_max": 4.38, "overhead_z-4": 3.89},
 		"doors": BT.DOORS, "stalls": BT.STALLS, "alleys": BT.ALLEYS, "parts": {}}
 	for id in shots:
 		var r: Array = shots[id]
 		var wpx := int(round((r[2] - r[0]) * PX_PER_M))
 		var hpx := int(round((r[3] - r[1]) * PX_PER_M))
 		var k := 1.0
-		if wpx > 2048:   # 1 枚 2048px まで（spec の 8）。遠景・区画全体は縮めて撮る
+		if wpx > 2048:   # 1 枚 2048px まで（spec の 8）。区画全体は縮めて撮る
 			k = 2048.0 / wpx
 		vp.size = Vector2i(int(wpx * k), int(hpx * k))
+		if sizes.has(id):   # 下の帯は発注の大きさのまま（1536×1024）
+			vp.size = sizes[id]
+			k = float(sizes[id].x) / wpx
 		rc.size = r[3] - r[1]
 		rc.position = Vector3((r[0] + r[2]) * 0.5, (r[1] + r[3]) * 0.5, 40.0)
 		# 見せる物：key_front＝壁・柱・路地・頭上・遠景、壁＝その棟だけ、頭上・手前・遠景はそれだけ
@@ -1807,10 +1822,14 @@ func _bt_guides() -> void:
 				vis = false
 			elif id == "key_front":
 				vis = nm != "foreground"
-			elif id == "overhead" or id == "foreground" or id == "far":
+			elif id == "overhead" or id == "foreground":
 				vis = nm == id
+			elif id == "walls_upper":
+				vis = nm.begins_with("w") and nm.contains("_")
+			elif id.begins_with("back_"):
+				vis = nm == "alley_backs"
 			else:
-				vis = nm == id
+				vis = nm == id.trim_suffix("_low")
 			ch.visible = vis
 		for f in 4:
 			await get_tree().process_frame
