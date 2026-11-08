@@ -53,6 +53,10 @@ jobs:
       - name: T2.5 recovery, input and fresh-process regressions
         run: |
           set -euo pipefail
+          for fps in 30 600; do
+            timeout 40s /tmp/godot --headless --path sequel --fixed-fps $fps --script res://tests/sa2_t2_asset_wait_test.gd 2>&1 | tee /tmp/t2-5-asset-wait-$fps.log
+            grep -q 'SA2_T2_ASSET_WAIT_PASS' /tmp/t2-5-asset-wait-$fps.log
+          done
           /tmp/godot --headless --path sequel --fixed-fps 60 --script res://tests/sa2_t2_5_recovery_test.gd 2>&1 | tee /tmp/t2-5-recovery.log
           grep -q 'SA2_T2_5_RECOVERY_PASS' /tmp/t2-5-recovery.log
           for stage in pause-instance resume-instance pause-result resume-result; do

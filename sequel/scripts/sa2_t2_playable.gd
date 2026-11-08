@@ -8,6 +8,10 @@ const DialogueScene := preload("res://ui/sa2_dialogue_panel.tscn")
 const EVENT_ID := "C1-06"
 const DEMO_SAVE := "user://sa2_t2_demo_save.json"
 const NORMAL_SAVE := "user://sa2_t2_progress.json"
+# Unscaled seconds, independent of rendering FPS. See docs/sa2_t2_asset_wait_20261108.md.
+const ALLY_LOAD_TIMEOUT_SECONDS := 60.0
+signal t2_ally_load_resolved(loaded: bool)
+var t2_ally_load_done := false
 
 var t2_flow = Flow.new()
 var t2_manual
@@ -32,12 +36,13 @@ func _ready() -> void:
     battle.auto_spawn = false
     for e in battle.enemies.duplicate():
         battle.remove_enemy(e)
-    for i in 120:
-        if battle.ally != null:
-            break
-        await get_tree().process_frame
-    if battle.ally == null:
-        push_error("SA2_T2_FAIL: Lily atlas/companion did not load")
+    var waiting_for_lily: bool = battle.ally == null
+    if waiting_for_lily:
+        player.locked = true
+        loading.show_now()
+    if not await _t2_wait_for_ally():
+        var reason := "load failed" if t2_ally_load_done else "60-second timeout"
+        push_error("SA2_T2_FAIL: Lily atlas/companion did not load: " + reason)
         get_tree().quit(1)
         return
     t2_lily = battle.ally
@@ -79,8 +84,34 @@ func _ready() -> void:
             _t2_start_training(false)
         else:
             _t2_restore_exploration()
+    if waiting_for_lily:
+        loading.hide_soon()
     if t2_demo:
         call_deferred("_t2_movie_demo")
+
+func _load_ally() -> void:
+    # main._ready() calls this override. Keep its existing asset/actor creation unchanged.
+    await super._load_ally()
+    t2_ally_load_done = true
+    t2_ally_load_resolved.emit(is_instance_valid(battle.ally))
+
+func _t2_wait_for_ally(timeout_seconds: float = ALLY_LOAD_TIMEOUT_SECONDS) -> bool:
+    # Desktop/cache hits may finish before _ready() reaches this wait.
+    if is_instance_valid(battle.ally):
+        return true
+    if t2_ally_load_done:
+        return false
+    var deadline := Timer.new()
+    deadline.one_shot = true
+    deadline.ignore_time_scale = true
+    deadline.process_mode = Node.PROCESS_MODE_ALWAYS
+    deadline.timeout.connect(func(): t2_ally_load_resolved.emit(false))
+    add_child(deadline)
+    deadline.start(timeout_seconds)
+    var loaded: bool = await t2_ally_load_resolved
+    deadline.stop()
+    deadline.queue_free()
+    return loaded and is_instance_valid(battle.ally)
 
 func _t2_build_ui() -> void:
     t2_layer = CanvasLayer.new()
