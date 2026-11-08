@@ -41,7 +41,7 @@ jobs:
           LIBGL_ALWAYS_SOFTWARE: "1"
         run: |
           set -o pipefail
-          timeout 100s xvfb-run -a -s '-screen 0 1600x900x24' /tmp/godot --path godot-viewport-test --rendering-driver opengl3 --windowed --resolution 1600x900 res://sa2_t1_demo.tscn 2>&1 | tee /tmp/sa2-t1-scene.log
+          timeout 100s xvfb-run -a -s '-screen 0 1600x900x24' /tmp/godot --path godot-viewport-test --rendering-driver opengl3 --audio-driver Dummy --windowed --resolution 1600x900 res://sa2_t1_demo.tscn 2>&1 | tee /tmp/sa2-t1-scene.log
           grep -q 'SA2_T1_SCENE_PASS' /tmp/sa2-t1-scene.log
           if grep -E 'SCRIPT ERROR|ERROR:|Assertion failed' /tmp/sa2-t1-scene.log; then exit 1; fi
           for name in 01_explore 02_dialogue 03_instance_state 04_completed; do
