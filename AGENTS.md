@@ -2,6 +2,18 @@
 
 This file is for **GPT and Codex when working on SA2** (`sequel/` and SA2 planning documents). **Claude is explicitly exempt from this GPT/Codex review-routing process**: Claude does not need to run Codex reviews or follow GPT-to-Codex delegation rules. Do not alter existing Claude-specific instructions in `CLAUDE.md`.
 
+## IMPORTANT: Handoff documents live on a different branch
+
+**Before starting GPT/Codex SA2 work, fetch and read the handoff documents from `story/sa2-chapter1-20261106`, not from `main` or your current code branch.** The newly added `AGENTS.md` itself currently exists only on that story branch. A separate checkout or GitHub API request specifying that ref is required if the current working branch lacks these files. Do **not** infer that a missing file on `main` means the rule does not exist.
+
+Required reference paths on `story/sa2-chapter1-20261106`:
+- `AGENTS.md`
+- `sequel/HANDOFF.md`
+- `claude/sa2_handoff_20261108.md`
+- `claude/sa2_vertical_slice_implementation_plan_20261108.md`
+
+**Code work remains on the explicitly authorized implementation branch**, currently `feat/sa2-t2-sequel-integration-20261108` for T2.5. Reading cross-branch guidance does **not** authorize merging or modifying either branch. Claude does not need to perform these GPT/Codex review/delegation steps.
+
 ## Required handoff reading
 1. `sequel/HANDOFF.md` — Godot SA2 project state and specific GPT/Codex notes near the beginning.
 2. `claude/sa2_handoff_20261108.md` — SA2 chat handoff and current status.
