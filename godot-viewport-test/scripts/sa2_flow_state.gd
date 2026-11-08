@@ -20,6 +20,7 @@ var completed: Dictionary = {}
 var attempts: Dictionary = {}
 var result: String = ""
 var dialogue_finished: bool = false
+var dialogue_line_index: int = 0
 
 func begin_dialogue(id: String, at: Vector3) -> bool:
 	if mode != EXPLORE or not VALID_EVENTS.has(id) or completed.get(id, false):
@@ -29,13 +30,21 @@ func begin_dialogue(id: String, at: Vector3) -> bool:
 	return_position = at
 	player_position = at
 	dialogue_finished = false
+	dialogue_line_index = 0
 	result = ""
+	return true
+
+func set_dialogue_line_index(index: int) -> bool:
+	if mode != DIALOGUE or index < 0:
+		return false
+	dialogue_line_index = index
 	return true
 
 func finish_dialogue() -> bool:
 	if mode != DIALOGUE or dialogue_finished:
 		return false
 	dialogue_finished = true
+	dialogue_line_index = 0
 	mode = EXPLORE
 	return true
 
@@ -82,7 +91,8 @@ func to_dict() -> Dictionary:
 		"player_position": _vec(player_position),
 		"completed": completed.duplicate(true),
 		"attempts": attempts.duplicate(true),
-		"result": result, "dialogue_finished": dialogue_finished
+		"result": result, "dialogue_finished": dialogue_finished,
+		"dialogue_line_index": dialogue_line_index
 	}
 
 func save_to(path: String = SAVE_PATH) -> bool:
@@ -141,6 +151,9 @@ func restore(data: Dictionary) -> bool:
 			return false
 		if int(next_attempts[id]) < 0:
 			return false
+	var next_line: Variant = data.get("dialogue_line_index", 0)
+	if not next_line is int or next_line < 0:
+		return false
 	mode = next_mode
 	event_id = next_id
 	result = next_result
@@ -149,6 +162,7 @@ func restore(data: Dictionary) -> bool:
 	completed = next_completed.duplicate(true)
 	attempts = next_attempts.duplicate(true)
 	dialogue_finished = bool(data.get("dialogue_finished", false))
+	dialogue_line_index = next_line
 	return true
 
 func _vec(v: Vector3) -> Array:
