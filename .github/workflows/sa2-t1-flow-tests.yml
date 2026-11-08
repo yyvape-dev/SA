@@ -55,6 +55,20 @@ jobs:
           ffmpeg -hide_banner -loglevel error -y -f concat -safe 0 -i sa2_t1_frames.txt -vf "fps=12,scale=1280:720:flags=lanczos,format=yuv420p" -c:v libx264 -preset veryfast -crf 22 -movflags +faststart sa2_t1_screen_review.mp4
           ffprobe -v error -show_entries format=duration,size -of default=noprint_wrappers=1 sa2_t1_screen_review.mp4
           test -s sa2_t1_screen_review.mp4
+      - name: Record continuous playable dialogue in Godot Movie Maker
+        env:
+          SA2_DIALOGUE_MOVIE: "1"
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: |
+          set -o pipefail
+          mkdir -p godot-viewport-test/captures/sa2_dialogue
+          timeout 180s xvfb-run -a -s '-screen 0 1600x900x24' /tmp/godot --path godot-viewport-test --rendering-driver opengl3 --audio-driver Dummy --windowed --resolution 1600x900 --write-movie captures/sa2_dialogue/dialogue.avi --fixed-fps 24 res://sa2_dialogue_playable.tscn 2>&1 | tee /tmp/sa2-dialogue-movie.log
+          grep -q 'SA2_DIALOGUE_DEMO_PASS' /tmp/sa2-dialogue-movie.log
+          if grep -E 'SCRIPT ERROR|ERROR:|Assertion failed' /tmp/sa2-dialogue-movie.log; then exit 1; fi
+          test -s godot-viewport-test/captures/sa2_dialogue/dialogue.avi
+          ffmpeg -hide_banner -loglevel error -y -i godot-viewport-test/captures/sa2_dialogue/dialogue.avi -vf 'scale=1280:720:flags=lanczos,format=yuv420p' -c:v libx264 -preset veryfast -crf 22 -movflags +faststart -an godot-viewport-test/captures/sa2_dialogue/dialogue_playable.mp4
+          ffprobe -v error -show_entries format=duration,size -of default=noprint_wrappers=1 godot-viewport-test/captures/sa2_dialogue/dialogue_playable.mp4
+          test -s godot-viewport-test/captures/sa2_dialogue/dialogue_playable.mp4
       - name: Upload actual Godot PNG evidence and test logs
         if: always()
         uses: actions/upload-artifact@v4
@@ -63,5 +77,7 @@ jobs:
           path: |
             godot-viewport-test/captures/sa2_t1/*.png
             godot-viewport-test/captures/sa2_t1/*.mp4
+            godot-viewport-test/captures/sa2_dialogue/*.mp4
+            /tmp/sa2-dialogue-movie.log
             /tmp/sa2-t1-*.log
           if-no-files-found: warn
