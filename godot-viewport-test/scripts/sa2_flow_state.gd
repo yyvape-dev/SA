@@ -152,7 +152,7 @@ func restore(data: Dictionary) -> bool:
 		if int(next_attempts[id]) < 0:
 			return false
 	var next_line: Variant = data.get("dialogue_line_index", 0)
-	if not next_line is int or next_line < 0:
+	if not (next_line is int or next_line is float) or next_line < 0 or float(int(next_line)) != float(next_line):
 		return false
 	mode = next_mode
 	event_id = next_id
