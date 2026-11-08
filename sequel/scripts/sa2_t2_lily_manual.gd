@@ -14,8 +14,8 @@ const GUARD_MAX := 0.32
 const GUARD_REACH := 1.8
 const ATTACKS := ["atk_jabkick", "atk_highkick", "atk_roundhouse", "atk_heeldrop", "atk_rush"]
 
-var actor: Node3D
-var battle: Node3D
+var actor
+var battle
 var move_in := Vector2.ZERO
 var locked := true
 var dodge_left := 0.0
@@ -26,7 +26,7 @@ var guard_count := 0
 var dodge_count := 0
 var attack_count := 0
 
-func setup(lily: Node3D, combat: Node3D) -> void:
+func setup(lily, combat) -> void:
     actor = lily
     battle = combat
     actor.set_physics_process(false)
@@ -36,7 +36,7 @@ func setup(lily: Node3D, combat: Node3D) -> void:
     actor._show("idle", 0)
     locked = false
 
-static func guard_candidate(e: Node3D, at: Vector3) -> bool:
+static func guard_candidate(e, at: Vector3) -> bool:
     if e.state != "atk" or bool(e.atk.get("done", false)):
         return false
     var rem: float = float(e.atk.get("hit_t", -1.0)) - float(e.atk.get("t", 0.0))
@@ -48,7 +48,7 @@ static func guard_candidate(e: Node3D, at: Vector3) -> bool:
 func attack_press() -> void:
     if locked or actor == null or actor.state != "move" or dodge_left > 0.0:
         return
-    var e: Node3D = actor._nearest()
+    var e = actor._nearest()
     if e == null:
         return
     var clip: String = ATTACKS[attack_index % ATTACKS.size()]
