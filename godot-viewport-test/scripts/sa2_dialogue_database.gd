@@ -2,15 +2,14 @@ extends RefCounted
 class_name SA2DialogueDatabase
 
 # Story strings live only in res://dialogues/ja/*.json, never in GDScript.
-const VALID_EVENTS := ["C1-06", "C2-09"]
 const BASE_PATH := "res://dialogues/ja/"
 const VERSION := 1
 var last_error: String = ""
 
 func load_event(event_id: String) -> Dictionary:
 	last_error = ""
-	if not VALID_EVENTS.has(event_id):
-		last_error = "Unknown event ID"
+	if not _safe_asset_id(event_id) or event_id.is_empty():
+		last_error = "Invalid event ID"
 		return {}
 	var path := BASE_PATH + event_id + ".json"
 	var file := FileAccess.open(path, FileAccess.READ)
