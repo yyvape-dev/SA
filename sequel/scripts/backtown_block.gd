@@ -27,7 +27,8 @@ const MAT := {
 	"velvet": Color("701830"), "cloth2": Color("3a2464"), "awning": Color("4a2a62"), "dark": Color("141219"),
 	"shadow": Color("0c0a10"), "side": Color("1c1922"), "scaffold": Color("4a4234"), "cable": Color("141414"),
 	"crate": Color("4a3a28"), "bottle": Color("3a6a50"), "curtain": Color("a04a6a"), "linen": Color("7a6e5c"),
-	"neon_p": Color("ff40b0"), "neon_g": Color("40ff90"), "neon_c": Color("30e0ff"), "neon_v": Color("b040ff"),
+	# neon_p：19章で下絵の地のマゼンタ（ff00ff）と見分けられる色に（前の ff40b0 は明るさの補正でほぼマゼンタになった）
+	"neon_p": Color("d86080"), "neon_g": Color("40ff90"), "neon_c": Color("30e0ff"), "neon_v": Color("b040ff"),
 	"lamp": Color("ffc060"), "bulb": Color("fff0a0"), "window": Color("c88a44"),
 }
 
@@ -42,7 +43,7 @@ static func segments() -> Array:
 		{"kind": "filler", "x0": -16.2, "x1": -14.4, "tex": "tex_iron"},
 		{"kind": "alley", "x0": -14.4, "x1": -12.0, "id": "alley_towers"},
 		{"kind": "pillar", "x0": -12.0, "x1": -11.4},
-		{"kind": "wall", "id": "n1_tavern", "x0": -11.4, "x1": -4.0, "base": "wood", "note": "飲み屋・酒場（主役）", "parts": [
+		{"kind": "wall", "id": "n1_tavern", "x0": -11.4, "x1": -4.0, "base": "brick", "note": "飲み屋・酒場（主役）", "parts": [
 			[-10.9, 0.0, -6.6, 2.9, "dark"],          # 開いた店先（中は暗い）
 			[-10.7, 1.5, -6.8, 2.6, "bottle"],        # 酒瓶の棚
 			[-10.9, 0.0, -6.6, 1.1, "wood"],          # カウンター
@@ -77,7 +78,7 @@ static func segments() -> Array:
 		{"kind": "filler", "x0": 14.8, "x1": 16.0, "tex": "tex_iron"},
 		{"kind": "alley", "x0": 16.0, "x1": 18.2, "id": "alley_gate"},
 		{"kind": "pillar", "x0": 18.2, "x1": 18.8},
-		{"kind": "wall", "id": "n4_shady", "x0": 18.8, "x1": 25.0, "base": "iron", "note": "怪しい店（薬・売人）", "parts": [
+		{"kind": "wall", "id": "n4_shady", "x0": 18.8, "x1": 25.0, "base": "stone", "note": "怪しい店（薬・売人）", "parts": [
 			[19.3, 0.0, 22.0, 2.4, "dark"],           # 暗い店先
 			[22.3, 0.0, 23.5, 2.3, "wood"],           # 扉
 			[23.8, 1.2, 24.6, 1.9, "iron"],           # 格子の小窓
@@ -113,18 +114,18 @@ const BARRELS := [[-3.6, -4.9], [-2.4, -5.3]]
 ##   15章：梁を 3.2m に下げ、布の天幕を張ったので、壁の高い所（3m より上）の看板は天幕に隠れる → 梁から吊るして天幕の手前に出す
 const SIGNS := [
 	["sign_sigil", -25.4, 0.0, 1.2, "beam"],     # 入ってすぐ（食べ物の屋台の天幕を避けて左へ）
-	["sign_vneon", -21.9, 0.7, 0.5, "wall"],     # 柱の縦のネオン（上端を天幕の下へ）
+	["sign_vneon", -21.9, 0.6, 0.5, "wall"],     # 柱の縦のネオン（上端 2.87m＝天幕の下へ）
 	["vision_screen", -18.8, 2.6, 4.4, "wall"],  # w3 のビジョン（前は天幕を張らない）
-	["sign_vneon", -16.4, 0.7, 0.5, "wall"],
+	["sign_vneon", -16.4, 0.6, 0.5, "wall"],
 	["sign_rune", -15.0, 3.42, 1.0, "wall"],     # 結晶の屋台の天幕の上（壁の高い所。ここは天幕を張らない）
-	["sign_vneon", -11.1, 0.7, 0.5, "wall"],
+	["sign_vneon", -11.1, 0.6, 0.5, "wall"],
 	["sign_sigil", -8.6, 0.0, 2.2, "beam"],      # 飲み屋の上（魔導の酒場）
-	["sign_vneon", -4.35, 0.7, 0.5, "wall"],
+	["sign_vneon", -4.35, 0.6, 0.5, "wall"],
 	["sign_rune", -2.7, 0.0, 1.0, "beam"],
-	["sign_vneon", 4.95, 0.7, 0.5, "wall"],
-	["sign_vneon", 7.35, 0.7, 0.5, "wall"],
+	["sign_vneon", 4.95, 0.6, 0.5, "wall"],
+	["sign_vneon", 7.35, 0.6, 0.5, "wall"],
 	["sign_rune", 12.9, 0.0, 1.0, "beam"],       # 娼館の階段の上
-	["sign_vneon", 14.5, 0.7, 0.5, "wall"],      # 娼館の右の柱
+	["sign_vneon", 14.5, 0.6, 0.5, "wall"],      # 娼館の右の柱
 	["sign_rune", 15.0, 0.0, 1.0, "beam"],
 	["sign_sigil", 23.0, 0.0, 1.6, "beam"],      # 怪しい店の上（義手の屋台の天幕を避けて右へ）
 ]
@@ -139,12 +140,13 @@ const HANGS := [
 	["banner", -6.9, "banner_violet"], ["pend", -1.4, "pend_violet"], ["pend", 6.2, "pend_warm"], ["banner", 6.9, "banner_red"],
 	["pend", 10.6, "pend_violet"], ["pend", 13.9, "pend_cyan"], ["banner", 14.2, "banner_violet"], ["pend", 23.9, "pend_green"], ["pend", 25.2, "pend_violet"],
 ]
-## 15章（ユーザー決定）：布の天幕を店先の帯の上に張り渡す（たるんだ布、下端 3.0〜3.6m、継ぎはぎの紫・紅・生成り）。下絵は色の帯。
-##   張らない所：w3 のビジョン・キャバレーのネオン（光る看板をふさがない）、路地の口2つ。屋台の上は下端を 3.5m 以上に（屋台の天幕 3.45m）
+## 布の天幕（15章で張り、19章でもう一段下げた＝ユーザー決定）：上端 3.8m・下端 2.9〜3.2m（たるみ）。店先の奥行きで画面に映る上限は約 3.9m なので、布の全体が映る。
+##   継ぎはぎの紫・紅・生成り。下絵は色の帯。張らない所（ふさがない）：w3 のビジョン・キャバレーのネオンと遊技の屋台・屋台の天幕（食べ物・義手、3.45m）・
+##   路地の口2つ・娼館の2階の窓（カーテン越しの人影の場所、2.9〜3.95m）。扉（2.6〜2.8m）は布の下端より低いのでそのまま
 const CANOPY_Z := -4.7
-const CANOPY_TOP := 4.4
-const CANOPY_SPANS := [[-26.5, -22.0], [-11.8, -1.0], [4.4, 15.8], [18.4, 26.5]]
-const CANOPY_HIGH := [[-24.9, -22.3], [19.3, 21.9]]   # 屋台の上（下端 3.55m 以上）
+const CANOPY_TOP := 3.8
+const CANOPY_BOT := Vector2(2.9, 3.2)   # [真ん中, 支え]
+const CANOPY_SPANS := [[-26.5, -25.0], [-11.8, -1.0], [5.6, 7.3], [11.9, 15.8], [21.9, 26.5]]
 const PEND_W := 0.42          # ペンダントライトの幅（m。絵の縦横比で高さ ≒ 0.88m、上端は梁）
 const BANNER_W := 0.8         # 垂れ幕の幅（高さ ≒ 1.25m）
 
@@ -152,3 +154,17 @@ const BANNER_W := 0.8         # 垂れ幕の幅（高さ ≒ 1.25m）
 ## 15章（ユーザー決定）：手前の柱は 1 画面の幅（手前 z 3.5 で 7.6m）に 1 本まで → 3 本から 2 本に（間 21m）。ラナから左右 2.5m 以内で透ける
 const FG := [["fg_crate", -17.6, 1.0], ["fg_pillar", -9.0, 4.4], ["fg_pillar_lamp", 12.0, 4.4], ["fg_crates", 15.6, 1.4]]
 const FG_Z := 3.5
+
+## 下絵の書き出し（19章）：新しい建物の下の帯と遊技の屋台。名前＝発注の名前
+const GUIDE_OUT := {"n1_tavern": "w_bar_low", "n2_cabaret": "w_cabaret_low", "n3_brothel": "w_brothel_low", "n4_shady": "w_shady_low"}
+## 色の意味（guide.json の凡例。英語は発注の文に使う）
+const LEGEND := {
+	"stone": ["石の壁", "stone wall"], "brick": ["レンガの壁", "brick wall"], "wood": ["木（扉・カウンター・階段・台）", "wood (door, counter, stairs, stand)"],
+	"iron": ["鉄（配管・格子・床の縁）", "iron (pipes, grille, ledge)"], "brass": ["真鍮（看板・機械）", "brass (sign board, machine)"],
+	"copper": ["銅（配管・庇）", "copper (pipes, eave)"], "glass": ["暗いガラス・貼り紙の枠", "dark glass, poster frame"],
+	"dark": ["暗い開口・店の奥", "dark opening, shop interior"], "bottle": ["酒瓶の棚", "shelves of liquor bottles"],
+	"awning": ["布の天幕・庇", "cloth awning"], "velvet": ["ビロードの幕", "velvet curtain"], "curtain": ["カーテン越しに光る窓", "lit window behind curtains"],
+	"window": ["暖かく灯る窓・戸口", "warm lit window, doorway"], "bulb": ["電球の縁取り", "frame of light bulbs"],
+	"neon_p": ["ピンクのネオン（消灯で描く）", "pink neon (draw unlit)"], "neon_g": ["緑の小さな看板（消灯）", "small green sign (unlit)"],
+	"neon_c": ["水色の光る窓（遊技の機械、消灯）", "cyan screen of game machine (unlit)"], "crate": ["木箱・樽", "crates, barrels"],
+}

@@ -1724,8 +1724,10 @@ func build_backtown() -> void:
 					_bt_quad(root, sg.art, ab[0], ab[1], ab[2], ab[3], wz - 0.01)
 				else:
 					_bt_box(root, Vector3(cx, h * 0.5, wz - 0.02), Vector3(x1 - x0, h, 0.04), sg.base, "face")
-					for pt in sg.parts:
-						_bt_box(root, Vector3((pt[0] + pt[2]) * 0.5, (pt[1] + pt[3]) * 0.5, wz + 0.011), Vector3(pt[2] - pt[0], pt[3] - pt[1], 0.02), pt[4])
+					var pi := 0
+					for pt in sg.parts:   # 並びの順に少しずつ手前へ（同じ奥行きで重なると描く順がばらつく）
+						_bt_box(root, Vector3((pt[0] + pt[2]) * 0.5, (pt[1] + pt[3]) * 0.5, wz + 0.011 + pi * 0.004), Vector3(pt[2] - pt[0], pt[3] - pt[1], 0.02), pt[4])
+						pi += 1
 				bt_marks.append(["wall", sg.id, Vector3(cx, 0, wz)])
 			"filler":
 				_bt_tex_wall(level, sg.tex, x0, 0.0, x1, h, wz - 0.2, 0.5)
@@ -1777,7 +1779,7 @@ func build_backtown() -> void:
 		_bt_box(fr, Vector3(px, (BT.FRAME_BEAM_Y + 0.2) * 0.5, fz), Vector3(0.22, BT.FRAME_BEAM_Y + 0.2, 0.22), "scaffold")
 	_bt_box(fr, Vector3(0, BT.FRAME_BEAM_Y, fz), Vector3(53.0, 0.18, 0.18), "scaffold")
 	_bt_box(fr, Vector3(0, BT.FRAME_BEAM_Y + 0.9, fz), Vector3(53.0, 0.12, 0.12), "scaffold")
-	# 布の天幕（15章、下絵の色の帯）：区間ごとに、柱と端で支えたたるんだ布。下端は支えで 3.6m、真ん中で 3.0m（屋台の上は 3.55m 以上）
+	# 布の天幕（15・19章、下絵の色の帯）：区間ごとに、柱と端で支えたたるんだ布。上端 3.8m、下端は支えで 3.2m・真ん中で 2.9m
 	var cz: float = BT.CANOPY_Z
 	var cols := ["cloth2", "cloth", "linen"]
 	var ci := 0
@@ -1796,10 +1798,7 @@ func build_backtown() -> void:
 				var u1 := float(q + 1) / nseg
 				var xm := lerpf(a0, a1, (u0 + u1) * 0.5)
 				var t := (u0 + u1) * 0.5
-				var bot := lerpf(3.0, 3.6, pow(2.0 * t - 1.0, 2.0))   # たるみ
-				for hi in BT.CANOPY_HIGH:
-					if xm > hi[0] and xm < hi[1]:
-						bot = maxf(bot, 3.55)
+				var bot := lerpf(BT.CANOPY_BOT.x, BT.CANOPY_BOT.y, pow(2.0 * t - 1.0, 2.0))   # たるみ
 				_bt_box(fr, Vector3(xm, (bot + BT.CANOPY_TOP) * 0.5, cz), Vector3((a1 - a0) / nseg + 0.01, BT.CANOPY_TOP - bot, 0.03), cols[ci % 3])
 			ci += 1
 	for hg in BT.HANGS:
@@ -1829,11 +1828,14 @@ func build_backtown() -> void:
 			if s2.keeper:
 				_bt_npc(st, sx + 0.3, BT.STALL_Z, ni)
 				ni += 1
-		else:   # 遊技の屋台（下絵）：台・歯車仕掛けの機械・光る窓・天幕
-			_bt_box(st, Vector3(sx, 0.55, BT.STALL_Z + 0.2), Vector3(sw, 1.1, 0.02), "wood")
-			_bt_box(st, Vector3(sx, 1.75, BT.STALL_Z - 0.2), Vector3(sw * 0.8, 1.3, 0.02), "brass")
-			_bt_box(st, Vector3(sx, 1.85, BT.STALL_Z - 0.18), Vector3(sw * 0.5, 0.7, 0.02), "neon_c")
-			_bt_box(st, Vector3(sx, sh - 0.25, BT.STALL_Z - 0.2), Vector3(sw + 0.2, 0.5, 0.02), "awning")
+		else:   # 遊技の屋台（下絵）：台・歯車仕掛けの機械・光る窓・天幕。下絵の書き出しのため、屋台ごとの Node3D に入れる
+			var gn := Node3D.new()
+			gn.name = s2.id
+			st.add_child(gn)
+			_bt_box(gn, Vector3(sx, 0.55, BT.STALL_Z + 0.2), Vector3(sw, 1.1, 0.02), "wood")
+			_bt_box(gn, Vector3(sx, 1.75, BT.STALL_Z - 0.2), Vector3(sw * 0.8, 1.3, 0.02), "brass")
+			_bt_box(gn, Vector3(sx, 1.85, BT.STALL_Z - 0.18), Vector3(sw * 0.5, 0.7, 0.02), "neon_c")
+			_bt_box(gn, Vector3(sx, sh - 0.25, BT.STALL_Z - 0.2), Vector3(sw + 0.2, 0.5, 0.02), "awning")
 		bt_marks.append(["stall", s2.id, Vector3(sx, sh, BT.STALL_Z)])
 		bt_lights.append(["stall", sx, 1.6, BT.STALL_Z + 0.2, sw * 0.7])
 	# 樽（飲み屋の立ち飲み）と、人の立ち位置（前作の町の人を仮に）
@@ -1955,6 +1957,80 @@ func _capture_backtown(dir: String) -> void:
 	print("BTSIGNS_RANGE 最小 %d 最大 %d" % [mn, mxn])
 	ui.visible = true
 	await _bt_front(dir)
+	await _bt_guides_v2()
+
+## 下絵の書き出し（19章）：新しい建物の下の帯（棟の中心 ±3.75m × 0〜5m → 1536×1024、1m＝204.8px）と遊技の屋台（1024×1536、1m＝380px）。
+##   マゼンタの地、その部品だけを写す（正投影）。art/guide_bt/<名前>.png と guide.json の "v2"（範囲・1m の画素・凡例・扉・屋台・路地・人）
+func _bt_guides_v2() -> void:
+	var out := ProjectSettings.globalize_path("res://art/guide_bt")
+	var vp := SubViewport.new()
+	vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	vp.transparent_bg = false
+	vp.msaa_3d = Viewport.MSAA_4X
+	add_child(vp)
+	var rc := Camera3D.new()
+	rc.projection = Camera3D.PROJECTION_ORTHOGONAL
+	rc.keep_aspect = Camera3D.KEEP_HEIGHT
+	var renv := Environment.new()
+	renv.background_mode = Environment.BG_COLOR
+	renv.background_color = MAGENTA
+	rc.environment = renv
+	vp.add_child(rc)
+	player.visible = false
+	var shots := []
+	for sg in BT.segments():
+		if sg.kind == "wall" and BT.GUIDE_OUT.has(sg.id):
+			var cx: float = (sg.x0 + sg.x1) * 0.5
+			shots.append({"name": BT.GUIDE_OUT[sg.id], "node": piece_nodes[sg.id], "box": [cx - 3.75, 0.0, cx + 3.75, BT.LOW_H], "size": Vector2i(1536, 1024), "note": sg.note})
+	for s2 in BT.STALLS:
+		if s2.art == "":
+			var stn: Node3D = piece_nodes["stalls"].get_node(NodePath(s2.id))
+			var hw := 1024.0 / 380.0 * 0.5
+			shots.append({"name": s2.id, "node": stn, "box": [s2.x - hw, -0.3, s2.x + hw, -0.3 + 1536.0 / 380.0], "size": Vector2i(1024, 1536), "note": s2.note})
+	var meta := {"px_note": "x0〜x1・y0〜y1 は世界の m。1m の画素＝w÷(x1−x0)", "legend": {}, "parts": {}, "doors": BT.DOORS, "alleys": BT.ALLEYS, "stalls": BT.STALLS,
+		"people": BT.PEOPLE, "low_h": BT.LOW_H, "visible_top_m": 3.98}
+	for k in BT.LEGEND:
+		var c: Color = BT.MAT[k]
+		meta.legend["#" + c.to_html(false)] = {"key": k, "ja": BT.LEGEND[k][0], "en": BT.LEGEND[k][1]}
+	for sh in shots:
+		var b: Array = sh.box
+		vp.size = sh.size
+		rc.size = b[3] - b[1]
+		rc.position = Vector3((b[0] + b[2]) * 0.5, (b[1] + b[3]) * 0.5, 40.0)
+		# その部品だけ見せる
+		var vis_state := []
+		for ch in level.get_children():
+			vis_state.append([ch, ch.visible])
+			ch.visible = false
+		var nd: Node3D = sh.node
+		var p := nd
+		while p != level and p != null:
+			p.visible = true
+			p = p.get_parent()
+		if nd.get_parent() == piece_nodes["stalls"]:
+			for c2 in piece_nodes["stalls"].get_children():
+				c2.visible = c2 == nd
+		for f in 4:
+			await get_tree().process_frame
+			await RenderingServer.frame_post_draw
+		vp.get_texture().get_image().save_png(out + "/%s.png" % sh.name)
+		meta.parts[sh.name] = {"x0": b[0], "y0": b[1], "x1": b[2], "y1": b[3], "w": sh.size.x, "h": sh.size.y, "px_per_m": sh.size.x / (b[2] - b[0]), "note": sh.note}
+		print("BTGUIDE %s %s" % [sh.name, str(sh.size)])
+		for vs in vis_state:
+			vs[0].visible = vs[1]
+		if nd.get_parent() == piece_nodes["stalls"]:
+			for c2 in piece_nodes["stalls"].get_children():
+				c2.visible = true
+	player.visible = true
+	vp.queue_free()
+	var gpath := out + "/guide.json"
+	var g = JSON.parse_string(FileAccess.get_file_as_string(gpath)) if FileAccess.file_exists(gpath) else {}
+	if not (g is Dictionary):
+		g = {}
+	g["v2"] = meta
+	var f2 := FileAccess.open(gpath, FileAccess.WRITE)
+	f2.store_string(JSON.stringify(g, "  "))
+	f2.close()
 
 ## 区画全体の正面図（正投影・届いた絵込み・人と印は写さない）。x −26.5〜26.5・y 0〜6m
 func _bt_front(dir: String) -> void:
