@@ -50,6 +50,21 @@ jobs:
           set -o pipefail
           timeout 35s /tmp/godot --headless --path sequel --quit-after 4 res://sa2_t2_playable.tscn 2>&1 | tee /tmp/t2-startup.log
           if grep -E 'SCRIPT ERROR|ERROR:|SA2_T2_FAIL|Parse Error' /tmp/t2-startup.log; then exit 1; fi
+      - name: T2.5 recovery, input and fresh-process regressions
+        run: |
+          set -euo pipefail
+          /tmp/godot --headless --path sequel --fixed-fps 60 --script res://tests/sa2_t2_5_recovery_test.gd 2>&1 | tee /tmp/t2-5-recovery.log
+          grep -q 'SA2_T2_5_RECOVERY_PASS' /tmp/t2-5-recovery.log
+          for stage in pause-instance resume-instance pause-result resume-result; do
+            timeout 60s /tmp/godot --headless --path sequel --fixed-fps 60 --script res://tests/sa2_t2_5_input_test.gd -- --$stage 2>&1 | tee /tmp/t2-5-$stage.log
+          done
+          grep -q 'SA2_T2_5_INSTANCE_RESTART_PASS' /tmp/t2-5-resume-instance.log
+          grep -q 'SA2_T2_5_RESULT_RESTART_PASS' /tmp/t2-5-resume-result.log
+          timeout 60s /tmp/godot --headless --path sequel --fixed-fps 60 --script res://tests/sa2_t2_5_input_test.gd 2>&1 | tee /tmp/t2-5-input.log
+          grep -q 'SA2_T2_5_INPUT_PASS' /tmp/t2-5-input.log
+          timeout 60s /tmp/godot --headless --path sequel --fixed-fps 60 --script res://tests/sa2_t2_5_input_test.gd -- --resume 2>&1 | tee /tmp/t2-5-resume.log
+          grep -q 'SA2_T2_5_RESTART_PASS' /tmp/t2-5-resume.log
+          if grep -E 'SCRIPT ERROR|ERROR:|SA2_T2_5_.*FAIL|ObjectDB instances were leaked' /tmp/t2-5-*.log; then exit 1; fi
       - name: Record continuous Godot C1-06 playable training
         env:
           SA2_T2_MOVIE: "1"
@@ -64,6 +79,17 @@ jobs:
           ffmpeg -hide_banner -loglevel error -y -i sequel/captures/sa2_t2/t2.avi -vf 'scale=960:540:flags=lanczos,format=yuv420p' -c:v libx264 -preset veryfast -crf 26 -movflags +faststart -an sequel/captures/sa2_t2/t2.mp4
           test -s sequel/captures/sa2_t2/t2.mp4
           ffprobe -v error -show_entries format=duration,size -of default=noprint_wrappers=1 sequel/captures/sa2_t2/t2.mp4
+      - name: Record T2.5 real input and restored normal combat
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: |
+          set -euo pipefail
+          timeout 300s xvfb-run -a -s '-screen 0 1280x720x24' /tmp/godot --path sequel --rendering-driver opengl3 --audio-driver Dummy --windowed --resolution 1280x720 --write-movie captures/sa2_t2/t2_5_input.avi --fixed-fps 24 --script res://tests/sa2_t2_5_input_test.gd 2>&1 | tee /tmp/t2-5-movie.log
+          grep -q 'SA2_T2_5_INPUT_PASS' /tmp/t2-5-movie.log
+          if grep -E 'SCRIPT ERROR|ERROR:|SA2_T2_5_.*FAIL' /tmp/t2-5-movie.log; then exit 1; fi
+          ffmpeg -hide_banner -loglevel error -y -i sequel/captures/sa2_t2/t2_5_input.avi -vf 'scale=in_range=full:out_range=limited,format=yuv420p' -color_range tv -c:v libx264 -preset veryfast -crf 23 -movflags +faststart -an sequel/captures/sa2_t2/t2_5_input.mp4
+          ffmpeg -v error -i sequel/captures/sa2_t2/t2_5_input.mp4 -f null -
+          ffprobe -v error -show_entries stream=codec_name,width,height,pix_fmt -show_entries format=duration,size -of json sequel/captures/sa2_t2/t2_5_input.mp4
       - name: Upload logs
         if: always()
         uses: actions/upload-artifact@v4
@@ -76,5 +102,7 @@ jobs:
             /tmp/t2-lily.log
             /tmp/t2-movie.log
             /tmp/t2-startup.log
+            /tmp/t2-5-*.log
             sequel/captures/sa2_t2/t2.mp4
+            sequel/captures/sa2_t2/t2_5_input.mp4
           if-no-files-found: warn
