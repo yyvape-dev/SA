@@ -19,6 +19,8 @@ func _ready() -> void:
 			stage.player.global_position = flow.return_position
 	_make_ui()
 	_sync()
+	if OS.has_environment("CAPTURE_SA2_T1"):
+		_capture_t1()
 
 func _process(_delta: float) -> void:
 	if flow.mode == FlowScript.EXPLORE and stage != null and stage.player != null:
@@ -76,7 +78,7 @@ func _apply(_success: bool) -> void:
 	_sync()
 
 func _sync() -> void:
-	var exploration := flow.mode == FlowScript.EXPLORE
+	var exploration: bool = flow.mode == FlowScript.EXPLORE
 	stage.set_physics_process(exploration)
 	# The original greybox controls player movement via its own physics loop.
 	status.text = "SA2 T1 / 共通進行の動作確認 (戦闘は未実装)\n"
@@ -84,3 +86,39 @@ func _sync() -> void:
 	status.text += "completed=%s  attempts=%s\n" % [flow.completed, flow.attempts]
 	status.text += "saved at user://sa2_t1_progress.json\n"
 	status.text += "会話・戦闘中はX/Z移動停止。二方式の戦闘実装はT2/T3。"
+
+# CI renders the actual UI and checks controls via button signals before taking images.
+func _capture_t1() -> void:
+	var out := ProjectSettings.globalize_path("res://captures/sa2_t1")
+	DirAccess.make_dir_recursive_absolute(out)
+	await _capture_frame(out, "01_explore")
+	controls.get_child(1).pressed.emit() # C1-06 conversation
+	assert(flow.mode == FlowScript.DIALOGUE)
+	await _capture_frame(out, "02_dialogue")
+	controls.get_child(3).pressed.emit() # finish dialogue
+	assert(flow.mode == FlowScript.EXPLORE)
+	controls.get_child(4).pressed.emit() # enter instance contract
+	assert(flow.mode == FlowScript.INSTANCE)
+	await _capture_frame(out, "03_instance_state")
+	controls.get_child(6).pressed.emit() # lose
+	controls.get_child(7).pressed.emit() # return
+	assert(flow.mode == FlowScript.EXPLORE)
+	assert(stage.player.global_position.is_equal_approx(flow.return_position))
+	controls.get_child(4).pressed.emit() # retry
+	assert(flow.attempts.get("C1-06", 0) == 2)
+	controls.get_child(5).pressed.emit() # win
+	controls.get_child(7).pressed.emit() # return
+	assert(flow.completed.get("C1-06", false))
+	await _capture_frame(out, "04_completed")
+	print("SA2_T1_SCENE_PASS: on-screen UI, duplicate guard, retry and coordinate return")
+	get_tree().quit(0)
+
+func _capture_frame(out: String, label: String) -> void:
+	for i in range(12):
+		await get_tree().process_frame
+	await RenderingServer.frame_post_draw
+	var img := get_viewport().get_texture().get_image()
+	assert(not img.is_empty())
+	var err := img.save_png(out.path_join(label + ".png"))
+	assert(err == OK)
+	print("SA2_T1_CAPTURE ", label, " ", img.get_size())
