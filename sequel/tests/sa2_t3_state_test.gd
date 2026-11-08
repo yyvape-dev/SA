@@ -30,6 +30,7 @@ func run():
     encounter.evaluate(0)
     check(encounter.phase=="result_pending" and encounter.candidate=="lose","HP0 wins same-tick tie")
     check(encounter.commit_result() and encounter.phase=="safe","durable failure safe checkpoint")
+    check(encounter.stopped.is_empty() and encounter.safe.is_empty(),"failure rolls back both completion sets")
     check(encounter.begin(cp),"retry")
     for id in def.resident_ids: encounter.record_safe(id)
     encounter.evaluate(100)

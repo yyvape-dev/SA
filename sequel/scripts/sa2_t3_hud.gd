@@ -15,10 +15,10 @@ func button(label:String, parent:Node, callback:Callable) -> Button:
 
 func _ready():
     layer=25
-    var panel=PanelContainer.new();panel.position=Vector2(16,16);panel.custom_minimum_size=Vector2(560,150);add_child(panel)
+    var panel=PanelContainer.new();panel.position=Vector2(16,16);panel.custom_minimum_size=Vector2(440,150);add_child(panel)
     var box=VBoxContainer.new();panel.add_child(box)
-    status=Label.new();status.add_theme_font_size_override("font_size",25);box.add_child(status)
-    hp=ProgressBar.new();hp.custom_minimum_size=Vector2(530,25);box.add_child(hp)
+    status=Label.new();status.custom_minimum_size=Vector2(420,0);status.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;status.add_theme_font_size_override("font_size",25);box.add_child(status)
+    hp=ProgressBar.new();hp.custom_minimum_size=Vector2(420,25);box.add_child(hp)
     start_button=button("START / RETRY [SPACE]",box,host.start_encounter)
     retry_save=button("RETRY SAVE",box,host.retry_result_save)
     var root=Control.new();root.set_anchors_preset(Control.PRESET_FULL_RECT);root.mouse_filter=Control.MOUSE_FILTER_IGNORE;add_child(root)

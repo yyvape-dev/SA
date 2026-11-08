@@ -55,6 +55,7 @@ func commit_result() -> bool:
     var next_phase="complete" if candidate=="win" else "safe"
     if not store.save_payload(_payload(next_phase,checkpoint,next,attempt)): return false
     flow=next;phase=next_phase
+    if phase=="safe":stopped.clear();safe.clear()
     phase_changed.emit()
     return true
 
