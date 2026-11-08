@@ -39,7 +39,7 @@ jobs:
       - name: T2 Lily manual combat contract
         run: |
           set -o pipefail
-          /tmp/godot --headless --path sequel --script res://tests/sa2_t2_lily_manual_test.gd 2>&1 | tee /tmp/t2-lily.log
+          timeout 25s /tmp/godot --headless --path sequel --script res://tests/sa2_t2_lily_manual_test.gd 2>&1 | tee /tmp/t2-lily.log
           grep -q 'SA2_T2_LILY_MANUAL_PASS' /tmp/t2-lily.log
           if grep -E 'SCRIPT ERROR|ERROR:|SA2_T2_LILY_MANUAL_FAIL' /tmp/t2-lily.log; then exit 1; fi
       - name: T2 scene parser and startup smoke test
