@@ -1,0 +1,10 @@
+{
+  "implementation_sha": "ddc257067b82f0c796cdbc9c1becc46f7bc7a12e",
+  "story_sha": "9bc4281d75bff3e3ddb39e7e97d1ad0144c45bf3",
+  "runs": 36,
+  "frames": 1193,
+  "source_scripts_unchanged": true,
+  "t3_implemented": false,
+  "render": "X11 llvmpipe",
+  "engine": "4.7.2.stable.official.ed1daf0bf"
+}
