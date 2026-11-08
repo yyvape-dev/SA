@@ -12,7 +12,7 @@ jobs:
       - name: Install virtual display and software GL
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y xvfb libgl1-mesa-dri libgl1 ffmpeg
+          sudo apt-get install -y xvfb libgl1-mesa-dri libgl1 ffmpeg fonts-noto-cjk
       - name: Download Godot 4.4.1 stable
         run: |
           curl -fL --retry 3 -o /tmp/godot.zip https://github.com/godotengine/godot/releases/download/4.4.1-stable/Godot_v4.4.1-stable_linux.x86_64.zip
