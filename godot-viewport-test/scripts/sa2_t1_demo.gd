@@ -97,6 +97,12 @@ func _capture_t1() -> void:
 	await _capture_frame(out, "02_dialogue")
 	controls.get_child(3).pressed.emit() # finish dialogue
 	assert(flow.mode == FlowScript.EXPLORE)
+	var before_move: float = stage.player.global_position.x
+	Input.action_press("ui_right")
+	for i in range(12):
+		await get_tree().physics_frame
+	Input.action_release("ui_right")
+	assert(stage.player.global_position.x > before_move + 0.05, "Player cannot move after dialogue")
 	controls.get_child(4).pressed.emit() # enter instance contract
 	assert(flow.mode == FlowScript.INSTANCE)
 	await _capture_frame(out, "03_instance_state")
