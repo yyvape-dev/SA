@@ -42,6 +42,14 @@ jobs:
           /tmp/godot --headless --path sequel --script res://tests/sa2_t2_lily_manual_test.gd 2>&1 | tee /tmp/t2-lily.log
           grep -q 'SA2_T2_LILY_MANUAL_PASS' /tmp/t2-lily.log
           if grep -E 'SCRIPT ERROR|ERROR:|SA2_T2_LILY_MANUAL_FAIL' /tmp/t2-lily.log; then exit 1; fi
+      - name: T2 scene parser and startup smoke test
+        env:
+          SA2_T2_MOVIE: "1"
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: |
+          set -o pipefail
+          timeout 35s /tmp/godot --headless --path sequel --quit-after 4 res://sa2_t2_playable.tscn 2>&1 | tee /tmp/t2-startup.log
+          if grep -E 'SCRIPT ERROR|ERROR:|SA2_T2_FAIL|Parse Error' /tmp/t2-startup.log; then exit 1; fi
       - name: Record continuous Godot C1-06 playable training
         env:
           SA2_T2_MOVIE: "1"
@@ -67,5 +75,6 @@ jobs:
             /tmp/t2-flow.log
             /tmp/t2-lily.log
             /tmp/t2-movie.log
+            /tmp/t2-startup.log
             sequel/captures/sa2_t2/t2.mp4
           if-no-files-found: warn
