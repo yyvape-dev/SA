@@ -28,6 +28,16 @@ Before acting, confirm current branch, relevant skills/tool availability and act
 - Record the review decision and rationale for each milestone. Respect user approval for any substantial design change; approved-scope bug fixes need no repeated permission.
 - Do **not** claim Codex tasks were initiated from ChatGPT without a working invocation mechanism. If the user has already submitted a Codex task, do not duplicate it.
 
+## Mandatory coverage for high-risk review (do not stop at regression tests)
+
+The Codex review prompt MUST explicitly cover **all three**: (1) correctness/regressions, (2) design maintainability/extensibility, and (3) runtime performance/scalability under increased enemy counts, asset volume and dialogue/event counts. Assess how adding enemy types, art/animation/audio resources, abilities, dialogue and quests impacts data schemas, code churn and manual work. Do not assume that green tests imply the architecture scales.
+
+For runtime evaluation, specify a reproducible **Godot version, baseline and representative larger loads**, measuring frame time/FPS, memory usage, load time and identifiable hotspots when supported. Report observed results and scaling trends. Do not invent performance targets or substitute a headless simulation for real rendered workload. If measurement is impossible, mark **NOT TESTED** and identify the required environment and follow-up.
+
+Every finding must distinguish static-code inference from benchmarked fact. Propose scoped, evidence-backed fixes; preserve approvals and branch restrictions. Batch review → fixes → regression tests → representative load measurements into one task when authorized.
+
+**T2.5 caveat:** The existing `sequel/docs/sa2_t2_5_code_review.md` primarily covers bugs, recovery and regression. It is NOT evidence that scaling of enemy counts/assets/events has been validated. Consult the Japanese authoritative plan on the explicit story ref for the complete checklist.
+
 ## Delivery and protection
 - **Mobile user:** Provide actual H.264 MP4 footage directly in the ChatGPT conversation, not merely GitHub artifacts. If direct upload is unavailable, report the delivery gap and preserve the file/artifact reference.
 - **Testing:** Godot CI and video are not iPhone/Android physical-device testing. T7 is the planned physical-device acceptance stage.
