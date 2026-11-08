@@ -334,6 +334,11 @@ func _process(delta: float) -> void:
 				continue
 			gm[0].albedo_color = gm[1] * battle.bg_dim
 	# 手前の板：ラナと重なったら半分ほど透ける
+	for f in bt_fg:   # 裏の町の手前の柱（StandardMaterial3D）：ラナから左右 2.5m 以内で透ける
+		var near: bool = absf(player.position.x - f.node.global_position.x) < f.half + 2.5
+		var cc: Color = f.mat.albedo_color
+		cc.a = move_toward(cc.a, 0.3 if near else 1.0, delta * 3.0)
+		f.mat.albedo_color = cc
 	for f in fg_list:
 		var over: bool = absf(player.position.x - (f.node.global_position.x)) < f.half + 2.5   # カメラを寄せたので広めに、薄く
 		var col: Color = f.mat.get_shader_parameter("tint")
@@ -1589,6 +1594,12 @@ func build_city() -> void:
 ## 届いた絵（art/painted_bt）は絵の板、無い所は色の付いた下絵。下の帯は 0〜5m、出っ張りは平ら。
 var bt_marks := []   # 撮影の書き込み用 [種類, 名前, 世界の位置]
 var bt_tex := {}
+var bt_lights := []  # 床の映り込みの元 [絵/種類, x, y, z, 幅]
+var bt_fg := []      # 手前の物 [{node, mat, half}]（ラナから左右 2.5m 以内で透ける）
+## 床の映り込みの色（光る部品・灯り・屋台）
+const BT_GLINT_COL := {"sign_sigil": [0.35, 1.0, 0.5], "sign_vneon": [1.0, 0.3, 0.75], "sign_rune": [0.25, 0.9, 1.0], "vision_screen": [0.3, 0.85, 1.0],
+	"pend_cyan": [0.3, 0.95, 1.0], "pend_violet": [0.8, 0.4, 1.0], "pend_green": [0.4, 1.0, 0.5], "pend_warm": [1.0, 0.72, 0.3],
+	"stall": [1.0, 0.68, 0.32], "cabaret_neon": [1.0, 0.3, 0.75], "cabaret_bulbs": [1.0, 0.88, 0.55], "gate": [0.75, 0.4, 1.0], "shady": [0.35, 1.0, 0.55]}
 const BT_ART_DIM := 0.62      # 届いた絵（壁・屋台・手前）の明るさ（U1＝中間：壁と床は暗め）
 const BT_GLOW := 1.35         # 光る部品の明るさ（1 を超えて 3D の glow がにじむ）
 
@@ -1688,6 +1699,8 @@ func build_backtown() -> void:
 	_clear_level()
 	_build_floor()
 	bt_marks.clear()
+	bt_lights.clear()
+	bt_fg.clear()
 	BELT_Z = BT.BELT_Z
 	var wz: float = BT.WALL_Z
 	var h: float = BT.WALL_H
@@ -1740,10 +1753,20 @@ func build_backtown() -> void:
 			continue
 		var w: float = sn[3]
 		var hh: float = w * float(tex.get_height()) / float(tex.get_width())
-		_bt_quad(glow, sn[0], sn[1] - w * 0.5, sn[2], sn[1] + w * 0.5, sn[2] + hh, wz + float(sn[4]), BT_GLOW, [0.0, 0.0, 1.0, 1.0], 1)
-		bt_marks.append(["sign", sn[0], Vector3(sn[1], sn[2] + hh * 0.5, wz)])
+		var y0: float = sn[2]
+		var z: float = wz + (0.3 if sn[0] == "sign_vneon" else 0.06)
+		if sn[4] == "beam":   # 梁から吊るす（上端＝梁の下、天幕の手前）
+			y0 = BT.FRAME_BEAM_Y - 0.12 - hh
+			z = BT.FRAME_Z + 0.08
+		_bt_quad(glow, sn[0], sn[1] - w * 0.5, y0, sn[1] + w * 0.5, y0 + hh, z, BT_GLOW, [0.0, 0.0, 1.0, 1.0], 1)
+		bt_marks.append(["sign", sn[0], Vector3(sn[1], y0 + hh * 0.5, z)])
+		bt_lights.append([sn[0], sn[1], y0 + hh * 0.5, z, w])
 	for gb in BT.GLOW_BLOCKOUT:
 		bt_marks.append(["sign", gb[0], Vector3(gb[1], 3.0, wz)])
+	bt_lights.append(["cabaret_neon", 1.6, 3.5, wz + 0.05, 4.4])
+	bt_lights.append(["cabaret_bulbs", 1.6, 1.5, wz + 0.05, 2.8])
+	bt_lights.append(["shady", 20.1, 2.8, wz + 0.05, 1.0])
+	bt_lights.append(["gate", 17.1, 2.2, wz - 2.0, 1.6])
 	# 足場の枠（新規の層、色の付いた下絵）：柱と横の梁。梁からペンダントライト・垂れ幕（届いた絵）
 	var fr := Node3D.new()
 	fr.name = "frame"
@@ -1754,6 +1777,31 @@ func build_backtown() -> void:
 		_bt_box(fr, Vector3(px, (BT.FRAME_BEAM_Y + 0.2) * 0.5, fz), Vector3(0.22, BT.FRAME_BEAM_Y + 0.2, 0.22), "scaffold")
 	_bt_box(fr, Vector3(0, BT.FRAME_BEAM_Y, fz), Vector3(53.0, 0.18, 0.18), "scaffold")
 	_bt_box(fr, Vector3(0, BT.FRAME_BEAM_Y + 0.9, fz), Vector3(53.0, 0.12, 0.12), "scaffold")
+	# 布の天幕（15章、下絵の色の帯）：区間ごとに、柱と端で支えたたるんだ布。下端は支えで 3.6m、真ん中で 3.0m（屋台の上は 3.55m 以上）
+	var cz: float = BT.CANOPY_Z
+	var cols := ["cloth2", "cloth", "linen"]
+	var ci := 0
+	for span in BT.CANOPY_SPANS:
+		var sup: Array = [span[0]]
+		for px in BT.FRAME_POSTS:
+			if px > span[0] + 0.5 and px < span[1] - 0.5:
+				sup.append(px)
+		sup.append(span[1])
+		for k in sup.size() - 1:
+			var a0: float = sup[k]
+			var a1: float = sup[k + 1]
+			var nseg := maxi(4, int((a1 - a0) / 0.25))
+			for q in nseg:
+				var u0 := float(q) / nseg
+				var u1 := float(q + 1) / nseg
+				var xm := lerpf(a0, a1, (u0 + u1) * 0.5)
+				var t := (u0 + u1) * 0.5
+				var bot := lerpf(3.0, 3.6, pow(2.0 * t - 1.0, 2.0))   # たるみ
+				for hi in BT.CANOPY_HIGH:
+					if xm > hi[0] and xm < hi[1]:
+						bot = maxf(bot, 3.55)
+				_bt_box(fr, Vector3(xm, (bot + BT.CANOPY_TOP) * 0.5, cz), Vector3((a1 - a0) / nseg + 0.01, BT.CANOPY_TOP - bot, 0.03), cols[ci % 3])
+			ci += 1
 	for hg in BT.HANGS:
 		var tex := _bt_art(hg[2])
 		if tex == null:
@@ -1762,6 +1810,8 @@ func build_backtown() -> void:
 		var hh: float = w * float(tex.get_height()) / float(tex.get_width())
 		var top: float = BT.FRAME_BEAM_Y - 0.05
 		_bt_quad(fr, hg[2], hg[1] - w * 0.5, top - hh, hg[1] + w * 0.5, top, fz + 0.12, BT_GLOW if hg[0] == "pend" else BT_ART_DIM, [0.0, 0.0, 1.0, 1.0], 0)
+		if hg[0] == "pend":
+			bt_lights.append([hg[2], hg[1], top - hh * 0.8, fz + 0.12, 0.5])
 	# 屋台（届いた絵は 2 層：奥の層 → 店の人 → カウンターの層）
 	var st := Node3D.new()
 	st.name = "stalls"
@@ -1785,6 +1835,7 @@ func build_backtown() -> void:
 			_bt_box(st, Vector3(sx, 1.85, BT.STALL_Z - 0.18), Vector3(sw * 0.5, 0.7, 0.02), "neon_c")
 			_bt_box(st, Vector3(sx, sh - 0.25, BT.STALL_Z - 0.2), Vector3(sw + 0.2, 0.5, 0.02), "awning")
 		bt_marks.append(["stall", s2.id, Vector3(sx, sh, BT.STALL_Z)])
+		bt_lights.append(["stall", sx, 1.6, BT.STALL_Z + 0.2, sw * 0.7])
 	# 樽（飲み屋の立ち飲み）と、人の立ち位置（前作の町の人を仮に）
 	for b in BT.BARRELS:
 		_bt_box(st, Vector3(b[0], 0.45, b[1]), Vector3(0.6, 0.9, 0.02), "crate")
@@ -1803,7 +1854,9 @@ func build_backtown() -> void:
 			continue
 		var hh: float = f[2]
 		var w: float = hh * float(tex.get_width()) / float(tex.get_height())
-		_bt_quad(fgn, f[0], f[1] - w * 0.5, 0.0, f[1] + w * 0.5, hh, BT.FG_Z, 0.45)
+		var fq := _bt_quad(fgn, f[0], f[1] - w * 0.5, 0.0, f[1] + w * 0.5, hh, BT.FG_Z, 0.45, [0.0, 0.0, 1.0, 1.0], 2)   # 透けるので半透明の描き方
+		if fq and String(f[0]).begins_with("fg_pillar"):
+			bt_fg.append({"node": fq, "mat": fq.material_override, "half": w * 0.5})
 	# 印（扉・路地の口・人混みの帯）。正面図には写さない
 	var mk := Node3D.new()
 	mk.name = "marks"
@@ -1816,7 +1869,15 @@ func build_backtown() -> void:
 		_bt_box(mk, Vector3(al.x, 0.015, wz + 0.3), Vector3(al.w, 0.02, 0.4), "lamp")
 		bt_marks.append(["alley", al.id, Vector3(al.x, 2.0, wz)])
 	_build_crowd()
+	# 床の濡れた映り込み（15章）：この区画の光る部品・ペンダントライト・屋台・キャバレー・門から（make_glints.py は塗った建物の絵から拾う作りなので、
+	#   部品の位置をデータで持つこの区画ではデータから作る）。強い光ほど明るく、高い所ほど長い筋
 	glints = []
+	for L in bt_lights:
+		var key: String = L[0]
+		var col: Array = BT_GLINT_COL.get(key, [1.0, 0.8, 0.5])
+		var p: float = 0.95 if key in ["vision_screen", "cabaret_neon", "sign_sigil", "gate"] else (0.55 if key.begins_with("pend") else 0.75)
+		glints.append({"x": L[1], "y": L[2], "z": L[3] + 0.2, "w": clampf(float(L[4]), 0.4, 2.4), "col": col, "p": p, "k": 0.8})
+	_build_glints()
 	cam_x = Vector2(BT.ROOM_X.x + 4.92, BT.ROOM_X.y - 4.92)
 	if battle:
 		battle.glints = glints
@@ -1849,6 +1910,23 @@ func _capture_backtown(dir: String) -> void:
 			await get_tree().process_frame
 			await RenderingServer.frame_post_draw
 		get_viewport().get_texture().get_image().save_png(dir + "/bt_play_%d.png" % n)
+		# 頭上の物（足場の枠・天幕・吊るした物・梁から吊るした看板）を隠した 1 枚（上 1/4 の埋まり方を比べる）
+		var hid := []
+		for ch in level.get_children():
+			if String(ch.name) == "frame":
+				ch.visible = false
+				hid.append(ch)
+			elif String(ch.name) == "glow":
+				for q in ch.get_children():
+					if q.position.z > BT.WALL_Z + 1.0:
+						q.visible = false
+						hid.append(q)
+		for f in 3:
+			await get_tree().process_frame
+			await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png(dir + "/bt_play_%d_noover.png" % n)
+		for hn in hid:
+			hn.visible = true
 		var nsign := 0
 		for m in bt_marks:
 			var sp := cam.unproject_position(m[2])

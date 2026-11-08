@@ -15,7 +15,7 @@ const FLAT := true
 const CROWD_Z := Vector2(-5.9, -4.3)   # 人混みと屋台の帯（店先）
 const STALL_Z := -5.5         # 屋台（奥の層 −5.7・店の人 −5.5・カウンターの層 −5.3）
 const FRAME_Z := -4.1         # 足場の枠（新規の層）：柱と、地面から 3.6〜3.8m の横の梁
-const FRAME_BEAM_Y := 3.7
+const FRAME_BEAM_Y := 3.2   # 15章（ユーザー決定）：頭上の物を映る高さへ下げる。扉 2.6m・屋台の天幕より上
 const ALLEY_DEPTH := 5.5
 const TEX_M := 2.5            # 横の壁の素材 1 枚の実寸（m）
 const ART := "res://art/painted_bt/"
@@ -26,7 +26,7 @@ const MAT := {
 	"brass": Color("8a6a2c"), "copper": Color("7a4a26"), "glass": Color("223448"), "cloth": Color("6a2244"),
 	"velvet": Color("701830"), "cloth2": Color("3a2464"), "awning": Color("4a2a62"), "dark": Color("141219"),
 	"shadow": Color("0c0a10"), "side": Color("1c1922"), "scaffold": Color("4a4234"), "cable": Color("141414"),
-	"crate": Color("4a3a28"), "bottle": Color("3a6a50"), "curtain": Color("a04a6a"),
+	"crate": Color("4a3a28"), "bottle": Color("3a6a50"), "curtain": Color("a04a6a"), "linen": Color("7a6e5c"),
 	"neon_p": Color("ff40b0"), "neon_g": Color("40ff90"), "neon_c": Color("30e0ff"), "neon_v": Color("b040ff"),
 	"lamp": Color("ffc060"), "bulb": Color("fff0a0"), "window": Color("c88a44"),
 }
@@ -109,35 +109,46 @@ const PEOPLE := [[-8.5, -5.6, "飲み屋の店の人（カウンター）"], [-3
 const BARRELS := [[-3.6, -4.9], [-2.4, -5.3]]
 
 ## 光る看板（届いた絵の光る部品を使い回す）：[絵, 中心 x, 下端 y, 幅 m, z の前へのずれ]。どの画面幅でも 4〜6 枚（U1）
+## [絵, 中心 x, 下端 y, 幅 m, 置き方]：置き方 "wall"＝壁に貼る（z は壁の前 0.06〜0.3m）、"beam"＝足場の梁から吊るす（上端＝梁、下端 y は無視）
+##   15章：梁を 3.2m に下げ、布の天幕を張ったので、壁の高い所（3m より上）の看板は天幕に隠れる → 梁から吊るして天幕の手前に出す
 const SIGNS := [
-	["sign_sigil", -24.2, 2.9, 2.0, 0.06],       # 入ってすぐ（つなぎの壁）
-	["sign_vneon", -21.9, 0.9, 0.5, 0.3],        # 柱の縦のネオン
-	["vision_screen", -18.8, 2.6, 4.4, 0.06],   # w3 のビジョン（画面の位置）
-	["sign_vneon", -16.4, 0.9, 0.5, 0.3],        # w3 の右端の縦のネオン
-	["sign_rune", -15.3, 2.7, 1.4, 0.06],
-	["sign_vneon", -11.1, 0.9, 0.5, 0.3],        # 飲み屋の左の縦のネオン
-	["sign_sigil", -8.6, 3.2, 2.6, 0.06],        # 飲み屋の上（魔導の酒場）
-	["sign_vneon", -4.35, 0.9, 0.5, 0.25],       # 飲み屋の端の縦のネオン
-	["sign_rune", -2.7, 2.8, 1.1, 0.06],         # 飲み屋とキャバレーの間（つなぎの壁）
-	["sign_vneon", 4.95, 0.9, 0.5, 0.25],        # キャバレーの端
-	["sign_vneon", 7.35, 0.9, 0.5, 0.25],        # 娼館の端
-	["sign_rune", 12.9, 2.95, 1.0, 0.06],        # 娼館の階段の上
-	["sign_rune", 15.4, 2.7, 1.1, 0.06],
-	["sign_sigil", 21.9, 3.0, 2.0, 0.06],        # 怪しい店の上（暗めに）
+	["sign_sigil", -25.4, 0.0, 1.2, "beam"],     # 入ってすぐ（食べ物の屋台の天幕を避けて左へ）
+	["sign_vneon", -21.9, 0.7, 0.5, "wall"],     # 柱の縦のネオン（上端を天幕の下へ）
+	["vision_screen", -18.8, 2.6, 4.4, "wall"],  # w3 のビジョン（前は天幕を張らない）
+	["sign_vneon", -16.4, 0.7, 0.5, "wall"],
+	["sign_rune", -15.0, 3.42, 1.0, "wall"],     # 結晶の屋台の天幕の上（壁の高い所。ここは天幕を張らない）
+	["sign_vneon", -11.1, 0.7, 0.5, "wall"],
+	["sign_sigil", -8.6, 0.0, 2.2, "beam"],      # 飲み屋の上（魔導の酒場）
+	["sign_vneon", -4.35, 0.7, 0.5, "wall"],
+	["sign_rune", -2.7, 0.0, 1.0, "beam"],
+	["sign_vneon", 4.95, 0.7, 0.5, "wall"],
+	["sign_vneon", 7.35, 0.7, 0.5, "wall"],
+	["sign_rune", 12.9, 0.0, 1.0, "beam"],       # 娼館の階段の上
+	["sign_vneon", 14.5, 0.7, 0.5, "wall"],      # 娼館の右の柱
+	["sign_rune", 15.0, 0.0, 1.0, "beam"],
+	["sign_sigil", 23.0, 0.0, 1.6, "beam"],      # 怪しい店の上（義手の屋台の天幕を避けて右へ）
 ]
 ## 色の付いた下絵の光る物で、看板として数えるもの：[名前, x]（キャバレーの電球の入口とピンクのネオン、怪しい店の小さな看板、門の光）
 const GLOW_BLOCKOUT := [["cabaret_neon", 1.6], ["cabaret_bulbs", 1.6], ["shady_small", 20.1], ["gate_glow", 17.1]]
 
 ## 足場の枠（13 章の 1、新規の層）：柱の x（梁は全幅）。梁から垂らす物：[種類, x, 絵/素材]
 const FRAME_POSTS := [-23.0, -17.4, -11.7, -6.3, -0.5, 5.5, 11.2, 15.4, 19.5, 25.0]
+## 15章：看板を梁から吊るしたので、重ならないよう位置を動かした。扉・光る看板・屋台の天幕・路地の口の前は避ける
 const HANGS := [
-	["pend", -20.3, "pend_cyan"], ["banner", -17.9, "banner_red"], ["pend", -14.6, "pend_warm"], ["pend", -9.4, "pend_warm"],
-	["banner", -7.6, "banner_violet"], ["pend", -2.6, "pend_violet"], ["pend", 3.6, "pend_warm"], ["banner", 6.6, "banner_red"],
-	["pend", 10.6, "pend_violet"], ["pend", 13.0, "pend_cyan"], ["banner", 15.8, "banner_violet"], ["pend", 21.4, "pend_green"], ["pend", 24.0, "pend_violet"],
+	["pend", -20.3, "pend_cyan"], ["banner", -17.9, "banner_red"], ["pend", -16.9, "pend_warm"], ["pend", -10.6, "pend_warm"],
+	["banner", -6.9, "banner_violet"], ["pend", -1.4, "pend_violet"], ["pend", 6.2, "pend_warm"], ["banner", 6.9, "banner_red"],
+	["pend", 10.6, "pend_violet"], ["pend", 13.9, "pend_cyan"], ["banner", 14.2, "banner_violet"], ["pend", 23.9, "pend_green"], ["pend", 25.2, "pend_violet"],
 ]
+## 15章（ユーザー決定）：布の天幕を店先の帯の上に張り渡す（たるんだ布、下端 3.0〜3.6m、継ぎはぎの紫・紅・生成り）。下絵は色の帯。
+##   張らない所：w3 のビジョン・キャバレーのネオン（光る看板をふさがない）、路地の口2つ。屋台の上は下端を 3.5m 以上に（屋台の天幕 3.45m）
+const CANOPY_Z := -4.7
+const CANOPY_TOP := 4.4
+const CANOPY_SPANS := [[-26.5, -22.0], [-11.8, -1.0], [4.4, 15.8], [18.4, 26.5]]
+const CANOPY_HIGH := [[-24.9, -22.3], [19.3, 21.9]]   # 屋台の上（下端 3.55m 以上）
 const PEND_W := 0.42          # ペンダントライトの幅（m。絵の縦横比で高さ ≒ 0.88m、上端は梁）
 const BANNER_W := 0.8         # 垂れ幕の幅（高さ ≒ 1.25m）
 
 ## 手前の物（帯の手前 z 3.5、届いた絵）：[絵, x, 高さ m]
-const FG := [["fg_crate", -17.6, 1.0], ["fg_pillar", -9.0, 4.4], ["fg_pillar_lamp", 8.0, 4.4], ["fg_crates", 15.6, 1.4], ["fg_pillar", 21.5, 4.4]]
+## 15章（ユーザー決定）：手前の柱は 1 画面の幅（手前 z 3.5 で 7.6m）に 1 本まで → 3 本から 2 本に（間 21m）。ラナから左右 2.5m 以内で透ける
+const FG := [["fg_crate", -17.6, 1.0], ["fg_pillar", -9.0, 4.4], ["fg_pillar_lamp", 12.0, 4.4], ["fg_crates", 15.6, 1.4]]
 const FG_Z := 3.5

@@ -15,6 +15,7 @@
 ## 裏の町の入り口 v2（2026-11-08、specs/backtown_entrance_v2.md の 14。合成の判定待ち・発注していない）
 - 区画 x −24〜24m・12章の並び（w3・飲み屋・キャバレー・娼館風の宿・怪しい店、路地2、足場の枠）。届いた絵は `tools/cut_bt.py` で切り抜き `art/painted_bt/`（書き出しには入れない）。光る看板はどの画面でも 4〜6 枚。比較画像 `specs/backtown_img/v2_mock_vs_composite*.png`。
 - `art/painted_bt_src/` に .gdignore を足した（元の絵がゲームに入る状態だった）。
+- 17章（spec の 18）：梁 3.2m・布の天幕（下絵）・看板6枚を梁から吊るす・手前の柱2本でラナの近くで透ける・床の映り込みをデータから。画面の上1/4 が頭上の物で 26〜59％。比較画像 `v2b_*.png`。発注はまだ。
 
 ## 裏の町の入り口の下絵（2026-11-08、specs/backtown_blockout.md の「結果」。塗る前の判定待ち）
 - `scripts/backtown_block.gd`＋`main.build_backtown`。Web `?town=back`（カメラ D2 自動）。正面図 `art/guide_bt/`（書き出しには入れない）。撮影 `TOWN=back FX_ONLY=backtown`。
