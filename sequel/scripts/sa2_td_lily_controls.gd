@@ -9,6 +9,9 @@ var raw_input_owner
 var raw_input_was_enabled:=false
 var guide_parent
 var guide_index:=-1
+var web_callback
+var web_window
+var web_document
 
 class LilyPad extends TouchUI._Pad:
     func _btns()->Dictionary:
@@ -54,6 +57,11 @@ class LilyPanel extends CanvasLayer:
 
 func setup(owner,spot:String):
     host=owner;kind=spot;process_priority=110
+    if OS.has_feature('web'):
+        web_callback=JavaScriptBridge.create_callback(_on_web_focus_change)
+        web_window=JavaScriptBridge.get_interface('window');web_document=web_window.document
+        web_window.addEventListener('blur',web_callback)
+        web_document.addEventListener('visibilitychange',web_callback)
 
 func _candidate():
     if not is_instance_valid(host):return null
@@ -117,4 +125,11 @@ func release():
     if is_instance_valid(raw_input_owner):raw_input_owner.set_process_input(raw_input_was_enabled)
     raw_input_owner=null;target=null;guide_parent=null;guide_index=-1
 
-func _exit_tree():release()
+func _on_web_focus_change(_args):clear_touch()
+
+func _exit_tree():
+    if web_callback!=null:
+        web_window.removeEventListener('blur',web_callback)
+        web_document.removeEventListener('visibilitychange',web_callback)
+        web_callback=null;web_window=null;web_document=null
+    release()
