@@ -1,0 +1,33 @@
+name: Publish verified SA2 TD Web candidate
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download exact verified Web build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p /tmp/td-release
+          gh release download web-903b0b9 --repo "$GITHUB_REPOSITORY" --pattern sa2-td-web-903b0b9.zip --dir /tmp/td-release
+          python tools/prepare_site.py --zip /tmp/td-release/sa2-td-web-903b0b9.zip --out /tmp/td-site
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: /tmp/td-site
+      - name: Publish Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

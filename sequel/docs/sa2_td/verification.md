@@ -17,7 +17,7 @@
 | PNG目視 | PASS | 候補903b0b9の日本語ボタン/街絵/コンパクトtoolbarを実画面で確認、media/ |
 | iPhone16/Safari操作・ノッチ・保存終了再開・FPS | NOT TESTED | 端末未接続、device-record.md未記入 |
 | Android/長時間/増量の端末性能 | NOT TESTED | 今回の端末実測ではない |
-| スマホ到達可能な公開URL | 未公開 | 既存main Pages非変更。新規公開はユーザー確認後 |
+| スマホ到達可能な公開URL | 未公開 | 既存main Pages非変更。新規公開は承認済み、repo作成403で未実施 |
 
 Chromium156.0.8078.79 / Playwright1.62.1、844×390のtouch emulationと390×844画面を使用。これはiPhoneのSafari/WebKit検証ではない。frame時間は最大300実process間隔のwall clockを集計（ゲーム時間倍率のdeltaを使用しない）。FPSはEngine値。`loadToReadyMs`はbrowser navigationからscene-readyまで、`loadToSampleMs`は入力試験を含む。ソフトウェア描画値を端末性能・快適性の合格へ読み替えない。
 
@@ -34,3 +34,9 @@ Lowのspot registry重複は既存5種のTD限定として保留。全素材pack
 GitHub CIの11efda4実行 https://github.com/yyvape-dev/SA/actions/runs/42562076749 は全体PASS。CIはnative契約/24回帰/公式Web export/artifact作成を担当し、ブラウザ入力試験はこのローカル実Chromiumで別実行。903b0b9のCIは実際の新規runを確認して追記する。
 
 候補903b0b9の新規CI https://github.com/yyvape-dev/SA/actions/runs/42562340575 も全体PASS。native契約・24回帰・Web export・artifact uploadが成功。ビルド/runtime/testソースはこのSHAに固定し、後続の検証証拠追記は資料のみ。
+
+## 公開工程の追加状況
+
+ユーザー承認を受けてSA2-TD新設を実行したがGitHub側HTTP403（integrationのrepo作成権限なし）。公開用workflow/landing/厳密なZIP検証スクリプトをhosting/に用意し、検証済みZIPからPagesと同じ版別ディレクトリを生成した。作成権限が解消するまで公開URLの到達判定はNOT TESTED。公開準備のローカル試験とGitHub Pages自体の稼働は区別する。
+
+ローカル版別URL配下でT0保存probeの実reloadとT1会話タップ送りがPASS。evidence/hosting/browser-results.json。実公開サーバーのHTTPやiPhone実機は未実施。

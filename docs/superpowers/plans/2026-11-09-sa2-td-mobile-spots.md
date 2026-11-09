@@ -29,3 +29,7 @@ Files: tools/export_td_web.py, tools/serve_td_web.py, tests/td_browser_smoke.cjs
 - [ ] Commit/push TD branch, PR, build ZIP and external-review report; hosting approval only after concrete artifact ready.
 
 Ruling: user explicitly approved TD initiation and forbids repeat approval in latest handoff, so execute now. Use existing isolated worktree on new TD branch (no extra worktree). T0 is diagnostic status, not invented story content. T1 spot exercises current integrated T1.5 fixture; it is not a full prologue.
+
+## Subsequent publication authorization
+
+User approved SA2-TD public repository + GitHub Pages. This supersedes the initial no-hosting authorization boundary for that new repository only. POST /user/repos currently returns403; prepare deployment assets and await owner-created repo. ExistingSA/main and its Pages configuration remain protected.
