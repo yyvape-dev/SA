@@ -1,0 +1,18 @@
+{
+  "godot": "4.7.2.stable.official.ed1daf0bf",
+  "renderer": "Compatibility, llvmpipe",
+  "viewport_px": [
+    1688,
+    780
+  ],
+  "crop_px": [
+    108,
+    199
+  ],
+  "frame_count": 32,
+  "loop_ms": 1920,
+  "feet_area_static_rows": 28,
+  "loop_boundary_changed_pixels": 414,
+  "largest_step_changed_pixels": 1209,
+  "status": "Temporary test rig in actual T4 scene, no production scene changes"
+}
