@@ -82,28 +82,31 @@ func _remove_former_inn(game: Node3D, level: Node3D) -> int:
 				hidden += 1
 	return hidden
 
-func _add_gamehall(game: Node3D, parent: Node3D) -> void:
-	# Artwork is the exact supplied original, processed mechanically to RGBA.
-	# Interior characters, machines, curtains and floor already exist in the
-	# painting. Do not superimpose fake NPCs, tables or pseudo-3D geometry.
-	var art_path := "res://art/painted_bt/gamehall_user_rgba.png"
+func _add_gamehall(game: Node3D, parent: Node3D, art_name: String, expected_px: Vector2i, tag: String) -> Node3D:
+	# Preview-only artwork: the canonical guide is alpha-keyed separately,
+	# and the accepted painted source is cropped losslessly, never regenerated.
+	var art_path := "res://art/painted_bt/%s.png" % art_name
 	var tex: Texture2D = load(art_path) if ResourceLoader.exists(art_path) else null
-	_check(tex != null, "User-supplied casino RGBA not imported: " + art_path)
+	_check(tex != null, "T4 texture absent: " + art_path)
 	if tex == null:
-		return
-	_check(tex.get_size() == Vector2(1536.0, 1024.0), "Casino art canvas unexpected")
+		return null
+	_check(tex.get_size() == Vector2(expected_px.x, expected_px.y), "T4 artwork pixel dimensions differ from QA: " + art_name)
 	var hall := Node3D.new()
-	hall.name = "T4_GAMEHALL_USER_SUPPLIED_PAINTING"
+	hall.name = "T4_GAMEHALL_" + tag
 	parent.add_child(hall)
-	# The transparent canvas maps to seven physical meters and height 4.17 m,
-	# but the actual painted crown begins around canvas y=162, placing the
-	# visible crown at height ~3.51m (within fixed D2 framing).
-	var quad = game.call("_bt_quad", hall, "gamehall_user_rgba",
-		HALL_X0, 0.0, HALL_X0 + INSERT_W, HALL_H, -6.18, 0.84)
-	_check(quad != null, "Godot failed to build user's casino textured QuadMesh")
+	var quad: MeshInstance3D = game.call("_bt_quad", hall, art_name,
+		HALL_X0, 0.0, HALL_X0 + INSERT_W, HALL_H, -6.18, 0.84) as MeshInstance3D
+	_check(quad != null, "Failed to place T4 in Godot: " + art_name)
 	if quad != null:
-		quad.name = "casino_user_approved_art_1536x1024"
-	print("T4_PAINTED_SOURCE_APPLIED x=%.2f..%.2f y=0..%.2f z=-6.18 alpha_RGBA" % [HALL_X0, HALL_X0 + INSERT_W, HALL_H])
+		quad.name = "casino_" + tag
+		var mesh: QuadMesh = quad.mesh as QuadMesh
+		_check(mesh != null, "T4 facade is not QuadMesh: " + art_name)
+		if mesh != null:
+			_check(absf(mesh.size.x - INSERT_W) < 0.001 and absf(mesh.size.y - HALL_H) < 0.001, "T4 physical geometry violates 7.00 x 4.17 m")
+			_check(absf(quad.position.y - HALL_H * 0.5) < 0.001, "Casino bottom is not y=0")
+			_check(absf(quad.position.x - HALL_CX) < 0.001, "Casino world x is not 7..14m")
+	print("T4_PHYSICAL_FACADE_CHECK %s art=%s px=%s width=%.3fm height=%.3fm x=[%.2f,%.2f] floor_y=0" % [tag, art_name, str(tex.get_size()), INSERT_W, HALL_H, HALL_X0, HALL_X0 + INSERT_W])
+	return hall
 
 func _save(game: Node3D, path: String) -> void:
 	for i in 4:
@@ -183,21 +186,41 @@ func _run() -> void:
 			fg_removed += 1
 	_check(fg_removed == 1, "Expected exactly one foreground column at x12")
 	print("T4_FOREGROUND_CASINO_REMOVED columns=%d x=12.0" % fg_removed)
-	_add_gamehall(game, level)
-	# Preserve ORIGINAL camera bounds; no 7m city extension.
+	# Phase 1/2/3: Real in-engine guide at exact physical scale BEFORE generating any new art.
+	var guide: Node3D = _add_gamehall(game, level, "gamehall_preview_guide", Vector2i(1536, 1024), "SCALE_GUIDE")
+	if guide == null or not failures.is_empty():
+		quit(1)
+		return
 	player.position = Vector3(HALL_CX, 0, 0)
 	game.call("_place_cam", true)
-	var painted_top_m := HALL_H * (1.0 - 162.0 / 1024.0)
-	var roof_px: Vector2 = camera.unproject_position(Vector3(HALL_CX, painted_top_m, -6.18))
+	await _save(game, output + "/guide_d2_x10p5.png")
+	player.position = Vector3(5.2, 0, 0)
+	game.call("_place_cam", true)
+	await _save(game, output + "/guide_d2_x5p2.png")
+	player.position = Vector3(16.0, 0, 0)
+	game.call("_place_cam", true)
+	await _save(game, output + "/guide_d2_x16p0.png")
+	guide.visible = false
+	# Control render: preserve approved painted pixels, crop ONLY outside alpha bbox.
+	var painted: Node3D = _add_gamehall(game, level, "gamehall_user_trimmed", Vector2i(1443, 862), "ORIGINAL_PAINT_CROPPED")
+	if painted == null or not failures.is_empty():
+		quit(1)
+		return
+	player.position = Vector3(HALL_CX, 0, 0)
+	game.call("_place_cam", true)
+	var roof_px: Vector2 = camera.unproject_position(Vector3(HALL_CX, HALL_H, -6.18))
 	var vp_h: float = game.get_viewport().get_visible_rect().size.y
-	print("T4_PAINTED_ROOF_TOP projected_y=%.2fpx ratio=%.4f viewport_height=%.0f (negative means cropped)" % [roof_px.y, roof_px.y / vp_h, vp_h])
+	print("T4_TRIMMED_ROOF_TOP projected_y=%.2fpx ratio=%.4f viewport_height=%.0f (negative means cropped)" % [roof_px.y, roof_px.y / vp_h, vp_h])
 	await _save(game, output + "/painted_d2_x10p5.png")
+	player.position = Vector3(5.2, 0, 0)
+	game.call("_place_cam", true)
+	await _save(game, output + "/painted_d2_x5p2.png")
 	player.position = Vector3(16.0, 0, 0)
 	game.call("_place_cam", true)
 	await _save(game, output + "/painted_d2_x16p0.png")
 	print("T4_INN_HIDDEN_GEOMETRIES %d" % removed)
 	if failures.is_empty():
-		print("T4_GODOT_PREVIEW_PASS captures=3 (actual Godot viewport, user painting, former inn removed)")
+		print("T4_GODOT_PREVIEW_PASS captures=7 (actual D2 Godot, physical facade 7.00x4.17, visual acceptance pending)")
 		quit(0)
 	else:
 		quit(1)
