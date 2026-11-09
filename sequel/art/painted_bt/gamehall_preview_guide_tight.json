@@ -1,0 +1,27 @@
+{
+  "kind": "preview scale only; NOT an approved paint guide",
+  "original_guide": "gamehall_geometry_guide.png",
+  "alpha_bbox_xyxy": [
+    51,
+    169,
+    1486,
+    1024
+  ],
+  "visible_px": [
+    1435,
+    855
+  ],
+  "test_facades_m": [
+    {
+      "width": 14.0,
+      "height": 8.34,
+      "opening_width": 10.08
+    },
+    {
+      "width": 16.0,
+      "height": 9.531428571428572,
+      "opening_width": 11.52
+    }
+  ],
+  "pixel_identity_crop": true
+}\n
