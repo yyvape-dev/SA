@@ -41,6 +41,14 @@ func run():
     copy=d.duplicate(true);copy.routes[0]=PackedVector3Array([Vector3(1,0,0)])
     check(copy.validate_definition()!="","invalid evacuation route refused")
     check(d.profile.validate_profile()=="","profile textures and attack timing valid")
+    copy=d.duplicate(true)
+    var unsafe:PackedVector3Array=copy.routes[0]
+    unsafe.insert(unsafe.size()-1,Vector3(16.8,0,0));copy.routes[0]=unsafe
+    check(copy.validate_definition()!="","route crossing closed fence rejected")
+    var bad_profile=d.profile.duplicate(true);bad_profile.speed=NAN
+    check(bad_profile.validate_profile()!="","nonfinite profile speed rejected")
+    bad_profile=d.profile.duplicate(true);bad_profile.clips.walk.h=NAN
+    check(bad_profile.validate_profile()!="","nonfinite clip height rejected")
     a.free();b.free();npc.free()
     if failures==0: print("SA2_T3_CONTRACT_PASS")
     quit(0 if failures==0 else 1)

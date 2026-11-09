@@ -28,15 +28,20 @@ func run():
         if scene.ready_for_event:break
         await process_frame
     if not require(scene.ready_for_event,"ready"):return
-    await frames(20)
+    await frames(48)
     var level_id=scene.level.get_instance_id()
     if args.has("--restart-resume"):
-        if not require(scene.encounter.phase=="safe" and scene.encounter.attempt==1 and scene.battle.hp==100 and scene.evacuation.snapshot()["resident-a"].index==0 and scene.battle.enemies.is_empty(),"fresh process restores pre-battle HP/NPCs/flags, no enemies"):return
+        if not require(scene.encounter.phase=="safe" and scene.encounter.attempt==1 and scene.battle.hp==63 and scene.evacuation.snapshot()["resident-a"].index==0 and scene.battle.enemies.is_empty(),"fresh process restores pre-battle HP/NPCs/flags, no enemies"):return
         await frames(48)
         print("SA2_T3_RESTART_PASS");quit();return
     if args.has("--resume-win"):
         if not require(scene.encounter.phase=="complete" and scene.encounter.safe.size()==3 and scene.battle.enemies.is_empty() and not scene.battle.auto_spawn,"fresh process preserves completed encounter"):return
+        scene.rana.position=Vector3(16,0,0);await frames(2)
+        key(KEY_D,true);await frames(30);key(KEY_D,false);await frames(1)
+        if not require(scene.rana.position.x<16.7,"fresh completed save enforces closed passage"):return
         print("SA2_T3_COMPLETE_RESTART_PASS");quit();return
+    if args.has("--restart-save"):scene.battle.hp=63
+    var starting_hp:float=scene.battle.hp
     await click(scene.street_hud.start_button)
     if not require(scene.encounter.phase=="street" and scene.player==scene.lily,"GUI starts manual Lily on same Level"):return
     scene.battle.foe_killed.connect(func(e):death_hp.append(e.hp))
@@ -61,7 +66,7 @@ func run():
         for i in 800:
             if scene.encounter.phase=="safe":break
             await frames(1)
-        if not require(scene.encounter.phase=="safe" and scene.battle.hp==100 and scene.evacuation.snapshot()["resident-a"].index==0,"real AI defeat restores checkpoint"):return
+        if not require(scene.encounter.phase=="safe" and scene.battle.hp==starting_hp and scene.evacuation.snapshot()["resident-a"].index==0,"real AI defeat restores checkpoint"):return
         await frames(48)
         await click(scene.street_hud.start_button)
         if not require(scene.encounter.phase=="street" and scene.encounter.attempt==2 and scene.level.get_instance_id()==level_id,"GUI retries same street, no duplicate scene"):return

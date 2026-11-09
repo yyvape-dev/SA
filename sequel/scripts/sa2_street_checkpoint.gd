@@ -35,6 +35,7 @@ func valid_checkpoint(cp: Variant) -> bool:
     if not cp is Dictionary: return false
     for key in ["battle","actors","residents","enemies","flags"]:
         if not cp.get(key) is Dictionary: return false
+    if cp.battle.size()!=BATTLE_NUMBERS.size()+2:return false
     for key in BATTLE_NUMBERS:
         if not number(cp.battle.get(key)) or cp.battle[key]<0: return false
     if cp.battle.hp<=0 or cp.battle.hp>cp.battle.hp_max or cp.battle.hp_max>10000: return false
@@ -62,8 +63,10 @@ func valid_payload(p: Variant) -> bool:
         return false
     var f=Flow.new()
     if not f.restore(p.flow): return false
+    if f.return_position!=position(p.checkpoint.actors.rana.position) or f.player_position!=f.return_position or int(f.attempts.get(definition.event_id,0))!=int(p.attempt):return false
     if p.phase=="street": return f.mode==Flow.STREET and f.event_id==definition.event_id and not f.completed.get(definition.event_id,false)
-    return f.mode==Flow.EXPLORE and bool(f.completed.get(definition.event_id,false))==(p.phase=="complete")
+    if p.phase=="complete":return f.mode==Flow.EXPLORE and f.event_id=="" and f.completed.get(definition.event_id,false)
+    return f.mode==Flow.EXPLORE and f.event_id==definition.event_id and not f.completed.get(definition.event_id,false)
 
 func _read_file(file_path: String) -> Dictionary:
     if not FileAccess.file_exists(file_path): return {}

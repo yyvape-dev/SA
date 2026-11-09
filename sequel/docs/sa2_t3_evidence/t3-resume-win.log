@@ -1,0 +1,15 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+BOOT main_ready 409ms
+BOOT before_d1 410ms
+BOOT after_d1 410ms
+BOOT after_build_city 822ms
+CAMV D2 belt=(-2.0, 2.0) ofs=(0.0, 3.2, 15.3) fov=16.80
+BOOT before_player 833ms
+BOOT after_player 1294ms
+BOOT ally_loaded 1480ms
+BOOT fx1_loaded 1488ms
+T3_INPUT_CHECK: ready
+T3_INPUT_CHECK: fresh process preserves completed encounter
+T3_INPUT_CHECK: fresh completed save enforces closed passage
+SA2_T3_COMPLETE_RESTART_PASS

@@ -13,6 +13,9 @@ var encounter
 var store
 var lease=Lease.new()
 var policy=Policy.new()
+var exploration_policy=Policy.new()
+var explore_previous:=Vector3.ZERO
+var roam_cam_x:=Vector2.ZERO
 var evacuation
 var rana
 var lily
@@ -37,15 +40,26 @@ func _ready():
     await super._ready()
     battle.auto_spawn=false
     if not ally_resolved:
-        var deadline=get_tree().create_timer(60.0,true,false,true)
-        deadline.timeout.connect(func():ally_loaded.emit(),CONNECT_ONE_SHOT)
+        var previous_lock:bool=player.locked
+        player.locked=true;loading.show_now()
+        var deadline=Timer.new();deadline.one_shot=true;deadline.ignore_time_scale=true;deadline.process_mode=Node.PROCESS_MODE_ALWAYS
+        deadline.timeout.connect(ally_loaded.emit,CONNECT_ONE_SHOT);add_child(deadline);deadline.start(60.0)
         await ally_loaded
+        deadline.stop();deadline.queue_free()
+        if is_instance_valid(battle.ally):player.locked=previous_lock
     if not is_instance_valid(battle.ally):
-        message="Lily could not load. Reload to retry.";return
+        message="Lily could not load. Reload to retry.";loading.error_text=message;return
     if definition.validate_definition()!="":
         push_error("T3 definition invalid: "+definition.validate_definition());return
+    var readonly=load("res://scripts/sa2_street_readonly_progress.gd").new()
+    for key in ["path","lv","xp","weapon","hard_open","best","clears","skills_owned","skill_slots"]:
+        readonly.set(key,progress.get(key))
+    progress=readonly
     rana=player;lily=battle.ally
     rana.position=definition.lily_start+Vector3(-1,0,0.7);lily.position=definition.lily_start
+    roam_cam_x=cam_x
+    exploration_policy.bounds=Rect2(-24,-2,48,4);exploration_policy.blockers=definition.blockers;exploration_policy.active=false
+    battle.combat_policy=exploration_policy
     cam_x=Vector2(13,13);play_ofs=Vector3(0,3.8,17);play_look=Vector3(0,2,0);cam.fov=21
     _place_cam(true)
     evacuation=Evac.new();add_child(evacuation);evacuation.configure(definition)
@@ -66,6 +80,7 @@ func _ready():
     # Hide legacy combat HUD during this slice; keep normal exploration movement.
     ui.hud.hide()
     process_physics_priority=100
+    explore_previous=rana.position
     ready_for_event=true
     loading.hide_soon()
 
@@ -77,11 +92,15 @@ func _build_route_marks():
     var mat=StandardMaterial3D.new();mat.albedo_color=Color(0.12,0.6,0.38);mat.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED;safe.material_override=mat;markers.add_child(safe)
     var label=Label3D.new();label.text="SAFE ZONE";label.position=definition.safe_marker+Vector3(0,0.25,0);label.font_size=36;label.modulate=Color(0.4,1,0.7);markers.add_child(label)
     # Closed boundary remains after victory. It is outside the residents' route.
-    var fence=MeshInstance3D.new();var box=BoxMesh.new();box.size=Vector3(0.18,0.8,3.6);fence.mesh=box;fence.position=Vector3(16.79,0.4,0)
-    var fm=StandardMaterial3D.new();fm.albedo_color=Color(0.7,0.35,0.12);fence.material_override=fm;markers.add_child(fence)
+    for rect in definition.blockers:
+        var fence=MeshInstance3D.new();var box=BoxMesh.new();box.size=Vector3(rect.size.x,0.8,rect.size.y);fence.mesh=box;fence.position=Vector3(rect.get_center().x,0.4,rect.get_center().y)
+        var fm=StandardMaterial3D.new();fm.albedo_color=Color(0.7,0.35,0.12);fence.material_override=fm;markers.add_child(fence)
 
 func start_encounter() -> bool:
     if not ready_for_event or blocked_save or not encounter.phase in ["explore","safe"]:return false
+    if hud.slot_open or hud.menu_open or hud.result_t>=0 or battle.process_mode==Node.PROCESS_MODE_DISABLED:
+        message="Close the current menu before starting.";return false
+    cam_x=Vector2(13,13)
     var cp=Snapshot.capture(self) if encounter.phase=="explore" else encounter.checkpoint.duplicate(true)
     if not encounter.begin(cp):message=store.last_error;return false
     _clear_effects()
@@ -114,7 +133,13 @@ func _on_foe_killed(foe):
     # No super: T3 has no experience/reward writes.
 
 func _physics_process(_delta:float):
-    if not ready_for_event or encounter.phase!="street":return
+    if not ready_for_event:return
+    if encounter.phase in ["explore","safe","complete"]:
+        if rana.position.distance_to(explore_previous)>0.001:cam_x=roam_cam_x
+        rana.position=exploration_policy.resolve_motion(rana,explore_previous,rana.position)
+        explore_previous=rana.position
+        return
+    if encounter.phase!="street":return
     encounter.evaluate(battle.hp)
     if encounter.phase=="result_pending":
         _freeze_combat()
@@ -131,6 +156,7 @@ func retry_result_save():
     _clear_combat()
     lease.release()
     Snapshot.restore(self,encounter.checkpoint)
+    explore_previous=rana.position;cam_x=roam_cam_x
     battle.set_physics_process(true)
     if encounter.phase=="complete":
         evacuation.finish_all();message="All safe. Street remains closed; explore with Rana."
@@ -139,7 +165,7 @@ func retry_result_save():
 
 func _clear_combat():
     for e in battle.enemies.duplicate():battle.remove_enemy(e)
-    policy.clear();battle.combat_policy=null
+    policy.clear();battle.combat_policy=exploration_policy
     _clear_effects()
 
 func _clear_effects():

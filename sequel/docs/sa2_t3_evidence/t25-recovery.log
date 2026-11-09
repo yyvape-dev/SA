@@ -1,0 +1,35 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+BOOT main_ready 357ms
+BOOT before_d1 358ms
+BOOT after_d1 358ms
+BOOT after_build_city 662ms
+BOOT before_player 673ms
+BOOT after_player 1138ms
+BOOT ally_loaded 1339ms
+BOOT fx1_loaded 1347ms
+BOOT main_ready 1421ms
+BOOT before_d1 1421ms
+BOOT after_d1 1421ms
+BOOT after_build_city 1701ms
+BOOT before_player 1712ms
+BOOT after_player 2140ms
+BOOT ally_loaded 2328ms
+BOOT fx1_loaded 2334ms
+BOOT main_ready 2389ms
+BOOT before_d1 2390ms
+BOOT after_d1 2390ms
+BOOT after_build_city 2661ms
+BOOT before_player 2671ms
+BOOT after_player 3088ms
+BOOT ally_loaded 3268ms
+BOOT fx1_loaded 3275ms
+BOOT main_ready 3461ms
+BOOT before_d1 3462ms
+BOOT after_d1 3462ms
+BOOT after_build_city 3742ms
+BOOT before_player 3753ms
+BOOT after_player 4185ms
+BOOT ally_loaded 4370ms
+BOOT fx1_loaded 4376ms
+SA2_T2_5_RECOVERY_PASS: result restart, completed restart, live controls teardown

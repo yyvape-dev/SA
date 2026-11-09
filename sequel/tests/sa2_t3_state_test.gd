@@ -55,5 +55,10 @@ func run():
     var invalid=street.duplicate(true);invalid.schema=99
     check(not store.save_payload(invalid),"unknown schema cannot replace save")
     check(store.load_payload().phase=="street","last good save survives invalid write")
+    for extra_key in ["auto_spawn","player","combat_policy"]:
+        var extra=street.duplicate(true);extra.checkpoint.battle[extra_key]=true
+        var preserved=FileAccess.get_file_as_string(store.path)
+        check(not store.save_payload(extra),"unknown battle restore property refused: "+extra_key)
+        check(FileAccess.get_file_as_string(store.path)==preserved,"unknown field cannot replace current")
     if failures==0:print("SA2_T3_STATE_PASS")
     quit(0 if failures==0 else 1)

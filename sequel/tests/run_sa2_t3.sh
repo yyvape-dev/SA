@@ -24,5 +24,5 @@ for fps in 30 600; do run_case "asset-$fps" sa2_t2_asset_wait_test.gd "$fps"; do
 run_case t25-input sa2_t2_5_input_test.gd 60
 run_case t25-complete-resume sa2_t2_5_input_test.gd 60 -- --resume
 for stage in pause-instance resume-instance pause-result resume-result; do run_case "t25-$stage" sa2_t2_5_input_test.gd 60 -- "--$stage"; done
-for name in contract state boundaries playable input; do run_case "t3-$name" "sa2_t3_${name}_test.gd" 60; done
+for name in contract state boundaries playable review save_fault legacy_street input; do run_case "t3-$name" "sa2_t3_${name}_test.gd" 60; done
 for stage in resume-win loss restart-save restart-resume; do run_case "t3-$stage" sa2_t3_input_test.gd 60 -- "--$stage"; done

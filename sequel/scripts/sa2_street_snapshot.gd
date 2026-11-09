@@ -38,7 +38,7 @@ static func normalize_actor(actor):
     actor.mat.set_shader_parameter("flash",Color(0,0,0,0))
 
 static func restore(host, cp:Dictionary):
-    for key in cp.battle:host.battle.set(key,cp.battle[key])
+    for key in Store.BATTLE_NUMBERS+["ult_gain","ally_ult_gain"]:host.battle.set(key,cp.battle[key])
     for key in ["freeze","shake","combo","combo_t","cam_zoom","bg_dim","dim_hold","chroma"]:
         host.battle.set(key,1.0 if key=="bg_dim" else 0)
     host.battle.cine=false;host.battle.cam_focus=null

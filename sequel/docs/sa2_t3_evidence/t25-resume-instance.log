@@ -1,0 +1,13 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+BOOT main_ready 350ms
+BOOT before_d1 351ms
+BOOT after_d1 351ms
+BOOT after_build_city 637ms
+BOOT before_player 648ms
+BOOT after_player 1070ms
+BOOT ally_loaded 1246ms
+BOOT fx1_loaded 1253ms
+T2_5_CHECK: scene ready
+T2_5_CHECK: fresh engine resumes instance without duplicate attempt
+SA2_T2_5_INSTANCE_RESTART_PASS: encounter restarts; per-enemy HP and position are not persisted

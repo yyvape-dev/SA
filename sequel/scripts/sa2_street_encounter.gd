@@ -15,9 +15,11 @@ func begin(cp: Dictionary) -> bool:
     if not phase in ["explore","safe"] or not store.valid_checkpoint(cp): return false
     var next=Flow.new()
     next.attempts=flow.attempts.duplicate(true)
-    next.begin_dialogue(definition.event_id,Vector3.ZERO)
+    var at: Array=cp.actors.rana.position
+    var point=Vector3(at[0],at[1],at[2])
+    next.begin_dialogue(definition.event_id,point)
     next.finish_dialogue()
-    next.enter_battle(definition.event_id,Vector3.ZERO)
+    next.enter_battle(definition.event_id,point)
     var payload=_payload("street",cp,next,attempt+1)
     if not store.save_payload(payload): return false
     flow=next;checkpoint=cp.duplicate(true);attempt+=1
