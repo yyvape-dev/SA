@@ -83,7 +83,7 @@ func _run() -> void:
     _test(await _wait_state(game,1),"West exit failed to open separate map")
     var new_level: Node3D=game.get("level")
     _test(new_level!=original_level and new_level.name=="T4GamehallFloor","New MAP was not created as an independent Level")
-    _test(absf(hero.position.x-21.5)<0.1 and hero.face==-1,"Player was not delivered to right edge of new floor")
+    _test(absf(hero.position.x-21.5)<0.1 and int(hero.get("face"))==-1,"Player was not delivered to right edge of new floor")
     var materials: Dictionary=game.get("t4_floor_materials")
     _test(materials.size()==6,"Micro-animation not attached to new floor")
     _test(bool(game.get("t4_floor_busy"))==false,"Transition never unlocked player")
@@ -91,20 +91,20 @@ func _run() -> void:
     hero.position=Vector3(0.0,0.0,0.0)
     game.call("_place_cam",true)
     await _shot(game,dir+"/03_new_gamehall_centre.png")
-    for i in 18:
-        await process_frame
+    for frame_id in 24:
+        await _shot(game,dir+"/motion_%02d.png" % frame_id)
     await _shot(game,dir+"/04_new_gamehall_motion.png")
     var phi: float=float(materials["left_slot_machine"].get_shader_parameter("cycle"))
     _test(phi>0.1,"Motion is not running in new floor gameplay")
     hero.position=Vector3(23.7,0.0,0.0)
     _test(await _wait_state(game,0),"Returning east did not restore original map")
     _test(game.get("level")!=new_level,"Original MAP was not freshly rebuilt")
-    _test(absf(hero.position.x-(-22.5))<0.1 and hero.face==1,"Return position or direction incorrect")
+    _test(absf(hero.position.x-(-22.5))<0.1 and int(hero.get("face"))==1,"Return position or direction incorrect")
     _test(game.get("t4_floor_materials").is_empty(),"New floor animation left running in original MAP")
     game.call("_place_cam",true)
     await _shot(game,dir+"/05_return_original.png")
     if failures.is_empty():
-        print("T4_FLOOR_ROUTE_PASS west_to_new_loading=true east_to_original=true distinct_level=true animated_parts=6 base_copied=true D2=true screenshots=5")
+        print("T4_FLOOR_ROUTE_PASS west_to_new_loading=true east_to_original=true distinct_level=true animated_parts=6 base_copied=true D2=true screenshots=29")
         quit(0)
     else:
         for f in failures:
