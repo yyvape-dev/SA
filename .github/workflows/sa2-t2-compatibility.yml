@@ -24,6 +24,14 @@ jobs:
         run: |
           set -o pipefail
           /tmp/godot --headless --path sequel --editor --import --quit 2>&1 | tee /tmp/t2-import.log
+      - name: Delivered facility art placement and fallback
+        run: |
+          set -euo pipefail
+          for id in 06_08 11_15; do
+            /tmp/godot --headless --path sequel --fixed-fps 60 --script res://tests/sa2_facility_${id}_test.gd 2>&1 | tee /tmp/facility-${id}.log
+            grep -q 'FACILITY_RESULT: PASS failures=0' /tmp/facility-${id}.log
+            if grep -E 'SCRIPT ERROR|ERROR:|FACILITY_FAIL' /tmp/facility-${id}.log; then exit 1; fi
+          done
       - name: Run inherited T1 state contract in sequel
         run: |
           set -o pipefail
@@ -101,6 +109,7 @@ jobs:
           name: sa2-t2-compatibility-logs
           path: |
             /tmp/t2-import.log
+            /tmp/facility-*.log
             /tmp/t2-dialogue.log
             /tmp/t2-flow.log
             /tmp/t2-lily.log

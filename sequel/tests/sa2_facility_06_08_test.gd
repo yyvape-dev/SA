@@ -52,7 +52,7 @@ func _run() -> void:
             check(q.material_override.albedo_texture.get_size() == Vector2(c[4]), c[0] + " keeps native resolution")
         check(node.get_child_count() == 4, c[0] + " replaces primitive facade/shack, keeps body and upper wall")
     check(painted(scene.piece_nodes["w3_vision"]).size() > 0, "existing vision artwork retained")
-    check(scene.piece_nodes["n3_brothel"].get_child_count() > 4, "undelivered inn retains placeholder")
+    check(painted(scene.piece_nodes["n3_brothel"]).size() > 0, "delivered inn artwork retained")
     check(not scene.bt_marks.any(func(m): return m[0] == "slot" and m[1] == "neon_liquor_tavern"), "painted tavern sign is not covered by a placeholder panel")
     check(not scene.bt_hang_rects.any(func(r): return str(r[0]).ends_with("@rail_cabaret")), "painted cabaret is not covered by placeholder cloth blocks")
     # Exercise the existing missing-resource path without deleting a delivered file.

@@ -7,7 +7,7 @@
 
 地区に絵を足したら DISTRICTS に書く（例：新しい地区 d2 の絵を art/d2/ に置くなら "d2": {"res": ["art/d2/*.png"], ...}）。
 """
-import os, re, glob, json, struct, subprocess, datetime
+import os, re, glob, json, struct, subprocess, datetime, shutil
 
 # 使う Godot と出力先（既定：godot と web/）。例：GODOT_BIN=godot47 WEB_OUT=web47 python3 -I sequel/tools/export_web.py
 GODOT = os.environ.get('GODOT_BIN', 'godot')
@@ -15,6 +15,7 @@ OUT = os.environ.get('WEB_OUT', 'web')
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DISTRICTS = {
+    "bt1": {"res": ["art/painted_bt/*.png"], "files": []},  # 裏町：入場時だけ読む。原寸のまま。
     "d1": {"res": ["art/painted/*.png", "assets/ground/*.png"],   # 歓楽街：塗った部品・遠景・地面
            "files": ["assets/ground/glints.json"]},                # 映り込みの元（json は include_filter で入れる）
     "dg1": {"res": ["assets/foe/gen_g1.webp", "assets/foe/foeduel_g1_*.webp"],   # ダンジョンのボス（仮置きの敵将 g1）。入るときに読む
@@ -56,6 +57,7 @@ def preset_block(idx, name, files, include, export_path, options):
 def main():
     os.chdir(ROOT)
     head = subprocess.run(['git', 'rev-parse', '--short', 'HEAD'], capture_output=True, text=True).stdout.strip()
+    head = os.environ.get('WEB_SOURCE_REF', head)  # non-gitのmain検証スナップショット用の由来識別子
     eng = subprocess.run([GODOT, '--version'], capture_output=True, text=True).stdout.strip().split('.stable')[0]
     # 版の番号＝時刻－commit－Godot の版（Godot の版が違う本体と地区 pck は混ぜない）
     ver = '%s-%s-g%s' % (datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%d%H%M%S'), head, eng)
@@ -80,14 +82,25 @@ def main():
     blocks = [re.sub(r'html/head_include="[^\n]*"', lambda m: 'html/head_include="%s"' % base_head, b) for b in blocks]
     open('export_presets.cfg', 'w', encoding='utf-8').write('\n'.join(blocks))
     # 書き出し
-    run = lambda *a: subprocess.run(['timeout', '600', GODOT, '--headless', '--path', '.', *a], capture_output=True, text=True)
+    run = lambda *a: subprocess.run(['timeout', '600', GODOT, '--headless', '--path', '.', *a], capture_output=True, text=True, check=True)
     run('--import')
     os.makedirs(OUT, exist_ok=True)
     if not os.path.exists(OUT + '/.gdignore'):
         open(OUT + '/.gdignore', 'w').close()
-    run('--export-release', 'Web', OUT + '/index.html')
+    if os.environ.get('WEB_PACK_ONLY') == '1':
+        # 同じ4.7.2の既存Webランタイムを再利用する検証用。新しいengineは生成しない。
+        if os.path.realpath(OUT) == os.path.realpath('web'):
+            raise ValueError('WEB_PACK_ONLY requires a separate WEB_OUT directory')
+        for source in glob.glob('web/index.*'):
+            if not source.endswith('.pck'):
+                shutil.copy2(source, os.path.join(OUT, os.path.basename(source)))
+        run('--export-pack', 'Web', OUT + '/index.pck')
+    else:
+        run('--export-release', 'Web', OUT + '/index.html')
     # 本体の pck にも版の番号を付けて取りに行く（ブラウザに古い index.pck が残り、新しい版が動かないのを防ぐ）
     h = open(OUT + '/index.html', encoding='utf-8').read()
+    h = re.sub(r'"mainPack":"[^"]*",?', '', h)
+    h = re.sub(r'"fileSizes":\{[^}]*\}', '"fileSizes":' + json.dumps({"index.pck": os.path.getsize(OUT + '/index.pck'), "index.wasm": os.path.getsize(OUT + '/index.wasm')}), h)
     h = h.replace('"executable":"index",', '"executable":"index","mainPack":"index.pck?v=%s",' % ver, 1)
     assert 'mainPack' in h, 'index.html の GODOT_CONFIG を書き換えられない'
     open(OUT + '/index.html', 'w', encoding='utf-8').write(h)
@@ -105,6 +118,8 @@ def main():
         need = ['districts/%s_ver.json' % d] + spec["files"] + [f + '.import' for g in spec["res"] for f in glob.glob(g)]
         miss = [n for n in need if n not in names and 'res://' + n not in names]
         print('地区 %s.pck %.1fMB（%d ファイル）、足りない物: %s' % (d, os.path.getsize(OUT + '/districts/%s.pck' % d) / 1e6, len(fs), miss or 'なし'))
+        if miss:
+            raise RuntimeError('district asset pack is incomplete: ' + str(miss))
 
 
 if __name__ == '__main__':

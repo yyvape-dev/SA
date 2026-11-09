@@ -116,6 +116,9 @@ func _ready() -> void:
 	if _q("town=back"):
 		town = "back"
 	if town == "back":
+		if not await district.ensure("bt1"):
+			loading.error_text = district.last_error
+			return
 		build_backtown()
 	else:
 		build_city()
@@ -1846,8 +1849,8 @@ func _bt_extras(st: Node3D) -> void:
 		bt_hang_rects.append(["sbar_roof:" + sb.id, x - hw - 0.15, 2.28, x + hw + 0.15, 2.55, z + 0.25])
 		bt_lights.append(["stall", x, 2.0, z, sw * 0.6])
 	for c in BT.CLOTHS:   # 吊り布（24章：手すりに掛けるか綱から。下の端に切れ込み＝短い布 2 枚）
-		if c[4] == "rail_cabaret" and _bt_art("w_cabaret") != null:
-			continue   # 08の納品画に装飾を焼き込み済み。仮の色面を重ねない。
+		if (c[4] == "rail_cabaret" and _bt_art("w_cabaret") != null) or (c[4] == "rail_brothel" and _bt_art("w_brothel") != null) or (c[4] == "rail_shady" and _bt_art("w_shady") != null):
+			continue   # 納品画に装飾を焼き込み済み。仮の色面を重ねない。
 		var ay: Array = _bt_anchor(c[4])
 		var top: float = ay[0]
 		var cz: float = ay[1] + 0.05
@@ -1887,8 +1890,8 @@ func _bt_extras(st: Node3D) -> void:
 		hub.rotation.x = PI * 0.5
 		bt_marks.append(["gear", "gear_wheel", gp])
 	for ns in BT.NEON_SLOTS:   # 光るネオンの置き場所（枠だけ。光らせない＝看板の数に入れない）
-		if ns[0] == "neon_liquor_tavern" and _bt_art("w_bar") != null:
-			continue   # 06の納品画に看板が含まれる。未読込時だけ仮パネルを残す。
+		if (ns[0] == "neon_liquor_tavern" and _bt_art("w_bar") != null) or (ns[0] == "neon_woman_brothel" and _bt_art("w_brothel") != null):
+			continue   # 納品画に看板が含まれる。未読込時だけ仮パネルを残す。
 		var x0: float = ns[1]
 		var y0: float = ns[2]
 		var x1: float = ns[3]
