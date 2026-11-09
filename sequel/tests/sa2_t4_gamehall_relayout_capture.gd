@@ -3,9 +3,9 @@ extends SceneTree
 ## This captures real Godot viewport PNGs. The new arcade is flat-color
 ## 3D geometry, NOT the approved painted casino artwork and NOT a final guide.
 const BT = preload("res://scripts/backtown_block.gd")
-const CUT_X := 5.2
+const HALL_X0 := 7.0
 const INSERT_W := 7.0
-const HALL_CX := 8.7
+const HALL_CX := 10.5
 const HALL_H := 4.17
 const ENTRANCE_W := 5.04
 var failures: Array[String] = []
@@ -31,11 +31,11 @@ func _layout_check() -> void:
 	var cabaret_overlap := maxf(0.0, minf(old_hall_right, 5.2) - maxf(old_hall_left, -2.0))
 	var brothel_overlap := maxf(0.0, minf(old_hall_right, 14.2) - maxf(old_hall_left, 7.0))
 	_check(absf(cabaret_overlap - 4.4) < 0.001 and absf(brothel_overlap - 0.8) < 0.001, "Old-slot intersection math")
-	_check(absf(HALL_CX - INSERT_W * 0.5 - 5.2) < 0.001, "Casino does not start at cabaret edge")
-	_check(absf(HALL_CX + INSERT_W * 0.5 - (CUT_X + INSERT_W)) < 0.001, "Casino/filler inserted span")
+	_check(absf(HALL_CX - INSERT_W * 0.5 - HALL_X0) < 0.001, "Casino does not start at old inn edge")
+	_check(absf(HALL_CX + INSERT_W * 0.5 - 14.0) < 0.001, "Casino exceeds inn footprint")
 	print("T4_COORDS original arcade expansion overlaps: cabaret %.2fm, brothel %.2fm" % [cabaret_overlap, brothel_overlap])
-	print("T4_COORDS proposed casino x=5.20..12.20m; brothel shifts 7.00..14.20 -> 14.00..21.20; alley_gate 16.00..18.20 -> 23.00..25.20; shady 18.80..25.00 -> 25.80..32.00")
-	print("T4_COORDS prototype-only right-hand area extends beyond x30 floor and original x24 walk boundary; full street route NOT TESTED")
+	print("T4_COORDS replacement casino x=7.00..14.00m; former inn 7.00..14.20 removed; alley_gate 16.00..18.20, shady 18.80..25.00 UNCHANGED")
+	print("T4_COORDS walk belt -2..2, original street bounds and floor UNCHANGED")
 
 func _material(hex: String) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
@@ -55,17 +55,32 @@ func _block(parent: Node3D, at: Vector3, size: Vector3, hex: String, label: Stri
 	parent.add_child(n)
 	return n
 
-func _shift_render_nodes(node: Node) -> int:
-	var moved := 0
-	if node is GeometryInstance3D:
-		var g: GeometryInstance3D = node
-		# Do not translate floor, distant backdrop or the whole level.
-		if g.global_position.x >= CUT_X and g.global_position.x < 35.0:
-			g.global_position += Vector3(INSERT_W, 0, 0)
-			return 1
-	for ch in node.get_children():
-		moved += _shift_render_nodes(ch)
-	return moved
+func _remove_former_inn(game: Node3D, level: Node3D) -> int:
+	var hidden := 0
+	var nodes: Dictionary = game.get("piece_nodes")
+	var inn: Node3D = nodes.get("n3_brothel")
+	_check(inn != null, "Former inn segment missing")
+	if inn != null:
+		inn.visible = false
+		hidden += 1
+	# The inn NPCs, balcony roof ornaments and sign/crowd extras are
+	# independent children of the old segment, so remove only the original
+	# inn frontage area. Do not relocate the rest of the street.
+	var queue: Array[Node] = [level]
+	while not queue.is_empty():
+		var node: Node = queue.pop_back()
+		if node == inn:
+			continue
+		for child in node.get_children():
+			queue.push_back(child)
+		if node is GeometryInstance3D:
+			var gi: GeometryInstance3D = node
+			var p := gi.global_position
+			# Exclude floor, road, distant stage, and the foreground at z=+3.5.
+			if p.x >= 7.0 and p.x <= 14.2 and p.z <= -4.0 and p.z >= -7.5:
+				gi.visible = false
+				hidden += 1
+	return hidden
 
 func _add_gamehall(game: Node3D, parent: Node3D) -> void:
 	var hall := Node3D.new()
@@ -83,14 +98,14 @@ func _add_gamehall(game: Node3D, parent: Node3D) -> void:
 	_block(hall, Vector3(HALL_CX, 3.86, -6.25), Vector3(INSERT_W - 0.4, 0.11, 0.2), "ce9750", "upper_trim")
 	for px in [HALL_CX - 3.05, HALL_CX + 3.05]:
 		_block(hall, Vector3(px, 1.43, -6.23), Vector3(0.18, 2.85, 0.27), "d1a34b", "gold_jamb")
-	for px in [6.75, 10.68]:
+	for px in [8.4, 12.4]:
 		for depth in [-7.25, -8.32]:
 			_block(hall, Vector3(px, 0.88, depth), Vector3(0.66, 1.65, 0.30), "7b3b73", "slot_machine")
 			_block(hall, Vector3(px, 1.14, depth + 0.18), Vector3(0.46, 0.56, 0.07), "be57d8", "machine_display")
-	for px in [8.0, 9.40]:
+	for px in [9.7, 11.3]:
 		_block(hall, Vector3(px, 0.52, -7.60), Vector3(1.08, 0.12, 0.8), "bf8536", "game_table")
 		_block(hall, Vector3(px, 0.23, -7.6), Vector3(0.15, 0.45, 0.15), "8c552d", "table_foot")
-	for actor in [[7.4, -8.8, 2], [8.2, -8.6, 3], [9.5, -8.9, 5], [10.25, -7.95, 7]]:
+	for actor in [[8.8, -8.8, 2], [9.6, -8.6, 3], [11.0, -8.9, 5], [12.0, -7.95, 7]]:
 		game.call("_bt_npc", hall, actor[0], actor[1], actor[2])
 	_block(hall, Vector3(HALL_CX, 2.73, -8.0), Vector3(2.15, 0.12, 0.6), "f1b452", "ceiling_light")
 	print("T4_PROXY geometry hall=7.00m, height=4.17m, entrance=5.04m; interior depth=2.8m; 4 in-engine NPC sprites; not painted output")
@@ -155,30 +170,29 @@ func _run() -> void:
 	game.call("_place_cam", true)
 	var output := ProjectSettings.globalize_path("res://captures/t4-gamehall")
 	DirAccess.make_dir_recursive_absolute(output)
-	await _save(game, output + "/before_d2_x8p7.png")
+	await _save(game, output + "/before_d2_x10p5.png")
 	var source_nodes: Dictionary = game.get("piece_nodes")
 	var stall_container: Node3D = source_nodes.get("stalls")
 	var old_game_stall: Node3D = stall_container.get_node_or_null("stall_game") if stall_container != null else null
 	_check(old_game_stall != null, "Cannot locate existing stall_game proxy for removal")
 	if old_game_stall != null:
 		old_game_stall.visible = false
-	var shifted := _shift_render_nodes(level)
-	_check(shifted > 30, "Right-side street objects were not translated")
+	var removed := _remove_former_inn(game, level)
+	_check(removed > 1, "Former inn not removed")
 	_add_gamehall(game, level)
-	# Preview-only camera bound for the extended 7m section.
-	game.set("cam_x", Vector2(-19.08, 26.08))
+	# Preserve ORIGINAL camera bounds; no 7m city extension.
 	player.position = Vector3(HALL_CX, 0, 0)
 	game.call("_place_cam", true)
 	var roof_px: Vector2 = camera.unproject_position(Vector3(HALL_CX, HALL_H, -6.51))
 	var vp_h: float = game.get_viewport().get_visible_rect().size.y
 	print("T4_ROOF_TOP projected_y=%.2fpx ratio=%.4f viewport_height=%.0f (negative means cropped)" % [roof_px.y, roof_px.y / vp_h, vp_h])
-	await _save(game, output + "/after_d2_x8p7.png")
-	player.position = Vector3(15.0, 0, 0)
+	await _save(game, output + "/after_d2_x10p5.png")
+	player.position = Vector3(16.0, 0, 0)
 	game.call("_place_cam", true)
-	await _save(game, output + "/after_d2_x15p0.png")
-	print("T4_SHIFT_COUNT %d" % shifted)
+	await _save(game, output + "/after_d2_x16p0.png")
+	print("T4_INN_HIDDEN_GEOMETRIES %d" % removed)
 	if failures.is_empty():
-		print("T4_GODOT_PREVIEW_PASS captures=3 (actual Godot viewport, proxy materials only)")
+		print("T4_GODOT_PREVIEW_PASS captures=3 (actual Godot viewport, former inn replaced, proxy materials only)")
 		quit(0)
 	else:
 		quit(1)
