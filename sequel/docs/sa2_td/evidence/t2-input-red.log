@@ -1,0 +1,6 @@
+T2_AFTER_INPUT {"attacks":1,"combat_active":true,"dialogue_active":false,"dialogue_next":[1403.5,654],"dirty":false,"dodges":0,"elapsed_ms":19020,"fps":3,"frames":51,"guide_json":true,"mean_ms":125.816993464052,"p95_ms":145.8,"persistent":true,"player_x":0,"probe":{"schema":1,"token":"1794198276.544"},"scene_ready":true,"sha":"0e3d42bfb513cf7853a15195a93c00975269f693","spot":"t2","user_dir":"/userfs/SA2-TD-Mobile-Spots","viewport":"(1558.0, 720.0)"}
+page.waitForFunction: Timeout 15000ms exceeded.
+    at /workspace/sa2-t3-implementation/sequel/tests/td_browser_smoke.cjs:39:15 {
+  log: [],
+  name: 'TimeoutError'
+}

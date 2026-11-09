@@ -45,6 +45,8 @@ python sequel/tools/serve_td_web.py /absolute/path/outside/source --port 8765
 
 ## 公開配布の提案・未実施範囲
 
-既存Pagesは`https://yyvape-dev.github.io/SA/`、main/rootを公開中（読取り確認）。これをTDで変更しない。候補は別の公開テストrepository `SA2-TD` を新設し、そのActions/Pagesから版別静的ファイルを配信する。料金・独自ドメイン・アカウント認証の新規導入なしを前提にするが、アカウント上のrepo/Pages新設と公開になるためユーザー確認後に行う。約141MiBをGitへ直入れせず、Web artifactの配布方式とPages上限を公式手順で再確認してから公開する。公開URLができるまでは「iPhoneからアクセス可能」と報告しない。
+既存Pagesは`https://yyvape-dev.github.io/SA/`、main/rootを公開中（読取り確認）。これをTDで変更しない。候補は別の公開テストrepository `SA2-TD` を新設し、そのActions/Pagesから版別静的ファイルを配信する。料金・独自ドメイン・アカウント認証の新規導入なしを前提にするが、アカウント上のrepo/Pages新設と公開になるためユーザー確認後に行う。約141MiBをGitへ直入れせず、Web artifactの配布方式とPages上限を公式手順で確認してから公開する。公開サイト1GB上限は[公式資料](https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits)で確認済みで、約141MiBの候補は容量内。実際のデプロイ・到達確認は公開承認後に行う。公開URLができるまでは「iPhoneからアクセス可能」と報告しない。
 
 [独立レビュー](independent-review.md)は修正前評価。author修正/テストは[検証報告](verification.md)に分ける。ホスティング、実iPhone/Android操作、長時間運転、端末性能、T3最終独立再レビューは別の未完項目。これはTD初期準備でありT7最終合格ではない。
+
+候補903b0b9の[検証報告](verification.md)、[実ブラウザJSON](evidence/browser-results-903b0b9.json)、[実画面PNG](media/)、[Web manifest](evidence/web-manifest.json)、[新規CI PASS](https://github.com/yyvape-dev/SA/actions/runs/42562340575)。公開到達可能性・iPhone実操作は引き続き未実施。
