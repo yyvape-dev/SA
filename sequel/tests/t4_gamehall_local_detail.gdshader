@@ -19,13 +19,16 @@ void fragment() {
     float inside = in_x * in_y;
 
     if (motion_kind == 1) {
-        // Only illuminated reel symbols scroll; antique-gold housing is immutable.
+        // Keep every reel-symbol cell and cabinet fixed.  The previous wrap
+        // sampling created a visible horizontal seam; reject large UV shifts.
+        // Apply subpixel drift only inside the screen plus a traveling glint.
         float h = region.w - region.y;
-        float scroll = 0.42 * (1.0 - cos(cycle));
-        vec2 moved_uv = vec2(uv.x, region.y + fract((uv.y - region.y) / h + scroll) * h);
-        vec4 moved = texture(painted, moved_uv);
-        output_color = mix(original, moved, inside);
-        output_color.rgb *= 1.0 + 0.08 * inside * (0.5 + 0.5 * sin(cycle * 2.0));
+        float shift_y = 0.00040 * sin(cycle * 2.0);
+        vec4 shifted = texture(painted, vec2(uv.x, uv.y + shift_y * inside));
+        output_color = mix(original, shifted, inside * 0.75);
+        float local_y = (uv.y - region.y) / h;
+        float glint = exp(-85.0 * pow(local_y - (0.5 + 0.32 * sin(cycle)), 2.0));
+        output_color.rgb *= 1.0 + 0.13 * inside * glint;
     } else if (motion_kind == 2) {
         // Rotate ONLY the tiny wheel interior; felt/table/dealer/chairs stay put.
         vec2 center = (region.xy + region.zw) * 0.5;
