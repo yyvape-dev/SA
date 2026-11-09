@@ -1,0 +1,89 @@
+name: SA2 T4 independent gamehall floor transition
+on:
+  push:
+    branches: [test/sa2-t4-gamehall-relayout-20261109]
+    paths:
+      - sequel/scripts/t4_gamehall_floor.gd
+      - sequel/scripts/main.gd
+      - sequel/tests/sa2_t4_floor_transition_capture.gd
+      - .github/workflows/sa2-t4-floor-transition.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: sa2-t4-floor-transition
+  cancel-in-progress: true
+jobs:
+  verify_real_engine_route:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install exact accepted Godot 4.7.2
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq unzip libgl1-mesa-dri fonts-noto-cjk xvfb ffmpeg
+          GODOT_SHA=cadd3204e728a35d3f13adb7fd0d7902636b79f6b95c40c265eb73b6c35329e4
+          curl -fsSL --retry 3 -o /tmp/t4-godot.zip https://github.com/godotengine/godot-builds/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip
+          echo "$GODOT_SHA  /tmp/t4-godot.zip" | sha256sum -c -
+          unzip -q /tmp/t4-godot.zip -d /tmp
+          mv /tmp/Godot_v4.7.2-stable_linux.x86_64 /tmp/godot
+          chmod +x /tmp/godot
+          /tmp/godot --version
+      - name: Import actual sequel project and both MAP scenes
+        run: |
+          set -euo pipefail
+          /tmp/godot --headless --path sequel --editor --import --quit 2>&1 | tee /tmp/t4-floor-import.log
+          if grep -E 'SCRIPT ERROR|Parse Error' /tmp/t4-floor-import.log; then exit 1; fi
+      - name: Drive actual playable west and east MAP transitions in Godot D2
+        env:
+          TOWN: back
+          CAMV: D2
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: |
+          set -euo pipefail
+          mkdir -p sequel/captures/t4-gamehall-floor
+          timeout 180s xvfb-run -a -s '-screen 0 1688x780x24' /tmp/godot \
+            --path sequel --rendering-driver opengl3 --audio-driver Dummy \
+            --windowed --resolution 1688x780 --fixed-fps 60 \
+            --script res://tests/sa2_t4_floor_transition_capture.gd 2>&1 | tee /tmp/t4-floor-test.log
+          grep -q 'T4_FLOOR_ROUTE_PASS' /tmp/t4-floor-test.log
+          grep -q 'T4_NEW_FLOOR_BUILT' /tmp/t4-floor-test.log
+          if grep -E 'SCRIPT ERROR|Parse Error|T4_FLOOR_FAIL|T4_NEW_MAP_FAIL|T4_FLOOR_CHANGE_FAIL' /tmp/t4-floor-test.log; then exit 1; fi
+          test "$(find sequel/captures/t4-gamehall-floor -maxdepth 1 -name 'motion_*.png' | wc -l)" -eq 24
+          for shot in 01_existing_backtown_west 02_loading_visible 03_new_gamehall_centre 04_new_gamehall_motion 05_return_original; do
+            test -s sequel/captures/t4-gamehall-floor/$shot.png
+          done
+      - name: Encode actual Godot frames as MP4 and inline GIF
+        run: |
+          set -euo pipefail
+          cd sequel/captures/t4-gamehall-floor
+          ffmpeg -hide_banner -loglevel error -y -framerate 12 -i motion_%02d.png \
+             -c:v libx264 -pix_fmt yuv420p -movflags +faststart t4_gamehall_new_map_motion.mp4
+          ffmpeg -hide_banner -loglevel error -y -framerate 12 -i motion_%02d.png \
+             -vf 'fps=12,scale=844:-2:flags=lanczos' t4_gamehall_new_map_motion.gif
+          test -s t4_gamehall_new_map_motion.mp4
+          test -s t4_gamehall_new_map_motion.gif
+          ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height,nb_frames \
+             -of default=noprint_wrappers=1 t4_gamehall_new_map_motion.mp4
+          sha256sum *.png *.mp4 *.gif > verified_sha256.txt
+      - name: Upload artifacts even if engine testing fails
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: t4-new-floor-godot-472-route
+          path: |
+            sequel/captures/t4-gamehall-floor/*
+            /tmp/t4-floor-import.log
+            /tmp/t4-floor-test.log
+          if-no-files-found: warn
+      - name: Persist real engine proof on T4 branch only
+        if: success()
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -f sequel/captures/t4-gamehall-floor
+          git commit -m "test(t4): preserve actual left-linked casino MAP and motion captures [skip ci]"
+          git push origin HEAD:test/sa2-t4-gamehall-relayout-20261109
