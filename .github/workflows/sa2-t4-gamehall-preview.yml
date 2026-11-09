@@ -40,9 +40,9 @@ jobs:
           timeout 180s xvfb-run -a -s '-screen 0 1688x780x24' /tmp/godot --path sequel --rendering-driver opengl3 --audio-driver Dummy --windowed --resolution 1688x780 --fixed-fps 60 --script res://tests/sa2_t4_gamehall_relayout_capture.gd 2>&1 | tee /tmp/t4-preview.log
           grep -q 'T4_GODOT_PREVIEW_PASS captures=3' /tmp/t4-preview.log
           if grep -E 'SCRIPT ERROR|Parse Error|T4_GODOT_PREVIEW_FAIL' /tmp/t4-preview.log; then exit 1; fi
-          test -s sequel/captures/t4-gamehall/before_d2_x8p7.png
-          test -s sequel/captures/t4-gamehall/after_d2_x8p7.png
-          test -s sequel/captures/t4-gamehall/after_d2_x15p0.png
+          test -s sequel/captures/t4-gamehall/before_d2_x10p5.png
+          test -s sequel/captures/t4-gamehall/after_d2_x10p5.png
+          test -s sequel/captures/t4-gamehall/after_d2_x16p0.png
           file sequel/captures/t4-gamehall/*.png
           sha256sum sequel/captures/t4-gamehall/*.png
       - name: Produce deterministic physical-size guide (not finished art)
