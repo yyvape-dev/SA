@@ -33,7 +33,7 @@ func _capture(game: Node3D, output: String) -> void:
 
 func _run() -> void:
     for filename in ART_IDS + ["background_clean"]:
-        var p := ART_FOLDER + filename + ".png"
+        var p: String = ART_FOLDER + str(filename) + ".png"
         _check(ResourceLoader.exists(p), "T4 generated source-pixel texture missing: " + p)
         if ResourceLoader.exists(p):
             var texture: Texture2D = load(p)
