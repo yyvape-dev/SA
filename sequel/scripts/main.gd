@@ -9,8 +9,6 @@ const BT := preload("res://scripts/backtown_block.gd")
 const T4GamehallFloor := preload("res://scripts/t4_gamehall_floor.gd")
 var t4_floor_state := 0  # 0=existing backtown, 1=independent left-linked 16m gamehall floor
 var t4_floor_busy := false
-var t4_floor_materials: Dictionary = {}
-var t4_floor_clock := 0.0
 var town := ""   # "back"＝裏の町の入り口の下絵（specs/backtown_blockout.md。環境変数 TOWN=back、Web は ?town=back）
 const Player := preload("res://scripts/player.gd")
 const TouchUI := preload("res://scripts/touch_ui.gd")
@@ -118,9 +116,13 @@ func _ready() -> void:
 	else:
 		progress.load_save()
 	town = OS.get_environment("TOWN")
-	if _q("town=back"):
+	if _q("town=back") or _q("at=gamehall"):
 		town = "back"
 	if town == "back":
+		if OS.has_feature("web") and not await district.ensure("t4"):
+			loading.error_text = district.last_error
+			push_error("T4 district pack could not be loaded")
+			return
 		build_backtown()
 	else:
 		build_city()
@@ -209,6 +211,11 @@ func _ready() -> void:
 		# 確認用：?at=gate で入口の前から始める
 		if str(JavaScriptBridge.eval("window.location.search")).contains("at=gate"):
 			player.position = Vector3(GATE_X - 0.5, 0, BELT_Z.x + 1.6)
+			_place_cam(true)
+	if _q("at=gamehall"):
+		await _t4_change_floor(true)
+		if t4_floor_state == 1:
+			player.position.x = 0.0
 			_place_cam(true)
 	if OS.has_environment("DISTRICT_RELEASE_TEST"):
 		_release_test.call_deferred()
@@ -339,14 +346,11 @@ func _t4_change_floor(enter_gamehall: bool) -> void:
 			player.locked = false
 			t4_floor_busy = false
 			return
-		t4_floor_materials = assembled["materials"]
-		t4_floor_clock = 0.0
 		t4_floor_state = 1
 		player.position = Vector3(21.5,0.0,0.0)
 		player.face = -1
 	else:
 		build_backtown()
-		t4_floor_materials.clear()
 		t4_floor_state = 0
 		player.position = Vector3(BT.ROOM_X.x+1.5,0.0,0.0)
 		player.face = 1
@@ -362,22 +366,11 @@ func _t4_change_floor(enter_gamehall: bool) -> void:
 		"gamehall" if t4_floor_state == 1 else "backtown",
 		player.position.x,str(player.room_x)])
 
-func _t4_animate_floor(delta: float) -> void:
-	if t4_floor_state != 1 or t4_floor_busy:
-		return
-	t4_floor_clock = fmod(t4_floor_clock + delta,2.0)
-	var phase: float = TAU*t4_floor_clock/2.0
-	for key in t4_floor_materials:
-		var mat: ShaderMaterial = t4_floor_materials[key]
-		if is_instance_valid(mat):
-			mat.set_shader_parameter("cycle",phase+(0.48 if key=="right_slot_machine" else 0.0))
-
 func _process(delta: float) -> void:
 	if player == null:
 		return   # 地区の読み込み中
 	_place_cam(false, delta)
 	_t4_check_edge()
-	_t4_animate_floor(delta)
 	_check_gate()
 	if fx_demo >= 0.0:
 		fx_demo -= delta

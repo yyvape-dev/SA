@@ -8,29 +8,14 @@ const ROOM := Vector2(-24.0, 24.0)
 const HALL_X0 := -8.0
 const HALL_W := 16.0
 const HALL_H := 10.0
-const ART := "res://art/painted_bt/gamehall_motion/"
-const LOCAL_SHADER := preload("res://tests/t4_gamehall_local_detail.gdshader")
-const PARTS := ["left_slot_machine", "right_slot_machine", "cloaked_man", "left_woman", "right_woman", "roulette_cluster"]
-const SOURCE_W := 1488.0
-const SCALE := 3200.0 / SOURCE_W
-const TOP_CROP := 133.0
-const REGIONS := {
-    "left_slot_machine": Rect2(341,769,55,62),
-    "right_slot_machine": Rect2(1177,755,54,73),
-    "roulette_cluster": Rect2(774,845,28,15),
-    "cloaked_man": Rect2(468,782,75,148),
-    "left_woman": Rect2(394,790,60,153),
-    "right_woman": Rect2(1101,786,80,155),
-}
-
-static func _uv(rect: Rect2) -> Vector4:
-    return Vector4(
-        (rect.position.x - 48.0) / SOURCE_W,
-        (rect.position.y * SCALE - TOP_CROP) / 2000.0,
-        (rect.end.x - 48.0) / SOURCE_W,
-        (rect.end.y * SCALE - TOP_CROP) / 2000.0)
+const HallAnimation := preload("res://scripts/t4_gamehall_animation.gd")
 
 static func build(game: Node3D) -> Dictionary:
+    var animation := HallAnimation.new()
+    if not animation.setup():
+        animation.free()
+        push_error("T4_NEW_MAP_FAIL: missing animation artwork")
+        return {}
     # Reuse the exact established street/floor/lighting generation as the base.
     # This creates a different Level node and never moves the former map.
     game.call("build_backtown")
@@ -54,33 +39,14 @@ static func build(game: Node3D) -> Dictionary:
     holder.name = "GAMEHALL_16M_ART_LAYERS"
     area.add_child(holder)
     var background: MeshInstance3D = game.call("_bt_quad",holder,
-        "gamehall_motion/background_clean",HALL_X0,0.0,HALL_X0+HALL_W,HALL_H,
+        "gamehall_approved_16m_preview",HALL_X0,0.0,HALL_X0+HALL_W,HALL_H,
         -6.18,1.0) as MeshInstance3D
     if background == null:
-        push_error("T4_NEW_MAP_FAIL: clean background not available")
+        animation.free()
+        push_error("T4_NEW_MAP_FAIL: approved background not available")
         return {}
-    var mats: Dictionary = {}
-    var props: Dictionary = {}
-    for i in PARTS.size():
-        var key: String = PARTS[i]
-        var quad: MeshInstance3D = game.call("_bt_quad",holder,"gamehall_motion/"+key,
-            HALL_X0,0.0,HALL_X0+HALL_W,HALL_H,-6.165+float(i)*0.003,
-            1.0,[0.0,0.0,1.0,1.0],1) as MeshInstance3D
-        if quad == null:
-            push_error("T4_NEW_MAP_FAIL: missing layer "+key)
-            return {}
-        var material := ShaderMaterial.new()
-        material.shader = LOCAL_SHADER
-        material.render_priority = 1
-        material.set_shader_parameter("painted", load(ART+key+".png"))
-        material.set_shader_parameter("region",_uv(REGIONS[key]))
-        material.set_shader_parameter("motion_kind",
-            1 if key in ["left_slot_machine","right_slot_machine"]
-            else (2 if key=="roulette_cluster" else 3))
-        quad.material_override = material
-        quad.name = "T4_"+key
-        props[key] = quad
-        mats[key] = material
+    animation.name = "GamehallAnimation"
+    holder.add_child(animation)
     # Right edge returns to the original district. A lit floor marker is already
     # part of the project's portal vocabulary; do not add a new UI system.
     var exit_marker: Node3D = game.call("make_portal",
@@ -95,8 +61,5 @@ static func build(game: Node3D) -> Dictionary:
         battle.set("auto_spawn",false)
     if player != null:
         player.set("room_x",ROOM)
-    print("T4_NEW_FLOOR_BUILT geometry_copy=backtown new_node=%s facade_x=-8..8 width=16m height=10m hidden=%d animated=%d" %
-        [area.name,masked,mats.size()])
-    return {"materials":mats,"prop_nodes":props,"level":area,
-        "concealed":masked,"floor_right_exit":exit_marker,
-        "base_clone":"build_backtown copied on entering a separate Level"}
+    print("T4_NEW_FLOOR_BUILT width=16m height=10m hidden=%d" % masked)
+    return {"level": area}

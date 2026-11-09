@@ -14,7 +14,41 @@ GODOT = os.environ.get('GODOT_BIN', 'godot')
 OUT = os.environ.get('WEB_OUT', 'web')
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+T4_BACKTOWN = [
+    'back_alley_1.png',
+    'back_alley_2.png',
+    'banner_red.png',
+    'banner_violet.png',
+    'fg_crate.png',
+    'fg_crates.png',
+    'fg_pillar.png',
+    'fg_pillar_lamp.png',
+    'gamehall_approved_16m_preview.png',
+    'pend_cyan.png',
+    'pend_green.png',
+    'pend_violet.png',
+    'pend_warm.png',
+    'sign_rune.png',
+    'sign_sigil.png',
+    'sign_vneon.png',
+    'stall_crystal.png',
+    'stall_food.png',
+    'stall_parts.png',
+    'tex_boards.png',
+    'tex_brick.png',
+    'tex_iron.png',
+    'tex_plaster.png',
+    'vision_screen.png',
+    'w3_vision_off.png'
+]
 DISTRICTS = {
+    "t4": {
+        "res": ["art/painted_bt/" + name for name in T4_BACKTOWN] + [
+            "art/painted_bt/gamehall_motion/remaining_animation/motion_frames_*.png",
+            "art/painted_bt/gamehall_motion/playable/accepted_people_atlas.png",
+        ],
+        "files": ["art/painted_bt/gamehall_motion/playable/accepted_people.json"],
+    },
     "d1": {"res": ["art/painted/*.png", "assets/ground/*.png"],   # 歓楽街：塗った部品・遠景・地面
            "files": ["assets/ground/glints.json"]},                # 映り込みの元（json は include_filter で入れる）
     "dg1": {"res": ["assets/foe/gen_g1.webp", "assets/foe/foeduel_g1_*.webp"],   # ダンジョンのボス（仮置きの敵将 g1）。入るときに読む
