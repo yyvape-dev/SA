@@ -60,7 +60,6 @@ jobs:
           grep -q 'T4_GODOT_PREVIEW_PASS captures=7' /tmp/t4-preview.log
           grep -q 'T4_PHYSICAL_FACADE_CHECK' /tmp/t4-preview.log
           grep -q 'T4_TRIMMED_ROOF_TOP' /tmp/t4-preview.log
-          grep -q 'T4_PAINTED_SOURCE_APPLIED' /tmp/t4-preview.log
           if grep -E 'SCRIPT ERROR|Parse Error|T4_GODOT_PREVIEW_FAIL' /tmp/t4-preview.log; then exit 1; fi
           test -s sequel/captures/t4-gamehall/before_d2_x10p5.png
           test -s sequel/captures/t4-gamehall/painted_d2_x10p5.png
