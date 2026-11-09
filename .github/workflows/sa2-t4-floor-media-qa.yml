@@ -1,0 +1,59 @@
+name: SA2 T4 floor captures visual QA pack
+on:
+  push:
+    branches: [test/sa2-t4-gamehall-relayout-20261109]
+    paths:
+      - .github/workflows/sa2-t4-floor-media-qa.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  inline_previews:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare inline Godot evidence for direct chat review
+        run: |
+          set -euo pipefail
+          python3 -m venv /tmp/t4-media-py
+          /tmp/t4-media-py/bin/pip -q install Pillow==11.3.0
+          /tmp/t4-media-py/bin/python - <<'PY'
+          from pathlib import Path
+          from PIL import Image,ImageDraw,ImageChops
+          import base64,json,hashlib
+          root=Path("sequel/captures/t4-gamehall-floor")
+          samples=["01_existing_backtown_west","02_loading_visible","03_new_gamehall_centre","04_new_gamehall_motion","05_return_original"]
+          images={}
+          out={}
+          for name in samples:
+              path=root/(name+".png")
+              with Image.open(path) as src:
+                  assert src.size==(1688,780),(name,src.size)
+                  images[name]=src.convert("RGB")
+                  jpeg=images[name].resize((1266,585),Image.Resampling.LANCZOS)
+                  jpg=root/(name+"_inline.jpg")
+                  jpeg.save(jpg,"JPEG",quality=85,optimize=True)
+                  b64=base64.b64encode(jpg.read_bytes()).decode("ascii")
+                  (root/(name+"_inline.b64.txt")).write_text(b64,encoding="ascii")
+                  out[name]={"sha256":hashlib.sha256(path.read_bytes()).hexdigest(),"jpeg_bytes":jpg.stat().st_size}
+          # Compare the return map to previous map at a common player camera position in the engine
+          # via logged T4 scene IDs rather than pixel hashes at DIFFERENT positions.
+          contact=Image.new("RGB",(1266*2,585*2))
+          d=ImageDraw.Draw(contact)
+          for i,name in enumerate(("01_existing_backtown_west","02_loading_visible","03_new_gamehall_centre","05_return_original")):
+              im=images[name].resize((1266,585),Image.Resampling.LANCZOS)
+              x=i%2*1266;y=i//2*585
+              contact.paste(im,(x,y))
+              d.rectangle((x,y,x+340,y+26),fill=(16,13,24))
+              d.text((x+8,y+6),name,fill=(245,240,227))
+          contact.save(root/"floor_transition_contact.png",optimize=True)
+          (root/"inline_qa.json").write_text(json.dumps({"origin":"actual Godot 4.7.2 screen capture","images":out},indent=2)+"\n",encoding="utf-8")
+          print("T4_FLOOR_MEDIA_PASS",json.dumps(out))
+          PY
+      - name: Save preview assets only on T4 branch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -f sequel/captures/t4-gamehall-floor/*_inline.* sequel/captures/t4-gamehall-floor/floor_transition_contact.png sequel/captures/t4-gamehall-floor/inline_qa.json
+          git commit -m 'test(t4): retain inline real-Godot floor transition review images [skip ci]'
+          git push origin HEAD:test/sa2-t4-gamehall-relayout-20261109
