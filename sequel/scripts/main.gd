@@ -1778,21 +1778,23 @@ func _bt_tex_wall(parent: Node3D, tex_name: String, x0: float, y0: float, x1: fl
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(mi)
 
-func _bt_npc(parent: Node3D, x: float, z: float, idx: int) -> void:
-	var key: String = NPC_KEYS[idx % NPC_KEYS.size()]
+func _bt_npc(parent: Node3D, x: float, z: float, idx: int, preview_key: String = "", height_m: float = 1.72) -> void:
+	var key: String = NPC_KEYS[idx % NPC_KEYS.size()] if preview_key.is_empty() else preview_key
 	var tex: Texture2D = load("res://assets/npc/%s.webp" % key)
 	var s := Sprite3D.new()
 	s.texture = tex
-	s.pixel_size = 1.72 / float(tex.get_height())
+	s.pixel_size = height_m / float(tex.get_height())
+	if not preview_key.is_empty():
+		s.name = preview_key
 	var m := ShaderMaterial.new()
 	m.shader = SPRITE_SHADER
 	m.set_shader_parameter("tex", tex)
-	m.set_shader_parameter("tint", Color(0.42, 0.38, 0.5, 1.0))   # 背景の一部として暗く・彩度を落とす
+	m.set_shader_parameter("tint", Color(0.42, 0.38, 0.5, 1.0) if preview_key.is_empty() else Color(0.76, 0.70, 0.76, 1.0))   # 背景の一部として暗く・彩度を落とす
 	m.set_shader_parameter("bg_layer", 1.0)
 	s.material_override = m
 	s.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	s.flip_h = idx % 2 == 0
-	s.position = Vector3(x, 0.86, z)
+	s.flip_h = preview_key.is_empty() and idx % 2 == 0
+	s.position = Vector3(x, height_m * 0.5, z)
 	parent.add_child(s)
 
 ## 24章：吊るす所 → [上端の y, z]（綱は BT.ROPES、軒・手すりは BT.ANCHORS）
@@ -2124,6 +2126,11 @@ func build_backtown(with_gate: bool = true) -> void:
 	level.add_child(st)
 	piece_nodes["stalls"] = st
 	var ni := 0
+	var preview_keepers := {
+		"stall_food": ["food_vendor", 1.72],
+		"stall_crystal": ["apothecary", 1.60],
+		"stall_parts": ["prosthesis_repair", 1.80],
+	}
 	for s2 in BT.STALLS:
 		var sx: float = s2.x
 		var sw: float = s2.w
@@ -2133,7 +2140,8 @@ func build_backtown(with_gate: bool = true) -> void:
 			_bt_quad(st, s2.art, sx - sw * 0.5, sh * (1.0 - sp), sx + sw * 0.5, sh, BT.STALL_Z - 0.2, BT_ART_DIM, [0.0, 0.0, 1.0, sp])
 			_bt_quad(st, s2.art, sx - sw * 0.5, 0.0, sx + sw * 0.5, sh * (1.0 - sp), BT.STALL_Z + 0.2, BT_ART_DIM, [0.0, sp, 1.0, 1.0])
 			if s2.keeper:
-				_bt_npc(st, sx + 0.3, BT.STALL_Z, ni)
+				var keeper: Array = preview_keepers.get(s2.id, ["", 1.72]) if with_gate else ["", 1.72]
+				_bt_npc(st, sx + 0.3, BT.STALL_Z, ni, keeper[0], keeper[1])
 				ni += 1
 		else:   # 遊技の屋台（下絵）：台・歯車仕掛けの機械・光る窓・天幕。下絵の書き出しのため、屋台ごとの Node3D に入れる
 			var gn := Node3D.new()
@@ -2148,9 +2156,16 @@ func build_backtown(with_gate: bool = true) -> void:
 	# 22章：屋台風の飲み屋・吊り布・ガラス管・歯車の輪・光るネオンの置き場所。人の立ち位置（前作の町の人を仮に）
 	_bt_extras(st)
 	for pp in BT.PEOPLE:
-		_bt_npc(st, pp[0], pp[1], ni)
+		if with_gate and pp[2] == "客引きの女（戸口）":
+			_bt_npc(st, pp[0], pp[1], ni, "courtesan", 1.75)
+		elif with_gate and pp[0] == -3.6:
+			_bt_npc(st, pp[0], pp[1], ni, "drunk", 1.69)
+		else:
+			_bt_npc(st, pp[0], pp[1], ni)
 		ni += 1
 		bt_marks.append(["person", pp[2], Vector3(pp[0], 1.9, pp[1])])
+	if with_gate:
+		_bt_npc(st, -14.3, -1.2, 0, "night_worker", 1.74)
 	# 手前の物（届いた絵）
 	var fgn := Node3D.new()
 	fgn.name = "foreground"

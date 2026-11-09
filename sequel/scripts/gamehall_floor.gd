@@ -48,6 +48,7 @@ static func build(game: Node3D) -> Dictionary:
         return {}
     animation.name = "GamehallAnimation"
     holder.add_child(animation)
+    game.call("_bt_npc", holder, 5.9, -3.4, 0, "gambler", 1.83)
     # Right edge returns to the original district. A lit floor marker is already
     # part of the project's portal vocabulary; do not add a new UI system.
     var exit_marker: Node3D = game.call("make_portal",
