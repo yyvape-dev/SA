@@ -4,6 +4,7 @@ on:
     branches: [test/sa2-t4-gamehall-relayout-20261109]
     paths:
       - sequel/scripts/t4_gamehall_floor.gd
+      - sequel/tests/t4_gamehall_local_detail.gdshader
       - sequel/scripts/main.gd
       - sequel/tests/sa2_t4_floor_transition_capture.gd
       - .github/workflows/sa2-t4-floor-transition.yml
