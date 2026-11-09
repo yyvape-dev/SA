@@ -65,6 +65,11 @@ func _launch(id:String):
     scene=load(scene_path(id)).instantiate()
     if id=='t3':scene.save_path='user://sa2_td_t3_progress.json'
     add_child(scene)
+func _apply_font_tree(node:Node):
+    if node is Control:
+        node.add_theme_font_override('font',FixtureFont)
+        node.add_theme_font_override('normal_font',FixtureFont)
+    for child in node.get_children():_apply_font_tree(child)
 func _apply_dialogue_font(dialogue):
     for widget in [dialogue.speaker,dialogue.advance_button]:widget.add_theme_font_override('font',FixtureFont)
     dialogue.body.add_theme_font_override('normal_font',FixtureFont)
@@ -78,7 +83,8 @@ func _process(delta:float):
     elapsed=0.0
     panel.position=Vector2(8,8) if spot=='menu' else Vector2(maxf(8,get_viewport().get_visible_rect().size.x-520),8)
     var metrics=probe.report()
-    if not dialogue_font_applied and spot=='t2' and is_instance_valid(scene) and is_instance_valid(scene.t2_dialogue):_apply_dialogue_font(scene.t2_dialogue)
+    if not dialogue_font_applied and spot=='t2' and is_instance_valid(scene) and is_instance_valid(scene.t2_dialogue):
+        _apply_dialogue_font(scene.t2_dialogue);_apply_font_tree(scene.t2_layer)
     metrics['scene_ready']=spot in ['t0','t1']
     if is_instance_valid(scene) and spot in ['explore','t2','t3']:
         var actor=scene.get('player')

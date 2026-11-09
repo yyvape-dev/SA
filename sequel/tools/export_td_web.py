@@ -28,6 +28,10 @@ def main():
     finally:
         if old is None:meta.unlink(missing_ok=True)
         else:meta.write_bytes(old)
+    from export_web import pck_files
+    packed=dict(pck_files(str(out/'index.pck')))
+    for required in ['art/guide/guide.json','dialogues/ja/C1-06.json','events/C2-09.tres.remap','assets/td/fixture-sans.otf.import']:
+        if required not in packed:raise SystemExit('Missing runtime dependency: '+required)
     files = [{'path':p.name,'bytes':p.stat().st_size,'sha256':hashlib.sha256(p.read_bytes()).hexdigest()} for p in sorted(out.iterdir()) if p.is_file() and p.name!='manifest.json']
     (out/'manifest.json').write_text(json.dumps({'sha':sha,'dirty':dirty,'godot':version,'files':files},indent=2)+'\n')
     print('TD_WEB_EXPORT_PASS',out)
