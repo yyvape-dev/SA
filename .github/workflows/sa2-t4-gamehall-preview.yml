@@ -6,6 +6,9 @@ on:
   workflow_dispatch:
 permissions:
   contents: write
+concurrency:
+  group: sa2-t4-gamehall-preview
+  cancel-in-progress: true
 jobs:
   render_t4_gamehall:
     runs-on: ubuntu-24.04
@@ -70,6 +73,24 @@ jobs:
           test -s sequel/captures/t4-gamehall/guide_d2_x16p0.png
           file sequel/captures/t4-gamehall/*.png
           sha256sum sequel/captures/t4-gamehall/*.png
+      - name: Prepare direct-chat previews from Godot screenshots without redraw
+        run: |
+          set -euo pipefail
+          /tmp/t4-py/bin/python - <<'PY'
+          from pathlib import Path
+          from PIL import Image
+          import base64
+          folder = Path("sequel/captures/t4-gamehall")
+          for stem in ("guide_d2_x10p5", "guide_d2_x5p2", "guide_d2_x16p0", "painted_d2_x10p5"):
+              source = folder / (stem + ".png")
+              with Image.open(source) as image:
+                  assert image.size == (1688, 780), (stem, image.size)
+                  jpeg = folder / (stem + "_inline.jpg")
+                  image.convert("RGB").save(jpeg, "JPEG", quality=84, optimize=True)
+              b64_text = base64.b64encode(jpeg.read_bytes()).decode("ascii")
+              (folder / (stem + "_inline.b64.txt")).write_text(b64_text, encoding="ascii")
+              print("T4_INLINE_PROOF", stem, jpeg.stat().st_size)
+          PY
       - name: Produce deterministic physical-size guide (not finished art)
         run: |
           set -euo pipefail
@@ -83,6 +104,7 @@ jobs:
           name: sa2-t4-gamehall-real-godot-proof
           path: |
             sequel/captures/t4-gamehall/*.png
+            sequel/captures/t4-gamehall/*_inline.*
             sequel/captures/t4-gamehall/*.json
             /tmp/t4-import.log
             /tmp/t4-preview.log
@@ -100,6 +122,6 @@ jobs:
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -f sequel/captures/t4-gamehall/*.png sequel/captures/t4-gamehall/*.json sequel/art/painted_bt/gamehall_user_rgba.png sequel/art/painted_bt/gamehall_user_rgba_qa.json sequel/art/painted_bt/gamehall_user_trimmed.png sequel/art/painted_bt/gamehall_user_trimmed_qa.json sequel/art/painted_bt/gamehall_preview_guide.png
+          git add -f sequel/captures/t4-gamehall/*.png sequel/captures/t4-gamehall/*.json sequel/captures/t4-gamehall/*_inline.* sequel/art/painted_bt/gamehall_user_rgba.png sequel/art/painted_bt/gamehall_user_rgba_qa.json sequel/art/painted_bt/gamehall_user_trimmed.png sequel/art/painted_bt/gamehall_user_trimmed_qa.json sequel/art/painted_bt/gamehall_preview_guide.png
           git commit -m 'test(t4): preserve scale-correct casino guide and real D2 captures [skip ci]'
           git push origin HEAD:test/sa2-t4-gamehall-relayout-20261109
