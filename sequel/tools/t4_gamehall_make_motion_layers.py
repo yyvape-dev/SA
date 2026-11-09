@@ -37,7 +37,7 @@ def normalize(source_image: Image.Image) -> Image.Image:
     enlarged = source_image.resize((TARGET_SIZE[0], scale_height), Image.Resampling.LANCZOS)
     top = scale_height - TARGET_SIZE[1]
     assert 130 <= top <= 136, top
-    return enlarged.crop((0, top, *TARGET_SIZE))
+    return enlarged.crop((0, top, TARGET_SIZE[0], top + TARGET_SIZE[1]))
 
 def sha(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
