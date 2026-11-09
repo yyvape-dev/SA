@@ -19,16 +19,31 @@ void fragment() {
     float inside = in_x * in_y;
 
     if (motion_kind == 1) {
-        // Keep every reel-symbol cell and cabinet fixed.  The previous wrap
-        // sampling created a visible horizontal seam; reject large UV shifts.
-        // Apply subpixel drift only inside the screen plus a traveling glint.
-        float h = region.w - region.y;
-        float shift_y = 0.00040 * sin(cycle * 2.0);
-        vec4 shifted = texture(painted, vec2(uv.x, uv.y + shift_y * inside));
-        output_color = mix(original, shifted, inside * 0.75);
-        float local_y = (uv.y - region.y) / h;
-        float glint = exp(-85.0 * pow(local_y - (0.5 + 0.32 * sin(cycle)), 2.0));
-        output_color.rgb *= 1.0 + 0.13 * inside * glint;
+        // Source-registered cabinet remains stationary. Only the inset display
+        // changes: two distinct scrolling symbol columns followed by a hold.
+        // Rectangles are relative to the source-registered machine mask; this
+        // is an interim screen-space effect pending source-pixel reel isolation.
+        vec2 extent = max(region.zw - region.xy, vec2(0.00001));
+        vec2 q = (uv - region.xy) / extent;
+        float display_x = smoothstep(0.27, 0.30, q.x)
+            * (1.0 - smoothstep(0.70, 0.73, q.x));
+        float display_y = smoothstep(0.27, 0.30, q.y)
+            * (1.0 - smoothstep(0.55, 0.58, q.y));
+        float display_mask = display_x * display_y * inside;
+        float spin = clamp(cycle / 4.7, 0.0, 1.0);
+        float travel = spin * spin * (3.0 - 2.0 * spin);
+        float held = step(4.7, cycle);
+        float first_column = 1.0 - smoothstep(0.49, 0.51, q.x);
+        float offset = mix(0.0, 0.10 * (1.0 - travel), 1.0 - held);
+        float reel_y = region.y + extent.y
+            * (0.30 + mod(q.y - 0.30 + offset + first_column * 0.035, 0.28));
+        vec4 moving_symbols = texture(painted, vec2(uv.x, reel_y));
+        // Stop with exactly the original painting. No discontinuity outside the display.
+        output_color = mix(original, moving_symbols,
+            display_mask * (1.0 - held) * 0.88);
+        float jewel = exp(-90.0 * dot(q - vec2(0.5, 0.70), q - vec2(0.5, 0.70)));
+        float pulse = pow(0.5 + 0.5 * sin(cycle * 5.0), 3.0);
+        output_color.rgb += vec3(0.21, 0.08, 0.26) * jewel * pulse * inside;
     } else if (motion_kind == 2) {
         // Rotate ONLY the tiny wheel interior; felt/table/dealer/chairs stay put.
         vec2 center = (region.xy + region.zw) * 0.5;
