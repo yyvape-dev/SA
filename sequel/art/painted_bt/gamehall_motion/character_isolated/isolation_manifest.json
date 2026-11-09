@@ -1,0 +1,44 @@
+{
+  "cloaked_man": {
+    "source_box": [
+      900,
+      1565,
+      1035,
+      1935
+    ],
+    "candidate": "cloaked_man_person_candidate.png",
+    "review": "cloaked_man_review.png",
+    "alpha_pixels": 54792,
+    "original_rgb_unchanged": true,
+    "human_review": "REQUIRED",
+    "joint_rigging": "BLOCKED_UNTIL_REVIEW"
+  },
+  "left_woman": {
+    "source_box": [
+      735,
+      1565,
+      849,
+      1900
+    ],
+    "candidate": "left_woman_person_candidate.png",
+    "review": "left_woman_review.png",
+    "alpha_pixels": 18803,
+    "original_rgb_unchanged": true,
+    "human_review": "REQUIRED",
+    "joint_rigging": "BLOCKED_UNTIL_REVIEW"
+  },
+  "right_woman": {
+    "source_box": [
+      2300,
+      1565,
+      2422,
+      1910
+    ],
+    "candidate": "right_woman_person_candidate.png",
+    "review": "right_woman_review.png",
+    "alpha_pixels": 75111,
+    "original_rgb_unchanged": true,
+    "human_review": "REQUIRED",
+    "joint_rigging": "BLOCKED_UNTIL_REVIEW"
+  }
+}
