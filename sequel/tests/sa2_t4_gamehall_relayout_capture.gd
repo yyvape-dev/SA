@@ -82,7 +82,7 @@ func _remove_former_inn(game: Node3D, level: Node3D) -> int:
 				hidden += 1
 	return hidden
 
-func _add_gamehall(game: Node3D, parent: Node3D, art_name: String, expected_px: Vector2i, tag: String) -> Node3D:
+func _add_gamehall(game: Node3D, parent: Node3D, art_name: String, expected_px: Vector2i, tag: String, left_x: float = HALL_X0, facade_w: float = INSERT_W, facade_h: float = HALL_H) -> Node3D:
 	# Preview-only artwork: the canonical guide is alpha-keyed separately,
 	# and the accepted painted source is cropped losslessly, never regenerated.
 	var art_path := "res://art/painted_bt/%s.png" % art_name
@@ -95,17 +95,17 @@ func _add_gamehall(game: Node3D, parent: Node3D, art_name: String, expected_px: 
 	hall.name = "T4_GAMEHALL_" + tag
 	parent.add_child(hall)
 	var quad: MeshInstance3D = game.call("_bt_quad", hall, art_name,
-		HALL_X0, 0.0, HALL_X0 + INSERT_W, HALL_H, -6.18, 0.84) as MeshInstance3D
+		left_x, 0.0, left_x + facade_w, facade_h, -6.18, 0.84) as MeshInstance3D
 	_check(quad != null, "Failed to place T4 in Godot: " + art_name)
 	if quad != null:
 		quad.name = "casino_" + tag
 		var mesh: QuadMesh = quad.mesh as QuadMesh
 		_check(mesh != null, "T4 facade is not QuadMesh: " + art_name)
 		if mesh != null:
-			_check(absf(mesh.size.x - INSERT_W) < 0.001 and absf(mesh.size.y - HALL_H) < 0.001, "T4 physical geometry violates 7.00 x 4.17 m")
-			_check(absf(quad.position.y - HALL_H * 0.5) < 0.001, "Casino bottom is not y=0")
-			_check(absf(quad.position.x - HALL_CX) < 0.001, "Casino world x is not 7..14m")
-	print("T4_PHYSICAL_FACADE_CHECK %s art=%s px=%s width=%.3fm height=%.3fm x=[%.2f,%.2f] floor_y=0" % [tag, art_name, str(tex.get_size()), INSERT_W, HALL_H, HALL_X0, HALL_X0 + INSERT_W])
+			_check(absf(mesh.size.x - facade_w) < 0.001 and absf(mesh.size.y - facade_h) < 0.001, "T4 physical geometry mismatch for " + tag)
+			_check(absf(quad.position.y - facade_h * 0.5) < 0.001, "Casino bottom is not y=0")
+			_check(absf(quad.position.x - (left_x + facade_w * 0.5)) < 0.001, "Casino world x mismatch")
+	print("T4_PHYSICAL_FACADE_CHECK %s art=%s px=%s width=%.3fm height=%.3fm x=[%.2f,%.2f] floor_y=0" % [tag, art_name, str(tex.get_size()), facade_w, facade_h, left_x, left_x + facade_w])
 	return hall
 
 func _save(game: Node3D, path: String) -> void:
@@ -218,9 +218,40 @@ func _run() -> void:
 	player.position = Vector3(16.0, 0, 0)
 	game.call("_place_cam", true)
 	await _save(game, output + "/painted_d2_x16p0.png")
+	# Scale-study-only: restore none of the old 7m facade. Mask scenery occupying
+	# the enlarged facade footprint, without changing production street code.
+	painted.visible = false
+	var cleared := 0
+	var queue: Array[Node] = [level]
+	while not queue.is_empty():
+		var node: Node = queue.pop_back()
+		for ch in node.get_children():
+			queue.push_back(ch)
+		if node is GeometryInstance3D:
+			var gi: GeometryInstance3D = node
+			var p: Vector3 = gi.global_position
+			if p.x > 14.2 and p.x < 23.2 and p.z <= -4.0 and p.z >= -7.5:
+				gi.visible = false
+				cleared += 1
+	print("T4_SCALE_CONTEXT_CLEAR neighbor_geometry=%d, TEST ONLY" % cleared)
+	for trial_w in [14.0, 16.0]:
+		var trial_h: float = trial_w * HALL_H / INSERT_W
+		var trial_cx: float = HALL_X0 + trial_w * 0.5
+		var token: String = str(int(trial_w))
+		var trial: Node3D = _add_gamehall(game, level, "gamehall_preview_guide_tight", Vector2i(1435, 855), "SCALE_" + token + "M", HALL_X0, trial_w, trial_h)
+		if trial == null or not failures.is_empty():
+			quit(1)
+			return
+		for cam_x in [trial_cx, HALL_X0 + 2.0, HALL_X0 + trial_w - 2.0]:
+			player.position = Vector3(cam_x, 0, 0)
+			game.call("_place_cam", true)
+			var shot_name := "scale_%sm_%s" % [token, "center" if absf(cam_x - trial_cx) < 0.01 else ("left" if cam_x < trial_cx else "right")]
+			await _save(game, output + "/" + shot_name + ".png")
+		print("T4_SCALE_TRIAL_PASS width=%.2fm height=%.3fm x=%.2f..%.2f entrance_width=%.2fm camera=D2" % [trial_w, trial_h, HALL_X0, HALL_X0 + trial_w, ENTRANCE_W * trial_w / INSERT_W])
+		trial.visible = false
 	print("T4_INN_HIDDEN_GEOMETRIES %d" % removed)
 	if failures.is_empty():
-		print("T4_GODOT_PREVIEW_PASS captures=7 (actual D2 Godot, physical facade 7.00x4.17, visual acceptance pending)")
+		print("T4_GODOT_PREVIEW_PASS captures=13 (actual D2 Godot; 7m baseline and 14m/16m facade trials)")
 		quit(0)
 	else:
 		quit(1)
