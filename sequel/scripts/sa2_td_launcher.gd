@@ -83,7 +83,8 @@ func _process(delta:float):
     if is_instance_valid(scene) and spot in ['explore','t2','t3']:
         var actor=scene.get('player')
         metrics['scene_ready']=is_instance_valid(actor) and is_instance_valid(scene.get('battle'))
-        if is_instance_valid(actor):metrics['player_x']=actor.position.x
+        if is_instance_valid(actor):
+            metrics['player_x']=actor.position.x;metrics['actor_state']=actor.state
         if spot=='t2':metrics['scene_ready']=is_instance_valid(scene.get('t2_lily'))
         if spot=='t3':
             metrics['scene_ready']=scene.ready_for_event

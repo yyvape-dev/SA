@@ -17,7 +17,7 @@ const fs=require('fs');const path=require('path');
  const namespace=await page.evaluate(()=>window.__sa2TD.user_dir);if(!namespace.endsWith('/SA2-TD-Mobile-Spots'))throw Error('User save namespace not isolated: '+namespace);
  const token=await page.evaluate(()=>window.__sa2TD.probe.token);await page.reload();await page.waitForFunction(t=>window.__sa2TD?.probe.token===t,token,{timeout:120000});
  records.push({spot:'t0',storageReload:true,metrics:await page.evaluate(()=>window.__sa2TD)});
- for(const spot of ['t1','explore','t2','t3']){
+ for(const spot of (process.env.TD_SPOTS||'t1,explore,t2,t3').split(',')){
   await boot(spot);
   if(spot!=='t1')await page.waitForFunction(()=>!!window.__sa2TD?.scene_ready,null,{timeout:120000});
   await page.waitForTimeout(2500);
@@ -34,7 +34,9 @@ const fs=require('fs');const path=require('path');
    await page.waitForFunction(()=>window.__sa2TD.combat_active,null,{timeout:15000});
    const m=await page.evaluate(()=>window.__sa2TD);const v=m.viewport.match(/[\d.]+/g).map(Number);
    await page.touchscreen.tap(1155*844/v[0],564*390/v[1]);
+   await page.waitForFunction(()=>window.__sa2TD.attacks>0 && window.__sa2TD.actor_state==='move',null,{timeout:60000});
    await page.touchscreen.tap(992*844/v[0],653*390/v[1]);
+   await page.waitForTimeout(1500);console.log('T2_AFTER_INPUT',JSON.stringify(await page.evaluate(()=>window.__sa2TD)));await page.screenshot({path:path.join(output,'t2-input.png')});
    await page.waitForFunction(()=>window.__sa2TD.attacks>0 && window.__sa2TD.dodges>0,null,{timeout:15000});
   }
   if(spot==='explore'){await page.touchscreen.tap(160,250);}
