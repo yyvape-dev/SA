@@ -1,0 +1,25 @@
+{
+  "origin": "actual Godot 4.7.2 screen capture",
+  "images": {
+    "01_existing_backtown_west": {
+      "sha256": "6350b1c0c7b396571fe08cea90b9f347a10487109bef89402d8f5a407ddfd920",
+      "jpeg_bytes": 69711
+    },
+    "02_loading_visible": {
+      "sha256": "1d69c5669cc8bcf86e7543e9d9cfcaab2682b98f5c624299bf04f45b6a0aa003",
+      "jpeg_bytes": 5072
+    },
+    "03_new_gamehall_centre": {
+      "sha256": "cb99ffe8c6a93cb41b44c13b1ef8fba18e25fe6825ef63cb8abb519202477a70",
+      "jpeg_bytes": 104823
+    },
+    "04_new_gamehall_motion": {
+      "sha256": "2b72d1c28a171c828b5c182ffc36b0328b4ba20238bae09d493a5db79e2313b1",
+      "jpeg_bytes": 210046
+    },
+    "05_return_original": {
+      "sha256": "61a8596a539bcc4285db4b399ec0f45a75a99fbdd5227e2fdcbab3d056e5e9e3",
+      "jpeg_bytes": 76096
+    }
+  }
+}
