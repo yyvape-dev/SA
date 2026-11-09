@@ -16,7 +16,11 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 [application]
 
 config/name="SA2 Fusion City"
+config/name.sa2_td="SA2 TD Mobile Spots"
+config/use_custom_user_dir.sa2_td=true
+config/custom_user_dir_name.sa2_td="SA2-TD-Mobile-Spots"
 run/main_scene="res://main.tscn"
+run/main_scene.sa2_td="res://sa2_td_playable.tscn"
 run/main_scene.sa2_t3="res://sa2_t3_playable.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 
