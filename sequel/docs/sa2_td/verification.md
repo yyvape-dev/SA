@@ -40,3 +40,9 @@ GitHub CIの11efda4実行 https://github.com/yyvape-dev/SA/actions/runs/42562076
 ユーザー承認を受けてSA2-TD新設を実行したがGitHub側HTTP403（integrationのrepo作成権限なし）。公開用workflow/landing/厳密なZIP検証スクリプトをhosting/に用意し、検証済みZIPからPagesと同じ版別ディレクトリを生成した。作成権限が解消するまで公開URLの到達判定はNOT TESTED。公開準備のローカル試験とGitHub Pages自体の稼働は区別する。
 
 ローカル版別URL配下でT0保存probeの実reloadとT1会話タップ送りがPASS。evidence/hosting/browser-results.json。実公開サーバーのHTTPやiPhone実機は未実施。
+
+## 公開後の最終状態（2026-11-09 JST）
+
+公開URL https://yyvape-dev.github.io/SA2-TD/ 。repo新設とPages初回設定は所有者が完了し、公開run42564101383がPASS。公開全WebファイルをHTTP200で取得、実デプロイmanifestのbytes/SHA256と全件一致、WASM MIMEも確認。公開入口393×852の5リンク/横はみ出しなし。公開版に対してChromium/SwiftShaderで全spot、保存probe reload、T1 line1、T2 touch attacks1/dodges1、T3 touch STREETを確認しerrors0。実画面も目視。iPhone/Safari実機と端末性能はNOT TESTED。
+
+Releaseアップロードが接続401だったため、公開版はActions内で固定ソース903b0b9を公式Godot4.7.2で再ビルドした。旧ローカルZIPとのバイト一致は主張せず、公開版の実manifestと公開ファイル一致を検証した。証拠はevidence/published-*.json、公開側正本は https://github.com/yyvape-dev/SA2-TD/tree/main/evidence 。既存SA Pagesはlegacy/main/rootのまま確認済み。

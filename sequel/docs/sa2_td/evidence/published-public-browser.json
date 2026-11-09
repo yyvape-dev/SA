@@ -1,0 +1,149 @@
+[
+  {
+    "spot": "t0",
+    "storageReload": true,
+    "metrics": {
+      "dirty": false,
+      "elapsed_ms": 974,
+      "fps": 44,
+      "frames": 54,
+      "guide_json": true,
+      "mean_ms": 17.6518518518519,
+      "p95_ms": 17.9,
+      "persistent": true,
+      "probe": {
+        "schema": 1,
+        "token": "1794200057.198"
+      },
+      "scene_ready": true,
+      "sha": "903b0b9e2c9c91151d35f3802197fc127cae469a",
+      "spot": "t0",
+      "user_dir": "/userfs/SA2-TD-Mobile-Spots",
+      "viewport": "(1558.0, 720.0)"
+    }
+  },
+  {
+    "spot": "t1",
+    "loadToReadyMs": 3959,
+    "loadToSampleMs": 8112,
+    "metrics": {
+      "dialogue_line": 1,
+      "dialogue_next": [
+        1396,
+        654
+      ],
+      "dirty": false,
+      "elapsed_ms": 5039,
+      "fps": 58,
+      "frames": 277,
+      "guide_json": true,
+      "mean_ms": 17.7581227436823,
+      "p95_ms": 39,
+      "persistent": true,
+      "probe": {
+        "schema": 1,
+        "token": "1794200057.198"
+      },
+      "scene_ready": true,
+      "sha": "903b0b9e2c9c91151d35f3802197fc127cae469a",
+      "spot": "t1",
+      "user_dir": "/userfs/SA2-TD-Mobile-Spots",
+      "viewport": "(1558.0, 720.0)"
+    },
+    "errors": []
+  },
+  {
+    "spot": "explore",
+    "loadToReadyMs": 10097,
+    "loadToSampleMs": 17429,
+    "metrics": {
+      "actor_state": "move",
+      "dirty": false,
+      "elapsed_ms": 14038,
+      "fps": 2,
+      "frames": 33,
+      "guide_json": true,
+      "mean_ms": 357.384848484849,
+      "p95_ms": 741.4,
+      "persistent": true,
+      "player_x": -4,
+      "probe": {
+        "schema": 1,
+        "token": "1794200057.198"
+      },
+      "scene_ready": true,
+      "sha": "903b0b9e2c9c91151d35f3802197fc127cae469a",
+      "spot": "explore",
+      "user_dir": "/userfs/SA2-TD-Mobile-Spots",
+      "viewport": "(1558.0, 720.0)"
+    },
+    "errors": []
+  },
+  {
+    "spot": "t2",
+    "loadToReadyMs": 11087,
+    "loadToSampleMs": 32990,
+    "metrics": {
+      "actor_state": "hurt",
+      "attacks": 1,
+      "combat_active": true,
+      "dialogue_active": false,
+      "dialogue_next": [
+        1385.5,
+        654
+      ],
+      "dirty": false,
+      "dodges": 1,
+      "elapsed_ms": 28312,
+      "fps": 2,
+      "frames": 75,
+      "guide_json": true,
+      "mean_ms": 342.061333333333,
+      "p95_ms": 698.2,
+      "persistent": true,
+      "player_x": 3.53000020980835,
+      "probe": {
+        "schema": 1,
+        "token": "1794200057.198"
+      },
+      "scene_ready": true,
+      "sha": "903b0b9e2c9c91151d35f3802197fc127cae469a",
+      "spot": "t2",
+      "user_dir": "/userfs/SA2-TD-Mobile-Spots",
+      "viewport": "(1558.0, 720.0)"
+    },
+    "errors": []
+  },
+  {
+    "spot": "t3",
+    "loadToReadyMs": 9307,
+    "loadToSampleMs": 17382,
+    "metrics": {
+      "actor_state": "move",
+      "dirty": false,
+      "elapsed_ms": 13701,
+      "fps": 3,
+      "frames": 40,
+      "guide_json": true,
+      "mean_ms": 289.0325,
+      "p95_ms": 542.4,
+      "persistent": true,
+      "phase": "street",
+      "player_x": 11.1999998092651,
+      "probe": {
+        "schema": 1,
+        "token": "1794200057.198"
+      },
+      "scene_ready": true,
+      "sha": "903b0b9e2c9c91151d35f3802197fc127cae469a",
+      "spot": "t3",
+      "start_button": [
+        236,
+        231
+      ],
+      "user_dir": "/userfs/SA2-TD-Mobile-Spots",
+      "viewport": "(1558.0, 720.0)"
+    },
+    "errors": []
+  }
+]

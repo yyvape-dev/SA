@@ -1,20 +1,40 @@
-# SA2-TD hosting repository contents
+# SA2 TD — mobile test distribution
 
-This directory is prepared to become the root of **yyvape-dev/SA2-TD**, a separate public test repository. Do not install this workflow into yyvape-dev/SA. Existing SA/main and its Pages source must stay unchanged.
+**Live test URL: https://yyvape-dev.github.io/SA2-TD/**
 
-The user approved creation and GitHub Pages publication. Creation attempt on 2026-11-09 JST failed with GitHub HTTP403 `Resource not accessible by integration`; the available integration cannot create repositories. No new repository, release or Pages site has yet been created.
+Published candidate903b0b9. Public HTTP/hash validation and actual desktop Chromium touch-emulation passed for all5 spots. iPhone16/Safari remains a user-run acceptance step. See evidence/ for deployment and public verification results.
 
-After the owner creates SA2-TD and enables this GitHub connection for it:
+This public repository hosts only the SA2 mobile test landing page and deployment tooling. The source game is pinned to [yyvape-dev/SA@903b0b9](https://github.com/yyvape-dev/SA/tree/903b0b9e2c9c91151d35f3802197fc127cae469a). Existing SA/main and its Pages configuration are not modified.
 
-1. Copy these files, including `.github/workflows/pages.yml`, into the new repository. Commit its README/landing/workflow only; do not commit the 103MiB PCK into Git.
-2. Create release `web-903b0b9` in SA2-TD and upload verified `sa2-td-web-903b0b9.zip` (117458018 bytes; SHA256 `063e58453af76e3b9c26116dc19c2257db6ec81b189380d65edcc80d10315ffb`). This archive is the actual browser-verified build, not an engine rebuild.
-3. Configure only SA2-TD Pages with REST `POST /repos/yyvape-dev/SA2-TD/pages`, JSON `{"build_type":"workflow"}`; then dispatch `pages.yml`. This operation is already user-authorized. Do not modify SA's Pages configuration.
-4. Confirm deployment success, HTTP200 HTML/WASM/PCK and hashes, and actual browser T0/spot navigation from `https://yyvape-dev.github.io/SA2-TD/`. Until then that URL is a proposed address, not a live verified site.
-5. Give the URL to the user for iPhone16/Safari testing, with device-record.md. No physical-device PASS before actual results.
+First physical target: iPhone 16. iOS/Safari version is not yet known. Desktop Chromium touch-emulation tests passed; physical-device acceptance remains **NOT TESTED** until the owner plays and reports results.
 
-Official references checked:
-- https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages
-- https://docs.github.com/en/rest/pages/pages#create-a-github-pages-site
-- https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits
+## Deployment
 
-The site preparation script verifies archive size/SHA, CRC, source SHA, engine/clean state, and every Web resource hash. Deployment workflow is prepared but NOT TESTED on GitHub until the new repository is available. Public hosting is approved; a second approval is not required after the owner unblocks repository access.
+`pages.yml` is manually dispatched. It checks out the pinned public source, installs official Godot 4.7.2 and the single-thread Web template, exports the TD build, verifies manifest source/clean state and every resource hash, then uploads/deploys the Pages artifact. A published-build manifest is also retained as an Actions artifact.
+
+The landing page links to `builds/903b0b9/index.html?spot=t0/explore/t1/t2/t3`. The initial source/runtime version is immutable; later source versions must use a new directory. `tools/prepare_site.py` accepts an exported build (`--build`) or the previously verified local archive (`--zip`), and refuses incorrect source IDs and file hashes.
+
+The user has approved public hosting and created this repository. Initial Pages enablement was completed by the owner in Settings → Pages → Source: GitHub Actions. The integration receives HTTP403 when creating Pages. The official configure-pages action states that first-time enablement requires an appropriately privileged token other than the default GITHUB_TOKEN. Do not request a personal token from the user; use the owner setting instead.
+
+Local Release upload was attempted and rejected with HTTP401 at uploads.github.com. Publication therefore builds the same verified source within Actions rather than claiming byte identity with that local ZIP. Actual public files must be compared with the manifest produced by that deployment, and browser-tested after publication. No Release is required.
+
+## Validation and device checklist
+
+- [Game specification and TD evidence](https://github.com/yyvape-dev/SA/tree/feat/sa2-td-mobile-spots-20261109/sequel/docs/sa2_td)
+- [iPhone test checklist](https://github.com/yyvape-dev/SA/blob/feat/sa2-td-mobile-spots-20261109/sequel/docs/sa2_td/device-record.md)
+- [Official custom Pages workflow](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages)
+- [Official first-time enablement permission](https://github.com/actions/configure-pages/blob/v5/action.yml)
+
+The intended public address is https://yyvape-dev.github.io/SA2-TD/ . It is confirmed live by deployment42564101383, public HTTP200 and complete resource SHA256 matching, and actual browser smoke tests. No new story, rewards, finalized art, account login or automatic telemetry submission are added.
+
+## Current execution evidence (2026-11-09 JST)
+
+[First deployment run](https://github.com/yyvape-dev/SA2-TD/actions/runs/42563853224): pinned source checkout, official engine/templates, Web build and full manifest validation all **PASS**. `configure-pages` **FAIL** because this repository has not yet been enabled for Pages. Upload/deploy were skipped. Full workflow is therefore not PASS. Evidence is retained under `evidence/`.
+
+The owner selected **GitHub Actions** as Source in [SA2-TD Pages settings](https://github.com/yyvape-dev/SA2-TD/settings/pages). Publication is already authorized; after the setting is enabled, dispatch `pages.yml` again. No new approval or changes to existing SA/main are needed. Public reachability/browser/device acceptance are still NOT TESTED.
+
+## Resolved publication and verified public build
+
+[Deployment42564101383](https://github.com/yyvape-dev/SA2-TD/actions/runs/42564101383) passed after owner enablement. Public manifest source is903b0b9, clean Godot4.7.2. Every exported resource (including WASM/PCK) was fetched publicly and its size/SHA256 matched. WASM MIME is application/wasm. Landing mobile-width layout has5 links and no horizontal overflow.
+
+Public Chromium/SwiftShader smoke: T0 probe survives page reload; T1 tap advances line; explore boots; T2 actual touch attacks1/dodges1; T3 entersSTREET by real touch. No browser errors. These are desktop emulation results, **not physical iPhone/Safari or Android PASS**.

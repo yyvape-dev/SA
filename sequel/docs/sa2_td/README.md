@@ -1,5 +1,9 @@
 # TD：iPhone 16向けspotテスト準備
 
+**公開URL：https://yyvape-dev.github.io/SA2-TD/**
+
+2026-11-09 JST：所有者がSA2-TD作成・Pages有効化を完了し、[公開workflow42564101383](https://github.com/yyvape-dev/SA2-TD/actions/runs/42564101383)が成功。公開ファイル全件SHA256と公開URLの実ブラウザ全spot試験がPASS。iPhone16/Safari実機はこれからユーザーが確認する段階。後段の未公開/権限403記述は準備時の履歴で、この最新状態を優先する。
+
 承認済みv4.3 TDを実施する。初回対象はユーザー指定 **iPhone 16**。iOS版・ブラウザは未確認。Safariを第一候補とするが、iPhone/Safariで動作確認済みとはしない。
 
 ## 起動するspot

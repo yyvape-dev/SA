@@ -9,3 +9,5 @@ Task1 complete. Task2 build/browser preparation complete: candidate903b0b9 clean
 Candidate903b0b9 CI42562340575 PASS (contracts/regressions/export/artifact). Native source/Browser Web verified; public hosting and physical iPhone stage pending user confirmation. Evidence retained in GitHub, not destroyed.
 
 Hosting approved by user. POST /user/repos SA2-TD failed GitHub403 Resource not accessible by integration; no repo created, no existingSA settings altered. Prepared target-repo workflow/landing/ZIP verification and version-directory layout; exact valid ZIP preparation PASS, wrong ZIP rejected before output. Owner repo creation is the remaining prerequisite; do not ask for publication approval again.
+
+Hosting completed: owner-createdSA2-TD, owner-enabledPages; deployment42564101383 PASS. Local release upload401 -> Actions rebuilt pinned source903 (different byte manifest allowed; no false exact-ZIP claim). PublicHTTP allfiles size/SHA match, wasm MIME PASS; publicactualChromium all5spot smoke PASS. PublicURL delivered for iPhone16 testing; physical device remains NOT TESTED. ExistingSA/main/Pages unchanged.
