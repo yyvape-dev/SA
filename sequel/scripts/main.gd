@@ -1778,6 +1778,18 @@ func _bt_tex_wall(parent: Node3D, tex_name: String, x0: float, y0: float, x1: fl
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(mi)
 
+const BT_NPC_MOTION := preload("res://scripts/backtown_npc_motion.gdshader")
+# center/radii, joint, travel, rotation, period, phase offset, upper-body sway
+const BT_NPC_GESTURES := {
+	"prosthesis_repair": [Vector4(0.86, 0.18, 0.23, 0.18), Vector2(0.82, 0.31), Vector2(-0.035, -0.018), -0.12, 3.6, 0.00, 0.008],
+	"courtesan": [Vector4(0.80, 0.51, 0.32, 0.22), Vector2(0.72, 0.39), Vector2(-0.010, -0.050), -0.18, 4.2, 0.19, 0.009],
+	"gambler": [Vector4(0.23, 0.29, 0.28, 0.14), Vector2(0.33, 0.34), Vector2(0.033, 0.016), 0.13, 3.5, 0.52, 0.007],
+	"food_vendor": [Vector4(0.83, 0.31, 0.27, 0.19), Vector2(0.68, 0.37), Vector2(-0.022, -0.018), -0.19, 2.6, 0.34, 0.008],
+	"apothecary": [Vector4(0.15, 0.16, 0.23, 0.18), Vector2(0.17, 0.23), Vector2(0.022, -0.016), 0.22, 3.7, 0.12, 0.008],
+	"night_worker": [Vector4(0.78, 0.91, 0.24, 0.21), Vector2(0.70, 0.76), Vector2(0.025, -0.027), -0.13, 2.9, 0.27, 0.020],
+	"drunk": [Vector4(0.09, 0.48, 0.26, 0.19), Vector2(0.24, 0.37), Vector2(0.026, -0.034), 0.13, 3.4, 0.64, 0.040],
+}
+
 func _bt_npc(parent: Node3D, x: float, z: float, idx: int, preview_key: String = "", height_m: float = 1.72) -> void:
 	var key: String = NPC_KEYS[idx % NPC_KEYS.size()] if preview_key.is_empty() else preview_key
 	var tex: Texture2D = load("res://assets/npc/%s.webp" % key)
@@ -1787,10 +1799,21 @@ func _bt_npc(parent: Node3D, x: float, z: float, idx: int, preview_key: String =
 	if not preview_key.is_empty():
 		s.name = preview_key
 	var m := ShaderMaterial.new()
-	m.shader = SPRITE_SHADER
+	m.shader = SPRITE_SHADER if preview_key.is_empty() else BT_NPC_MOTION
 	m.set_shader_parameter("tex", tex)
 	m.set_shader_parameter("tint", Color(0.42, 0.38, 0.5, 1.0) if preview_key.is_empty() else Color(0.76, 0.70, 0.76, 1.0))   # 背景の一部として暗く・彩度を落とす
-	m.set_shader_parameter("bg_layer", 1.0)
+	if preview_key.is_empty():
+		m.set_shader_parameter("bg_layer", 1.0)
+	else:
+		var gesture: Array = BT_NPC_GESTURES[preview_key]
+		m.set_shader_parameter("region", gesture[0])
+		m.set_shader_parameter("joint", gesture[1])
+		m.set_shader_parameter("travel", gesture[2])
+		m.set_shader_parameter("turn", gesture[3])
+		m.set_shader_parameter("period", gesture[4])
+		m.set_shader_parameter("phase_offset", gesture[5])
+		m.set_shader_parameter("sway", gesture[6])
+		m.set_shader_parameter("aspect", float(tex.get_width()) / float(tex.get_height()))
 	s.material_override = m
 	s.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	s.flip_h = preview_key.is_empty() and idx % 2 == 0
@@ -2156,6 +2179,9 @@ func build_backtown(with_gate: bool = true) -> void:
 	# 22章：屋台風の飲み屋・吊り布・ガラス管・歯車の輪・光るネオンの置き場所。人の立ち位置（前作の町の人を仮に）
 	_bt_extras(st)
 	for pp in BT.PEOPLE:
+		if with_gate and pp[2] == "屋台風の飲み屋D の客":
+			ni += 1
+			continue
 		if with_gate and pp[2] == "客引きの女（戸口）":
 			_bt_npc(st, pp[0], pp[1], ni, "courtesan", 1.75)
 		elif with_gate and pp[0] == -3.6:
