@@ -1790,6 +1790,17 @@ const BT_NPC_GESTURES := {
 	"drunk": [Vector4(0.09, 0.48, 0.26, 0.19), Vector2(0.24, 0.37), Vector2(0.026, -0.034), 0.13, 3.4, 0.64, 0.040],
 }
 
+# 店内の暖色、路地の青紫、遊技場の強い照明に合わせる初期値。
+const BT_NPC_LOCAL_TINT := {
+	"food_vendor": Color(0.93, 0.76, 0.62),
+	"apothecary": Color(0.79, 0.72, 0.82),
+	"prosthesis_repair": Color(0.72, 0.65, 0.60),
+	"courtesan": Color(0.89, 0.68, 0.77),
+	"gambler": Color(0.98, 0.88, 0.76),
+	"night_worker": Color(0.60, 0.63, 0.76),
+	"drunk": Color(0.83, 0.69, 0.60),
+}
+
 func _bt_npc(parent: Node3D, x: float, z: float, idx: int, preview_key: String = "", height_m: float = 1.72) -> void:
 	var key: String = NPC_KEYS[idx % NPC_KEYS.size()] if preview_key.is_empty() else preview_key
 	var tex: Texture2D = load("res://assets/npc/%s.webp" % key)
@@ -1801,7 +1812,8 @@ func _bt_npc(parent: Node3D, x: float, z: float, idx: int, preview_key: String =
 	var m := ShaderMaterial.new()
 	m.shader = SPRITE_SHADER if preview_key.is_empty() else BT_NPC_MOTION
 	m.set_shader_parameter("tex", tex)
-	m.set_shader_parameter("tint", Color(0.42, 0.38, 0.5, 1.0) if preview_key.is_empty() else Color(0.76, 0.70, 0.76, 1.0))   # 背景の一部として暗く・彩度を落とす
+	var tint: Color = BT_NPC_LOCAL_TINT.get(preview_key, Color(0.42, 0.38, 0.5))
+	m.set_shader_parameter("tint", tint)
 	if preview_key.is_empty():
 		m.set_shader_parameter("bg_layer", 1.0)
 	else:
