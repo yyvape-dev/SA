@@ -46,6 +46,8 @@ jobs:
             --preview-out sequel/art/painted_bt/gamehall_preview_guide.png 2>&1 | tee /tmp/t4-guide.log
           grep -q 'T4_GUIDE_PREVIEW_PASS' /tmp/t4-guide.log
           test -s sequel/art/painted_bt/gamehall_preview_guide.png
+          grep -q 'T4_GUIDE_TIGHT_PASS' /tmp/t4-guide.log
+          test -s sequel/art/painted_bt/gamehall_preview_guide_tight.png
       - name: Import actual sequel project
         run: |
           set -euo pipefail
@@ -60,9 +62,11 @@ jobs:
           set -euo pipefail
           mkdir -p sequel/captures/t4-gamehall
           timeout 180s xvfb-run -a -s '-screen 0 1688x780x24' /tmp/godot --path sequel --rendering-driver opengl3 --audio-driver Dummy --windowed --resolution 1688x780 --fixed-fps 60 --script res://tests/sa2_t4_gamehall_relayout_capture.gd 2>&1 | tee /tmp/t4-preview.log
-          grep -q 'T4_GODOT_PREVIEW_PASS captures=7' /tmp/t4-preview.log
+          grep -q 'T4_GODOT_PREVIEW_PASS captures=13' /tmp/t4-preview.log
           grep -q 'T4_PHYSICAL_FACADE_CHECK' /tmp/t4-preview.log
           grep -q 'T4_TRIMMED_ROOF_TOP' /tmp/t4-preview.log
+          grep -q 'T4_SCALE_TRIAL_PASS width=14.00m' /tmp/t4-preview.log
+          grep -q 'T4_SCALE_TRIAL_PASS width=16.00m' /tmp/t4-preview.log
           if grep -E 'SCRIPT ERROR|Parse Error|T4_GODOT_PREVIEW_FAIL' /tmp/t4-preview.log; then exit 1; fi
           test -s sequel/captures/t4-gamehall/before_d2_x10p5.png
           test -s sequel/captures/t4-gamehall/painted_d2_x10p5.png
@@ -71,6 +75,11 @@ jobs:
           test -s sequel/captures/t4-gamehall/guide_d2_x10p5.png
           test -s sequel/captures/t4-gamehall/guide_d2_x5p2.png
           test -s sequel/captures/t4-gamehall/guide_d2_x16p0.png
+          for width in 14 16; do
+            for view in center left right; do
+              test -s sequel/captures/t4-gamehall/scale_${width}m_${view}.png
+            done
+          done
           file sequel/captures/t4-gamehall/*.png
           sha256sum sequel/captures/t4-gamehall/*.png
       - name: Prepare direct-chat previews from Godot screenshots without redraw
@@ -81,7 +90,7 @@ jobs:
           from PIL import Image
           import base64
           folder = Path("sequel/captures/t4-gamehall")
-          for stem in ("guide_d2_x10p5", "guide_d2_x5p2", "guide_d2_x16p0", "painted_d2_x10p5"):
+          for stem in ("scale_14m_center", "scale_14m_left", "scale_14m_right", "scale_16m_center", "scale_16m_left", "scale_16m_right"):
               source = folder / (stem + ".png")
               with Image.open(source) as image:
                   assert image.size == (1688, 780), (stem, image.size)
@@ -114,6 +123,8 @@ jobs:
             sequel/art/painted_bt/gamehall_user_trimmed.png
             sequel/art/painted_bt/gamehall_user_trimmed_qa.json
             sequel/art/painted_bt/gamehall_preview_guide.png
+            sequel/art/painted_bt/gamehall_preview_guide_tight.png
+            sequel/art/painted_bt/gamehall_preview_guide_tight.json
             /tmp/t4-guide.log
           if-no-files-found: warn
       - name: Preserve screenshot PNG binaries on the T4-only branch for inspection
@@ -122,6 +133,6 @@ jobs:
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -f sequel/captures/t4-gamehall/*.png sequel/captures/t4-gamehall/*.json sequel/captures/t4-gamehall/*_inline.* sequel/art/painted_bt/gamehall_user_rgba.png sequel/art/painted_bt/gamehall_user_rgba_qa.json sequel/art/painted_bt/gamehall_user_trimmed.png sequel/art/painted_bt/gamehall_user_trimmed_qa.json sequel/art/painted_bt/gamehall_preview_guide.png
+          git add -f sequel/captures/t4-gamehall/*.png sequel/captures/t4-gamehall/*.json sequel/captures/t4-gamehall/*_inline.* sequel/art/painted_bt/gamehall_user_rgba.png sequel/art/painted_bt/gamehall_user_rgba_qa.json sequel/art/painted_bt/gamehall_user_trimmed.png sequel/art/painted_bt/gamehall_user_trimmed_qa.json sequel/art/painted_bt/gamehall_preview_guide.png sequel/art/painted_bt/gamehall_preview_guide_tight.png sequel/art/painted_bt/gamehall_preview_guide_tight.json
           git commit -m 'test(t4): preserve scale-correct casino guide and real D2 captures [skip ci]'
           git push origin HEAD:test/sa2-t4-gamehall-relayout-20261109
