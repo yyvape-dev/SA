@@ -38,3 +38,19 @@ The owner selected **GitHub Actions** as Source in [SA2-TD Pages settings](https
 [Deployment42564101383](https://github.com/yyvape-dev/SA2-TD/actions/runs/42564101383) passed after owner enablement. Public manifest source is903b0b9, clean Godot4.7.2. Every exported resource (including WASM/PCK) was fetched publicly and its size/SHA256 matched. WASM MIME is application/wasm. Landing mobile-width layout has5 links and no horizontal overflow.
 
 Public Chromium/SwiftShader smoke: T0 probe survives page reload; T1 tap advances line; explore boots; T2 actual touch attacks1/dodges1; T3 entersSTREET by real touch. No browser errors. These are desktop emulation results, **not physical iPhone/Safari or Android PASS**.
+
+## Lily control-panel update
+
+Next/current candidate: `1bd34b84811cc255a98bb4b268e4525005d834c6`, version directory `1bd34b8`. Lily T2/T3 now reuse the existing TouchUI Pad's circular attack/dodge buttons, joystick rendering, hit areas and scaling. Combat logic and approved actions remain unchanged. GUIDE stays in a separate right-side event area.
+
+The user reported that the first903 build worked on iPhone16; OS/browser version and per-spot details were not provided. This is a user-reported basic smoke PASS, not full save/victory/performance acceptance. The same user requested this UI correction. New1bd UI physical acceptance is pending.
+
+The deployment mirrors every old903 resource from the live site and verifies against the original trusted manifest before publishing both version directories. If any old file differs, deployment stops. `prepare_site.py --build ... --out ... --preserve-url https://yyvape-dev.github.io/SA2-TD/` is the current supported path; the obsolete local ZIP upload route is no longer needed. Public HTTP checking validates both the new version and unchanged903 bytes.
+
+### Published and verified1bd update
+
+[Deployment42567816201](https://github.com/yyvape-dev/SA2-TD/actions/runs/42567816201) **PASS**. Current root links use1bd34b8. All public files matched the actual deployment manifest; every original903 resource was fetched and still matched its original bytes/SHA256. Evidence: `evidence/public-http-1bd34b8.json`.
+
+Public Chromium smoke PASS: T0 storage reload, T1 dialogue, explore, T2 circular-panel touch attack/dodge/joystick, DOM blur release, T3 circular-panel start/GUIDE evacuation. Headless tab operations emitted no blur/visibility events, so the focus contract was verified by explicit DOM blur delivery; actual iPhone app switching remains unverified. Native UI test100 assertions PASS, including20 retries each forT2/T3 and restored GUIDE parent/single signal. Original24 regressions and candidate CI42567396614 PASS (that CI had the earlier60-assertion harness;100 is the expanded local harness).
+
+The user reported basic903 operation on iPhone16 as good and requested this UI correction. **Physical acceptance of1bd UI is pending user recheck.** No new abilities/rewards or combat rules were added. Existing normal TouchUI rendering/hit testing is inherited, without modifying T2 Manual/scenes or T3 combat logic.

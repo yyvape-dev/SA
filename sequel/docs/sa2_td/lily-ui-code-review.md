@@ -52,3 +52,7 @@ T2 end clears Manual movement and coordinator releases after host `_process`; ex
 Previously read skill text and supporting references reused: `game-art-animation:tool-routing`, `game-art-animation:quality-gate`, `superpowers:requesting-code-review`, required `code-reviewer.md`; supplied story AGENTS/HANDOFF/authoritative plan references. No reviewer subagents dispatched. Prior design review: `/workspace/sa2-td-evidence/lily-ui-design-review.md`.
 
 Declined to judge: new Lily skills/ult (explicitly excluded), old T2/T3 combat redesign and save-schema changes (excluded), actual browser/physical-device UX and performance (execution prohibited; NOT TESTED), unrelated assets/events scaling (not modified; no performance claim).
+
+## Author closure (independent rereviewではない)
+
+Medium focus lossはnative notificationのRED→GREENを確認し、さらにWeb window blur/document visibilitychangeのcallbackをsetupで1回登録、exitで解除した。Webはheadlessタブ操作がイベントを出さないことを計測し、DOM blur配送でcallback/入力解放を確認した。native60/旧24/候補CI42567396614とWeb gesture試験PASS。実iPhone上の切替と新UIの実機受入は未確認。

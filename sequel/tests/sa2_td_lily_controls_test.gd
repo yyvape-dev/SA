@@ -89,5 +89,11 @@ func run():
     if not check(manual.guard_count==guards and manual.dodge_count==dodges+1 and not foe.atk.done,'T3 UI guard cannot cross blocker'):return
     host.battle.hp=0;await frames(6)
     if not check(not is_instance_valid(bridge.controls) and host.ui.pad.is_processing_input(),'T3 loss restores exploration pad'):return
+    var guide_parent=host.street_hud.guide_button.get_parent()
+    for i in 20:
+        host.start_encounter();await frames(4)
+        if not check(is_instance_valid(bridge.controls) and count_nodes(bridge)==5 and host.street_hud.guide_button.get_parent()==bridge.controls,'T3 retry has one panel and one reparented GUIDE'):return
+        host.battle.hp=0;await frames(6)
+        if not check(bridge.get_child_count()==0 and host.street_hud.guide_button.get_parent()==guide_parent and host.street_hud.guide_button.get_signal_connection_list('pressed').size()==1,'T3 retry restores GUIDE with one signal and no control nodes'):return
     bridge.queue_free();host.queue_free();await frames(4)
     print('TD_LILY_CONTROLS_PASS ',passed);quit()

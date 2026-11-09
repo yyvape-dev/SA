@@ -45,7 +45,17 @@ const fs=require('fs');const path=require('path');
    await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:140,y:250,id:0}]});
    await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:195,y:250,id:0}]});
    await page.waitForFunction(()=>window.__sa2TD.move_vector[0]>0.9,null,{timeout:15000});
+   await page.evaluate(()=>{
+    window.__tdFocusTrace={blur:0,visibility:[]};
+    window.addEventListener('blur',()=>window.__tdFocusTrace.blur++);
+    document.addEventListener('visibilitychange',()=>window.__tdFocusTrace.visibility.push(document.visibilityState));
+   });
    const other=await context.newPage();await other.goto('about:blank');await page.bringToFront();await other.close();
+   console.log('FOCUS_TRACE',JSON.stringify(await page.evaluate(()=>window.__tdFocusTrace)));
+   console.log('FOCUS_METRICS',JSON.stringify(await page.evaluate(()=>window.__sa2TD)));
+   console.log('BROWSER_ERRORS',JSON.stringify(failures));
+   // Dispatch the DOM contract explicitly: headless tab focus may not emit blur.
+   await page.evaluate(()=>window.dispatchEvent(new Event('blur')));
    await page.waitForFunction(()=>window.__sa2TD.move_vector.every(v=>v===0),null,{timeout:15000});
    await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
    await cdp.detach();

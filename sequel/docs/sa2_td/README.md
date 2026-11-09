@@ -2,6 +2,8 @@
 
 **公開URL：https://yyvape-dev.github.io/SA2-TD/**
 
+**最新1bd34b8：リリィの操作パネルを既存の円形攻撃・回避/防御・左スティックへ統一。[修正と検証](lily-ui-fix.md)。903版のiPhone16基本動作はユーザー確認済み。[実機報告](device-smoke-20261109.md)。新UI版は実機再確認待ち。**
+
 2026-11-09 JST：所有者がSA2-TD作成・Pages有効化を完了し、[公開workflow42564101383](https://github.com/yyvape-dev/SA2-TD/actions/runs/42564101383)が成功。公開ファイル全件SHA256と公開URLの実ブラウザ全spot試験がPASS。iPhone16/Safari実機はこれからユーザーが確認する段階。後段の未公開/権限403記述は準備時の履歴で、この最新状態を優先する。
 
 承認済みv4.3 TDを実施する。初回対象はユーザー指定 **iPhone 16**。iOS版・ブラウザは未確認。Safariを第一候補とするが、iPhone/Safariで動作確認済みとはしない。
