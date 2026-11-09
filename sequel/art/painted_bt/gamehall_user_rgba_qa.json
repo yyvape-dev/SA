@@ -1,0 +1,25 @@
+{
+  "artifact": "user-supplied casino art, mechanical exterior-chroma transparency only",
+  "source_file": "gamehall_user_original_20261109.jpeg",
+  "source_sha256": "cca3607a782ac26b15de4651dc5551658d5ba92fbdd71893b22e43892e08220b",
+  "source_px": [
+    1535,
+    1024
+  ],
+  "output_file": "gamehall_user_rgba.png",
+  "output_sha256": "f04b0f6684fd20a0d264895ef816bca3577d5da5a8e5a01cb009d116d6249a44",
+  "output_px": [
+    1536,
+    1024
+  ],
+  "alpha_bbox": [
+    47,
+    162,
+    1490,
+    1024
+  ],
+  "transparent_pixels_before_resize": 413213,
+  "characters": "painted in source; do NOT add NPC sprites over the picture",
+  "outside": "transparent; no extra street floor or background is painted",
+  "godot_acceptance": "requires actual viewport screenshots"
+}
