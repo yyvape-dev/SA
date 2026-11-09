@@ -20,6 +20,7 @@ jobs:
         run: |
           /tmp/Godot_v4.7.2-stable_linux.x86_64 --headless --path sequel --editor --import --quit
           /tmp/Godot_v4.7.2-stable_linux.x86_64 --headless --path sequel --script res://tests/sa2_td_test.gd
+          /tmp/Godot_v4.7.2-stable_linux.x86_64 --headless --path sequel --fixed-fps 60 --script res://tests/sa2_td_lily_controls_test.gd
           GODOT_BIN=/tmp/Godot_v4.7.2-stable_linux.x86_64 bash sequel/tests/run_sa2_t3.sh
       - name: Actual standalone Web export
         run: GODOT_BIN=/tmp/Godot_v4.7.2-stable_linux.x86_64 python sequel/tools/export_td_web.py --out /tmp/sa2-td-web

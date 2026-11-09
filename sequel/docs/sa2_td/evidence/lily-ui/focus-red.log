@@ -1,0 +1,11 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+BOOT main_ready 387ms
+BOOT before_d1 387ms
+BOOT after_d1 387ms
+BOOT after_build_city 712ms
+BOOT before_player 723ms
+BOOT after_player 1203ms
+BOOT ally_loaded 1401ms
+BOOT fx1_loaded 1408ms
+TD_LILY_CONTROLS_FAIL: focus loss cancels held controls

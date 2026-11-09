@@ -1,0 +1,20 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+BOOT main_ready 426ms
+BOOT before_d1 427ms
+BOOT after_d1 427ms
+BOOT after_build_city 751ms
+BOOT before_player 763ms
+BOOT after_player 1243ms
+BOOT ally_loaded 1441ms
+BOOT fx1_loaded 1448ms
+BOOT main_ready 2111ms
+BOOT before_d1 2112ms
+BOOT after_d1 2112ms
+BOOT after_build_city 2502ms
+CAMV D2 belt=(-2.0, 2.0) ofs=(0.0, 3.2, 15.3) fov=16.80
+BOOT before_player 2512ms
+BOOT after_player 3000ms
+BOOT ally_loaded 3208ms
+BOOT fx1_loaded 3215ms
+TD_LILY_CONTROLS_PASS 60

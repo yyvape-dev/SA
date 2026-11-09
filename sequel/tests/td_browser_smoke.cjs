@@ -33,17 +33,30 @@ const fs=require('fs');const path=require('path');
     const v=m.viewport.match(/[\d.]+/g).map(Number);await page.touchscreen.tap(m.dialogue_next[0]*844/v[0],m.dialogue_next[1]*390/v[1]);await page.waitForTimeout(800);
    }
    await page.waitForFunction(()=>window.__sa2TD.combat_active,null,{timeout:15000});
+   await page.waitForFunction(()=>window.__sa2TD.controls_active,null,{timeout:15000});
    const m=await page.evaluate(()=>window.__sa2TD);const v=m.viewport.match(/[\d.]+/g).map(Number);
-   await page.touchscreen.tap(1155*844/v[0],564*390/v[1]);
+   if(m.control_panel!=='legacy_touch_pad'||Object.keys(m.action_buttons).sort().join(',')!=='atk,dodge')throw Error('Legacy panel missing');
+   await page.touchscreen.tap(m.action_buttons.atk[0]*844/v[0],m.action_buttons.atk[1]*390/v[1]);
    await page.waitForFunction(()=>window.__sa2TD.attacks>0 && window.__sa2TD.actor_state==='move',null,{timeout:60000});
-   await page.touchscreen.tap(992*844/v[0],653*390/v[1]);
+   await page.touchscreen.tap(m.action_buttons.dodge[0]*844/v[0],m.action_buttons.dodge[1]*390/v[1]);
    await page.waitForTimeout(1500);console.log('T2_AFTER_INPUT',JSON.stringify(await page.evaluate(()=>window.__sa2TD)));await page.screenshot({path:path.join(output,'t2-input.png')});
    await page.waitForFunction(()=>window.__sa2TD.attacks>0 && window.__sa2TD.dodges>0,null,{timeout:15000});
+   const cdp=await context.newCDPSession(page);
+   await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:140,y:250,id:0}]});
+   await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:195,y:250,id:0}]});
+   await page.waitForFunction(()=>window.__sa2TD.move_vector[0]>0.9,null,{timeout:15000});
+   const other=await context.newPage();await other.goto('about:blank');await page.bringToFront();await other.close();
+   await page.waitForFunction(()=>window.__sa2TD.move_vector.every(v=>v===0),null,{timeout:15000});
+   await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+   await cdp.detach();
   }
   if(spot==='explore'){await page.touchscreen.tap(160,250);}
   if(spot==='t3'){
    // Start through existing real HUD, then touch-move; no result injection.
-   const m=await page.evaluate(()=>window.__sa2TD);const v=m.viewport.match(/[\d.]+/g).map(Number);await page.touchscreen.tap(m.start_button[0]*844/v[0],m.start_button[1]*390/v[1]);await page.waitForFunction(()=>window.__sa2TD.phase==='street',null,{timeout:15000});
+   const m=await page.evaluate(()=>window.__sa2TD);const v=m.viewport.match(/[\d.]+/g).map(Number);await page.touchscreen.tap(m.start_button[0]*844/v[0],m.start_button[1]*390/v[1]);await page.waitForFunction(()=>window.__sa2TD.phase==='street' && window.__sa2TD.controls_active,null,{timeout:15000});
+   const active=await page.evaluate(()=>window.__sa2TD);
+   await page.touchscreen.tap(active.guide_button[0]*844/v[0],active.guide_button[1]*390/v[1]);
+   await page.waitForFunction(()=>window.__sa2TD.evac_moving,null,{timeout:15000});
   }
   await page.screenshot({path:path.join(output,spot+'.png')});
   records.push({spot,loadToReadyMs,loadToSampleMs:Date.now()-pageStart,metrics:await page.evaluate(()=>window.__sa2TD),errors:[...failures]});

@@ -5,6 +5,7 @@ var probe=Diagnostics.new()
 var spot:='menu'
 var started:=0
 var scene:Node
+var lily_controls:Node
 var status:Label
 var menu:VBoxContainer
 var panel:PanelContainer
@@ -66,6 +67,9 @@ func _launch(id:String):
     scene=load(scene_path(id)).instantiate()
     if id=='t3':scene.save_path='user://sa2_td_t3_progress.json'
     add_child(scene)
+    if id in ['t2','t3']:
+        lily_controls=load('res://scripts/sa2_td_lily_controls.gd').new()
+        lily_controls.setup(scene,id);add_child(lily_controls)
 func _apply_font_tree(node:Node):
     if node is Control:
         node.add_theme_font_override('font',FixtureFont)
@@ -99,9 +103,12 @@ func _process(delta:float):
         if spot=='t3':
             metrics['scene_ready']=scene.ready_for_event
             if scene.encounter!=null:metrics['phase']=scene.encounter.phase
+            if scene.evacuation!=null:metrics['evac_moving']=scene.evacuation.moving
             if scene.street_hud!=null:
                 var center=scene.street_hud.start_button.get_global_rect().get_center()
                 metrics['start_button']=[center.x,center.y]
+                var guide_center=scene.street_hud.guide_button.get_global_rect().get_center()
+                metrics['guide_button']=[guide_center.x,guide_center.y]
     if spot=='t1' and is_instance_valid(scene):
         metrics['dialogue_line']=scene.line_index
         var next_center=scene.advance_button.get_global_rect().get_center()
@@ -115,6 +122,16 @@ func _process(delta:float):
             metrics['dialogue_active']=scene.t2_dialogue.active
             var next_center=scene.t2_dialogue.advance_button.get_global_rect().get_center()
             metrics['dialogue_next']=[next_center.x,next_center.y]
+    metrics['controls_active']=is_instance_valid(lily_controls) and is_instance_valid(lily_controls.controls)
+    if metrics.controls_active:
+        metrics['control_panel']='legacy_touch_pad'
+        var actions={}
+        for id in lily_controls.controls.pad._btns():
+            var spec=lily_controls.controls.pad._btns()[id]
+            actions[id]=[spec[0].x,spec[0].y,spec[1]]
+        metrics['action_buttons']=actions
+        var vector:Vector2=lily_controls.controls.player.move_in
+        metrics['move_vector']=[vector.x,vector.y]
     metrics['guide_json']=FileAccess.file_exists('res://art/guide/guide.json')
     metrics.merge({'spot':spot,'sha':build,'dirty':dirty,'user_dir':OS.get_user_data_dir(),'elapsed_ms':Time.get_ticks_msec()-started,'fps':Engine.get_frames_per_second(),'persistent':OS.is_userfs_persistent(),'probe':probe.read_probe(),'viewport':str(get_viewport().get_visible_rect().size)})
     status.text='%s | %s\nFPS %s mean %.1f p95 %.1f ms | save %s\n%s'%[spot,build.left(8)+(' DIRTY' if dirty else ''),metrics.fps,metrics.mean_ms,metrics.p95_ms,str(metrics.persistent),str(metrics.probe.get('token','none'))]
