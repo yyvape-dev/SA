@@ -96,6 +96,19 @@ func _add_gamehall(game: Node3D, parent: Node3D) -> void:
 	_block(hall, Vector3(HALL_CX, 3.49, -6.51), Vector3(INSERT_W, 1.34, 0.28), "492151", "facade_header")
 	_block(hall, Vector3(HALL_CX, 2.86, -6.29), Vector3(INSERT_W, 0.12, 0.18), "d8a34d", "brass_lintel")
 	_block(hall, Vector3(HALL_CX, 3.86, -6.25), Vector3(INSERT_W - 0.4, 0.11, 0.2), "ce9750", "upper_trim")
+	# The apex is fully 4.17m tall but recessed toward the back of the hall.
+	var roof := MeshInstance3D.new()
+	var roof_mesh := ArrayMesh.new()
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.set_material(_material("c89a49"))
+	for v in [Vector3(HALL_CX-3.0, 3.75, -7.1), Vector3(HALL_CX+3.0, 3.75, -7.1), Vector3(HALL_CX, HALL_H, -8.5)]:
+		st.add_vertex(v)
+	st.commit(roof_mesh)
+	roof.mesh = roof_mesh
+	roof.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	roof.name = "roof_apex_recessed_4p17m"
+	hall.add_child(roof)
 	for px in [HALL_CX - 3.05, HALL_CX + 3.05]:
 		_block(hall, Vector3(px, 1.43, -6.23), Vector3(0.18, 2.85, 0.27), "d1a34b", "gold_jamb")
 	for px in [8.4, 12.4]:
@@ -179,11 +192,20 @@ func _run() -> void:
 		old_game_stall.visible = false
 	var removed := _remove_former_inn(game, level)
 	_check(removed > 1, "Former inn not removed")
+	# Actual Godot proof showed the x=12 foreground column masked casino center-right.
+	var old_fg: Array = game.get("bt_fg")
+	var fg_removed := 0
+	for fd in old_fg:
+		if absf((fd.node as Node3D).position.x - 12.0) < 0.05:
+			fd.node.visible = false
+			fg_removed += 1
+	_check(fg_removed == 1, "Expected exactly one foreground column at x12")
+	print("T4_FOREGROUND_CASINO_REMOVED columns=%d x=12.0" % fg_removed)
 	_add_gamehall(game, level)
 	# Preserve ORIGINAL camera bounds; no 7m city extension.
 	player.position = Vector3(HALL_CX, 0, 0)
 	game.call("_place_cam", true)
-	var roof_px: Vector2 = camera.unproject_position(Vector3(HALL_CX, HALL_H, -6.51))
+	var roof_px: Vector2 = camera.unproject_position(Vector3(HALL_CX, HALL_H, -8.5))
 	var vp_h: float = game.get_viewport().get_visible_rect().size.y
 	print("T4_ROOF_TOP projected_y=%.2fpx ratio=%.4f viewport_height=%.0f (negative means cropped)" % [roof_px.y, roof_px.y / vp_h, vp_h])
 	await _save(game, output + "/after_d2_x10p5.png")
