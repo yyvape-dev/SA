@@ -6,6 +6,11 @@ extends Node3D
 
 const City := preload("res://scripts/city_block1.gd")
 const BT := preload("res://scripts/backtown_block.gd")
+const T4GamehallFloor := preload("res://scripts/t4_gamehall_floor.gd")
+var t4_floor_state := 0  # 0=existing backtown, 1=independent left-linked 16m gamehall floor
+var t4_floor_busy := false
+var t4_floor_materials: Dictionary = {}
+var t4_floor_clock := 0.0
 var town := ""   # "back"＝裏の町の入り口の下絵（specs/backtown_blockout.md。環境変数 TOWN=back、Web は ?town=back）
 const Player := preload("res://scripts/player.gd")
 const TouchUI := preload("res://scripts/touch_ui.gd")
@@ -307,10 +312,72 @@ func _load_ally() -> void:
 	lily_cutin.flash_col = Color(0.88, 0.95, 1.0)
 	add_child(lily_cutin)
 
+## T4 independent map: going left from the original backtown loads another floor.
+## Only the T4 branch touches this routing. The existing map remains reproducible.
+func _t4_check_edge() -> void:
+	if town != "back" or player == null or t4_floor_busy or player.locked or dungeon != null:
+		return
+	if t4_floor_state == 0 and player.position.x <= T4GamehallFloor.WEST_EXIT:
+		t4_floor_busy = true
+		_t4_change_floor.call_deferred(true)
+	elif t4_floor_state == 1 and player.position.x >= T4GamehallFloor.EAST_RETURN:
+		t4_floor_busy = true
+		_t4_change_floor.call_deferred(false)
+
+func _t4_change_floor(enter_gamehall: bool) -> void:
+	t4_floor_busy = true
+	player.locked = true
+	loading.show_now()
+	# Keep a real visible loading interval; never teleport without the fade.
+	for i in 8:
+		await get_tree().process_frame
+	if enter_gamehall:
+		var assembled: Dictionary = T4GamehallFloor.build(self)
+		if assembled.is_empty():
+			loading.error_text = "T4 area artwork missing"
+			push_error("T4_FLOOR_CHANGE_FAIL: cannot construct independent map")
+			player.locked = false
+			t4_floor_busy = false
+			return
+		t4_floor_materials = assembled["materials"]
+		t4_floor_clock = 0.0
+		t4_floor_state = 1
+		player.position = Vector3(21.5,0.0,0.0)
+		player.face = -1
+	else:
+		build_backtown()
+		t4_floor_materials.clear()
+		t4_floor_state = 0
+		player.position = Vector3(BT.ROOM_X.x+1.5,0.0,0.0)
+		player.face = 1
+		battle.auto_spawn = false
+	# Camera is snapped after scenery swap while dark.
+	_place_cam(true)
+	for i in 4:
+		await get_tree().process_frame
+	loading.hide_soon()
+	player.locked = false
+	t4_floor_busy = false
+	print("T4_FLOOR_TRANSITION_PASS floor=%s x=%.2f player_range=%s" % [
+		"gamehall" if t4_floor_state == 1 else "backtown",
+		player.position.x,str(player.room_x)])
+
+func _t4_animate_floor(delta: float) -> void:
+	if t4_floor_state != 1 or t4_floor_busy:
+		return
+	t4_floor_clock = fmod(t4_floor_clock + delta,2.0)
+	var phase: float = TAU*t4_floor_clock/2.0
+	for key in t4_floor_materials:
+		var mat: ShaderMaterial = t4_floor_materials[key]
+		if is_instance_valid(mat):
+			mat.set_shader_parameter("cycle",phase+(0.48 if key=="right_slot_machine" else 0.0))
+
 func _process(delta: float) -> void:
 	if player == null:
 		return   # 地区の読み込み中
 	_place_cam(false, delta)
+	_t4_check_edge()
+	_t4_animate_floor(delta)
 	_check_gate()
 	if fx_demo >= 0.0:
 		fx_demo -= delta
