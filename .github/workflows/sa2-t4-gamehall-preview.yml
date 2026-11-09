@@ -48,6 +48,13 @@ jobs:
           test -s sequel/art/painted_bt/gamehall_preview_guide.png
           grep -q 'T4_GUIDE_TIGHT_PASS' /tmp/t4-guide.log
           test -s sequel/art/painted_bt/gamehall_preview_guide_tight.png
+      - name: Recover approved user artwork exactly and enlarge without aspect distortion
+        run: |
+          set -euo pipefail
+          /tmp/t4-py/bin/python -I sequel/tools/t4_approved_prepare_preview.py 2>&1 | tee /tmp/t4-approved-prepare.log
+          grep -q 'T4_APPROVED_PREP_PASS' /tmp/t4-approved-prepare.log
+          test -s sequel/art/painted_bt/gamehall_approved_16m_preview.png
+          test -s sequel/art/painted_bt/gamehall_approved_16m_preview.json
       - name: Import actual sequel project
         run: |
           set -euo pipefail
@@ -82,6 +89,20 @@ jobs:
           done
           file sequel/captures/t4-gamehall/*.png
           sha256sum sequel/captures/t4-gamehall/*.png
+      - name: Capture the actual approved 16m casino painting in Godot D2
+        env:
+          TOWN: back
+          CAMV: D2
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: |
+          set -euo pipefail
+          mkdir -p sequel/captures/t4-gamehall-approved
+          timeout 180s xvfb-run -a -s '-screen 0 1688x780x24' /tmp/godot --path sequel --rendering-driver opengl3 --audio-driver Dummy --windowed --resolution 1688x780 --fixed-fps 60 --script res://tests/sa2_t4_approved_art_capture.gd 2>&1 | tee /tmp/t4-approved-capture.log
+          grep -q 'T4_APPROVED_D2_PREVIEW_PASS captures=3' /tmp/t4-approved-capture.log
+          if grep -E 'SCRIPT ERROR|Parse Error|T4_APPROVED_PREVIEW_FAIL' /tmp/t4-approved-capture.log; then exit 1; fi
+          for view in center left right; do
+            test -s sequel/captures/t4-gamehall-approved/approved_16m_${view}.png
+          done
       - name: Prepare direct-chat previews from Godot screenshots without redraw
         run: |
           set -euo pipefail
@@ -100,6 +121,24 @@ jobs:
               (folder / (stem + "_inline.b64.txt")).write_text(b64_text, encoding="ascii")
               print("T4_INLINE_PROOF", stem, jpeg.stat().st_size)
           PY
+      - name: Make lossless-in-content JPEG screenshot previews for inline chat
+        run: |
+          set -euo pipefail
+          /tmp/t4-py/bin/python - <<'PY'
+          from pathlib import Path
+          from PIL import Image
+          import base64
+          folder = Path("sequel/captures/t4-gamehall-approved")
+          for view in ("center","left","right"):
+              stem = "approved_16m_" + view
+              image_path = folder/(stem+".png")
+              with Image.open(image_path) as picture:
+                  assert picture.size == (1688,780), picture.size
+                  jpg=folder/(stem+"_inline.jpg")
+                  picture.convert("RGB").save(jpg,"JPEG",quality=86,optimize=True)
+              (folder/(stem+"_inline.b64.txt")).write_text(base64.b64encode(jpg.read_bytes()).decode("ascii"),encoding="ascii")
+              print("T4_APPROVED_INLINE_PASS",view,jpg.stat().st_size)
+          PY
       - name: Produce deterministic physical-size guide (not finished art)
         run: |
           set -euo pipefail
@@ -113,6 +152,12 @@ jobs:
           name: sa2-t4-gamehall-real-godot-proof
           path: |
             sequel/captures/t4-gamehall/*.png
+            sequel/captures/t4-gamehall-approved/*.png
+            sequel/captures/t4-gamehall-approved/*_inline.*
+            sequel/art/painted_bt/gamehall_approved_16m_preview.png
+            sequel/art/painted_bt/gamehall_approved_16m_preview.json
+            /tmp/t4-approved-prepare.log
+            /tmp/t4-approved-capture.log
             sequel/captures/t4-gamehall/*_inline.*
             sequel/captures/t4-gamehall/*.json
             /tmp/t4-import.log
@@ -133,6 +178,6 @@ jobs:
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -f sequel/captures/t4-gamehall/*.png sequel/captures/t4-gamehall/*.json sequel/captures/t4-gamehall/*_inline.* sequel/art/painted_bt/gamehall_user_rgba.png sequel/art/painted_bt/gamehall_user_rgba_qa.json sequel/art/painted_bt/gamehall_user_trimmed.png sequel/art/painted_bt/gamehall_user_trimmed_qa.json sequel/art/painted_bt/gamehall_preview_guide.png sequel/art/painted_bt/gamehall_preview_guide_tight.png sequel/art/painted_bt/gamehall_preview_guide_tight.json
-          git commit -m 'test(t4): preserve scale-correct casino guide and real D2 captures [skip ci]'
+          git add -f sequel/art/painted_bt/gamehall_approved_16m_preview.png sequel/art/painted_bt/gamehall_approved_16m_preview.json sequel/captures/t4-gamehall-approved/*.png sequel/captures/t4-gamehall-approved/*_inline.* sequel/captures/t4-gamehall/*.png sequel/captures/t4-gamehall/*.json sequel/captures/t4-gamehall/*_inline.* sequel/art/painted_bt/gamehall_user_rgba.png sequel/art/painted_bt/gamehall_user_rgba_qa.json sequel/art/painted_bt/gamehall_user_trimmed.png sequel/art/painted_bt/gamehall_user_trimmed_qa.json sequel/art/painted_bt/gamehall_preview_guide.png sequel/art/painted_bt/gamehall_preview_guide_tight.png sequel/art/painted_bt/gamehall_preview_guide_tight.json
+          git commit -m 'test(t4): preserve approved 16m painting and real Godot D2 screenshots [skip ci]'
           git push origin HEAD:test/sa2-t4-gamehall-relayout-20261109
