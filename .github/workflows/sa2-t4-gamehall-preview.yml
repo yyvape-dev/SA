@@ -24,6 +24,17 @@ jobs:
           mv /tmp/Godot_v4.7.2-stable_linux.x86_64 /tmp/godot
           chmod +x /tmp/godot
           /tmp/godot --version
+      - name: Convert exact supplied source JPEG into Godot-ready alpha PNG
+        run: |
+          set -euo pipefail
+          python3 -m venv /tmp/t4-py
+          /tmp/t4-py/bin/pip install --disable-pip-version-check Pillow==11.3.0 numpy scipy
+          /tmp/t4-py/bin/python -I sequel/tools/t4_gamehall_prepare_art.py \
+            --source sequel/art/painted_bt_src/gamehall_user_original_20261109.jpeg \
+            --out sequel/art/painted_bt/gamehall_user_rgba.png 2>&1 | tee /tmp/t4-art.log
+          grep -q 'T4_ART_PASS' /tmp/t4-art.log
+          test -s sequel/art/painted_bt/gamehall_user_rgba.png
+          test -s sequel/art/painted_bt/gamehall_user_rgba_qa.json
       - name: Import actual sequel project
         run: |
           set -euo pipefail
@@ -39,17 +50,16 @@ jobs:
           mkdir -p sequel/captures/t4-gamehall
           timeout 180s xvfb-run -a -s '-screen 0 1688x780x24' /tmp/godot --path sequel --rendering-driver opengl3 --audio-driver Dummy --windowed --resolution 1688x780 --fixed-fps 60 --script res://tests/sa2_t4_gamehall_relayout_capture.gd 2>&1 | tee /tmp/t4-preview.log
           grep -q 'T4_GODOT_PREVIEW_PASS captures=3' /tmp/t4-preview.log
+          grep -q 'T4_PAINTED_SOURCE_APPLIED' /tmp/t4-preview.log
           if grep -E 'SCRIPT ERROR|Parse Error|T4_GODOT_PREVIEW_FAIL' /tmp/t4-preview.log; then exit 1; fi
           test -s sequel/captures/t4-gamehall/before_d2_x10p5.png
-          test -s sequel/captures/t4-gamehall/after_d2_x10p5.png
-          test -s sequel/captures/t4-gamehall/after_d2_x16p0.png
+          test -s sequel/captures/t4-gamehall/painted_d2_x10p5.png
+          test -s sequel/captures/t4-gamehall/painted_d2_x16p0.png
           file sequel/captures/t4-gamehall/*.png
           sha256sum sequel/captures/t4-gamehall/*.png
       - name: Produce deterministic physical-size guide (not finished art)
         run: |
           set -euo pipefail
-          python3 -m venv /tmp/t4-py
-          /tmp/t4-py/bin/pip install --disable-pip-version-check Pillow==11.3.0
           /tmp/t4-py/bin/python -I sequel/tools/t4_gamehall_guide.py --out sequel/captures/t4-gamehall/gamehall_geometry_guide.png
           test -s sequel/captures/t4-gamehall/gamehall_geometry_guide.png
           test -s sequel/captures/t4-gamehall/gamehall_geometry_guide.json
@@ -63,6 +73,9 @@ jobs:
             sequel/captures/t4-gamehall/*.json
             /tmp/t4-import.log
             /tmp/t4-preview.log
+            /tmp/t4-art.log
+            sequel/art/painted_bt/gamehall_user_rgba.png
+            sequel/art/painted_bt/gamehall_user_rgba_qa.json
           if-no-files-found: warn
       - name: Preserve screenshot PNG binaries on the T4-only branch for inspection
         if: success()
@@ -70,6 +83,6 @@ jobs:
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -f sequel/captures/t4-gamehall/*.png sequel/captures/t4-gamehall/*.json
-          git commit -m 'test(t4): attach genuine Godot D2 comparison screenshots [skip ci]'
+          git add -f sequel/captures/t4-gamehall/*.png sequel/captures/t4-gamehall/*.json sequel/art/painted_bt/gamehall_user_rgba.png sequel/art/painted_bt/gamehall_user_rgba_qa.json
+          git commit -m 'test(t4): preserve original casino artwork in genuine Godot screenshots [skip ci]'
           git push origin HEAD:test/sa2-t4-gamehall-relayout-20261109
