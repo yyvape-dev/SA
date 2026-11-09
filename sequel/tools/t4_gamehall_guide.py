@@ -94,6 +94,28 @@ def main():
         assert rgba.getpixel((0, 0))[3] == 0
         assert rgba.getpixel((round(X_ORIGIN + BUILDING_W * SCALE / 2), H - 2))[3] == 255
         print("T4_GUIDE_PREVIEW_PASS", pv_path, rgba.size)
+        # Tight visible silhouette is mandatory: image padding must not shrink the
+        # world-space hall, especially in the 14m / 16m tests.
+        bbox = rgba.getchannel("A").getbbox()
+        if not bbox:
+            raise SystemExit("T4_GUIDE_TIGHT_FAIL: empty alpha bbox")
+        tight = rgba.crop(bbox)
+        tight_path = pv_path.with_name("gamehall_preview_guide_tight.png")
+        tight.save(tight_path, format="PNG", optimize=True)
+        if abs((tight.width / tight.height) / (BUILDING_W / BUILDING_H) - 1) > 0.02:
+            raise SystemExit("T4_GUIDE_TIGHT_FAIL: guide aspect mismatch")
+        tight_json = {
+            "kind": "preview scale only; NOT an approved paint guide",
+            "original_guide": dest.name,
+            "alpha_bbox_xyxy": list(bbox),
+            "visible_px": list(tight.size),
+            "test_facades_m": [{"width":14.0,"height":8.34,"opening_width":10.08},
+                               {"width":16.0,"height":16.0*4.17/7.0,"opening_width":16.0*5.04/7.0}],
+            "pixel_identity_crop": True,
+        }
+        tight_path.with_suffix(".json").write_text(json.dumps(tight_json,indent=2)+"\\n",encoding="utf-8")
+        print("T4_GUIDE_TIGHT_PASS",tight_path, tight.size, bbox)
+
     assert im.size == (1536,1024)
     assert im.getpixel((0,0)) == (255,0,255)
     assert im.getpixel((W-1,0)) == (255,0,255)
