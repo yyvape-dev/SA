@@ -27,6 +27,14 @@
 - 実測: `sa2_t3_performance.md` のllvmpipe/OpenGL3、1280×720、ソフトウェア描画下の機械2体平均frame中央値173.94ms、30体290.47ms。スマホGPU性能の証明ではない。
 - 未実施: iOS/Android/WebGL/IndexedDB/スマートフォン横長比率、長時間安定性。装飾/背景/正式UIはT4〜T6。
 
+### 2.1a 正式工程の訂正：T7責務とT3検証の境界（2026-11-09）
+**重要な訂正：** T3にiPhone/Android実機、Webブラウザの保存/再開、端末FPS/操作を要求したうえで未達と判定してはならない。これらは承認済み上位計画 `story/sa2-chapter1-20261106:claude/sa2_vertical_slice_implementation_plan_20261108.md` v4.2 の「ユーザー指定：スマホでの成果物提示と実機検証」で**T7（最終総合実測・品質判定）**に明記されている。T2/T3ではGodot自動実操作・連続動画を中間検証として先行し、T6でHUD/VFX可読性を確認する。T7への配置をCodexのT3実装欠陥として報告するのは工程評価の誤り。
+- 承認済みT3実装brief第37行は「Prefer 1280×720 and horizontal phone aspect when runnable」であり、スマホ横長比率は**可能な場合の追加確認**であってT3の必須受入条件としては要求していない。出力比率のNOT TESTEDは事実として残してよいが、T3必須機能のFAILと混同しない。
+- `T3中に修正が必要`: 2回のGitHub Actions録画ステップFAIL（明確な保存先パスの不一致）と、最終修正後の独立再レビュー未実施。T3のPR受入と最終品質判定も区別する。
+- `T7計画どおり未実施`: iPhone/Androidの実タッチ操作・FPS・ロード・保存・再開・Web配布/ブラウザIndexedDB、スマホ表示/横長比率の最終品質評価。これらを今ここで独断でT3へ前倒ししない。
+- `工程設計の反省`: 中間動画の画質/操作感・UI問題を発見しやすくするためのスマホ比率テストを推奨扱いとした点は、実機UIリスクを残す設計上の弱さである。前倒しスモークテストは計画に示された**事前合意ゲート**による新たな判断を要する。Codexに無断要求しない。
+- T3修正指示・T4素材作業は依然別件。既存役割（ChatGPTの軽微開発含む）と上位計画の工程区分は変更なし。
+
 ### 2.2 CIの再現済み失敗：P0
 - RUN1: https://github.com/yyvape-dev/SA/actions/runs/42538788129 — FAIL
 - RUN2: https://github.com/yyvape-dev/SA/actions/runs/42539298815 — **FAIL**（最新HEAD ecf6439）
