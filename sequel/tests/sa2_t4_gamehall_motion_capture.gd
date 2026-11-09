@@ -10,6 +10,19 @@ const FRAME_COUNT := 24
 const LOOP_SECONDS := 2.0
 const ART_FOLDER := "res://art/painted_bt/gamehall_motion/"
 const ART_IDS := ["left_slot_machine", "right_slot_machine", "cloaked_man", "left_woman", "right_woman", "roulette_cluster"]
+const DETAIL_SHADER = preload("res://tests/t4_gamehall_local_detail.gdshader")
+const SOURCE_W := 1488.0
+const SCALE := 3200.0 / SOURCE_W
+const TOP_CROP := 133.0
+# Original 1585×992 painting coordinates, NOT the 3200px display crop.
+const SOURCE_REGIONS = {
+    "left_slot_machine": Rect2(341, 769, 55, 62),
+    "right_slot_machine": Rect2(1177, 755, 54, 73),
+    "roulette_cluster": Rect2(774, 845, 28, 15),
+    "cloaked_man": Rect2(468, 782, 75, 148),
+    "left_woman": Rect2(394, 790, 60, 153),
+    "right_woman": Rect2(1101, 786, 80, 155),
+}
 var errors: Array[String] = []
 
 func _initialize() -> void:
@@ -30,6 +43,13 @@ func _capture(game: Node3D, output: String) -> void:
         return
     _check(image.get_size() == Vector2i(1688,780), "Actual D2 viewport resolution mismatch")
     _check(image.save_png(output) == OK, "Could not save Godot real screenshot: " + output)
+
+func _region_from_source(rect: Rect2) -> Vector4:
+    var x0: float = (rect.position.x - 48.0) / SOURCE_W
+    var x1: float = (rect.end.x - 48.0) / SOURCE_W
+    var y0: float = (rect.position.y * SCALE - TOP_CROP) / 2000.0
+    var y1: float = (rect.end.y * SCALE - TOP_CROP) / 2000.0
+    return Vector4(x0,y0,x1,y1)
 
 func _run() -> void:
     for filename in ART_IDS + ["background_clean"]:
@@ -111,17 +131,29 @@ func _run() -> void:
         X0, 0.0, X0 + WIDTH, HEIGHT, Z_BACKGROUND, 1.0, [0.0,0.0,1.0,1.0], 0) as MeshInstance3D
     _check(bg != null, "Cannot draw clean base layer")
     var meshes: Dictionary = {}
-    var origins: Dictionary = {}
+    var original_transforms: Dictionary = {}
+    var detail_materials: Dictionary = {}
     for i in ART_IDS.size():
         var id: String = ART_IDS[i]
-        var depth := Z_BACKGROUND + 0.015 + float(i) * 0.003
+        var depth: float = Z_BACKGROUND + 0.015 + float(i) * 0.003
         var quad: MeshInstance3D = game.call("_bt_quad", holder, "gamehall_motion/" + id,
             X0, 0.0, X0 + WIDTH, HEIGHT, depth, 1.0, [0.0,0.0,1.0,1.0], 1) as MeshInstance3D
         _check(quad != null, "Cannot draw movable layer: " + id)
         if quad != null:
-            quad.name = id + "_micro_motion"
+            quad.name = id + "_LOCALIZED_DETAIL"
+            var mat := ShaderMaterial.new()
+            mat.shader = DETAIL_SHADER
+            mat.render_priority = 1
+            mat.set_shader_parameter("painted", load(ART_FOLDER + id + ".png"))
+            var region: Rect2 = SOURCE_REGIONS[id]
+            mat.set_shader_parameter("region", _region_from_source(region))
+            mat.set_shader_parameter("motion_kind",
+                1 if id == "left_slot_machine" or id == "right_slot_machine"
+                else (2 if id == "roulette_cluster" else 3))
+            quad.material_override = mat
             meshes[id] = quad
-            origins[id] = quad.position
+            original_transforms[id] = quad.transform
+            detail_materials[id] = mat
     if not errors.is_empty():
         quit(1)
         return
@@ -133,42 +165,23 @@ func _run() -> void:
     game.call("_place_cam",true)
     var output := ProjectSettings.globalize_path("res://captures/t4-gamehall-motion")
     DirAccess.make_dir_recursive_absolute(output)
-    var max_displacement_px := 0.0
+    var animated_materials: int = 0
     for frame in FRAME_COUNT:
-        var theta := TAU * float(frame) / float(FRAME_COUNT)
+        var theta: float = TAU * float(frame) / float(FRAME_COUNT)
         for id in ART_IDS:
             var quad: MeshInstance3D = meshes[id]
-            var pos: Vector3 = origins[id]
-            var dx := 0.0
-            var dy := 0.0
-            var luminance := 1.0
-            match id:
-                "left_slot_machine":
-                    luminance = 0.95 + 0.05 * (0.5 + 0.5 * sin(theta * 3.0))
-                "right_slot_machine":
-                    luminance = 0.95 + 0.05 * (0.5 + 0.5 * sin(theta * 4.0 + 0.8))
-                "cloaked_man":
-                    dx = 0.006 * sin(theta)
-                    dy = 0.003 * sin(theta + 0.9)
-                "left_woman":
-                    dx = 0.002 * sin(theta + 0.7)
-                    dy = 0.006 * sin(theta)
-                "right_woman":
-                    dx = 0.002 * sin(theta + 1.3)
-                    dy = 0.006 * sin(theta + 0.3)
-                "roulette_cluster":
-                    dx = 0.004 * sin(theta + 0.35)
-                    dy = 0.003 * sin(theta + 1.2)
-            quad.position = pos + Vector3(dx,dy,0)
-            var mat := quad.material_override as StandardMaterial3D
-            mat.albedo_color = Color(luminance,luminance,luminance,1.0)
-            max_displacement_px = maxf(max_displacement_px, maxf(absf(dx),absf(dy))*200.0)
+            _check(quad.transform.is_equal_approx(original_transforms[id]),
+                "Whole prop or table changed its position: " + id)
+            var mat: ShaderMaterial = detail_materials[id]
+            var cycle_theta: float = theta + (0.48 if id == "right_slot_machine" else 0.0)
+            mat.set_shader_parameter("cycle", cycle_theta)
+            animated_materials += 1
         await _capture(game, output + "/frame_%02d.png" % frame)
-    _check(max_displacement_px >= 0.6, "Animation amplitude is zero or too small")
-    print("T4_MOTION_GEOMETRY_PASS world=16.00x10.00m layers=7 moving=6 frames=%d loop_s=%.2f max_displacement_px=%.3f D2=true hidden=%d" %
-        [FRAME_COUNT,LOOP_SECONDS,max_displacement_px,hidden])
+    _check(animated_materials == FRAME_COUNT * ART_IDS.size(), "Missing localized material updates")
+    print("T4_MOTION_GEOMETRY_PASS width=16.00m height=10.00m static_prop_transforms=true localized_reels=2 roulette_disc=1 upper_bodies=3 frames=%d D2=true hidden=%d" %
+        [FRAME_COUNT,hidden])
     if errors.is_empty():
-        print("T4_MOTION_CAPTURE_PASS frames=24 Godot=4.7.2 (visual motion quality pending frame review)")
+        print("T4_MOTION_CAPTURE_PASS frames=24 Godot=4.7.2 localized_details=true whole_props_static=true visual_review_pending=true")
         quit(0)
     else:
         quit(1)
