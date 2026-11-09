@@ -32,15 +32,16 @@ void fragment() {
         float display_mask = display_x * display_y * inside;
         float spin = clamp(cycle / 4.7, 0.0, 1.0);
         float travel = spin * spin * (3.0 - 2.0 * spin);
-        float held = step(4.7, cycle);
         float first_column = 1.0 - smoothstep(0.49, 0.51, q.x);
-        float offset = mix(0.0, 0.10 * (1.0 - travel), 1.0 - held);
+        // Each column traverses an integer number of 0.28-wide source
+        // bands before stopping, returning to the unmodified source UV.
+        float offset = 0.28 * (3.0 + first_column) * travel;
         float reel_y = region.y + extent.y
-            * (0.30 + mod(q.y - 0.30 + offset + first_column * 0.035, 0.28));
+            * (0.30 + mod(q.y - 0.30 + offset, 0.28));
         vec4 moving_symbols = texture(painted, vec2(uv.x, reel_y));
-        // Stop with exactly the original painting. No discontinuity outside the display.
-        output_color = mix(original, moving_symbols,
-            display_mask * (1.0 - held) * 0.88);
+        // The last quarter of the 2-second cycle holds the original image.
+        float active = 1.0 - smoothstep(4.55, 4.70, cycle);
+        output_color = mix(original, moving_symbols, display_mask * active * 0.88);
         float jewel = exp(-90.0 * dot(q - vec2(0.5, 0.70), q - vec2(0.5, 0.70)));
         float pulse = pow(0.5 + 0.5 * sin(cycle * 5.0), 3.0);
         output_color.rgb += vec3(0.21, 0.08, 0.26) * jewel * pulse * inside;
