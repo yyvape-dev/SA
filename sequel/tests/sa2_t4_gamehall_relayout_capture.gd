@@ -32,7 +32,7 @@ func _layout_check() -> void:
 	var brothel_overlap := maxf(0.0, minf(old_hall_right, 14.2) - maxf(old_hall_left, 7.0))
 	_check(absf(cabaret_overlap - 4.4) < 0.001 and absf(brothel_overlap - 0.8) < 0.001, "Old-slot intersection math")
 	_check(absf(HALL_CX - INSERT_W * 0.5 - 5.2) < 0.001, "Casino does not start at cabaret edge")
-	_check(absf(HALL_CX + INSERT_W * 0.5 - (7.0 + INSERT_W - 1.8)) < 0.001, "Casino/filler inserted span")
+	_check(absf(HALL_CX + INSERT_W * 0.5 - (CUT_X + INSERT_W)) < 0.001, "Casino/filler inserted span")
 	print("T4_COORDS original arcade expansion overlaps: cabaret %.2fm, brothel %.2fm" % [cabaret_overlap, brothel_overlap])
 	print("T4_COORDS proposed casino x=5.20..12.20m; brothel shifts 7.00..14.20 -> 14.00..21.20; alley_gate 16.00..18.20 -> 23.00..25.20; shady 18.80..25.00 -> 25.80..32.00")
 	print("T4_COORDS prototype-only right-hand area extends beyond x30 floor and original x24 walk boundary; full street route NOT TESTED")
@@ -145,6 +145,9 @@ func _run() -> void:
 		quit(1)
 		return
 	ui.visible = false
+	var hud: CanvasLayer = game.get("hud")
+	if hud != null:
+		hud.visible = false
 	if loading != null:
 		loading.visible = false
 	player.position = Vector3(HALL_CX, 0, 0)
@@ -153,6 +156,12 @@ func _run() -> void:
 	var output := ProjectSettings.globalize_path("res://captures/t4-gamehall")
 	DirAccess.make_dir_recursive_absolute(output)
 	await _save(game, output + "/before_d2_x8p7.png")
+	var source_nodes: Dictionary = game.get("piece_nodes")
+	var stall_container: Node3D = source_nodes.get("stalls")
+	var old_game_stall: Node3D = stall_container.get_node_or_null("stall_game") if stall_container != null else null
+	_check(old_game_stall != null, "Cannot locate existing stall_game proxy for removal")
+	if old_game_stall != null:
+		old_game_stall.visible = false
 	var shifted := _shift_render_nodes(level)
 	_check(shifted > 30, "Right-side street objects were not translated")
 	_add_gamehall(game, level)
@@ -160,6 +169,9 @@ func _run() -> void:
 	game.set("cam_x", Vector2(-19.08, 26.08))
 	player.position = Vector3(HALL_CX, 0, 0)
 	game.call("_place_cam", true)
+	var roof_px: Vector2 = camera.unproject_position(Vector3(HALL_CX, HALL_H, -6.51))
+	var vp_h: float = game.get_viewport().get_visible_rect().size.y
+	print("T4_ROOF_TOP projected_y=%.2fpx ratio=%.4f viewport_height=%.0f (negative means cropped)" % [roof_px.y, roof_px.y / vp_h, vp_h])
 	await _save(game, output + "/after_d2_x8p7.png")
 	player.position = Vector3(15.0, 0, 0)
 	game.call("_place_cam", true)
