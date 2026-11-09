@@ -26,6 +26,17 @@ const fs=require('fs');const path=require('path');
    for(let n=0;n<2;n++){const m=await page.evaluate(()=>window.__sa2TD);const v=m.viewport.match(/[\d.]+/g).map(Number);await page.touchscreen.tap(m.dialogue_next[0]*844/v[0],m.dialogue_next[1]*390/v[1]);await page.waitForTimeout(700);}
    await page.waitForFunction(()=>window.__sa2TD.dialogue_line>0,null,{timeout:15000});
   }
+  if(spot==='t2'){
+   for(let n=0;n<12;n++){
+    const m=await page.evaluate(()=>window.__sa2TD);if(m.combat_active)break;
+    const v=m.viewport.match(/[\d.]+/g).map(Number);await page.touchscreen.tap(m.dialogue_next[0]*844/v[0],m.dialogue_next[1]*390/v[1]);await page.waitForTimeout(800);
+   }
+   await page.waitForFunction(()=>window.__sa2TD.combat_active,null,{timeout:15000});
+   const m=await page.evaluate(()=>window.__sa2TD);const v=m.viewport.match(/[\d.]+/g).map(Number);
+   await page.touchscreen.tap(1155*844/v[0],564*390/v[1]);
+   await page.touchscreen.tap(992*844/v[0],653*390/v[1]);
+   await page.waitForFunction(()=>window.__sa2TD.attacks>0 && window.__sa2TD.dodges>0,null,{timeout:15000});
+  }
   if(spot==='explore'){await page.touchscreen.tap(160,250);}
   if(spot==='t3'){
    // Start through existing real HUD, then touch-move; no result injection.

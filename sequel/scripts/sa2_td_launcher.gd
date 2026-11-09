@@ -97,7 +97,13 @@ func _process(delta:float):
         metrics['dialogue_next']=[next_center.x,next_center.y]
     if spot=='t2' and is_instance_valid(scene):
         metrics['combat_active']=scene.t2_active
-        if is_instance_valid(scene.t2_manual):metrics['attacks']=scene.t2_manual.attack_count
+        if is_instance_valid(scene.t2_manual):
+            metrics['attacks']=scene.t2_manual.attack_count
+            metrics['dodges']=scene.t2_manual.dodge_count
+        if is_instance_valid(scene.t2_dialogue):
+            metrics['dialogue_active']=scene.t2_dialogue.active
+            var next_center=scene.t2_dialogue.advance_button.get_global_rect().get_center()
+            metrics['dialogue_next']=[next_center.x,next_center.y]
     metrics['guide_json']=FileAccess.file_exists('res://art/guide/guide.json')
     metrics.merge({'spot':spot,'sha':build,'dirty':dirty,'user_dir':OS.get_user_data_dir(),'elapsed_ms':Time.get_ticks_msec()-started,'fps':Engine.get_frames_per_second(),'persistent':OS.is_userfs_persistent(),'probe':probe.read_probe(),'viewport':str(get_viewport().get_visible_rect().size)})
     status.text='%s | %s\nFPS %s mean %.1f p95 %.1f ms | save %s\n%s'%[spot,build.left(8)+(' DIRTY' if dirty else ''),metrics.fps,metrics.mean_ms,metrics.p95_ms,str(metrics.persistent),str(metrics.probe.get('token','none'))]
