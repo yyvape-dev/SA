@@ -60,6 +60,45 @@ def prepare(source: Path, output: Path):
         "godot_acceptance": "requires actual viewport screenshots"
     }
     output.with_name("gamehall_user_rgba_qa.json").write_text(json.dumps(qa, indent=2, ensure_ascii=False)+"\n", encoding="utf-8")
+    # T4 scale correction: only crop transparent padding; never repaint pixels.
+    # Nonzero alpha defines the visible physical boundary, not the source canvas.
+    visible_bbox = rgba.getchannel("A").getbbox()
+    if visible_bbox is None:
+        raise SystemExit("T4_TRIM_FAIL: painting has no visible pixels")
+    trimmed = rgba.crop(visible_bbox)
+    trim_path = output.with_name("gamehall_user_trimmed.png")
+    trimmed.save(trim_path, format="PNG", optimize=True)
+    reloaded = Image.open(trim_path).convert("RGBA")
+    if not np.array_equal(np.asarray(reloaded), np.asarray(trimmed)):
+        raise SystemExit("T4_TRIM_FAIL: crop has changed source RGBA pixels")
+    w, h = reloaded.size
+    visible_ratio = w / h
+    target_ratio = 7.0 / 4.17
+    if abs(visible_ratio / target_ratio - 1.0) > 0.015:
+        raise SystemExit("T4_TRIM_FAIL: image/physical aspect mismatch: " + str(visible_ratio))
+    alp = np.asarray(reloaded.getchannel("A"))
+    partly_transparent = int(((alp > 0) & (alp < 255)).sum())
+    trim_qa = {
+        "source_file": source.name,
+        "source_sha256": source_sha,
+        "original_rgba": output.name,
+        "original_rgba_sha256": qa["output_sha256"],
+        "original_canvas_px": list(rgba.size),
+        "alpha_bbox_xyxy_exclusive": list(visible_bbox),
+        "trimmed_file": trim_path.name,
+        "trimmed_sha256": hashlib.sha256(trim_path.read_bytes()).hexdigest(),
+        "trimmed_px": [w, h],
+        "pixel_identity_with_source_crop": True,
+        "visible_image_aspect": visible_ratio,
+        "target_world_m": [7.0, 4.17],
+        "target_world_aspect": target_ratio,
+        "pixels_per_meter": [w / 7.0, h / 4.17],
+        "partly_transparent_pixels": partly_transparent,
+        "human_halo_and_visual_review": "NOT TESTED; inspect D2 rendered screenshot",
+    }
+    trim_qa_file = output.with_name("gamehall_user_trimmed_qa.json")
+    trim_qa_file.write_text(json.dumps(trim_qa, indent=2, ensure_ascii=False) + "\\n", encoding="utf-8")
+    print("T4_TRIM_PASS", json.dumps(trim_qa, ensure_ascii=False))
     print("T4_ART_PASS", json.dumps(qa, ensure_ascii=False))
 
 def main():
