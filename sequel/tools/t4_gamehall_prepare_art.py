@@ -97,7 +97,7 @@ def prepare(source: Path, output: Path):
         "human_halo_and_visual_review": "NOT TESTED; inspect D2 rendered screenshot",
     }
     trim_qa_file = output.with_name("gamehall_user_trimmed_qa.json")
-    trim_qa_file.write_text(json.dumps(trim_qa, indent=2, ensure_ascii=False) + "\\n", encoding="utf-8")
+    trim_qa_file.write_text(json.dumps(trim_qa, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     print("T4_TRIM_PASS", json.dumps(trim_qa, ensure_ascii=False))
     print("T4_ART_PASS", json.dumps(qa, ensure_ascii=False))
 
