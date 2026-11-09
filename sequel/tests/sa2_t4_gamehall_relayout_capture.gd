@@ -1,7 +1,7 @@
 extends SceneTree
 ## T4 isolated layout spike. No production script or T2/T3 content is changed.
-## This captures real Godot viewport PNGs. The new arcade is flat-color
-## 3D geometry, NOT the approved painted casino artwork and NOT a final guide.
+## Renders actual user-supplied painted casino source, mechanically alpha-keyed.
+## No generated replacement or mock art; no T2/T3 production changes.
 const BT = preload("res://scripts/backtown_block.gd")
 const HALL_X0 := 7.0
 const INSERT_W := 7.0
@@ -83,45 +83,27 @@ func _remove_former_inn(game: Node3D, level: Node3D) -> int:
 	return hidden
 
 func _add_gamehall(game: Node3D, parent: Node3D) -> void:
+	# Artwork is the exact supplied original, processed mechanically to RGBA.
+	# Interior characters, machines, curtains and floor already exist in the
+	# painting. Do not superimpose fake NPCs, tables or pseudo-3D geometry.
+	var art_path := "res://art/painted_bt/gamehall_user_rgba.png"
+	var tex: Texture2D = load(art_path) if ResourceLoader.exists(art_path) else null
+	_check(tex != null, "User-supplied casino RGBA not imported: " + art_path)
+	if tex == null:
+		return
+	_check(tex.get_size() == Vector2(1536.0, 1024.0), "Casino art canvas unexpected")
 	var hall := Node3D.new()
-	hall.name = "T4_GAMEHALL_PROXY_NOT_FINAL_ART"
+	hall.name = "T4_GAMEHALL_USER_SUPPLIED_PAINTING"
 	parent.add_child(hall)
-	var left := HALL_CX - ENTRANCE_W * 0.5
-	var right := HALL_CX + ENTRANCE_W * 0.5
-	# 3D interior is separate from a facade. No walking-street floor painted into art.
-	_block(hall, Vector3(HALL_CX, 1.48, -9.3), Vector3(5.5, 2.96, 0.08), "3a163a", "casino_back_wall")
-	_block(hall, Vector3(HALL_CX, 0.025, -7.9), Vector3(5.5, 0.05, 2.8), "3f224e", "interior_floor")
-	_block(hall, Vector3(left - 0.48, 1.42, -6.48), Vector3(0.96, 2.84, 0.32), "432044", "left_jamb")
-	_block(hall, Vector3(right + 0.48, 1.42, -6.48), Vector3(0.96, 2.84, 0.32), "432044", "right_jamb")
-	_block(hall, Vector3(HALL_CX, 3.49, -6.51), Vector3(INSERT_W, 1.34, 0.28), "492151", "facade_header")
-	_block(hall, Vector3(HALL_CX, 2.86, -6.29), Vector3(INSERT_W, 0.12, 0.18), "d8a34d", "brass_lintel")
-	_block(hall, Vector3(HALL_CX, 3.86, -6.25), Vector3(INSERT_W - 0.4, 0.11, 0.2), "ce9750", "upper_trim")
-	# The apex is fully 4.17m tall but recessed toward the back of the hall.
-	var roof := MeshInstance3D.new()
-	var roof_mesh := ArrayMesh.new()
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	st.set_material(_material("c89a49"))
-	for v in [Vector3(HALL_CX-3.0, 3.75, -7.1), Vector3(HALL_CX+3.0, 3.75, -7.1), Vector3(HALL_CX, HALL_H, -8.5)]:
-		st.add_vertex(v)
-	st.commit(roof_mesh)
-	roof.mesh = roof_mesh
-	roof.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	roof.name = "roof_apex_recessed_4p17m"
-	hall.add_child(roof)
-	for px in [HALL_CX - 3.05, HALL_CX + 3.05]:
-		_block(hall, Vector3(px, 1.43, -6.23), Vector3(0.18, 2.85, 0.27), "d1a34b", "gold_jamb")
-	for px in [8.4, 12.4]:
-		for depth in [-7.25, -8.32]:
-			_block(hall, Vector3(px, 0.88, depth), Vector3(0.66, 1.65, 0.30), "7b3b73", "slot_machine")
-			_block(hall, Vector3(px, 1.14, depth + 0.18), Vector3(0.46, 0.56, 0.07), "be57d8", "machine_display")
-	for px in [9.7, 11.3]:
-		_block(hall, Vector3(px, 0.52, -7.60), Vector3(1.08, 0.12, 0.8), "bf8536", "game_table")
-		_block(hall, Vector3(px, 0.23, -7.6), Vector3(0.15, 0.45, 0.15), "8c552d", "table_foot")
-	for actor in [[8.8, -8.8, 2], [9.6, -8.6, 3], [11.0, -8.9, 5], [12.0, -7.95, 7]]:
-		game.call("_bt_npc", hall, actor[0], actor[1], actor[2])
-	_block(hall, Vector3(HALL_CX, 2.73, -8.0), Vector3(2.15, 0.12, 0.6), "f1b452", "ceiling_light")
-	print("T4_PROXY geometry hall=7.00m, height=4.17m, entrance=5.04m; interior depth=2.8m; 4 in-engine NPC sprites; not painted output")
+	# The transparent canvas maps to seven physical meters and height 4.17 m,
+	# but the actual painted crown begins around canvas y=162, placing the
+	# visible crown at height ~3.51m (within fixed D2 framing).
+	var quad = game.call("_bt_quad", hall, "gamehall_user_rgba",
+		HALL_X0, 0.0, HALL_X0 + INSERT_W, HALL_H, -6.18, 0.84)
+	_check(quad != null, "Godot failed to build user's casino textured QuadMesh")
+	if quad != null:
+		quad.name = "casino_user_approved_art_1536x1024"
+	print("T4_PAINTED_SOURCE_APPLIED x=%.2f..%.2f y=0..%.2f z=-6.18 alpha_RGBA" % [HALL_X0, HALL_X0 + INSERT_W, HALL_H])
 
 func _save(game: Node3D, path: String) -> void:
 	for i in 4:
@@ -205,16 +187,17 @@ func _run() -> void:
 	# Preserve ORIGINAL camera bounds; no 7m city extension.
 	player.position = Vector3(HALL_CX, 0, 0)
 	game.call("_place_cam", true)
-	var roof_px: Vector2 = camera.unproject_position(Vector3(HALL_CX, HALL_H, -8.5))
+	var painted_top_m := HALL_H * (1.0 - 162.0 / 1024.0)
+	var roof_px: Vector2 = camera.unproject_position(Vector3(HALL_CX, painted_top_m, -6.18))
 	var vp_h: float = game.get_viewport().get_visible_rect().size.y
-	print("T4_ROOF_TOP projected_y=%.2fpx ratio=%.4f viewport_height=%.0f (negative means cropped)" % [roof_px.y, roof_px.y / vp_h, vp_h])
-	await _save(game, output + "/after_d2_x10p5.png")
+	print("T4_PAINTED_ROOF_TOP projected_y=%.2fpx ratio=%.4f viewport_height=%.0f (negative means cropped)" % [roof_px.y, roof_px.y / vp_h, vp_h])
+	await _save(game, output + "/painted_d2_x10p5.png")
 	player.position = Vector3(16.0, 0, 0)
 	game.call("_place_cam", true)
-	await _save(game, output + "/after_d2_x16p0.png")
+	await _save(game, output + "/painted_d2_x16p0.png")
 	print("T4_INN_HIDDEN_GEOMETRIES %d" % removed)
 	if failures.is_empty():
-		print("T4_GODOT_PREVIEW_PASS captures=3 (actual Godot viewport, former inn replaced, proxy materials only)")
+		print("T4_GODOT_PREVIEW_PASS captures=3 (actual Godot viewport, user painting, former inn removed)")
 		quit(0)
 	else:
 		quit(1)
