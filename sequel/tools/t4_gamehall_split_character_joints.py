@@ -1,96 +1,113 @@
 #!/usr/bin/env python3
-"""Mechanically segment three approved T4 painted character layers.
+"""T4 character extraction QA. Fail closed on unreviewed anatomy.
 
-No image generation, rescaling, colour correction or synthetic anatomy.
-Every part retains the full 3200x2000 source coordinate system. The joints are
-conservative rectangular masks, not verified anatomical segmentation.
+Source: approved T4 source-registered PNGs. No redraw or rescaling.
+An arbitrary rectangle is NEVER treated as an anatomical joint.
 """
 from pathlib import Path
-from PIL import Image, ImageDraw
-import json
 import hashlib
+import json
+import numpy as np
+from PIL import Image, ImageDraw
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "art/painted_bt/gamehall_motion"
-DEST = SRC / "character_joints"
+OUT = SRC / "character_joints"
 ACTORS = ("cloaked_man", "left_woman", "right_woman")
-# Relative to each source layer's nonzero alpha bbox (x0,y0,x1,y1).
-# Keep feet and hips in body; overlap joints intentionally by 2-4%.
-REGIONS = {
-    "head": (0.28, 0.00, 0.75, 0.22),
-    "left_upper_arm": (0.06, 0.19, 0.34, 0.43),
-    "left_forearm": (0.02, 0.38, 0.32, 0.62),
-    "left_hand": (0.00, 0.57, 0.32, 0.70),
-    "right_upper_arm": (0.69, 0.19, 0.97, 0.43),
-    "right_forearm": (0.70, 0.38, 0.99, 0.62),
-    "right_hand": (0.70, 0.57, 1.00, 0.70),
+EXPECTED = {
+    "cloaked_man": "d12ee49fcec1661ea5c929d1279e53f3a81fedc5a453b861bdf966c83dc63149",
+    "left_woman": "eda6ed9e5d3c73f61088ca677cb7fd7b68da31ea8df2708be9969473e89fb040",
+    "right_woman": "0a43bbd83e2e4ed2b58eaadfa9417e5aa277d7504dd107dd9b8f9401c00f72d8",
 }
-ORDER = tuple(REGIONS)
+PARTS = ("head", "left_upper_arm", "left_forearm", "left_hand",
+         "right_upper_arm", "right_forearm", "right_hand", "body")
+# An artist-approved polygon must be authored in the SOURCE layer's native
+# 3200x2000 pixel coordinates. No guessed bounding-box fractions permitted.
+REQUIRED = set(PARTS[:-1])
 
-def sha(path):
+def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
-def split(actor):
-    source = SRC / (actor + ".png")
-    image = Image.open(source).convert("RGBA")
-    assert image.size == (3200, 2000), (actor, image.size)
-    alpha = image.getchannel("A")
-    bbox = alpha.getbbox()
-    assert bbox is not None, actor
-    x0, y0, x1, y1 = bbox
-    w, h = x1-x0, y1-y0
-    # Nonoverlapping ownership in draw order: hands > forearms > upper arms > head.
-    # This makes a pixel-exact static recomposition possible; occluded anatomy is
-    # not invented. These pieces need source-specific joint review before animation.
-    ownership = Image.new("L", image.size, 0)
-    parts = {}
-    for part in reversed(ORDER):
-        a,b,c,d = REGIONS[part]
-        rect = (round(x0+a*w), round(y0+b*h), round(x0+c*w), round(y0+d*h))
-        mask = Image.new("L", image.size, 0)
-        ImageDraw.Draw(mask).rectangle(rect, fill=255)
-        # Restrict to source alpha; avoid making a bounding-box-shaped cutout.
-        import PIL.ImageChops
-        visible = PIL.ImageChops.multiply(alpha, mask)
-        visible = PIL.ImageChops.multiply(visible, PIL.ImageChops.invert(ownership))
-        ownership = PIL.ImageChops.lighter(ownership, mask)
-        cut = image.copy()
-        cut.putalpha(visible)
-        target = DEST / (actor + "_" + part + ".png")
-        cut.save(target, optimize=True)
-        parts[part] = {"file": target.name, "bbox": list(visible.getbbox() or (0,0,0,0)),
-                       "source_rect": list(rect), "sha256": sha(target)}
-    body_alpha = PIL.ImageChops.multiply(alpha, PIL.ImageChops.invert(ownership))
-    body = image.copy()
-    body.putalpha(body_alpha)
-    body_path = DEST / (actor + "_body.png")
-    body.save(body_path, optimize=True)
-    # Exact alpha restoration; RGB equality only for pixels with nonzero alpha.
-    restored = Image.new("RGBA", image.size)
-    restored.alpha_composite(body)
-    for part in ORDER:
-        restored.alpha_composite(Image.open(DEST / parts[part]["file"]).convert("RGBA"))
-    import numpy as np
-    expected = np.asarray(image)
-    actual = np.asarray(restored)
-    alpha_equal = bool(np.array_equal(expected[:,:,3], actual[:,:,3]))
-    rgb_equal = bool(np.array_equal(expected[:,:,:3][expected[:,:,3]==255],
-                                    actual[:,:,:3][expected[:,:,3]==255]))
-    assert alpha_equal and rgb_equal, actor + ": static composite mismatch"
-    return {"source": str(source.relative_to(ROOT)), "source_sha256": sha(source),
-            "source_alpha_bbox": list(bbox), "body": body_path.name,
-            "parts": parts, "static_alpha_exact": alpha_equal,
-            "opaque_rgb_exact": rgb_equal, "joint_anatomy_approved": False,
-            "hidden_anatomy_reconstructed": False}
+def load_approved_masks(actor, image):
+    path = SRC / "character_joint_polygons.json"
+    if not path.is_file():
+        raise RuntimeError("JOINT_QA_BLOCKED: missing artist-reviewed character_joint_polygons.json; "
+                           "rectangular proxy masks are prohibited")
+    data = json.loads(path.read_text(encoding="utf-8"))
+    entry = data.get("characters", {}).get(actor)
+    if not entry or entry.get("source_sha256") != EXPECTED[actor] or entry.get("reviewed") is not True:
+        raise RuntimeError(f"JOINT_QA_BLOCKED: {actor}: missing source-locked reviewed polygons")
+    polygons = entry.get("polygons", {})
+    if set(polygons) != REQUIRED:
+        raise RuntimeError(f"JOINT_QA_BLOCKED: {actor}: require exact head/arm/hand polygons")
+    masks = {}
+    for name in PARTS[:-1]:
+        points = polygons[name]
+        if len(points) < 3 or any(len(p) != 2 or not all(isinstance(v, int) for v in p)
+                                  or not (0 <= p[0] < 3200 and 0 <= p[1] < 2000)
+                                  for p in points):
+            raise RuntimeError(f"JOINT_QA_BLOCKED: {actor}/{name}: invalid native pixel polygon")
+        mask = Image.new("L", image.size)
+        ImageDraw.Draw(mask).polygon([tuple(p) for p in points], fill=255)
+        masks[name] = np.asarray(mask) != 0
+    return masks
 
 def main():
-    DEST.mkdir(parents=True, exist_ok=True)
-    result = {"canvas": [3200,2000], "generation": False,
-              "method": "deterministic source-alpha clipped masks",
-              "warning": "Provisional joint boundaries: anatomy and motion not yet approved",
-              "characters": {actor: split(actor) for actor in ACTORS}}
-    (DEST / "manifest.json").write_text(json.dumps(result,indent=2,ensure_ascii=False)+"\n")
-    print("T4_CHARACTER_JOINT_SPLIT_PASS actors=3 exact_static_recomposition=true provisional_anatomy=true")
+    OUT.mkdir(parents=True, exist_ok=True)
+    report = {"canvas": [3200, 2000], "status": "BLOCKED_UNTIL_ANATOMY_REVIEW",
+              "source_regeneration": False, "characters": {}}
+    for actor in ACTORS:
+        path = SRC / f"{actor}.png"
+        if digest(path) != EXPECTED[actor]:
+            raise RuntimeError(f"JOINT_QA_BLOCKED: {actor}: approved source checksum mismatch")
+        image = Image.open(path).convert("RGBA")
+        if image.size != (3200, 2000):
+            raise RuntimeError(f"JOINT_QA_BLOCKED: {actor}: invalid canvas {image.size}")
+        rgba = np.asarray(image).copy()
+        alpha = rgba[:, :, 3]
+        masks = load_approved_masks(actor, image)
+        # Ownership is disjoint; overlaps are rejected instead of silently
+        # assigning pixels to an arbitrary hand or sleeve.
+        count = np.zeros(alpha.shape, dtype=np.uint8)
+        for name, mask in masks.items():
+            if not np.any(mask & (alpha > 0)):
+                raise RuntimeError(f"JOINT_QA_BLOCKED: {actor}/{name}: empty visible anatomy")
+            count += mask.astype(np.uint8)
+        if np.any((count > 1) & (alpha > 0)):
+            raise RuntimeError(f"JOINT_QA_BLOCKED: {actor}: overlapping source-visible joint polygons")
+        masks["body"] = count == 0
+        results = {}
+        reconstructed = np.zeros_like(rgba)
+        for name in PARTS:
+            pixels = rgba.copy()
+            pixels[:, :, 3] = np.where(masks[name], alpha, 0)
+            # Source RGB preserved even under alpha=0, to prevent repaint.
+            target = OUT / f"{actor}_{name}.png"
+            Image.fromarray(pixels, "RGBA").save(target, optimize=True)
+            reconstructed[masks[name]] = rgba[masks[name]]
+            ys, xs = np.where(masks[name] & (alpha > 0))
+            results[name] = {"file": target.name, "sha256": digest(target),
+                             "bbox": [int(xs.min()), int(ys.min()), int(xs.max()+1), int(ys.max()+1)]}
+        if not np.array_equal(reconstructed[alpha > 0], rgba[alpha > 0]):
+            raise RuntimeError(f"JOINT_QA_BLOCKED: {actor}: static source pixel mismatch")
+        # 1:1 visual review sheet; no inferred hidden pixels.
+        x0, y0, x1, y1 = image.getbbox()
+        pad = 12
+        sw, sh = x1-x0, y1-y0
+        sheet = Image.new("RGBA", ((sw+pad)*4, (sh+pad)*2), (40,40,40,255))
+        for i, name in enumerate(PARTS):
+            part = Image.open(OUT / results[name]["file"])
+            sheet.alpha_composite(part.crop((x0,y0,x1,y1)), ((i%4)*(sw+pad), (i//4)*(sh+pad)))
+        preview = OUT / f"{actor}_contact_sheet.png"
+        sheet.save(preview)
+        report["characters"][actor] = {"source_sha256": digest(path), "parts": results,
+                                       "contact_sheet": preview.name,
+                                       "static_visible_pixels_exact": True,
+                                       "hidden_anatomy_reconstructed": False,
+                                       "animation_ready": False}
+    report["status"] = "STATIC_PIXEL_QA_PASS_ANATOMY_MOTION_REVIEW_REQUIRED"
+    (OUT / "manifest.json").write_text(json.dumps(report, indent=2)+"\n", encoding="utf-8")
+    print("T4_CHARACTER_STATIC_PIXEL_QA_PASS; animation_ready=false")
 
 if __name__ == "__main__":
     main()
