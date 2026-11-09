@@ -1,0 +1,356 @@
+{
+  "tiles": {
+    "cloaked_man_cleanup": {
+      "region": [
+        1,
+        1,
+        154,
+        353
+      ],
+      "center": [
+        995.0,
+        1752.5
+      ]
+    },
+    "cloaked_man_torso": {
+      "region": [
+        157,
+        1,
+        154,
+        311
+      ],
+      "center": [
+        995.0,
+        1773.5
+      ]
+    },
+    "left_woman_cleanup": {
+      "region": [
+        313,
+        1,
+        126,
+        287
+      ],
+      "center": [
+        811.0,
+        1737.5
+      ]
+    },
+    "right_woman_cleanup": {
+      "region": [
+        441,
+        1,
+        132,
+        283
+      ],
+      "center": [
+        2365.0,
+        1738.5
+      ]
+    },
+    "left_woman_torso": {
+      "region": [
+        575,
+        1,
+        96,
+        245
+      ],
+      "center": [
+        826.0,
+        1758.5
+      ]
+    },
+    "right_woman_torso": {
+      "region": [
+        673,
+        1,
+        118,
+        242
+      ],
+      "center": [
+        2358.0,
+        1759.0
+      ]
+    },
+    "cloaked_man_right_forearm_cuff": {
+      "region": [
+        793,
+        1,
+        36,
+        80
+      ],
+      "center": [
+        1029.0,
+        1731.0
+      ]
+    },
+    "right_woman_head_hair": {
+      "region": [
+        831,
+        1,
+        50,
+        65
+      ],
+      "center": [
+        2369.0,
+        1629.5
+      ]
+    },
+    "cloaked_man_right_upper_arm": {
+      "region": [
+        883,
+        1,
+        30,
+        60
+      ],
+      "center": [
+        1022.0,
+        1676.0
+      ]
+    },
+    "cloaked_man_head_hood": {
+      "region": [
+        915,
+        1,
+        74,
+        59
+      ],
+      "center": [
+        992.0,
+        1605.5
+      ]
+    },
+    "left_woman_head_hair": {
+      "region": [
+        1,
+        356,
+        52,
+        59
+      ],
+      "center": [
+        804.0,
+        1623.5
+      ]
+    },
+    "left_woman_left_upper_arm": {
+      "region": [
+        55,
+        356,
+        31,
+        52
+      ],
+      "center": [
+        787.5,
+        1674.0
+      ]
+    },
+    "right_woman_right_upper_arm": {
+      "region": [
+        88,
+        356,
+        39,
+        50
+      ],
+      "center": [
+        2379.5,
+        1673.0
+      ]
+    },
+    "left_woman_left_forearm_hand": {
+      "region": [
+        129,
+        356,
+        45,
+        25
+      ],
+      "center": [
+        770.5,
+        1699.5
+      ]
+    },
+    "right_woman_right_forearm": {
+      "region": [
+        176,
+        356,
+        44,
+        25
+      ],
+      "center": [
+        2400.0,
+        1696.5
+      ]
+    },
+    "right_woman_right_hand": {
+      "region": [
+        222,
+        356,
+        19,
+        13
+      ],
+      "center": [
+        2421.5,
+        1692.5
+      ]
+    }
+  },
+  "actors": {
+    "cloaked_man": {
+      "cleanup": "cloaked_man_cleanup",
+      "parts": {
+        "torso": {
+          "tile": "cloaked_man_torso",
+          "pivot": [
+            988.5,
+            1709.5
+          ],
+          "parent": null,
+          "degrees": 0.0,
+          "delay": 0.16,
+          "z": 0
+        },
+        "head_hood": {
+          "tile": "cloaked_man_head_hood",
+          "pivot": [
+            1004.5,
+            1627.0
+          ],
+          "parent": "torso",
+          "degrees": -9.52,
+          "delay": 0,
+          "z": 1
+        },
+        "right_upper_arm": {
+          "tile": "cloaked_man_right_upper_arm",
+          "pivot": [
+            1018.0,
+            1651.5
+          ],
+          "parent": "torso",
+          "degrees": 6.4399999999999995,
+          "delay": 0.07,
+          "z": 2
+        },
+        "right_forearm_cuff": {
+          "tile": "cloaked_man_right_forearm_cuff",
+          "pivot": [
+            1028.0,
+            1698.0
+          ],
+          "parent": "right_upper_arm",
+          "degrees": 5.04,
+          "delay": 0.12,
+          "z": 3
+        }
+      }
+    },
+    "left_woman": {
+      "cleanup": "left_woman_cleanup",
+      "parts": {
+        "torso": {
+          "tile": "left_woman_torso",
+          "pivot": [
+            818.5,
+            1706.5
+          ],
+          "parent": null,
+          "degrees": 0.0,
+          "delay": 0.16,
+          "z": 0
+        },
+        "head_hair": {
+          "tile": "left_woman_head_hair",
+          "pivot": [
+            799.5,
+            1641.5
+          ],
+          "parent": "torso",
+          "degrees": -13.44,
+          "delay": 0,
+          "z": 1
+        },
+        "left_upper_arm": {
+          "tile": "left_woman_left_upper_arm",
+          "pivot": [
+            792.0,
+            1661.0
+          ],
+          "parent": "torso",
+          "degrees": -7.839999999999999,
+          "delay": 0.07,
+          "z": 2
+        },
+        "left_forearm_hand": {
+          "tile": "left_woman_left_forearm_hand",
+          "pivot": [
+            783.0,
+            1692.5
+          ],
+          "parent": "left_upper_arm",
+          "degrees": 24,
+          "delay": 0.12,
+          "z": 3
+        }
+      }
+    },
+    "right_woman": {
+      "cleanup": "right_woman_cleanup",
+      "parts": {
+        "torso": {
+          "tile": "right_woman_torso",
+          "pivot": [
+            2365.0,
+            1715.0
+          ],
+          "parent": null,
+          "degrees": 0.0,
+          "delay": 0.16,
+          "z": 0
+        },
+        "head_hair": {
+          "tile": "right_woman_head_hair",
+          "pivot": [
+            2373.0,
+            1640.5
+          ],
+          "parent": "torso",
+          "degrees": 12.32,
+          "delay": 0,
+          "z": 1
+        },
+        "right_upper_arm": {
+          "tile": "right_woman_right_upper_arm",
+          "pivot": [
+            2373.0,
+            1661.0
+          ],
+          "parent": "torso",
+          "degrees": -9.52,
+          "delay": 0.07,
+          "z": 2
+        },
+        "right_forearm": {
+          "tile": "right_woman_right_forearm",
+          "pivot": [
+            2391.0,
+            1696.0
+          ],
+          "parent": "right_upper_arm",
+          "degrees": -22,
+          "delay": 0.12,
+          "z": 3
+        },
+        "right_hand": {
+          "tile": "right_woman_right_hand",
+          "pivot": [
+            2415.5,
+            1693.0
+          ],
+          "parent": "right_forearm",
+          "degrees": 8.399999999999999,
+          "delay": 0.16,
+          "z": 4
+        }
+      }
+    }
+  }
+}

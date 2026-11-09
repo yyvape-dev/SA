@@ -6,6 +6,9 @@ extends Node3D
 
 const City := preload("res://scripts/city_block1.gd")
 const BT := preload("res://scripts/backtown_block.gd")
+const GamehallFloor := preload("res://scripts/gamehall_floor.gd")
+var town_floor := "backtown"
+var town_floor_busy := false
 var town := ""   # "back"＝裏の町の入り口の下絵（specs/backtown_blockout.md。環境変数 TOWN=back、Web は ?town=back）
 const Player := preload("res://scripts/player.gd")
 const TouchUI := preload("res://scripts/touch_ui.gd")
@@ -113,7 +116,7 @@ func _ready() -> void:
 	else:
 		progress.load_save()
 	town = OS.get_environment("TOWN")
-	if _q("town=back"):
+	if _q("town=back") or _q("at=gamehall"):
 		town = "back"
 	if town == "back":
 		if not await district.ensure("bt1"):
@@ -206,7 +209,12 @@ func _ready() -> void:
 			add_child(cl)
 		# 確認用：?at=gate で入口の前から始める
 		if str(JavaScriptBridge.eval("window.location.search")).contains("at=gate"):
-			player.position = Vector3(GATE_X - 0.5, 0, BELT_Z.x + 1.6)
+			player.position = Vector3(gate.position.x - 2.0, 0, 0.0) if gate else Vector3(GATE_X - 0.5, 0, BELT_Z.x + 1.6)
+			_place_cam(true)
+	if _q("at=gamehall"):
+		await change_town_floor(true)
+		if town_floor == "gamehall":
+			player.position.x = 0.0
 			_place_cam(true)
 	if OS.has_environment("DISTRICT_RELEASE_TEST"):
 		_release_test.call_deferred()
@@ -310,10 +318,66 @@ func _load_ally() -> void:
 	lily_cutin.flash_col = Color(0.88, 0.95, 1.0)
 	add_child(lily_cutin)
 
+func _check_town_edge() -> void:
+	if town != "back" or player == null or town_floor_busy or player.locked or dungeon != null:
+		return
+	if hud == null or hud.menu_open or hud.slot_open:
+		return
+	if town_floor == "backtown" and player.position.x <= GamehallFloor.WEST_EXIT:
+		town_floor_busy = true
+		change_town_floor.call_deferred(true)
+	elif town_floor == "gamehall" and player.position.x >= GamehallFloor.EAST_RETURN:
+		town_floor_busy = true
+		change_town_floor.call_deferred(false)
+
+func change_town_floor(enter_hall: bool) -> void:
+	town_floor_busy = true
+	player.locked = true
+	var old_mode: int = battle.process_mode
+	battle.process_mode = Node.PROCESS_MODE_DISABLED
+	loading.show_now()
+	if enter_hall and not await district.ensure("gh1"):
+		loading.error_text = district.last_error
+		player.locked = false
+		battle.process_mode = old_mode
+		town_floor_busy = false
+		return
+	for i in 3:
+		await get_tree().process_frame
+	if enter_hall:
+		var assembled: Dictionary = GamehallFloor.build(self)
+		if assembled.is_empty():
+			loading.error_text = "遊技場の画像を読み込めません"
+			player.locked = false
+			battle.process_mode = old_mode
+			town_floor_busy = false
+			return
+		town_floor = "gamehall"
+		player.position = Vector3(21.5, 0, 0)
+		player.face = -1
+	else:
+		build_backtown()
+		town_floor = "backtown"
+		player.position = Vector3(BT.ROOM_X.x + 1.5, 0, 0)
+		player.face = 1
+		bt_tex.erase("gamehall_approved_16m_preview")
+	if is_instance_valid(battle.ally):
+		battle.ally.position = player.position + Vector3(-1.4, 0, 0.7)
+	battle.auto_spawn = false
+	battle.glints = glints
+	_place_cam(true)
+	await get_tree().process_frame
+	loading.hide_soon()
+	player.locked = false
+	battle.process_mode = old_mode
+	town_floor_busy = false
+	print("TOWN_FLOOR_READY ", town_floor)
+
 func _process(delta: float) -> void:
 	if player == null:
 		return   # 地区の読み込み中
 	_place_cam(false, delta)
+	_check_town_edge()
 	_check_gate()
 	if fx_demo >= 0.0:
 		fx_demo -= delta
@@ -519,15 +583,16 @@ func _build_env() -> void:
 	add_child(sun)
 
 func _build_floor() -> void:
+	var street_width := 72.0 if town == "back" else 60.0
 	cobble_tex = load("res://assets/ground/cobble.png")
 	slab_tex = load("res://assets/ground/slab.png")
 	# 地面はコード（前作の教訓：AIの一枚絵は継ぎ目が苦手）。外部AIの継ぎ目の無い素材を繰り返して敷く。
 	# 奥の歩道・帯（車道の石畳）・手前の歩道。キャラとエフェクトが沈まないよう暗めにする（FLOOR_DIM）。
-	_ground(Vector3(0, 0.0, -5.2), Vector2(60, 3.0), slab_tex, SLAB_TILE)     # 奥の歩道
-	_ground(Vector3(0, -0.03, 0.15), Vector2(60, 7.6), cobble_tex, COBBLE_TILE) # 帯（石畳の通り）
-	_ground(Vector3(0, 0.0, 5.6), Vector2(60, 3.2), slab_tex, SLAB_TILE)      # 手前の歩道
+	_ground(Vector3(0, 0.0, -5.2), Vector2(street_width, 3.0), slab_tex, SLAB_TILE)     # 奥の歩道
+	_ground(Vector3(0, -0.03, 0.15), Vector2(street_width, 7.6), cobble_tex, COBBLE_TILE) # 帯（石畳の通り）
+	_ground(Vector3(0, 0.0, 5.6), Vector2(street_width, 3.2), slab_tex, SLAB_TILE)      # 手前の歩道
 	for z in [-1.2, 1.6]:   # 路面電車の線路（真鍮の細い線）
-		var r := _slab(Vector3(0, -0.02, z), Vector3(60, 0.04, 0.06), Color("b8933f"))
+		var r := _slab(Vector3(0, -0.02, z), Vector3(street_width, 0.04, 0.06), Color("b8933f"))
 		var rm: StandardMaterial3D = r.material_override
 		rm.metallic = 0.6
 		rm.roughness = 0.35
@@ -919,6 +984,7 @@ func release_district() -> void:
 	crowd.clear()
 	piece_nodes.clear()
 	fg_list.clear()
+	bt_fg.clear()
 	glints = []
 	if battle:
 		battle.glints = []
@@ -1562,6 +1628,7 @@ func _capture_lineup() -> void:
 
 # ---------- 場所の組み立て（街の区画／ダンジョンの部屋） ----------
 func _clear_level() -> void:
+	bt_fg.clear()
 	if level:
 		remove_child(level)
 		level.queue_free()
@@ -1597,6 +1664,7 @@ func build_city() -> void:
 ## 届いた絵（art/painted_bt）は絵の板、無い所は色の付いた下絵。下の帯は 0〜5m、出っ張りは平ら。
 var bt_marks := []   # 撮影の書き込み用 [種類, 名前, 世界の位置]
 var bt_tex := {}
+var bt_surface_mats := {}
 var bt_lights := []  # 床の映り込みの元 [絵/種類, x, y, z, 幅]
 var bt_hang_rects := []    # 24章：吊り物 [名前, x0, y0, x1, y1, z]（ふさいでいないかの確かめ）
 var bt_target_rects := []  # 24章：ふさいではいけない物 [名前, x0, y0, x1, y1, z]（扉・光る看板・屋台の天幕・路地の口・ビジョン）
@@ -1609,12 +1677,26 @@ const BT_ART_DIM := 0.62      # 届いた絵（壁・屋台・手前）の明る
 const BT_GLOW := 1.35         # 光る部品の明るさ（1 を超えて 3D の glow がにじむ）
 
 func _bt_mat(key: String) -> StandardMaterial3D:
+	if bt_surface_mats.has(key):
+		return bt_surface_mats[key]
 	var col: Color = BT.MAT[key]
 	var m := StandardMaterial3D.new()
 	m.albedo_color = col
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED   # 下絵は色の意味を見せる
+	var surfaces := {"side": "tex_iron", "stone": "tex_brick", "brick": "tex_brick", "scaffold": "tex_iron",
+		"iron": "tex_iron", "tin": "tex_iron", "wood": "tex_boards", "wood_dk": "tex_boards", "wood_lt": "tex_boards",
+		"crate": "tex_boards", "brass": "tex_iron", "copper": "tex_iron", "cable": "tex_iron", "shadow": "tex_brick",
+		"cloth": "tex_cloth", "cloth2": "tex_cloth", "awning": "tex_cloth", "white": "tex_cloth", "red": "tex_cloth", "linen": "tex_cloth"}
+	if surfaces.has(key):
+		m.albedo_texture = _bt_art(surfaces[key])
+		m.albedo_color = Color(0.65, 0.65, 0.65) if key != "shadow" else Color(0.22, 0.22, 0.28)
+		m.uv1_triplanar = true
+		m.uv1_world_triplanar = true
+		m.uv1_scale = Vector3.ONE / BT.TEX_M
+		m.texture_repeat = true
 	if key.begins_with("neon") or key in ["lamp", "bulb", "window", "curtain"]:
 		m.albedo_color = col * (1.3 if key != "curtain" else 0.9)
+	bt_surface_mats[key] = m
 	return m
 
 func _bt_box(parent: Node3D, c: Vector3, s: Vector3, key: String, mname: String = "") -> MeshInstance3D:
@@ -1774,7 +1856,8 @@ func _bt_barrel(parent: Node3D, x: float, y0: float, z: float, r: float, h: floa
 		parts.append(_bt_cyl(parent, x, y0 + h * f, z, r + 0.015, 0.06, "iron"))
 	if k < 1.0:
 		for mi in parts:
-			var m: StandardMaterial3D = mi.material_override
+			var m: StandardMaterial3D = mi.material_override.duplicate()
+			mi.material_override = m
 			m.albedo_color = m.albedo_color * k
 
 func _bt_shack(root: Node3D, sg: Dictionary) -> void:
@@ -1834,6 +1917,10 @@ func _bt_extras(st: Node3D) -> void:
 			bt_marks.append(["fix", "4", Vector3(x, 1.6, z)])
 		var sw: float = sb.w
 		var hw: float = sw * 0.5
+		if _bt_art(sb.id) != null:
+			_bt_quad(g, sb.id, x - hw - 0.15, 0.0, x + hw + 0.15, 2.6, z + 0.26)
+			bt_lights.append(["stall", x, 2.0, z, sw * 0.6])
+			continue
 		_bt_box(g, Vector3(x, 0.52, z), Vector3(sw, 1.04, 0.05), "wood")                  # 立ち飲みのカウンター
 		_bt_box(g, Vector3(x, 1.08, z - 0.15), Vector3(sw + 0.1, 0.08, 0.4), "brass")     # 天板
 		_bt_box(g, Vector3(x, 1.5, z - 0.75), Vector3(sw - 0.2, 0.9, 0.02), "bottle")    # 奥の小さな酒瓶の棚
@@ -1861,6 +1948,12 @@ func _bt_extras(st: Node3D) -> void:
 		_bt_box(ex, Vector3(c[0] + w * 0.25, top - d * 0.9, cz), Vector3(w * 0.45, d * 0.2, 0.02), c[3])
 		bt_hang_rects.append(["cloth:" + c[3] + "@" + c[4], c[0] - w * 0.5, top - d, c[0] + w * 0.5, top, cz])
 	for t in BT.TUBES:   # 緑に光るガラス管（真鍮の口金）
+		var painted_glass := _bt_art("pend_green")
+		if painted_glass != null:
+			var glass_w: float = t[4] * float(painted_glass.get_width()) / float(painted_glass.get_height())
+			_bt_quad(ex, "pend_green", t[0] - glass_w * 0.5, t[1], t[0] + glass_w * 0.5, t[1] + t[4], t[2] + 0.2, BT_GLOW)
+			bt_lights.append(["tube", t[0], t[1] + t[4] * 0.5, t[2], 0.5])
+			continue
 		_bt_cyl(ex, t[0], t[1], t[2], t[3], t[4], "glass_g")
 		_bt_cyl(ex, t[0], t[1] - 0.18, t[2], t[3] + 0.05, 0.2, "brass")
 		_bt_cyl(ex, t[0], t[1] + t[4] - 0.02, t[2], t[3] + 0.05, 0.2, "brass")
@@ -1890,7 +1983,8 @@ func _bt_extras(st: Node3D) -> void:
 		hub.rotation.x = PI * 0.5
 		bt_marks.append(["gear", "gear_wheel", gp])
 	for ns in BT.NEON_SLOTS:   # 光るネオンの置き場所（枠だけ。光らせない＝看板の数に入れない）
-		if (ns[0] == "neon_liquor_tavern" and _bt_art("w_bar") != null) or (ns[0] == "neon_woman_brothel" and _bt_art("w_brothel") != null):
+		var source_art: String = {"neon_liquor_tavern": "w_bar", "neon_woman_brothel": "w_brothel", "neon_liquor_sbar_b": "sbar_b"}.get(ns[0], "")
+		if source_art != "" and _bt_art(source_art) != null:
 			continue   # 納品画に看板が含まれる。未読込時だけ仮パネルを残す。
 		var x0: float = ns[1]
 		var y0: float = ns[2]
@@ -1905,7 +1999,7 @@ func _bt_extras(st: Node3D) -> void:
 			bt_marks.append(["chk", "slot_corner:" + ns[0], cpt])
 		bt_target_rects.append(["slot:" + ns[0], x0, y0, x1, y1, nz])
 
-func build_backtown() -> void:
+func build_backtown(with_gate: bool = true) -> void:
 	_clear_level()
 	_build_floor()
 	bt_marks.clear()
@@ -2063,6 +2157,7 @@ func build_backtown() -> void:
 	# 印（扉・路地の口・人混みの帯）。正面図には写さない
 	var mk := Node3D.new()
 	mk.name = "marks"
+	mk.visible = OS.get_environment("BT_GUIDES") == "1"
 	level.add_child(mk)
 	piece_nodes["marks"] = mk
 	for d in BT.DOORS:
@@ -2090,8 +2185,10 @@ func build_backtown() -> void:
 		var col: Array = BT_GLINT_COL.get(key, [1.0, 0.8, 0.5])
 		var p: float = 0.95 if key in ["vision_screen", "cabaret_neon", "sign_sigil", "gate"] else (0.55 if key.begins_with("pend") else 0.75)
 		glints.append({"x": L[1], "y": L[2], "z": L[3] + 0.2, "w": clampf(float(L[4]), 0.4, 2.4), "col": col, "p": p, "k": 0.8})
+	if with_gate:
+		_build_gate(BT.DUNGEON_GATE_X, true)
 	_build_glints()
-	cam_x = Vector2(BT.ROOM_X.x + 4.92, BT.ROOM_X.y - 4.92)
+	cam_x = Vector2(BT.ROOM_X.x + 4.92, BT.ROOM_X.y - 3.0)
 	if battle:
 		battle.glints = glints
 		battle.ROOM_X = BT.ROOM_X
@@ -2457,8 +2554,13 @@ func set_portal_color(n: Node3D, col: Color, a: float) -> void:
 ## 街の端（高架の下）のダンジョンの入口：奥の歩道側の門。紫＝どちらの陣営でもない。
 const GATE_COL := Color(0.72, 0.5, 1.0)
 const GATE_SHADER := preload("res://scripts/gate.gdshader")
-func _build_gate() -> void:
-	gate = make_portal(Vector3(GATE_X, 0, BELT_Z.x - 0.15), true, 2.6, GATE_COL)
+func _build_gate(x: float = GATE_X, straight: bool = false) -> void:
+	gate = make_portal(Vector3(x, 0, 0.0 if straight else BELT_Z.x - 0.15), true, 2.6, GATE_COL)
+	gate.set_meta("straight_entry", straight)
+	if straight:
+		for child in gate.get_children():
+			if child is MeshInstance3D and child.mesh is BoxMesh and child.material_override.shading_mode != BaseMaterial3D.SHADING_MODE_UNSHADED:
+				child.material_override = _bt_mat("stone").duplicate()
 	# 柱の間の光る扉（縦の板、下ほど明るい）と上の梁。遠くからでも入口と分かるように
 	var door := MeshInstance3D.new()
 	var qm := QuadMesh.new()
@@ -2482,14 +2584,14 @@ func _build_gate() -> void:
 	beam.position = Vector3(0, 2.95, 0)
 	beam.name = "lamp_beam"
 	gate.add_child(beam)
-	glints.append({"x": GATE_X, "y": 2.0, "z": BELT_Z.x - 0.2, "w": 1.6, "col": [GATE_COL.r, GATE_COL.g, GATE_COL.b], "p": 0.8, "len": 4.0})
+	glints.append({"x": x, "y": 2.0, "z": gate.position.z, "w": 1.6, "col": [GATE_COL.r, GATE_COL.g, GATE_COL.b], "p": 0.8, "len": 4.0})
 
 func _check_gate() -> void:
-	if gate == null or dungeon != null or player == null:
+	if gate == null or dungeon != null or player == null or town_floor_busy or hud == null:
 		return
 	set_portal_color(gate, GATE_COL, 0.4 + 0.25 * sin(Time.get_ticks_msec() * 0.004))
-	var near: bool = absf(player.position.x - GATE_X) < 1.4 and player.position.z < BELT_Z.x + 0.7
-	if near and gate_armed and not hud.menu_open:
+	var near: bool = absf(player.position.x - gate.position.x) < 1.4 and (gate.get_meta("straight_entry", false) or player.position.z < BELT_Z.x + 0.7)
+	if near and gate_armed and not hud.menu_open and not hud.slot_open and not player.locked:
 		gate_armed = false
 		hud.open_menu()
 	elif not near:
@@ -2529,12 +2631,17 @@ func leave_dungeon() -> void:
 	battle.hp = battle.hp_max
 	for e in battle.enemies.duplicate():
 		battle.remove_enemy(e)
-	build_city()
-	player.position = Vector3(GATE_X - 2.0, 0, 0.5)
+	if town == "back":
+		build_backtown()
+		town_floor = "backtown"
+		player.position = Vector3(BT.DUNGEON_GATE_X - 2.0, 0, 0.0)
+	else:
+		build_city()
+		player.position = Vector3(GATE_X - 2.0, 0, 0.5)
 	player.face = -1
 	gate_armed = false
 	_place_cam(true)
-	battle.auto_spawn = not OS.has_environment("CAPTURE_DUNGEON") and not OS.has_environment("DUNGEON_TEST")
+	battle.auto_spawn = town != "back" and not OS.has_environment("CAPTURE_DUNGEON") and not OS.has_environment("DUNGEON_TEST")
 	battle.next_t = 3.0
 
 ## 成長をラナと戦闘に反映する

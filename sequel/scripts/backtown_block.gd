@@ -6,7 +6,8 @@ extends RefCounted
 ## 横幅の半分は 7.0m。歩ける左右 ±24（約 3 画面、U8）、カメラが動ける左右 ±19.1、正面の壁は ±26.5（計算 ±26.1）。
 ## 並び（12 章）：左＝明るく賑やか → 右＝暗く怪しい（門に近いほど混沌）。
 
-const ROOM_X := Vector2(-24.0, 24.0)
+const ROOM_X := Vector2(-24.0, 28.0)
+const DUNGEON_GATE_X := 26.0
 const BELT_Z := Vector2(-2.0, 2.0)
 const WALL_Z := -6.5
 const WALL_H := 14.0
@@ -40,7 +41,7 @@ const MAT := {
 ##   filler＝つなぎの壁（横の壁の素材を実寸で繰り返す）、pillar＝鉄骨の柱、alley＝路地の口
 static func segments() -> Array:
 	return [
-		{"kind": "filler", "x0": -26.5, "x1": -22.2, "tex": "tex_brick"},
+		{"kind": "filler", "x0": -31.5, "x1": -22.2, "tex": "tex_brick"},
 		{"kind": "pillar", "x0": -22.2, "x1": -21.6},
 		{"kind": "wall", "id": "w3_vision", "x0": -21.6, "x1": -16.2, "note": "ビジョンの建物（届いた絵）", "art": "w3_vision_off",
 			"art_box": [-22.65, 0.0, -15.15, 5.0], "upper_tex": "tex_iron"},
@@ -143,7 +144,7 @@ static func segments() -> Array:
 		[22.5, 2.52, 24.9, 2.6, -5.9, "iron", 0.6],        # 小さなバルコニー（2.6m）
 	], "rails": [[22.5, 24.9, 2.6, 3.0, -5.9, "iron"]],
 	 "roofs": [[21.95, 22.5, 2.6, -6.5, 2.35, -5.0, "tin"], [22.5, 24.9, 2.52, -5.9, 2.35, -5.0, "tin"]]},
-	{"kind": "filler", "x0": 25.0, "x1": 26.5, "tex": "tex_brick"},
+	{"kind": "filler", "x0": 25.0, "x1": 35.0, "tex": "tex_brick"},
 	]
 
 ## 路地の奥の書き割り（届いた絵）
@@ -157,7 +158,6 @@ const ALLEYS := [{"id": "alley_towers", "x": -13.2, "w": 2.4}, {"id": "alley_gat
 const STALLS := [
 	{"id": "stall_food", "x": -23.6, "w": 2.48, "h": 3.45, "art": "stall_food", "keeper": true},
 	{"id": "stall_crystal", "x": -15.6, "w": 2.48, "h": 3.45, "art": "stall_crystal", "keeper": true},
-	{"id": "stall_game", "x": 4.3, "w": 2.4, "h": 3.0, "art": "", "keeper": false, "note": "遊技の屋台（歯車仕掛けの機械）。絵は未発注"},
 	{"id": "stall_parts", "x": 20.6, "w": 2.48, "h": 3.45, "art": "stall_parts", "keeper": true},
 ]
 const STALL_SPLIT := 0.65     # 屋台の絵の上から 65％ ＝ 奥の層（天幕・棚）、下 35％ ＝ カウンターの層（発注の下絵の 1024 行目）

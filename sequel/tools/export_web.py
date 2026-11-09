@@ -15,7 +15,9 @@ OUT = os.environ.get('WEB_OUT', 'web')
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DISTRICTS = {
-    "bt1": {"res": ["art/painted_bt/*.png"], "files": []},  # 裏町：入場時だけ読む。原寸のまま。
+    "gh1": {"res": ["art/painted_bt/gamehall_approved_16m_preview.png", "art/painted_bt/gamehall_motion/*/*.png"],
+            "files": ["art/painted_bt/gamehall_motion/playable/accepted_people.json"]},
+    "bt1": {"res": ["art/painted_bt/*.png"], "exclude": ["art/painted_bt/gamehall*.png"], "files": []},  # 裏町：入場時だけ読む。原寸のまま。
     "d1": {"res": ["art/painted/*.png", "assets/ground/*.png"],   # 歓楽街：塗った部品・遠景・地面
            "files": ["assets/ground/glints.json"]},                # 映り込みの元（json は include_filter で入れる）
     "dg1": {"res": ["assets/foe/gen_g1.webp", "assets/foe/foeduel_g1_*.webp"],   # ダンジョンのボス（仮置きの敵将 g1）。入るときに読む
@@ -26,6 +28,11 @@ DISTRICTS = {
             "files": []},
 }
 MAIN_EXCLUDE = ["captures/*", "art/guide/*.png", "art/guide_bt/*", "art/painted_bt/*", "art/painted_bt_src/*", "tools/*", "districts/*", "art/incoming/*", "addons/*"]   # addons/＝取得した素材の元（使う絵は assets/vfx/ に写した。2026-11-07）
+
+
+def resource_files(spec):
+    excluded = {f for g in spec.get("exclude", []) for f in glob.glob(g)}
+    return sorted({f for g in spec["res"] for f in glob.glob(g)} - excluded)
 
 
 def pck_files(path):
@@ -73,7 +80,7 @@ def main():
     opts = s[s.index('[preset.0.options]'):]
     blocks = [s.rstrip('\n') + '\n']
     for i, (d, spec) in enumerate(DISTRICTS.items(), start=1):
-        files = sorted(f for g in spec["res"] for f in glob.glob(g))
+        files = resource_files(spec)
         blocks.append(preset_block(i, 'District ' + d, files, ['districts/%s_ver.json' % d] + spec["files"],
                                    OUT + '/districts/%s.pck' % d, opts))
     # 注意（2026-11-06 に試した事実）：<link rel="preload"> で地区 pck を先読みすると、Godot の読み込みが使い回さず
@@ -115,7 +122,7 @@ def main():
     for d, spec in DISTRICTS.items():
         fs = pck_files(OUT + '/districts/%s.pck' % d)
         names = [p for p, _ in fs]
-        need = ['districts/%s_ver.json' % d] + spec["files"] + [f + '.import' for g in spec["res"] for f in glob.glob(g)]
+        need = ['districts/%s_ver.json' % d] + spec["files"] + [f + '.import' for f in resource_files(spec)]
         miss = [n for n in need if n not in names and 'res://' + n not in names]
         print('地区 %s.pck %.1fMB（%d ファイル）、足りない物: %s' % (d, os.path.getsize(OUT + '/districts/%s.pck' % d) / 1e6, len(fs), miss or 'なし'))
         if miss:
