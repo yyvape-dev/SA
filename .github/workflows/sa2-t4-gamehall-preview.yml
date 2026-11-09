@@ -45,6 +45,14 @@ jobs:
           test -s sequel/captures/t4-gamehall/after_d2_x15p0.png
           file sequel/captures/t4-gamehall/*.png
           sha256sum sequel/captures/t4-gamehall/*.png
+      - name: Produce deterministic physical-size guide (not finished art)
+        run: |
+          set -euo pipefail
+          python3 -m venv /tmp/t4-py
+          /tmp/t4-py/bin/pip install --disable-pip-version-check Pillow==11.3.0
+          /tmp/t4-py/bin/python -I sequel/tools/t4_gamehall_guide.py --out sequel/captures/t4-gamehall/gamehall_geometry_guide.png
+          test -s sequel/captures/t4-gamehall/gamehall_geometry_guide.png
+          test -s sequel/captures/t4-gamehall/gamehall_geometry_guide.json
       - name: Upload actual Godot screenshots and full run log
         if: always()
         uses: actions/upload-artifact@v4
@@ -52,6 +60,7 @@ jobs:
           name: sa2-t4-gamehall-real-godot-proof
           path: |
             sequel/captures/t4-gamehall/*.png
+            sequel/captures/t4-gamehall/*.json
             /tmp/t4-import.log
             /tmp/t4-preview.log
           if-no-files-found: warn
@@ -61,6 +70,6 @@ jobs:
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -f sequel/captures/t4-gamehall/*.png
+          git add -f sequel/captures/t4-gamehall/*.png sequel/captures/t4-gamehall/*.json
           git commit -m 'test(t4): attach genuine Godot D2 comparison screenshots [skip ci]'
           git push origin HEAD:test/sa2-t4-gamehall-relayout-20261109
