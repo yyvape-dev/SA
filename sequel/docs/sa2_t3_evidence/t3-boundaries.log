@@ -1,0 +1,12 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+BOOT main_ready 391ms
+BOOT before_d1 392ms
+BOOT after_d1 392ms
+BOOT after_build_city 798ms
+CAMV D2 belt=(-2.0, 2.0) ofs=(0.0, 3.2, 15.3) fov=16.80
+BOOT before_player 811ms
+BOOT after_player 1323ms
+BOOT ally_loaded 1524ms
+BOOT fx1_loaded 1532ms
+SA2_T3_BOUNDARY_PASS: all displacements, shapes, floors and non-targets

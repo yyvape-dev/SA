@@ -11,6 +11,7 @@ const ATK_REACH := 1.45    # 当たりの瞬間に、この距離までなら当
 const ATK_LANE := 0.45     # 奥行きのずれがこれ以内なら当たる（奥行きをずらして避けられる）
 const STOP := 0.95         # これより近くへは歩かない
 
+var profile = null
 var battle               # battle.gd
 var kind := "1"
 var clips: Dictionary
@@ -48,7 +49,8 @@ var stop_d := STOP
 var atk_n := 0
 var spd := FOE_SPD
 
-func setup(b, k: String, c: Dictionary, level: int) -> void:
+func setup(b, k: String, c: Dictionary, level: int, combat_profile = null) -> void:
+	profile = combat_profile
 	battle = b
 	kind = k
 	clips = c
@@ -60,6 +62,13 @@ func setup(b, k: String, c: Dictionary, level: int) -> void:
 	yo = randf_range(-1.0, 1.0) * 1.1
 	t = randf_range(0.0, 6.0)
 	atk_cd = randf_range(0.05, 0.6)
+	if profile != null:
+		size = 1.0
+		hp_max = profile.hp
+		hp = hp_max
+		dmg = profile.damage
+		sp = profile.speed
+		spd = profile.attack_speed
 
 ## ボスにする（spawn の直後に呼ぶ）
 func make_boss(hp_val: float, dmg_val: int) -> void:
@@ -93,17 +102,17 @@ func _ready() -> void:
 	refl = battle.make_refl()
 	add_child(refl)
 	hpbar = battle.make_hpbar()
-	hpbar.position.y = HEIGHT[kind] * size + 0.25
+	hpbar.position.y = height() + 0.25
 	hpbar.visible = false
 	add_child(hpbar)
 	_show("walk", 0)
 
 func height() -> float:
-	return HEIGHT[kind] * size
+	return (profile.height_m if profile != null else HEIGHT[kind]) * size
 
 func _tex(name: String) -> Texture2D:
 	if not pages.has(name):
-		pages[name] = load("res://assets/foe/" + name)
+		pages[name] = load((profile.base_path if profile != null else "res://assets/foe/") + name)
 	return pages[name]
 
 func _show(c: String, i: int) -> void:
@@ -115,7 +124,9 @@ func _show(c: String, i: int) -> void:
 		sprite.texture = tex
 		mat.set_shader_parameter("tex", tex)
 	sprite.region_rect = Rect2(f[1], f[2], f[3], f[4])
-	sprite.pixel_size = HEIGHT[kind] * size / float(cl.h)
+	sprite.pixel_size = height() / float(cl.h)
+	if profile != null:
+		sprite.modulate = Color(1.0, 0.65 + 0.35 * absf(sin(t * 16.0)), 0.6) if state == "atk" else Color.WHITE
 	var flip: bool = (face != int(cl.face))
 	var ox: float = f[5]
 	if flip:
@@ -124,6 +135,7 @@ func _show(c: String, i: int) -> void:
 	sprite.offset = Vector2(ox, -f[6] - f[4])
 
 func _physics_process(delta: float) -> void:
+	var motion_from := position
 	var dt: float = battle.dt(delta)
 	flash = maxf(0.0, flash - delta)
 	if battle.fx.legacy:
@@ -158,6 +170,7 @@ func _physics_process(delta: float) -> void:
 			shadow.transparency = k
 			if k >= (3.0 if boss else 1.0):
 				battle.remove_enemy(self)
+			battle.resolve_motion(self, motion_from)
 			return
 		"stun":
 			stun -= dt
@@ -206,6 +219,7 @@ func _physics_process(delta: float) -> void:
 			var dz: float = tz - position.z
 			if absf(dz) > 0.05:
 				position.z += signf(dz) * minf(absf(dz), sp * 0.6 * dt)
+			battle.resolve_motion(self, motion_from)
 			atk_cd -= dt
 			if absf(dx) < atk_start * size and absf(pl.position.z - position.z) < lane * 0.8 and atk_cd <= 0.0 and battle.player_alive():
 				_start_atk()
@@ -216,6 +230,7 @@ func _physics_process(delta: float) -> void:
 				_show("walk", wf)
 	position.z = clampf(position.z, battle.BELT_Z.x - 0.1, battle.BELT_Z.y + 0.1)
 	position.x = clampf(position.x, battle.ROOM_X.x - 0.6, battle.ROOM_X.y + 0.6)
+	battle.resolve_motion(self, motion_from)
 
 func _start_atk() -> void:
 	var names := []

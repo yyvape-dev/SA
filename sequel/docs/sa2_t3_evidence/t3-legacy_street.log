@@ -1,0 +1,11 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+BOOT main_ready 362ms
+BOOT before_d1 362ms
+BOOT after_d1 362ms
+BOOT after_build_city 676ms
+BOOT before_player 687ms
+BOOT after_player 1132ms
+BOOT ally_loaded 1324ms
+BOOT fx1_loaded 1332ms
+SA2_T3_LEGACY_STREET_PASS

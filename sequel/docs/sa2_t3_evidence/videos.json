@@ -1,0 +1,104 @@
+[
+  {
+    "programs": [],
+    "stream_groups": [],
+    "streams": [
+      {
+        "codec_name": "h264",
+        "width": 1280,
+        "height": 720,
+        "pix_fmt": "yuv420p"
+      }
+    ],
+    "format": {
+      "duration": "7.500000",
+      "size": "866567"
+    },
+    "file": "t3-restart.mp4"
+  },
+  {
+    "programs": [],
+    "stream_groups": [],
+    "streams": [
+      {
+        "codec_name": "h264",
+        "width": 1280,
+        "height": 720,
+        "pix_fmt": "yuv420p"
+      }
+    ],
+    "format": {
+      "duration": "4.000000",
+      "size": "275363"
+    },
+    "file": "t3-restart-resume.mp4"
+  },
+  {
+    "programs": [],
+    "stream_groups": [],
+    "streams": [
+      {
+        "codec_name": "h264",
+        "width": 1280,
+        "height": 720,
+        "pix_fmt": "yuv420p"
+      }
+    ],
+    "format": {
+      "duration": "12.625000",
+      "size": "2974551"
+    },
+    "file": "t3-wide.mp4"
+  },
+  {
+    "programs": [],
+    "stream_groups": [],
+    "streams": [
+      {
+        "codec_name": "h264",
+        "width": 1280,
+        "height": 720,
+        "pix_fmt": "yuv420p"
+      }
+    ],
+    "format": {
+      "duration": "7.333333",
+      "size": "2089959"
+    },
+    "file": "t3-loss.mp4"
+  },
+  {
+    "programs": [],
+    "stream_groups": [],
+    "streams": [
+      {
+        "codec_name": "h264",
+        "width": 1280,
+        "height": 720,
+        "pix_fmt": "yuv420p"
+      }
+    ],
+    "format": {
+      "duration": "12.625000",
+      "size": "2945315"
+    },
+    "file": "t3-normal.mp4"
+  },
+  {
+    "programs": [],
+    "stream_groups": [],
+    "streams": [
+      {
+        "codec_name": "h264",
+        "width": 1280,
+        "height": 720,
+        "pix_fmt": "yuv420p"
+      }
+    ],
+    "format": {
+      "duration": "3.500000",
+      "size": "591993"
+    },
+    "file": "t3-restart-save.mp4"
+  }
+]

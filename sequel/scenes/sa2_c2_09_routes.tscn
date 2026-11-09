@@ -1,0 +1,8 @@
+[gd_scene format=3]
+[node name="C209RouteMarkers" type="Node3D"]
+[node name="StairTop" type="Marker3D" parent="."]
+position = Vector3(12.7,2.6,-5.85)
+[node name="StairFoot" type="Marker3D" parent="."]
+position = Vector3(14.05,0,-5.85)
+[node name="Safe" type="Marker3D" parent="."]
+position = Vector3(10.8,0,-3.6)
