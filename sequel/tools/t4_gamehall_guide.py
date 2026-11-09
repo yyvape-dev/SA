@@ -76,11 +76,24 @@ def build():
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--out", required=True)
+    parser.add_argument("--preview-out", default=None, help="Alpha-keyed copy ONLY for real Godot D2 preview")
     args = parser.parse_args()
     dest = Path(args.out)
     dest.parent.mkdir(parents=True, exist_ok=True)
     im = build()
     im.save(dest, format="PNG")
+    # Keep the canonical #FF00FF guide unchanged for user image-generation input.
+    # Make a separate RGBA copy so Godot renders surrounding street, not magenta.
+    if args.preview_out:
+        pv_path = Path(args.preview_out)
+        pv_path.parent.mkdir(parents=True, exist_ok=True)
+        rgba = im.convert("RGBA")
+        rgba.putdata([(r, g, b, 0 if (r, g, b) == (255, 0, 255) else 255)
+                      for r, g, b, _ in rgba.getdata()])
+        rgba.save(pv_path, format="PNG", optimize=True)
+        assert rgba.getpixel((0, 0))[3] == 0
+        assert rgba.getpixel((round(X_ORIGIN + BUILDING_W * SCALE / 2), H - 2))[3] == 255
+        print("T4_GUIDE_PREVIEW_PASS", pv_path, rgba.size)
     assert im.size == (1536,1024)
     assert im.getpixel((0,0)) == (255,0,255)
     assert im.getpixel((W-1,0)) == (255,0,255)
