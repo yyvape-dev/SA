@@ -67,6 +67,10 @@ jobs:
           test -s t4_gamehall_new_map_motion.gif
           ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height,nb_frames \
              -of default=noprint_wrappers=1 t4_gamehall_new_map_motion.mp4
+          for stem in 01_existing_backtown_west 02_loading_visible 03_new_gamehall_centre 04_new_gamehall_motion 05_return_original; do
+            ffmpeg -hide_banner -loglevel error -y -i ${stem}.png -vf 'scale=1266:585' -frames:v 1 -q:v 3 ${stem}_inline.jpg
+            base64 -w0 ${stem}_inline.jpg > ${stem}_inline.b64.txt
+          done
           sha256sum *.png *.mp4 *.gif > verified_sha256.txt
       - name: Upload artifacts even if engine testing fails
         if: always()
