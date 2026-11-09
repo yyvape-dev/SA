@@ -90,8 +90,8 @@ func _add_gamehall(game: Node3D, parent: Node3D) -> void:
 	for px in [8.0, 9.40]:
 		_block(hall, Vector3(px, 0.52, -7.60), Vector3(1.08, 0.12, 0.8), "bf8536", "game_table")
 		_block(hall, Vector3(px, 0.23, -7.6), Vector3(0.15, 0.45, 0.15), "8c552d", "table_foot")
-	for px, depth, idx in [[7.4, -8.8, 2], [8.2, -8.6, 3], [9.5, -8.9, 5], [10.25, -7.95, 7]]:
-		game.call("_bt_npc", hall, px, depth, idx)
+	for actor in [[7.4, -8.8, 2], [8.2, -8.6, 3], [9.5, -8.9, 5], [10.25, -7.95, 7]]:
+		game.call("_bt_npc", hall, actor[0], actor[1], actor[2])
 	_block(hall, Vector3(HALL_CX, 2.73, -8.0), Vector3(2.15, 0.12, 0.6), "f1b452", "ceiling_light")
 	print("T4_PROXY geometry hall=7.00m, height=4.17m, entrance=5.04m; interior depth=2.8m; 4 in-engine NPC sprites; not painted output")
 
