@@ -1,0 +1,1506 @@
+{
+  "canvas_px": [
+    3200,
+    2000
+  ],
+  "source_display_sha256": "32235cda37a56619d09c59a1365b5613f4816088a8295dc2859af6e65bf1dfbf",
+  "source_original_sha256": "d9e200bbdb5059613a3ea52804abe8f95cada42cb82e82e4705054ad140951a1",
+  "duration_seconds": 3,
+  "atlas_coordinates": "xyxy; bottom/right exclusive",
+  "objects": {
+    "dealer": {
+      "region": "center",
+      "parts": {
+        "head": {
+          "parent": "body",
+          "pivot_px": [
+            1580,
+            1638
+          ],
+          "peak_deg": -7,
+          "source_rect_px": [
+            1563,
+            1596,
+            1598,
+            1645
+          ],
+          "atlas_rect_px": [
+            73,
+            2,
+            108,
+            51
+          ],
+          "z": 1
+        },
+        "left_arm": {
+          "parent": "body",
+          "pivot_px": [
+            1609,
+            1651
+          ],
+          "peak_deg": 0,
+          "source_rect_px": [
+            1603,
+            1644,
+            1631,
+            1701
+          ],
+          "atlas_rect_px": [
+            144,
+            2,
+            172,
+            59
+          ],
+          "z": 2
+        },
+        "right_arm": {
+          "parent": "body",
+          "pivot_px": [
+            1553,
+            1653
+          ],
+          "peak_deg": 0,
+          "source_rect_px": [
+            1528,
+            1645,
+            1558,
+            1700
+          ],
+          "atlas_rect_px": [
+            2,
+            74,
+            32,
+            129
+          ],
+          "z": 3
+        },
+        "left_hand": {
+          "parent": "left_arm",
+          "pivot_px": [
+            1618,
+            1705
+          ],
+          "peak_deg": -7,
+          "source_rect_px": [
+            1602,
+            1700,
+            1629,
+            1720
+          ],
+          "atlas_rect_px": [
+            73,
+            74,
+            100,
+            94
+          ],
+          "z": 4
+        },
+        "right_hand": {
+          "parent": "right_arm",
+          "pivot_px": [
+            1549,
+            1703
+          ],
+          "peak_deg": 15,
+          "source_rect_px": [
+            1545,
+            1699,
+            1564,
+            1721
+          ],
+          "atlas_rect_px": [
+            144,
+            74,
+            163,
+            96
+          ],
+          "z": 5
+        },
+        "left_forearm": {
+          "parent": "left_arm",
+          "pivot_px": [
+            1629,
+            1688
+          ],
+          "peak_deg": -7,
+          "source_rect_px": [
+            1618,
+            1680,
+            1642,
+            1712
+          ],
+          "atlas_rect_px": [
+            2,
+            146,
+            26,
+            178
+          ],
+          "z": 6
+        },
+        "right_forearm": {
+          "parent": "right_arm",
+          "pivot_px": [
+            1533,
+            1691
+          ],
+          "peak_deg": -18,
+          "source_rect_px": [
+            1523,
+            1684,
+            1552,
+            1714
+          ],
+          "atlas_rect_px": [
+            73,
+            146,
+            102,
+            176
+          ],
+          "z": 7
+        },
+        "body": {
+          "parent": null,
+          "pivot_px": [
+            1523,
+            1721
+          ],
+          "peak_deg": 0,
+          "source_rect_px": [
+            1544,
+            1638,
+            1611,
+            1706
+          ],
+          "atlas_rect_px": [
+            2,
+            2,
+            69,
+            70
+          ],
+          "z": 0
+        }
+      },
+      "source_rect_px": [
+        1495,
+        1568,
+        1670,
+        1749
+      ],
+      "static_rgba_exact": true,
+      "visible_pixels": 7814,
+      "frames": 36,
+      "mode": "person",
+      "atlas": "dealer_parts.png",
+      "masks": "dealer_masks.png",
+      "cutout": "dealer_cutout.png"
+    },
+    "guest_left_red": {
+      "region": "center",
+      "parts": {
+        "head": {
+          "parent": "body",
+          "pivot_px": [
+            1319,
+            1682
+          ],
+          "peak_deg": -7,
+          "source_rect_px": [
+            1267,
+            1625,
+            1338,
+            1712
+          ],
+          "atlas_rect_px": [
+            137,
+            2,
+            208,
+            89
+          ],
+          "z": 1
+        },
+        "arm": {
+          "parent": "body",
+          "pivot_px": [
+            1333,
+            1697
+          ],
+          "peak_deg": 0,
+          "source_rect_px": [
+            1326,
+            1686,
+            1348,
+            1725
+          ],
+          "atlas_rect_px": [
+            272,
+            2,
+            294,
+            41
+          ],
+          "z": 2
+        },
+        "hand": {
+          "parent": "forearm",
+          "pivot_px": [
+            1372,
+            1724
+          ],
+          "peak_deg": -4,
+          "source_rect_px": [
+            1368,
+            1713,
+            1386,
+            1732
+          ],
+          "atlas_rect_px": [
+            2,
+            128,
+            20,
+            147
+          ],
+          "z": 3
+        },
+        "forearm": {
+          "parent": "arm",
+          "pivot_px": [
+            1349,
+            1737
+          ],
+          "peak_deg": -15,
+          "source_rect_px": [
+            1336,
+            1718,
+            1377,
+            1754
+          ],
+          "atlas_rect_px": [
+            137,
+            128,
+            178,
+            164
+          ],
+          "z": 4
+        },
+        "body": {
+          "parent": null,
+          "pivot_px": [
+            1256,
+            1808
+          ],
+          "peak_deg": 0,
+          "source_rect_px": [
+            1256,
+            1686,
+            1387,
+            1808
+          ],
+          "atlas_rect_px": [
+            2,
+            2,
+            133,
+            124
+          ],
+          "z": 0
+        }
+      },
+      "source_rect_px": [
+        1228,
+        1597,
+        1415,
+        1836
+      ],
+      "static_rgba_exact": true,
+      "visible_pixels": 11767,
+      "frames": 36,
+      "mode": "person",
+      "atlas": "guest_left_red_parts.png",
+      "masks": "guest_left_red_masks.png",
+      "cutout": "guest_left_red_cutout.png"
+    },
+    "guest_left_dark": {
+      "region": "center",
+      "parts": {
+        "head": {
+          "parent": "body",
+          "pivot_px": [
+            1380,
+            1657
+          ],
+          "peak_deg": 8,
+          "source_rect_px": [
+            1355,
+            1616,
+            1401,
+            1664
+          ],
+          "atlas_rect_px": [
+            83,
+            2,
+            129,
+            50
+          ],
+          "z": 1
+        },
+        "arm": {
+          "parent": "body",
+          "pivot_px": [
+            1393,
+            1677
+          ],
+          "peak_deg": 0,
+          "source_rect_px": [
+            1389,
+            1664,
+            1414,
+            1709
+          ],
+          "atlas_rect_px": [
+            164,
+            2,
+            189,
+            47
+          ],
+          "z": 2
+        },
+        "hand": {
+          "parent": "arm",
+          "pivot_px": [
+            1408,
+            1705
+          ],
+          "peak_deg": 13,
+          "source_rect_px": [
+            1399,
+            1697,
+            1425,
+            1712
+          ],
+          "atlas_rect_px": [
+            2,
+            95,
+            28,
+            110
+          ],
+          "z": 3
+        },
+        "body": {
+          "parent": null,
+          "pivot_px": [
+            1324,
+            1717
+          ],
+          "peak_deg": 0,
+          "source_rect_px": [
+            1324,
+            1628,
+            1401,
+            1717
+          ],
+          "atlas_rect_px": [
+            2,
+            2,
+            79,
+            91
+          ],
+          "z": 0
+        }
+      },
+      "source_rect_px": [
+        1296,
+        1588,
+        1453,
+        1745
+      ],
+      "static_rgba_exact": true,
+      "visible_pixels": 5800,
+      "frames": 36,
+      "mode": "person",
+      "atlas": "guest_left_dark_parts.png",
+      "masks": "guest_left_dark_masks.png",
+      "cutout": "guest_left_dark_cutout.png"
+    },
+    "guest_right_near": {
+      "region": "center",
+      "parts": {
+        "head": {
+          "parent": "body",
+          "pivot_px": [
+            1777,
+            1672
+          ],
+          "peak_deg": 8,
+          "source_rect_px": [
+            1750,
+            1624,
+            1803,
+            1682
+          ],
+          "atlas_rect_px": [
+            148,
+            2,
+            201,
+            60
+          ],
+          "z": 1
+        },
+        "arm": {
+          "parent": "body",
+          "pivot_px": [
+            1754,
+            1697
+          ],
+          "peak_deg": 0,
+          "source_rect_px": [
+            1707,
+            1683,
+            1769,
+            1755
+          ],
+          "atlas_rect_px": [
+            294,
+            2,
+            356,
+            74
+          ],
+          "z": 2
+        },
+        "hand": {
+          "parent": "arm",
+          "pivot_px": [
+            1719,
+            1728
+          ],
+          "peak_deg": 12,
+          "source_rect_px": [
+            1707,
+            1717,
+            1727,
+            1741
+          ],
+          "atlas_rect_px": [
+            2,
+            232,
+            22,
+            256
+          ],
+          "z": 3
+        },
+        "body": {
+          "parent": null,
+          "pivot_px": [
+            1693,
+            1899
+          ],
+          "peak_deg": 0,
+          "source_rect_px": [
+            1693,
+            1673,
+            1835,
+            1899
+          ],
+          "atlas_rect_px": [
+            2,
+            2,
+            144,
+            228
+          ],
+          "z": 0
+        }
+      },
+      "source_rect_px": [
+        1665,
+        1596,
+        1863,
+        1927
+      ],
+      "static_rgba_exact": true,
+      "visible_pixels": 13958,
+      "frames": 36,
+      "mode": "person",
+      "atlas": "guest_right_near_parts.png",
+      "masks": "guest_right_near_masks.png",
+      "cutout": "guest_right_near_cutout.png"
+    },
+    "guest_right_far": {
+      "region": "center",
+      "parts": {
+        "head": {
+          "parent": "body",
+          "pivot_px": [
+            1894,
+            1669
+          ],
+          "peak_deg": -8,
+          "source_rect_px": [
+            1861,
+            1614,
+            1922,
+            1676
+          ],
+          "atlas_rect_px": [
+            112,
+            2,
+            173,
+            64
+          ],
+          "z": 1
+        },
+        "arm": {
+          "parent": "body",
+          "pivot_px": [
+            1898,
+            1690
+          ],
+          "peak_deg": 0,
+          "source_rect_px": [
+            1847,
+            1675,
+            1911,
+            1747
+          ],
+          "atlas_rect_px": [
+            222,
+            2,
+            286,
+            74
+          ],
+          "z": 2
+        },
+        "hand": {
+          "parent": "arm",
+          "pivot_px": [
+            1853,
+            1718
+          ],
+          "peak_deg": -10,
+          "source_rect_px": [
+            1832,
+            1706,
+            1865,
+            1728
+          ],
+          "atlas_rect_px": [
+            2,
+            265,
+            35,
+            287
+          ],
+          "z": 3
+        },
+        "body": {
+          "parent": null,
+          "pivot_px": [
+            1832,
+            1892
+          ],
+          "peak_deg": 0,
+          "source_rect_px": [
+            1844,
+            1633,
+            1950,
+            1892
+          ],
+          "atlas_rect_px": [
+            2,
+            2,
+            108,
+            261
+          ],
+          "z": 0
+        }
+      },
+      "source_rect_px": [
+        1804,
+        1586,
+        1978,
+        1920
+      ],
+      "static_rgba_exact": true,
+      "visible_pixels": 16022,
+      "frames": 36,
+      "mode": "person",
+      "atlas": "guest_right_far_parts.png",
+      "masks": "guest_right_far_masks.png",
+      "cutout": "guest_right_far_cutout.png"
+    },
+    "guest_slot_inner": {
+      "region": "right",
+      "parts": {
+        "head": {
+          "parent": "body",
+          "pivot_px": [
+            2307,
+            1630
+          ],
+          "peak_deg": 7,
+          "source_rect_px": [
+            2288,
+            1599,
+            2322,
+            1637
+          ],
+          "atlas_rect_px": [
+            63,
+            2,
+            97,
+            40
+          ],
+          "z": 1
+        },
+        "arm": {
+          "parent": "body",
+          "pivot_px": [
+            2311,
+            1642
+          ],
+          "peak_deg": 0,
+          "source_rect_px": [
+            2309,
+            1635,
+            2332,
+            1682
+          ],
+          "atlas_rect_px": [
+            124,
+            2,
+            147,
+            49
+          ],
+          "z": 2
+        },
+        "hand": {
+          "parent": "arm",
+          "pivot_px": [
+            2329,
+            1667
+          ],
+          "peak_deg": 10,
+          "source_rect_px": [
+            2322,
+            1657,
+            2339,
+            1681
+          ],
+          "atlas_rect_px": [
+            2,
+            87,
+            19,
+            111
+          ],
+          "z": 3
+        },
+        "body": {
+          "parent": null,
+          "pivot_px": [
+            2266,
+            1710
+          ],
+          "peak_deg": 0,
+          "source_rect_px": [
+            2266,
+            1629,
+            2323,
+            1710
+          ],
+          "atlas_rect_px": [
+            2,
+            2,
+            59,
+            83
+          ],
+          "z": 0
+        }
+      },
+      "source_rect_px": [
+        2238,
+        1571,
+        2367,
+        1738
+      ],
+      "static_rgba_exact": true,
+      "visible_pixels": 4392,
+      "frames": 36,
+      "mode": "person",
+      "atlas": "guest_slot_inner_parts.png",
+      "masks": "guest_slot_inner_masks.png",
+      "cutout": "guest_slot_inner_cutout.png"
+    },
+    "slot_left_outer": {
+      "region": "left",
+      "parts": {
+        "screen": {
+          "parent": "cabinet",
+          "pivot_px": [
+            664,
+            1601
+          ],
+          "peak_deg": 0,
+          "source_rect_px": [
+            629,
+            1527,
+            727,
+            1663
+          ],
+          "atlas_rect_px": [
+            199,
+            2,
+            297,
+            138
+          ],
+          "z": 1
+        },
+        "reel_1": {
+          "parent": "cabinet",
+          "pivot_px": [
+            655,
+            1597
+          ],
+          "peak_deg": 0,
+          "source_rect_px": [
+            639,
+            1539,
+            674,
+            1655
+          ],
+          "atlas_rect_px": [
+            396,
+            2,
+            431,
+            118
+          ],
+          "z": 2
+        },
+        "reel_2": {
+          "parent": "cabinet",
+          "pivot_px": [
+            683,
+            1597
+          ],
+          "peak_deg": 0,
+          "source_rect_px": [
+            668,
+            1541,
+            702,
+            1654
+          ],
+          "atlas_rect_px": [
+            2,
+            514,
+            36,
+            627
+          ],
+          "z": 3
+        },
+        "reel_3": {
+          "parent": "cabinet",
+          "pivot_px": [
+            709,
+            1597
+          ],
+          "peak_deg": 0,
+          "source_rect_px": [
+            696,
+            1543,
+            728,
+            1652
+          ],
+          "atlas_rect_px": [
+            199,
+            514,
+            231,
+            623
+          ],
+          "z": 4
+        },
+        "lamp": {
+          "parent": "cabinet",
+          "pivot_px": [
+            706,
+            1449
+          ],
+          "peak_deg": 0,
+          "source_rect_px": [
+            689,
+            1416,
+            728,
+            1485
+          ],
+          "atlas_rect_px": [
+            396,
+            514,
+            435,
+            583
+          ],
+          "z": 5
+        },
+        "button": {
+          "parent": "cabinet",
+          "pivot_px": [
+            692,
+            1710
+          ],
+          "peak_deg": 0,
+          "source_rect_px": [
+            681,
+            1702,
+            706,
+            1719
+          ],
+          "atlas_rect_px": [
+            2,
+            1026,
+            27,
+            1043
+          ],
+          "z": 6
+        },
+        "cabinet": {
+          "parent": null,
+          "pivot_px": [
+            574,
+            1894
+          ],
+          "peak_deg": 0,
+          "source_rect_px": [
+            574,
+            1386,
+            767,
+            1894
+          ],
+          "atlas_rect_px": [
+            2,
+            2,
+            195,
+            510
+          ],
+          "z": 0
+        }
+      },
+      "source_rect_px": [
+        546,
+        1380,
+        795,
+        1910
+      ],
+      "static_rgba_exact": true,
+      "visible_pixels": 71300,
+      "frames": 36,
+      "mode": "slot",
+      "atlas": "slot_left_outer_parts.png",
+      "masks": "slot_left_outer_masks.png",
+      "cutout": "slot_left_outer_cutout.png"
+    },
+    "slot_right_outer": {
+      "region": "right",
+      "parts": {
+        "screen": {
+          "parent": "cabinet",
+          "pivot_px": [
+            2513,
+            1601
+          ],
+          "peak_deg": 0,
+          "source_rect_px": [
+            2467,
+            1526,
+            2565,
+            1660
+          ],
+          "atlas_rect_px": [
+            218,
+            2,
+            316,
+            136
+          ],
+          "z": 1
+        },
+        "reel_1": {
+          "parent": "cabinet",
+          "pivot_px": [
+            2489,
+            1595
+          ],
+          "peak_deg": 0,
+          "source_rect_px": [
+            2473,
+            1537,
+            2507,
+            1651
+          ],
+          "atlas_rect_px": [
+            434,
+            2,
+            468,
+            116
+          ],
+          "z": 2
+        },
+        "reel_2": {
+          "parent": "cabinet",
+          "pivot_px": [
+            2516,
+            1594
+          ],
+          "peak_deg": 0,
+          "source_rect_px": [
+            2498,
+            1535,
+            2535,
+            1652
+          ],
+          "atlas_rect_px": [
+            2,
+            532,
+            39,
+            649
+          ],
+          "z": 3
+        },
+        "reel_3": {
+          "parent": "cabinet",
+          "pivot_px": [
+            2543,
+            1593
+          ],
+          "peak_deg": 0,
+          "source_rect_px": [
+            2524,
+            1532,
+            2560,
+            1652
+          ],
+          "atlas_rect_px": [
+            218,
+            532,
+            254,
+            652
+          ],
+          "z": 4
+        },
+        "lamp": {
+          "parent": "cabinet",
+          "pivot_px": [
+            2489,
+            1447
+          ],
+          "peak_deg": 0,
+          "source_rect_px": [
+            2467,
+            1414,
+            2514,
+            1486
+          ],
+          "atlas_rect_px": [
+            434,
+            532,
+            481,
+            604
+          ],
+          "z": 5
+        },
+        "button": {
+          "parent": "cabinet",
+          "pivot_px": [
+            2459,
+            1706
+          ],
+          "peak_deg": 0,
+          "source_rect_px": [
+            2446,
+            1699,
+            2473,
+            1715
+          ],
+          "atlas_rect_px": [
+            2,
+            1062,
+            29,
+            1078
+          ],
+          "z": 6
+        },
+        "cabinet": {
+          "parent": null,
+          "pivot_px": [
+            2423,
+            1910
+          ],
+          "peak_deg": 0,
+          "source_rect_px": [
+            2423,
+            1384,
+            2635,
+            1910
+          ],
+          "atlas_rect_px": [
+            2,
+            2,
+            214,
+            528
+          ],
+          "z": 0
+        }
+      },
+      "source_rect_px": [
+        2395,
+        1380,
+        2663,
+        1910
+      ],
+      "static_rgba_exact": true,
+      "visible_pixels": 75886,
+      "frames": 36,
+      "mode": "slot",
+      "atlas": "slot_right_outer_parts.png",
+      "masks": "slot_right_outer_masks.png",
+      "cutout": "slot_right_outer_cutout.png"
+    },
+    "roulette_table": {
+      "region": "center",
+      "parts": {
+        "felt": {
+          "parent": "table_base",
+          "pivot_px": [
+            1573,
+            1726
+          ],
+          "peak_deg": 0,
+          "source_rect_px": [
+            1386,
+            1711,
+            1715,
+            1753
+          ],
+          "atlas_rect_px": [
+            363,
+            2,
+            692,
+            44
+          ],
+          "z": 1
+        },
+        "table_base": {
+          "parent": null,
+          "pivot_px": [
+            1380,
+            1902
+          ],
+          "peak_deg": 0,
+          "source_rect_px": [
+            1380,
+            1707,
+            1737,
+            1902
+          ],
+          "atlas_rect_px": [
+            2,
+            2,
+            359,
+            197
+          ],
+          "z": 0
+        }
+      },
+      "source_rect_px": [
+        1352,
+        1679,
+        1765,
+        1930
+      ],
+      "static_rgba_exact": true,
+      "visible_pixels": 41066,
+      "frames": 0,
+      "mode": "table",
+      "atlas": "roulette_table_parts.png",
+      "masks": "roulette_table_masks.png",
+      "cutout": "roulette_table_cutout.png",
+      "motion": "fixed table and felt. Wheel and ball not separable in the approved source."
+    }
+  },
+  "roulette_status": "The center painting depicts a felt and pieces. No unambiguous wheel, pocket ring, or ball is visible. No wheel or ball asset claimed.",
+  "sequence": {
+    "fps": 12,
+    "frames": 36,
+    "actors": "Independent staggered head, forearm and hand gestures. Chairs and cabinet silhouette are fixed.",
+    "slot": "Animated original reel strip inside its aperture, staggered stop. Lamp pulse and button shading test."
+  },
+  "playback": {
+    "overlay_origin_px": [
+      550,
+      1400
+    ],
+    "fps": 12,
+    "base": "Approved 3200x2000 facade as recorded above. Render delta atlas over it at the native pixel registration. Atlas does not include the previously completed rigs.",
+    "tiles": [
+      {
+        "frame": 0,
+        "png": "motion_frames_00.png",
+        "atlas_rect_px": [
+          0,
+          0,
+          2050,
+          405
+        ]
+      },
+      {
+        "frame": 1,
+        "png": "motion_frames_00.png",
+        "atlas_rect_px": [
+          0,
+          405,
+          2050,
+          810
+        ]
+      },
+      {
+        "frame": 2,
+        "png": "motion_frames_00.png",
+        "atlas_rect_px": [
+          0,
+          810,
+          2050,
+          1215
+        ]
+      },
+      {
+        "frame": 3,
+        "png": "motion_frames_00.png",
+        "atlas_rect_px": [
+          0,
+          1215,
+          2050,
+          1620
+        ]
+      },
+      {
+        "frame": 4,
+        "png": "motion_frames_00.png",
+        "atlas_rect_px": [
+          0,
+          1620,
+          2050,
+          2025
+        ]
+      },
+      {
+        "frame": 5,
+        "png": "motion_frames_00.png",
+        "atlas_rect_px": [
+          0,
+          2025,
+          2050,
+          2430
+        ]
+      },
+      {
+        "frame": 6,
+        "png": "motion_frames_00.png",
+        "atlas_rect_px": [
+          0,
+          2430,
+          2050,
+          2835
+        ]
+      },
+      {
+        "frame": 7,
+        "png": "motion_frames_00.png",
+        "atlas_rect_px": [
+          0,
+          2835,
+          2050,
+          3240
+        ]
+      },
+      {
+        "frame": 8,
+        "png": "motion_frames_00.png",
+        "atlas_rect_px": [
+          0,
+          3240,
+          2050,
+          3645
+        ]
+      },
+      {
+        "frame": 9,
+        "png": "motion_frames_01.png",
+        "atlas_rect_px": [
+          0,
+          0,
+          2050,
+          405
+        ]
+      },
+      {
+        "frame": 10,
+        "png": "motion_frames_01.png",
+        "atlas_rect_px": [
+          0,
+          405,
+          2050,
+          810
+        ]
+      },
+      {
+        "frame": 11,
+        "png": "motion_frames_01.png",
+        "atlas_rect_px": [
+          0,
+          810,
+          2050,
+          1215
+        ]
+      },
+      {
+        "frame": 12,
+        "png": "motion_frames_01.png",
+        "atlas_rect_px": [
+          0,
+          1215,
+          2050,
+          1620
+        ]
+      },
+      {
+        "frame": 13,
+        "png": "motion_frames_01.png",
+        "atlas_rect_px": [
+          0,
+          1620,
+          2050,
+          2025
+        ]
+      },
+      {
+        "frame": 14,
+        "png": "motion_frames_01.png",
+        "atlas_rect_px": [
+          0,
+          2025,
+          2050,
+          2430
+        ]
+      },
+      {
+        "frame": 15,
+        "png": "motion_frames_01.png",
+        "atlas_rect_px": [
+          0,
+          2430,
+          2050,
+          2835
+        ]
+      },
+      {
+        "frame": 16,
+        "png": "motion_frames_01.png",
+        "atlas_rect_px": [
+          0,
+          2835,
+          2050,
+          3240
+        ]
+      },
+      {
+        "frame": 17,
+        "png": "motion_frames_01.png",
+        "atlas_rect_px": [
+          0,
+          3240,
+          2050,
+          3645
+        ]
+      },
+      {
+        "frame": 18,
+        "png": "motion_frames_02.png",
+        "atlas_rect_px": [
+          0,
+          0,
+          2050,
+          405
+        ]
+      },
+      {
+        "frame": 19,
+        "png": "motion_frames_02.png",
+        "atlas_rect_px": [
+          0,
+          405,
+          2050,
+          810
+        ]
+      },
+      {
+        "frame": 20,
+        "png": "motion_frames_02.png",
+        "atlas_rect_px": [
+          0,
+          810,
+          2050,
+          1215
+        ]
+      },
+      {
+        "frame": 21,
+        "png": "motion_frames_02.png",
+        "atlas_rect_px": [
+          0,
+          1215,
+          2050,
+          1620
+        ]
+      },
+      {
+        "frame": 22,
+        "png": "motion_frames_02.png",
+        "atlas_rect_px": [
+          0,
+          1620,
+          2050,
+          2025
+        ]
+      },
+      {
+        "frame": 23,
+        "png": "motion_frames_02.png",
+        "atlas_rect_px": [
+          0,
+          2025,
+          2050,
+          2430
+        ]
+      },
+      {
+        "frame": 24,
+        "png": "motion_frames_02.png",
+        "atlas_rect_px": [
+          0,
+          2430,
+          2050,
+          2835
+        ]
+      },
+      {
+        "frame": 25,
+        "png": "motion_frames_02.png",
+        "atlas_rect_px": [
+          0,
+          2835,
+          2050,
+          3240
+        ]
+      },
+      {
+        "frame": 26,
+        "png": "motion_frames_02.png",
+        "atlas_rect_px": [
+          0,
+          3240,
+          2050,
+          3645
+        ]
+      },
+      {
+        "frame": 27,
+        "png": "motion_frames_03.png",
+        "atlas_rect_px": [
+          0,
+          0,
+          2050,
+          405
+        ]
+      },
+      {
+        "frame": 28,
+        "png": "motion_frames_03.png",
+        "atlas_rect_px": [
+          0,
+          405,
+          2050,
+          810
+        ]
+      },
+      {
+        "frame": 29,
+        "png": "motion_frames_03.png",
+        "atlas_rect_px": [
+          0,
+          810,
+          2050,
+          1215
+        ]
+      },
+      {
+        "frame": 30,
+        "png": "motion_frames_03.png",
+        "atlas_rect_px": [
+          0,
+          1215,
+          2050,
+          1620
+        ]
+      },
+      {
+        "frame": 31,
+        "png": "motion_frames_03.png",
+        "atlas_rect_px": [
+          0,
+          1620,
+          2050,
+          2025
+        ]
+      },
+      {
+        "frame": 32,
+        "png": "motion_frames_03.png",
+        "atlas_rect_px": [
+          0,
+          2025,
+          2050,
+          2430
+        ]
+      },
+      {
+        "frame": 33,
+        "png": "motion_frames_03.png",
+        "atlas_rect_px": [
+          0,
+          2430,
+          2050,
+          2835
+        ]
+      },
+      {
+        "frame": 34,
+        "png": "motion_frames_03.png",
+        "atlas_rect_px": [
+          0,
+          2835,
+          2050,
+          3240
+        ]
+      },
+      {
+        "frame": 35,
+        "png": "motion_frames_03.png",
+        "atlas_rect_px": [
+          0,
+          3240,
+          2050,
+          3645
+        ]
+      }
+    ]
+  },
+  "timeline_notes": {
+    "dealer": "two forearm and wrist gestures over the felt",
+    "guest_left_red": "short forearm lift toward the felt",
+    "guest_left_dark": "head turn and hand lift",
+    "guest_right_near": "head turn and hand response",
+    "guest_right_far": "head turn and hand response",
+    "guest_slot_inner": "turn and hand flick at the machine",
+    "slots": "3 separate scrolling columns on each foreground machine, staggered stops, lamp pulse and button darkening"
+  }
+}
