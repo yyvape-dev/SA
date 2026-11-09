@@ -26,3 +26,7 @@ Godot 4.7.2でリポジトリrootから `GODOT_BIN=/path/to/Godot T3_LOG_DIR=/tm
 ## GitHub CIの確認結果
 
 機能コミット47b6e88の[新規CI実行](https://github.com/yyvape-dev/SA/actions/runs/42538788129)は **FAIL**。Godot準備、24件回帰ステップ、空projectでのpack依存検証は成功したが、`Record actual normal/loss/restart Godot input`ステップで失敗した。これはローカル録画成功とは別の結果であり、CI録画成功・CI全体合格とは扱わない。原因の特定・修正は未実施。この資料追加コミットによるCI再実行も、結果確認前に合格扱いしない。
+
+PNG保存先の原因確認・限定修正・実Godot再検証は[CI修正報告](../sa2_t3_ci_screenshot_fix.md)を参照。上記FAILは修正前の履歴であり、修正後CIと区別する。
+
+修正後の新規CI **42541909216は全体PASS**（機能/テストコード4466a2a）。保存先明示・未設定のローカル実描画もPASS。詳細とCI結果JSONは上記修正報告を参照。この追記は資料のみで、検証済みコードを変更しない。
