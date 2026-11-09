@@ -24,6 +24,13 @@ func _shot(game: Node3D, filename: String) -> void:
     _test(frame.save_png(filename)==OK,"Could not save real Godot capture: "+filename)
     print("T4_FLOOR_REAL_FRAME "+filename+" "+str(frame.get_size()))
 
+func _wait_uncovered(overlay: CanvasLayer) -> bool:
+    for i in 120:
+        await process_frame
+        if not overlay.visible:
+            return true
+    return false
+
 func _wait_state(game: Node3D, target:int) -> bool:
     for i in MAX_WAIT:
         await process_frame
@@ -64,6 +71,7 @@ func _run() -> void:
     if hud!=null:
         hud.visible=false
     hero.set_physics_process(false)
+    _test(await _wait_uncovered(overlay),"Original level capture still covered by loading screen")
     var dir := ProjectSettings.globalize_path("res://captures/t4-gamehall-floor")
     DirAccess.make_dir_recursive_absolute(dir)
     hero.position=Vector3(-22.0,0.0,0.0)
@@ -81,6 +89,7 @@ func _run() -> void:
             break
     _test(saw_loading,"Crossing the west edge did not show loading")
     _test(await _wait_state(game,1),"West exit failed to open separate map")
+    _test(await _wait_uncovered(overlay),"New gamehall still covered by loading screen")
     var new_level: Node3D=game.get("level")
     _test(new_level!=original_level and new_level.name=="T4GamehallFloor","New MAP was not created as an independent Level")
     _test(absf(hero.position.x-21.5)<0.1 and int(hero.get("face"))==-1,"Player was not delivered to right edge of new floor")
@@ -98,6 +107,7 @@ func _run() -> void:
     _test(phi>0.1,"Motion is not running in new floor gameplay")
     hero.position=Vector3(23.7,0.0,0.0)
     _test(await _wait_state(game,0),"Returning east did not restore original map")
+    _test(await _wait_uncovered(overlay),"Return map still covered by loading screen")
     _test(game.get("level")!=new_level,"Original MAP was not freshly rebuilt")
     _test(absf(hero.position.x-(-22.5))<0.1 and int(hero.get("face"))==1,"Return position or direction incorrect")
     _test(game.get("t4_floor_materials").is_empty(),"New floor animation left running in original MAP")
