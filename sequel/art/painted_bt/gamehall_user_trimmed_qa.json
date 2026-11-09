@@ -1,0 +1,35 @@
+{
+  "source_file": "gamehall_user_original_20261109.jpeg",
+  "source_sha256": "cca3607a782ac26b15de4651dc5551658d5ba92fbdd71893b22e43892e08220b",
+  "original_rgba": "gamehall_user_rgba.png",
+  "original_rgba_sha256": "f04b0f6684fd20a0d264895ef816bca3577d5da5a8e5a01cb009d116d6249a44",
+  "original_canvas_px": [
+    1536,
+    1024
+  ],
+  "alpha_bbox_xyxy_exclusive": [
+    47,
+    162,
+    1490,
+    1024
+  ],
+  "trimmed_file": "gamehall_user_trimmed.png",
+  "trimmed_sha256": "7017081c6e4a715b15524e99ef9b7092d511b6b809929c1acae3c8498b65632c",
+  "trimmed_px": [
+    1443,
+    862
+  ],
+  "pixel_identity_with_source_crop": true,
+  "visible_image_aspect": 1.674013921113689,
+  "target_world_m": [
+    7.0,
+    4.17
+  ],
+  "target_world_aspect": 1.6786570743405276,
+  "pixels_per_meter": [
+    206.14285714285714,
+    206.7146282973621
+  ],
+  "partly_transparent_pixels": 1754,
+  "human_halo_and_visual_review": "NOT TESTED; inspect D2 rendered screenshot"
+}
