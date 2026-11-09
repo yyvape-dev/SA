@@ -2127,9 +2127,9 @@ func build_backtown(with_gate: bool = true) -> void:
 	piece_nodes["stalls"] = st
 	var ni := 0
 	var preview_keepers := {
-		"stall_food": ["food_vendor", 1.72],
-		"stall_crystal": ["apothecary", 1.60],
-		"stall_parts": ["prosthesis_repair", 1.80],
+		"stall_food": ["food_vendor", 1.72, 0.82],
+		"stall_crystal": ["apothecary", 1.67, 0.30],
+		"stall_parts": ["prosthesis_repair", 1.80, 0.30],
 	}
 	for s2 in BT.STALLS:
 		var sx: float = s2.x
@@ -2140,8 +2140,8 @@ func build_backtown(with_gate: bool = true) -> void:
 			_bt_quad(st, s2.art, sx - sw * 0.5, sh * (1.0 - sp), sx + sw * 0.5, sh, BT.STALL_Z - 0.2, BT_ART_DIM, [0.0, 0.0, 1.0, sp])
 			_bt_quad(st, s2.art, sx - sw * 0.5, 0.0, sx + sw * 0.5, sh * (1.0 - sp), BT.STALL_Z + 0.2, BT_ART_DIM, [0.0, sp, 1.0, 1.0])
 			if s2.keeper:
-				var keeper: Array = preview_keepers.get(s2.id, ["", 1.72]) if with_gate else ["", 1.72]
-				_bt_npc(st, sx + 0.3, BT.STALL_Z, ni, keeper[0], keeper[1])
+				var keeper: Array = preview_keepers.get(s2.id, ["", 1.72, 0.30]) if with_gate else ["", 1.72, 0.30]
+				_bt_npc(st, sx + keeper[2], BT.STALL_Z, ni, keeper[0], keeper[1])
 				ni += 1
 		else:   # 遊技の屋台（下絵）：台・歯車仕掛けの機械・光る窓・天幕。下絵の書き出しのため、屋台ごとの Node3D に入れる
 			var gn := Node3D.new()
