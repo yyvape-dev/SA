@@ -27,13 +27,13 @@
 - 実測: `sa2_t3_performance.md` のllvmpipe/OpenGL3、1280×720、ソフトウェア描画下の機械2体平均frame中央値173.94ms、30体290.47ms。スマホGPU性能の証明ではない。
 - 未実施: iOS/Android/WebGL/IndexedDB/スマートフォン横長比率、長時間安定性。装飾/背景/正式UIはT4〜T6。
 
-### 2.1a 正式工程の訂正：T7責務とT3検証の境界（2026-11-09）
-**重要な訂正：** T3にiPhone/Android実機、Webブラウザの保存/再開、端末FPS/操作を要求したうえで未達と判定してはならない。これらは承認済み上位計画 `story/sa2-chapter1-20261106:claude/sa2_vertical_slice_implementation_plan_20261108.md` v4.2 の「ユーザー指定：スマホでの成果物提示と実機検証」で**T7（最終総合実測・品質判定）**に明記されている。T2/T3ではGodot自動実操作・連続動画を中間検証として先行し、T6でHUD/VFX可読性を確認する。T7への配置をCodexのT3実装欠陥として報告するのは工程評価の誤り。
-- 承認済みT3実装brief第37行は「Prefer 1280×720 and horizontal phone aspect when runnable」であり、スマホ横長比率は**可能な場合の追加確認**であってT3の必須受入条件としては要求していない。出力比率のNOT TESTEDは事実として残してよいが、T3必須機能のFAILと混同しない。
-- `T3中に修正が必要`: 2回のGitHub Actions録画ステップFAIL（明確な保存先パスの不一致）と、最終修正後の独立再レビュー未実施。T3のPR受入と最終品質判定も区別する。
-- `T7計画どおり未実施`: iPhone/Androidの実タッチ操作・FPS・ロード・保存・再開・Web配布/ブラウザIndexedDB、スマホ表示/横長比率の最終品質評価。これらを今ここで独断でT3へ前倒ししない。
-- `工程設計の反省`: 中間動画の画質/操作感・UI問題を発見しやすくするためのスマホ比率テストを推奨扱いとした点は、実機UIリスクを残す設計上の弱さである。前倒しスモークテストは計画に示された**事前合意ゲート**による新たな判断を要する。Codexに無断要求しない。
-- T3修正指示・T4素材作業は依然別件。既存役割（ChatGPTの軽微開発含む）と上位計画の工程区分は変更なし。
+### 2.1a 最新工程判断：実機レビューをTDとして前倒し（2026-11-09 ユーザー承認）
+上位正本 `story/sa2-chapter1-20261106:claude/sa2_vertical_slice_implementation_plan_20261108.md` **v4.3** に改訂。旧v4.2は実機/ブラウザ保存の受入をT7に配置したため、T2/T3の担当者へ後出しの不履行判定をしない。
+- **新TD（最優先・T2/T3と並行、T4〜T6まで継続）**: iPhone/Androidでプレイするためのテスト配布経路の整備と、スマホ横長/タッチ/防御回避/表示/FPS/ロード/保存・再開の実機スモーク。まずGodot Webを実プロジェクトで検証し、使えないときだけ事実に基づき実機ビルド案を検討。Web実行成功・実機操作済みの虚偽報告禁止。**機能開発工程に実機スモークを組み込む**。
+- **T3既存実装の修正事項**: GitHub Actionsの録画CI FAIL、最終修正版独立再レビュー。対象外の端末試験をT3不履行扱いしない。新TD用のテストビルドにT3成果を利用するのは別作業。
+- **T7**: 全機能統合後の最終端末/ブラウザ・性能・保存・安定性検証。初めて実機を触る工程ではない。
+- **優先順位**: TDの配布/実機スモーク基盤に今すぐ着手し、T4ガイド一致アセット制作は並行。T3の録画CI修正/独立再レビューは隔離されたT3作業として進める。必要な実端末への操作はユーザー等による実行結果で判定する。
+- **開始前に再承認質問しない**: TDの工程前倒しは今回明示承認済み。ホスティング/認証/課金/個人データ露出を伴う設定変更は個別の影響確認が必要であり、無断実施しない。
 
 ### 2.2 CIの再現済み失敗：P0
 - RUN1: https://github.com/yyvape-dev/SA/actions/runs/42538788129 — FAIL
@@ -100,7 +100,7 @@ Guideの製作キャンバスは確定。**production上の最終crop/実物のp
 | 最終T3独立再レビュー | NOT TESTED | 独立レビューは5ff6195時点 |
 | T3動画存在/manifest | PASS（存在・manifest） | external_review/media/ |
 | T3動画の本チャットでの目視 | NOT TESTED | バイナリ内容取得・再生なし |
-| T3実機/Web/横比率 | NOT TESTED | implementation/PR明記 |
+| TD実機/Web/横比率 | NOT TESTED（新規先行工程で実施） | v4.3 TD、旧T3の必須要件ではない |
 | T4既存slot/サイズ/5点の不足棚卸し | PASS（ソース確認） | backtown_block.gd、guide.json、art directory |
 | T4新規制作物5点の受入 | FAIL / 0 of 5 | 過去生成は位置/投影/背景に不適合 |
 | T4実Godot合成 | NOT TESTED | 新素材未適合 |
@@ -110,7 +110,10 @@ Guideの製作キャンバスは確定。**production上の最終crop/実物のp
 - T3実装報告: https://github.com/yyvape-dev/SA/blob/feat/sa2-t3-street-encounter-20261108/sequel/docs/sa2_t3_implementation.md
 - T3 review: https://github.com/yyvape-dev/SA/blob/feat/sa2-t3-street-encounter-20261108/sequel/docs/sa2_t3_independent_code_review.md
 - T3 CI RUN2: https://github.com/yyvape-dev/SA/actions/runs/42539298815
+- 上位計画v4.3: https://github.com/yyvape-dev/SA/blob/story/sa2-chapter1-20261106/claude/sa2_vertical_slice_implementation_plan_20261108.md
 - T4先行調査文書: https://github.com/yyvape-dev/SA/blob/docs/sa2-t3-design-gate-20261108/sequel/docs/sa2_t3_design_gate_20261108/reports/t4-market-art-gap-and-production.md
 
 ## 8. 次チャットの最初の依頼
+**優先追記（2026-11-09）**: 引継ぎ先は旧文面の「T4から開始」を優先順として扱わず、まず上位v4.3のTD実機レビュー基盤に着手する。T4素材1点の規格準拠制作は並行し、T3 CI修正は独立作業。TDがビルド/実機で未検証のうちは「実機動作済み」と表現しない。
+
 「GitHub `yyvape-dev/SA` の `docs/sa2-t3-design-gate-20261108` にある本引継ぎ文書を全文読んでください。既存の`AGENTS.md`/Handoffとゲームアート関連スキル（tool-routing、quality-gate、create-game-assets、raster-pipeline、systematic-debugging等）を実際に読んでください。再承認質問・新規全景・仕様ボード・汎用コンセプト画像を生成せず、まずGitHubの`sequel/art/guide_bt/stall_game.png`本物を編集入力に用い、輪郭/サイズ/透過を元ガイドと比較して1枚を制作してください。T3修正は別作業として2回連続CI失敗の原因と最終独立再レビューをCodexに提示し、T3コードをこの背景作業で変更しないでください。結果は制作素材と検査証拠で報告してください。」
