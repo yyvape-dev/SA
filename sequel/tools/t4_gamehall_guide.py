@@ -88,14 +88,14 @@ def main():
     assert abs(OPEN_W - (6.02 - 0.98)) < 0.0001
     manifest = {
         "kind": "T4 deterministic geometry guide; not approved painting",
-        "source": "test/sa2-t4-gamehall-relayout-20261109, in-engine proof pending visual acceptance",
+        "source": "test/sa2-t4-gamehall-relayout-20261109, in-engine replacement render and visual acceptance pending",
         "file": dest.name,
         "sha256": hashlib.sha256(dest.read_bytes()).hexdigest(),
         "canvas_px": [W,H],
         "pixel_per_meter": SCALE,
         "local_x_range_m": [0,BUILDING_W],
         "local_y_range_m": [0,BUILDING_H],
-        "world_x_range_m": [5.2,12.2],
+        "world_x_range_m": [7.0,14.0],
         "facade_z_m": -6.5,
         "rear_interior_z_m": -9.3,
         "clear_opening_x_m": [0.98,6.02],
