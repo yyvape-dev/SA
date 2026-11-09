@@ -41,7 +41,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m venv /tmp/t4-py
-          /tmp/t4-py/bin/pip install --disable-pip-version-check Pillow==11.3.0 numpy scipy
+          /tmp/t4-py/bin/pip install --disable-pip-version-check Pillow==11.3.0 numpy scipy opencv-python-headless==4.12.0.88
           /tmp/t4-py/bin/python -I sequel/tools/t4_gamehall_prepare_art.py \
             --source sequel/art/painted_bt_src/gamehall_user_original_20261109.jpeg \
             --out sequel/art/painted_bt/gamehall_user_rgba.png 2>&1 | tee /tmp/t4-art.log
@@ -65,6 +65,15 @@ jobs:
           grep -q 'T4_APPROVED_PREP_PASS' /tmp/t4-approved-prepare.log
           test -s sequel/art/painted_bt/gamehall_approved_16m_preview.png
           test -s sequel/art/painted_bt/gamehall_approved_16m_preview.json
+      - name: Derive original-pixel moving parts and fill hidden background
+        run: |
+          set -euo pipefail
+          /tmp/t4-py/bin/python -I sequel/tools/t4_gamehall_make_motion_layers.py 2>&1 | tee /tmp/t4-motion-prepare.log
+          grep -q 'T4_MOTION_LAYER_PREP_PASS' /tmp/t4-motion-prepare.log
+          for name in left_slot_machine right_slot_machine cloaked_man left_woman right_woman roulette_cluster background_clean; do
+            test -s "sequel/art/painted_bt/gamehall_motion/${name}.png"
+          done
+          test -s sequel/art/painted_bt/gamehall_motion/motion_manifest.json
       - name: Import actual sequel project
         run: |
           set -euo pipefail
@@ -113,6 +122,58 @@ jobs:
           for view in center left right; do
             test -s sequel/captures/t4-gamehall-approved/approved_16m_${view}.png
           done
+      - name: Execute actual Godot micro-motion loop and capture 24 frames
+        env:
+          TOWN: back
+          CAMV: D2
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: |
+          set -euo pipefail
+          mkdir -p sequel/captures/t4-gamehall-motion
+          timeout 180s xvfb-run -a -s '-screen 0 1688x780x24' /tmp/godot --path sequel --rendering-driver opengl3 --audio-driver Dummy --windowed --resolution 1688x780 --fixed-fps 60 --script res://tests/sa2_t4_gamehall_motion_capture.gd 2>&1 | tee /tmp/t4-motion-capture.log
+          grep -q 'T4_MOTION_CAPTURE_PASS frames=24' /tmp/t4-motion-capture.log
+          if grep -E 'SCRIPT ERROR|Parse Error|T4_MOTION_FAIL' /tmp/t4-motion-capture.log; then exit 1; fi
+          test "$(find sequel/captures/t4-gamehall-motion -name 'frame_*.png' | wc -l)" -eq 24
+      - name: Encode actual captured frames and verify nonstatic movement
+        run: |
+          set -euo pipefail
+          /tmp/t4-py/bin/python - <<'PY'
+          from pathlib import Path
+          from PIL import Image, ImageDraw
+          import base64, hashlib, json, numpy as np
+          root = Path("sequel/captures/t4-gamehall-motion")
+          paths = sorted(root.glob("frame_*.png"))
+          assert len(paths)==24,len(paths)
+          imgs = [Image.open(p).convert("RGB") for p in paths]
+          assert all(im.size == (1688,780) for im in imgs)
+          arr = np.stack([np.asarray(im,dtype=np.int16) for im in imgs])
+          baseline = arr[0]
+          changes = [int(np.count_nonzero(np.any(abs(frame-baseline)>3,axis=2))) for frame in arr]
+          hashes = [hashlib.sha256(p.read_bytes()).hexdigest() for p in paths]
+          unique = len(set(hashes))
+          assert unique >= 12, ("Insufficient distinct real Godot frames",unique)
+          assert max(changes)>150, ("No visible changes",max(changes))
+          preview = [im.resize((844,390),Image.Resampling.LANCZOS) for im in imgs]
+          gif = root/"gamehall_micro_motion_actual_godot.gif"
+          preview[0].save(gif,save_all=True,append_images=preview[1:],duration=83,loop=0,optimize=True)
+          sheet=Image.new("RGB",(1688,780))
+          draw=ImageDraw.Draw(sheet)
+          for index,frame in enumerate((0,6,12,18)):
+              x=(index%2)*844; y=(index//2)*390
+              sheet.paste(preview[frame],(x,y))
+              draw.rectangle((x,y,x+85,y+22),fill=(10,9,15))
+              draw.text((x+7,y+4),f"Godot {frame:02d}",fill="white")
+          sheet.save(root/"motion_contact_sheet.png",optimize=True)
+          jpg = root/"motion_contact_inline.jpg"
+          imgs[6].save(jpg,"JPEG",quality=85,optimize=True)
+          (root/"motion_contact_inline.b64.txt").write_text(base64.b64encode(jpg.read_bytes()).decode("ascii"),encoding="ascii")
+          qa={"godot_frame_count":24,"resolution":[1688,780],"unique_frames_sha256":unique,
+              "changed_pixels_vs_first":changes,"gif":gif.name,
+              "original_layer_source":"approved painting SHA d9e200bb...","motion_render":"actual Godot 4.7.2",
+              "visual_fidelity":"NOT TESTED until screenshot inspection"}
+          (root/"motion_qa.json").write_text(json.dumps(qa,indent=2)+"\n")
+          print("T4_MOTION_FRAMES_PASS",json.dumps(qa))
+          PY
       - name: Prepare direct-chat previews from Godot screenshots without redraw
         run: |
           set -euo pipefail
@@ -163,6 +224,11 @@ jobs:
           path: |
             sequel/captures/t4-gamehall/*.png
             sequel/captures/t4-gamehall-approved/*.png
+            sequel/captures/t4-gamehall-motion/*
+            sequel/art/painted_bt/gamehall_motion/*.png
+            sequel/art/painted_bt/gamehall_motion/*.json
+            /tmp/t4-motion-prepare.log
+            /tmp/t4-motion-capture.log
             sequel/captures/t4-gamehall-approved/*_inline.*
             sequel/art/painted_bt/gamehall_approved_16m_preview.png
             sequel/art/painted_bt/gamehall_approved_16m_preview.json
@@ -188,6 +254,7 @@ jobs:
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -f sequel/art/painted_bt/gamehall_motion/*.png sequel/art/painted_bt/gamehall_motion/*.json sequel/captures/t4-gamehall-motion/*.png sequel/captures/t4-gamehall-motion/*.gif sequel/captures/t4-gamehall-motion/*.json sequel/captures/t4-gamehall-motion/*_inline.* 
           git add -f sequel/art/painted_bt/gamehall_approved_16m_preview.png sequel/art/painted_bt/gamehall_approved_16m_preview.json sequel/captures/t4-gamehall-approved/*.png sequel/captures/t4-gamehall-approved/*_inline.* sequel/captures/t4-gamehall/*.png sequel/captures/t4-gamehall/*.json sequel/captures/t4-gamehall/*_inline.* sequel/art/painted_bt/gamehall_user_rgba.png sequel/art/painted_bt/gamehall_user_rgba_qa.json sequel/art/painted_bt/gamehall_user_trimmed.png sequel/art/painted_bt/gamehall_user_trimmed_qa.json sequel/art/painted_bt/gamehall_preview_guide.png sequel/art/painted_bt/gamehall_preview_guide_tight.png sequel/art/painted_bt/gamehall_preview_guide_tight.json
           git commit -m 'test(t4): preserve approved 16m painting and real Godot D2 screenshots [skip ci]'
           git push origin HEAD:test/sa2-t4-gamehall-relayout-20261109
