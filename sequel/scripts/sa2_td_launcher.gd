@@ -9,6 +9,7 @@ var status:Label
 var menu:VBoxContainer
 var panel:PanelContainer
 var elapsed:=0.0
+var last_frame_us:=0
 var build:='source'
 var dirty:=true
 var dialogue_font_applied:=false
@@ -78,7 +79,10 @@ func _save_probe():
     var token=str(Time.get_unix_time_from_system())
     if not probe.write_probe(token):push_error('TD save probe failed')
 func _process(delta:float):
-    probe.sample(delta);elapsed+=delta
+    var now=Time.get_ticks_usec()
+    if last_frame_us>0:probe.sample(float(now-last_frame_us)/1000000.0)
+    last_frame_us=now
+    elapsed+=delta
     if elapsed<1.0 or status==null:return
     elapsed=0.0
     panel.position=Vector2(8,8) if spot=='menu' else Vector2(maxf(8,get_viewport().get_visible_rect().size.x-520),8)

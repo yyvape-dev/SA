@@ -20,6 +20,7 @@ const fs=require('fs');const path=require('path');
  for(const spot of (process.env.TD_SPOTS||'t1,explore,t2,t3').split(',')){
   await boot(spot);
   if(spot!=='t1')await page.waitForFunction(()=>!!window.__sa2TD?.scene_ready,null,{timeout:120000});
+  const loadToReadyMs=Date.now()-pageStart;
   await page.waitForTimeout(2500);
   if(!(await page.evaluate(()=>window.__sa2TD.guide_json)))throw Error('Missing runtime guide JSON');
   if(spot==='t1'){
@@ -45,7 +46,7 @@ const fs=require('fs');const path=require('path');
    const m=await page.evaluate(()=>window.__sa2TD);const v=m.viewport.match(/[\d.]+/g).map(Number);await page.touchscreen.tap(m.start_button[0]*844/v[0],m.start_button[1]*390/v[1]);await page.waitForFunction(()=>window.__sa2TD.phase==='street',null,{timeout:15000});
   }
   await page.screenshot({path:path.join(output,spot+'.png')});
-  records.push({spot,loadToSampleMs:Date.now()-pageStart,metrics:await page.evaluate(()=>window.__sa2TD),errors:[...failures]});
+  records.push({spot,loadToReadyMs,loadToSampleMs:Date.now()-pageStart,metrics:await page.evaluate(()=>window.__sa2TD),errors:[...failures]});
  }
  await page.setViewportSize({width:390,height:844});await page.waitForTimeout(1500);await page.screenshot({path:path.join(output,'portrait.png')});
  fs.writeFileSync(path.join(output,'results.json'),JSON.stringify(records,null,2));
