@@ -4,11 +4,15 @@
 
 **正本:** [引き継ぎとT4停止条件](../../docs/sa2_t3_design_gate_20261108/reports/sa2_handoff_20261109_t3_review_t4_art_failure.md) / [不足素材・制作契約](../../docs/sa2_t3_design_gate_20261108/reports/t4-market-art-gap-and-production.md) / [guide.json](guide.json) の `v2.parts.stall_game` と `v2_w_bar_shack_low.stalls` / [裏町v2](../../specs/backtown_entrance_v2.md)。
 
-## 1. 編集対象：GitHubに登録済みの**原本**（これが第一画像）
+## 1. **原本画像をこのページ内に直接表示**（コピー対象はこの画像そのもの）
 
-![stall_game 正規フラットカラー原本、1024×1536](stall_game.png)
+**この下の画像が、GitHub `sequel/art/guide_bt/stall_game.png` の実ファイルです。** リンク文字列や別の参考画像を原本の代わりにしない。下に表示された画像を右クリックして「画像をコピー」し、ChatGPTに貼り付ける。コピーができない場合は「画像を新しいタブで開く」から開いてコピーまたは保存し、添付する。
 
-[原本PNGを開く](stall_game.png) ／ Git blob SHA: `7e21a0b403bef54123d4762f6c4eb8a7e75d2466`。**過去の不採用生成結果や他の参考画像に置き換えない。**
+![GitHub原本 stall_game.png / 1024×1536 / マゼンタ背景・紫の屋根・真鍮の筐体・水色の画面・茶色のカウンター](https://raw.githubusercontent.com/yyvape-dev/SA/cf8481b1f364c7b5784fec12b8bcef2d1ca07bd7/sequel/art/guide_bt/stall_game.png)
+
+**原本画像を直接開く：** [原寸PNGを表示（画像そのもの）](https://raw.githubusercontent.com/yyvape-dev/SA/cf8481b1f364c7b5784fec12b8bcef2d1ca07bd7/sequel/art/guide_bt/stall_game.png) ｜ [GitHubで原本PNGを開く](https://github.com/yyvape-dev/SA/blob/cf8481b1f364c7b5784fec12b8bcef2d1ca07bd7/sequel/art/guide_bt/stall_game.png?raw=true)
+
+原本ファイルのGit blob SHA：`7e21a0b403bef54123d4762f6c4eb8a7e75d2466`。表示されるPNGは制作済み画像ではなく、**これから塗る形状ガイド**。過去に生成して不採用となった画像は一切使わない。
 
 ## 2. 既存の合格済み画風見本（第二画像）
 
