@@ -5,6 +5,7 @@ on:
     paths:
       - sequel/scripts/t4_gamehall_floor.gd
       - sequel/tests/t4_gamehall_local_detail.gdshader
+      - sequel/tools/t4_gamehall_split_character_joints.py
       - sequel/scripts/main.gd
       - sequel/tests/sa2_t4_floor_transition_capture.gd
       - .github/workflows/sa2-t4-floor-transition.yml
@@ -32,6 +33,13 @@ jobs:
           mv /tmp/Godot_v4.7.2-stable_linux.x86_64 /tmp/godot
           chmod +x /tmp/godot
           /tmp/godot --version
+      - name: Mechanically segment all three characters and verify source pixels
+        run: |
+          set -euo pipefail
+          python3 -m pip install --break-system-packages Pillow numpy
+          python3 sequel/tools/t4_gamehall_split_character_joints.py
+          test -s sequel/art/painted_bt/gamehall_motion/character_joints/manifest.json
+          test "$(find sequel/art/painted_bt/gamehall_motion/character_joints -name '*.png' | wc -l)" -eq 24
       - name: Import actual sequel project and both MAP scenes
         run: |
           set -euo pipefail
@@ -80,6 +88,7 @@ jobs:
           name: t4-new-floor-godot-472-route
           path: |
             sequel/captures/t4-gamehall-floor/*
+            sequel/art/painted_bt/gamehall_motion/character_joints/*
             /tmp/t4-floor-import.log
             /tmp/t4-floor-test.log
           if-no-files-found: warn
