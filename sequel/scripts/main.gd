@@ -9,6 +9,7 @@ const BT := preload("res://scripts/backtown_block.gd")
 const GamehallFloor := preload("res://scripts/gamehall_floor.gd")
 var town_floor := "backtown"
 var town_floor_busy := false
+var town_edge_armed := true
 var town := ""   # "back"＝裏の町の入り口の下絵（specs/backtown_blockout.md。環境変数 TOWN=back、Web は ?town=back）
 const Player := preload("res://scripts/player.gd")
 const TouchUI := preload("res://scripts/touch_ui.gd")
@@ -323,34 +324,45 @@ func _check_town_edge() -> void:
 		return
 	if hud == null or hud.menu_open or hud.slot_open:
 		return
-	if town_floor == "backtown" and player.position.x <= GamehallFloor.WEST_EXIT:
+	var west_edge: bool = town_floor == "backtown" and player.position.x <= GamehallFloor.WEST_EXIT
+	var east_edge: bool = town_floor == "gamehall" and player.position.x >= GamehallFloor.EAST_RETURN
+	if not west_edge and not east_edge:
+		town_edge_armed = true
+		return
+	if not town_edge_armed:
+		return
+	town_edge_armed = false
+	if west_edge:
 		town_floor_busy = true
 		change_town_floor.call_deferred(true)
-	elif town_floor == "gamehall" and player.position.x >= GamehallFloor.EAST_RETURN:
+	elif east_edge:
 		town_floor_busy = true
 		change_town_floor.call_deferred(false)
 
+func _abort_town_transition(old_mode: int, message: String) -> void:
+	loading.error_text = message
+	loading.hide_soon()
+	player.locked = false
+	battle.process_mode = old_mode
+	town_floor_busy = false
+
 func change_town_floor(enter_hall: bool) -> void:
 	town_floor_busy = true
+	town_edge_armed = false
 	player.locked = true
 	var old_mode: int = battle.process_mode
 	battle.process_mode = Node.PROCESS_MODE_DISABLED
 	loading.show_now()
+	loading.error_text = ""
 	if enter_hall and not await district.ensure("gh1"):
-		loading.error_text = district.last_error
-		player.locked = false
-		battle.process_mode = old_mode
-		town_floor_busy = false
+		_abort_town_transition(old_mode, district.last_error)
 		return
 	for i in 3:
 		await get_tree().process_frame
 	if enter_hall:
 		var assembled: Dictionary = GamehallFloor.build(self)
 		if assembled.is_empty():
-			loading.error_text = "遊技場の画像を読み込めません"
-			player.locked = false
-			battle.process_mode = old_mode
-			town_floor_busy = false
+			_abort_town_transition(old_mode, "遊技場の画像を読み込めません")
 			return
 		town_floor = "gamehall"
 		player.position = Vector3(21.5, 0, 0)
@@ -1629,6 +1641,7 @@ func _capture_lineup() -> void:
 # ---------- 場所の組み立て（街の区画／ダンジョンの部屋） ----------
 func _clear_level() -> void:
 	bt_fg.clear()
+	ground_mats.clear()
 	if level:
 		remove_child(level)
 		level.queue_free()

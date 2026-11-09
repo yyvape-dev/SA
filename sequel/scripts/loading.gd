@@ -42,6 +42,9 @@ func _process(delta: float) -> void:
 		get_parent().add_child(cl)
 		cl.add_child(_err)
 		_err.position = Vector2(8, 4)
+	if is_instance_valid(_err):
+		_err.text = "!  " + error_text
+		_err.visible = error_text != ""
 	if _hiding:
 		_a = maxf(0.0, _a - delta / 0.3)
 		if _a <= 0.0:

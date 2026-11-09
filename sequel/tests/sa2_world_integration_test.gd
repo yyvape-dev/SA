@@ -22,7 +22,9 @@ func _run() -> void:
         return
     check(is_instance_valid(scene.gate), "backtown has a real dungeon gate")
     var metal_before: Color = scene._bt_mat("iron").albedo_color
+    var floor_count: int = scene.ground_mats.size()
     scene.build_backtown()
+    check(scene.ground_mats.size() == floor_count, "rebuild releases old floor material references")
     check(scene._bt_mat("iron").albedo_color == metal_before, "rebuilding never darkens shared metal materials")
     for id in ["w3_vision", "n1_tavern", "n2_cabaret", "n3_brothel", "n4_shady"]:
         var body = scene.piece_nodes[id].get_child(0)
