@@ -98,5 +98,8 @@ func run():
     if not require(scene.encounter.phase=="complete" and death_hp.size()==2 and death_hp[0]<=0 and death_hp[1]<=0 and attacks>0,"input attacks stop both real machine HP and all routes complete"):return
     if not require(scene.level.get_instance_id()==level_id and scene.player==scene.rana and not scene.battle.auto_spawn,"same Level normal exploration restored"):return
     await frames(48)
-    if DisplayServer.get_name()!="headless":root.get_texture().get_image().save_png(OS.get_environment("T3_SCREENSHOT") if OS.has_environment("T3_SCREENSHOT") else "/workspace/sa2-t3-evidence/captures/t3-win.png")
+    if DisplayServer.get_name()!="headless":
+        var screenshot_path:=OS.get_environment("T3_SCREENSHOT")
+        if screenshot_path.is_empty():screenshot_path="user://t3-win.png"
+        if not require(root.get_texture().get_image().save_png(screenshot_path)==OK,"save screenshot: "+screenshot_path):return
     print("SA2_T3_INPUT_PASS");quit()

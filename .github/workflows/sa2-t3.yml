@@ -31,6 +31,7 @@ jobs:
       - name: Record actual normal/loss/restart Godot input
         env:
           LIBGL_ALWAYS_SOFTWARE: '1'
+          T3_SCREENSHOT: /tmp/t3-captures/t3-win.png
         run: |
           set -euo pipefail
           mkdir -p /tmp/t3-captures
@@ -50,3 +51,4 @@ jobs:
             /tmp/t3-logs/
             /tmp/t3-*.log
             /tmp/t3-captures/*.mp4
+            /tmp/t3-captures/*.png
