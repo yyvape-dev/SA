@@ -52,15 +52,15 @@ def split(actor):
         # Restrict to source alpha; avoid making a bounding-box-shaped cutout.
         import PIL.ImageChops
         visible = PIL.ImageChops.multiply(alpha, mask)
-        visible = PIL.ImageChops.subtract(visible, ownership)
-        ownership = PIL.ImageChops.lighter(ownership, visible)
+        visible = PIL.ImageChops.multiply(visible, PIL.ImageChops.invert(ownership))
+        ownership = PIL.ImageChops.lighter(ownership, mask)
         cut = image.copy()
         cut.putalpha(visible)
         target = DEST / (actor + "_" + part + ".png")
         cut.save(target, optimize=True)
         parts[part] = {"file": target.name, "bbox": list(visible.getbbox() or (0,0,0,0)),
                        "source_rect": list(rect), "sha256": sha(target)}
-    body_alpha = PIL.ImageChops.subtract(alpha, ownership)
+    body_alpha = PIL.ImageChops.multiply(alpha, PIL.ImageChops.invert(ownership))
     body = image.copy()
     body.putalpha(body_alpha)
     body_path = DEST / (actor + "_body.png")
