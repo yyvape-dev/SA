@@ -1,0 +1,279 @@
+{
+  "source_sha256": "d9e200bbdb5059613a3ea52804abe8f95cada42cb82e82e4705054ad140951a1",
+  "source_size": [
+    1488,
+    992
+  ],
+  "output_size": [
+    3200,
+    2000
+  ],
+  "model_generation": false,
+  "characters_redrawn": false,
+  "masks": {
+    "left_slot_machine": {
+      "source_polygon_1585x992": [
+        [
+          286,
+          705
+        ],
+        [
+          322,
+          692
+        ],
+        [
+          375,
+          692
+        ],
+        [
+          410,
+          713
+        ],
+        [
+          425,
+          754
+        ],
+        [
+          428,
+          958
+        ],
+        [
+          271,
+          958
+        ],
+        [
+          257,
+          934
+        ],
+        [
+          257,
+          742
+        ]
+      ],
+      "output_alpha_bbox": [
+        443,
+        1348,
+        826,
+        1936
+      ],
+      "sha256": "1b3897e22810683a04db6dc3c9a6c310e5afd6c4b43f1cd9c89b317095f54bc4",
+      "source_pixel_identity": "Source RGB, multiplied by alpha; original pixels not repainted"
+    },
+    "right_slot_machine": {
+      "source_polygon_1585x992": [
+        [
+          1076,
+          713
+        ],
+        [
+          1112,
+          694
+        ],
+        [
+          1192,
+          696
+        ],
+        [
+          1228,
+          721
+        ],
+        [
+          1245,
+          758
+        ],
+        [
+          1247,
+          958
+        ],
+        [
+          1092,
+          959
+        ],
+        [
+          1066,
+          939
+        ],
+        [
+          1063,
+          739
+        ]
+      ],
+      "output_alpha_bbox": [
+        2176,
+        1355,
+        2587,
+        1938
+      ],
+      "sha256": "ca98d3d84f2f29ef0f6e447dae109ff569b5dc0fb66cfab17c89b0987f351076",
+      "source_pixel_identity": "Source RGB, multiplied by alpha; original pixels not repainted"
+    },
+    "cloaked_man": {
+      "source_polygon_1585x992": [
+        [
+          468,
+          786
+        ],
+        [
+          503,
+          780
+        ],
+        [
+          542,
+          788
+        ],
+        [
+          579,
+          830
+        ],
+        [
+          590,
+          992
+        ],
+        [
+          468,
+          992
+        ],
+        [
+          456,
+          825
+        ]
+      ],
+      "output_alpha_bbox": [
+        871,
+        1540,
+        1174,
+        2000
+      ],
+      "sha256": "d12ee49fcec1661ea5c929d1279e53f3a81fedc5a453b861bdf966c83dc63149",
+      "source_pixel_identity": "Source RGB, multiplied by alpha; original pixels not repainted"
+    },
+    "left_woman": {
+      "source_polygon_1585x992": [
+        [
+          369,
+          794
+        ],
+        [
+          387,
+          785
+        ],
+        [
+          431,
+          801
+        ],
+        [
+          450,
+          835
+        ],
+        [
+          456,
+          992
+        ],
+        [
+          357,
+          992
+        ],
+        [
+          357,
+          817
+        ]
+      ],
+      "output_alpha_bbox": [
+        658,
+        1550,
+        886,
+        2000
+      ],
+      "sha256": "eda6ed9e5d3c73f61088ca677cb7fd7b68da31ea8df2708be9969473e89fb040",
+      "source_pixel_identity": "Source RGB, multiplied by alpha; original pixels not repainted"
+    },
+    "right_woman": {
+      "source_polygon_1585x992": [
+        [
+          1118,
+          795
+        ],
+        [
+          1137,
+          785
+        ],
+        [
+          1165,
+          797
+        ],
+        [
+          1180,
+          834
+        ],
+        [
+          1188,
+          992
+        ],
+        [
+          1103,
+          992
+        ],
+        [
+          1101,
+          818
+        ]
+      ],
+      "output_alpha_bbox": [
+        2258,
+        1550,
+        2460,
+        2000
+      ],
+      "sha256": "0a43bbd83e2e4ed2b58eaadfa9417e5aa277d7504dd107dd9b8f9401c00f72d8",
+      "source_pixel_identity": "Source RGB, multiplied by alpha; original pixels not repainted"
+    },
+    "roulette_cluster": {
+      "source_polygon_1585x992": [
+        [
+          557,
+          814
+        ],
+        [
+          617,
+          793
+        ],
+        [
+          963,
+          793
+        ],
+        [
+          1034,
+          823
+        ],
+        [
+          1042,
+          992
+        ],
+        [
+          549,
+          992
+        ],
+        [
+          546,
+          835
+        ]
+      ],
+      "output_alpha_bbox": [
+        1064,
+        1567,
+        2146,
+        2000
+      ],
+      "sha256": "9eee92777b692239ba8313d9d017a4db45ef5a27eabdff12eb9ce9c485e822c4",
+      "source_pixel_identity": "Source RGB, multiplied by alpha; original pixels not repainted"
+    }
+  },
+  "motion": {
+    "loop_frames": 24,
+    "duration_s": 2.0
+  },
+  "background_clean_sha256": "95bbc385041df19d160f46dd541f9bd7d772905581666f9e097414df30337a5f",
+  "background_method": "OpenCV Telea native-resolution inpaint only under extracted polygon masks",
+  "background_qa": "NOT TESTED in Godot until real animation screenshot visual check",
+  "static_preview_sha256": "b1c6c21feb5293e0e5f63576122c1aaee31726a0c3e2f3418482d34f044d543f"
+}

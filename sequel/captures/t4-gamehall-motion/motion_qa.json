@@ -1,0 +1,38 @@
+{
+  "godot_frame_count": 24,
+  "resolution": [
+    1688,
+    780
+  ],
+  "unique_frames_sha256": 24,
+  "changed_pixels_vs_first": [
+    0,
+    54031,
+    97519,
+    141323,
+    163221,
+    145295,
+    149852,
+    138740,
+    138410,
+    172284,
+    194500,
+    165359,
+    153705,
+    166363,
+    188744,
+    213074,
+    221870,
+    193472,
+    183756,
+    168756,
+    157718,
+    175470,
+    170015,
+    81220
+  ],
+  "gif": "gamehall_micro_motion_actual_godot.gif",
+  "original_layer_source": "approved painting SHA d9e200bb...",
+  "motion_render": "actual Godot 4.7.2",
+  "visual_fidelity": "NOT TESTED until screenshot inspection"
+}
