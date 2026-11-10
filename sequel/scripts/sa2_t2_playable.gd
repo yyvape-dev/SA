@@ -22,6 +22,9 @@ var t5_meeting_marker: Label3D
 var t5_fade: ColorRect
 var t5_dialogue_camera: Camera3D
 var t5_instructor: Sprite3D
+var t5_rana_idle: Sprite3D
+var t5_lily_idle: Sprite3D
+var t5_idle_elapsed := 0.0
 var t5_transitioning := false
 
 var t2_flow = Flow.new()
@@ -305,6 +308,11 @@ func _on_foe_killed(_e) -> void:
 
 func _process(delta: float) -> void:
     super._process(delta)
+    if is_instance_valid(t5_rana_idle) and t5_rana_idle.visible:
+        t5_idle_elapsed = fmod(t5_idle_elapsed + delta, 3.0)
+        var frame := int(t5_idle_elapsed * 12.0)
+        t5_rana_idle.frame = frame
+        t5_lily_idle.frame = frame
     if _t5_is_approaching():
         t5_talk_button.visible = _t5_within_talk_range()
     if not t2_active or t2_done:
@@ -446,6 +454,21 @@ func _t5_begin_exploration() -> void:
     t5_instructor.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
     t5_instructor.hide()
     add_child(t5_instructor)
+    t5_rana_idle = _t5_make_idle_sprite("RanaEventIdle", "rana", Vector2(105, 367.5), 1.85)
+    t5_lily_idle = _t5_make_idle_sprite("LilyEventIdle", "lily", Vector2(115, 371.5), t2_lily.height_m)
+
+func _t5_make_idle_sprite(node_name: String, actor_id: String, pivot: Vector2, height_m: float) -> Sprite3D:
+    var sprite := Sprite3D.new()
+    sprite.name = node_name
+    sprite.texture = load("res://assets/event_idle/%s_idle.webp" % actor_id) as Texture2D
+    sprite.hframes = 6
+    sprite.vframes = 6
+    sprite.offset = Vector2(100 - pivot.x, pivot.y - 188)
+    sprite.pixel_size = height_m / pivot.y
+    sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
+    sprite.hide()
+    add_child(sprite)
+    return sprite
 
 func _t5_is_approaching() -> bool:
     return is_instance_valid(t5_talk_button) and t2_flow.mode == Flow.EXPLORE and t2_flow.event_id.is_empty() and not t2_flow.completed.get(EVENT_ID, false)
@@ -476,11 +499,15 @@ func _t5_stage_briefing() -> void:
     t5_instructor.position = T5_MEETING_POINT + Vector3(1.55, 0, -0.12)
     t5_instructor.show()
 
-    # Keep the actor origins on the floor. Event clips replace only these idle poses.
-    t2_lily.face = 1
-    t2_rana.face = 1
-    t2_lily._show("idle", 0)
-    t2_rana._show_frame("idle", 0)
+    t2_rana.hide()
+    t2_lily.hide()
+    t5_rana_idle.position = t2_rana.position
+    t5_lily_idle.position = t2_lily.position
+    t5_idle_elapsed = 0.0
+    t5_rana_idle.frame = 0
+    t5_lily_idle.frame = 0
+    t5_rana_idle.show()
+    t5_lily_idle.show()
     t5_dialogue_camera.position = T5_MEETING_POINT + Vector3(0.55, 2.2, 6.1)
     t5_dialogue_camera.look_at(T5_MEETING_POINT + Vector3(0.15, 0.97, 0))
     t5_dialogue_camera.make_current()
@@ -488,6 +515,9 @@ func _t5_stage_briefing() -> void:
 func _t5_reveal_training() -> void:
     await _t5_fade_to_black()
     t5_instructor.hide()
+    t5_rana_idle.hide()
+    t5_lily_idle.hide()
+    t2_lily.show()
     _t2_start_training(false)
     t2_lily._show("idle", 0)
     _place_cam(true)

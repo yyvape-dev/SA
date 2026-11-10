@@ -53,6 +53,12 @@ func _run() -> void:
     if not game.t2_dialogue.active or game.t2_dialogue.speaker.text != "教官":
         _fail("interaction starts the instructor dialogue")
         return
+    var rana_idle := game.get_node_or_null("RanaEventIdle") as Sprite3D
+    var lily_idle := game.get_node_or_null("LilyEventIdle") as Sprite3D
+    if rana_idle == null or lily_idle == null or not rana_idle.visible or not lily_idle.visible or game.t2_rana.visible or game.t2_lily.visible:
+        _fail("both event sprites replace the original actors during dialogue")
+        return
+    var idle_frame := rana_idle.frame
     var stopped: Vector3 = game.t2_lily.position
     _key(KEY_D, true)
     for frame in 12:
@@ -60,6 +66,9 @@ func _run() -> void:
     _key(KEY_D, false)
     if stopped != game.t2_lily.position:
         _fail("dialogue locks movement")
+        return
+    if rana_idle.frame == idle_frame or lily_idle.frame == idle_frame:
+        _fail("both event sprites advance during dialogue")
         return
     for line in 4:
         if game.t2_dialogue.line_index != line:
@@ -84,6 +93,9 @@ func _run() -> void:
         return
     if game.t2_dialogue.active or not game.t2_active or game.t2_flow.mode != "instance_battle" or game.battle.enemies.size() != 2:
         _fail("dialogue closes and the two-target exercise starts")
+        return
+    if rana_idle.visible or lily_idle.visible or not game.t2_lily.visible:
+        _fail("event sprites leave and combat Lily returns at the second cut")
         return
     var training_start: Vector3 = game.t2_lily.position
     _key(KEY_D, true)
