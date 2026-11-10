@@ -2260,9 +2260,12 @@ func build_backtown(with_gate: bool = true) -> void:
 		ni += 1
 		bt_marks.append(["person", pp[2], Vector3(pp[0], 1.9, pp[1])])
 	if with_gate:
-		_bt_npc(st, -16.4, -1.2, 0, "night_worker", 1.74)
-		if not _q("npc_motion=off"):
-			_bt_start_patrol(st.get_node("night_worker"), -12.0)
+		var motion_enabled := not _q("npc_motion=off")
+		var edge_margin := 0.5
+		var start_x := BT.ROOM_X.x + edge_margin if motion_enabled else -16.4
+		_bt_npc(st, start_x, -1.2, 0, "night_worker", 1.74)
+		if motion_enabled:
+			_bt_start_patrol(st.get_node("night_worker"), BT.ROOM_X.y - edge_margin)
 	# 手前の物（届いた絵）
 	var fgn := Node3D.new()
 	fgn.name = "foreground"
