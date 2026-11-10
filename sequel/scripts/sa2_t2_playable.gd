@@ -77,9 +77,7 @@ func _ready() -> void:
     t2_rana.locked = true
     t2_rana.set_physics_process(false)
     t2_rana.hide()
-    ui.hide()
-    if ui.pad:
-        ui.pad.set_process_input(false)
+    ui.set_controls_enabled(false)
     # Keep the main process/camera bound to the active character, not the hidden Rana.
     player = t2_lily
     battle.player = t2_lily
@@ -92,6 +90,9 @@ func _ready() -> void:
     add_child(t2_manual)
     _t2_build_ui()
     if t5_training_preview:
+        ui.player = t2_manual
+        ui.basic_combat_only = true
+        hud.hide()
         _t5_begin_exploration()
         if waiting_for_lily:
             loading.hide_soon()
@@ -159,21 +160,22 @@ func _t2_build_ui() -> void:
     t2_label.position = Vector2(22, 72)
     t2_label.add_theme_font_size_override("font_size", 22)
     t2_layer.add_child(t2_label)
-    t2_combat_controls = Control.new()
-    t2_combat_controls.mouse_filter = Control.MOUSE_FILTER_IGNORE
-    t2_layer.add_child(t2_combat_controls)
-    var attack_button := Button.new()
-    attack_button.text = "攻撃"
-    attack_button.position = Vector2(1080, 525)
-    attack_button.custom_minimum_size = Vector2(150, 78)
-    attack_button.pressed.connect(func(): t2_manual.attack_press())
-    t2_combat_controls.add_child(attack_button)
-    var dodge_button := Button.new()
-    dodge_button.text = "回避／防御"
-    dodge_button.position = Vector2(900, 614)
-    dodge_button.custom_minimum_size = Vector2(184, 78)
-    dodge_button.pressed.connect(func(): t2_manual.dodge())
-    t2_combat_controls.add_child(dodge_button)
+    if not t5_training_preview:
+        t2_combat_controls = Control.new()
+        t2_combat_controls.mouse_filter = Control.MOUSE_FILTER_IGNORE
+        t2_layer.add_child(t2_combat_controls)
+        var attack_button := Button.new()
+        attack_button.text = "攻撃"
+        attack_button.position = Vector2(1080, 525)
+        attack_button.custom_minimum_size = Vector2(150, 78)
+        attack_button.pressed.connect(func(): t2_manual.attack_press())
+        t2_combat_controls.add_child(attack_button)
+        var dodge_button := Button.new()
+        dodge_button.text = "回避／防御"
+        dodge_button.position = Vector2(900, 614)
+        dodge_button.custom_minimum_size = Vector2(184, 78)
+        dodge_button.pressed.connect(func(): t2_manual.dodge())
+        t2_combat_controls.add_child(dodge_button)
     t2_result_button = Button.new()
     t2_result_button.position = Vector2(520, 440)
     t2_result_button.custom_minimum_size = Vector2(260, 90)
@@ -222,7 +224,6 @@ func _t2_start_training(resume: bool) -> void:
         t2_rana.position = t2_flow.return_position
         t2_manual.set_process_unhandled_key_input(true)
         t2_label.show()
-        t2_combat_controls.show()
     for e in battle.enemies.duplicate():
         battle.remove_enemy(e)
     _t2_build_arena()
@@ -244,7 +245,9 @@ func _t2_start_training(resume: bool) -> void:
         foe.sp = 0.65
         _t2_build_target(foe)
     t2_active = true
-    t2_label.text = "模擬標的 0/2   HP 100   [WASD] 移動 [J] 攻撃 [K] 回避・防御"
+    _t2_update_training_label()
+    if t5_training_preview and not t5_transitioning:
+        ui.set_controls_enabled(true)
     _t2_save()
 
 ## A distinct, nonlethal greybox training area; existing Enemy objects still own real hit/HP logic.
@@ -335,13 +338,21 @@ func _process(delta: float) -> void:
     if battle.hp <= 0.0:
         _t2_end(false)
         return
-    t2_label.text = "模擬標的 %d/2   HP %d   [WASD] 移動 [J] 攻撃 [K] 回避・防御" % [t2_kills, int(battle.hp)]
+    _t2_update_training_label()
+
+func _t2_update_training_label() -> void:
+    if t5_training_preview:
+        t2_label.text = "模擬標的 %d/2" % t2_kills
+    else:
+        t2_label.text = "模擬標的 %d/2   HP %d   [WASD] 移動 [J] 攻撃 [K] 回避・防御" % [t2_kills, int(battle.hp)]
 
 func _t2_end(won: bool) -> void:
     if t2_done:
         return
     t2_done = true
     t2_active = false
+    if t5_training_preview:
+        ui.set_controls_enabled(false)
     t2_manual.locked = true
     t2_manual.move_in = Vector2.ZERO
     if not t2_flow.finish_battle(won):
@@ -374,7 +385,8 @@ func _t2_restore_exploration() -> void:
     battle.ally = t2_lily
     t2_manual.locked = true
     t2_manual.queue_free()
-    t2_combat_controls.queue_free()
+    if is_instance_valid(t2_combat_controls):
+        t2_combat_controls.queue_free()
     if t2_arena != null and is_instance_valid(t2_arena):
         t2_arena.queue_free()
     t2_lily.set_physics_process(true)
@@ -382,9 +394,10 @@ func _t2_restore_exploration() -> void:
     t2_rana.locked = false
     t2_rana.set_physics_process(true)
     t2_rana.position = t2_flow.player_position
-    ui.show()
-    if ui.pad:
-        ui.pad.set_process_input(true)
+    ui.player = t2_rana
+    ui.basic_combat_only = false
+    ui.set_controls_enabled(true)
+    hud.show()
     t2_result_button.hide()
     t2_label.text = "演習完了・探索へ復帰"
 
@@ -396,7 +409,8 @@ func _input(event: InputEvent) -> void:
         _t5_open_briefing()
         get_viewport().set_input_as_handled()
         return
-    if t2_manual == null or (not t2_active and not _t5_is_approaching()):
+    var legacy_touch_active := _t5_is_approaching() if t5_training_preview else t2_active
+    if t2_manual == null or not legacy_touch_active:
         return
     if event is InputEventScreenTouch:
         if event.pressed and event.position.x < 550 and t2_finger < 0:
@@ -412,7 +426,6 @@ func _t5_begin_exploration() -> void:
     var font: Font = t2_dialogue.dialogue_font
     var control_theme := Theme.new()
     control_theme.default_font = font
-    t2_combat_controls.theme = control_theme
     t2_result_button.theme = control_theme
     t2_label.add_theme_font_override("font", font)
     t2_label.position.y = 112
@@ -426,7 +439,6 @@ func _t5_begin_exploration() -> void:
     style.set_corner_radius_all(8)
     panel.add_theme_stylebox_override("panel", style)
     t2_label.text = "公開演習  ›  教官のいる受付へ"
-    t2_combat_controls.hide()
     t2_manual.locked = false
     t2_manual.set_process_unhandled_key_input(false)
     t2_rana.position = T5_MEETING_POINT + Vector3(0.55, 0, -0.55)
@@ -542,6 +554,7 @@ func _t5_reveal_training() -> void:
     cam.make_current()
     await _t5_fade_from_black()
     t2_manual.locked = false
+    ui.set_controls_enabled(true)
 
 func _t5_fade_to_black() -> void:
     t5_transitioning = true

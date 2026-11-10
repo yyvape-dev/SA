@@ -4,10 +4,11 @@ extends CanvasLayer
 
 const SkillIcons := preload("res://scripts/skill_icons.gd")
 var main          # main.gd（スキルの枠・街かどうか）
-var player: Node3D
+var player # Rana or the manual Lily input controller
 var battle: Node3D
 var pad: Control
 var hud: Control
+var basic_combat_only := false
 
 func _ready() -> void:
 	pad = _Pad.new()
@@ -21,7 +22,13 @@ func _ready() -> void:
 	hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(hud)
 
-## 左上：ラナの体力（青＝味方）。減った分は少し遅れて追いかける白い帯
+func set_controls_enabled(enabled: bool) -> void:
+	if not enabled:
+		pad.reset_input()
+	pad.set_process_input(enabled)
+	visible = enabled
+
+## 左上：キャラクターの体力（青＝味方）。減った分は少し遅れて追いかける白い帯
 class _Hud extends Control:
 	var ui
 	var shown := 1.0
@@ -39,6 +46,8 @@ class _Hud extends Control:
 		draw_rect(Rect2(p, Vector2(w * shown, h)), Color(1, 1, 1, 0.8))
 		draw_rect(Rect2(p, Vector2(w * r, h)), Color("3d8bff") if r > 0.3 else Color("29e0ff"))
 		draw_rect(Rect2(p, Vector2(w * r, h * 0.35)), Color(1, 1, 1, 0.25))
+		if ui.basic_combat_only:
+			return
 		# 必殺技のゲージ（金の細い帯）。満タンで脈打つ
 		var g: float = ui.battle.ult / ui.battle.ULT_MAX
 		var gp := p + Vector2(0, h + 8 * u)
@@ -75,6 +84,8 @@ class _Pad extends Control:
 			"atk": [ac, 78 * u],
 			"dodge": [Vector2(s.x - 345 * u, s.y - 105 * u), 50 * u],
 		}
+		if ui.basic_combat_only:
+			return b
 		for i in 3:
 			var a := deg_to_rad(SKILL_ANG[i])
 			b["sk%d" % i] = [ac + Vector2(cos(a), -sin(a)) * 175 * u, 52 * u]
@@ -134,6 +145,8 @@ class _Pad extends Control:
 					bd = d / b[k][1]
 					best = k
 			if best != "":
+				if btn_down.has(best):
+					return
 				btn_down[best] = idx
 				_press(best)
 				queue_redraw()
@@ -153,6 +166,14 @@ class _Pad extends Control:
 					if k == "atk":
 						ui.player.attack_release()
 		queue_redraw()
+
+	func reset_input() -> void:
+		if btn_down.has("atk"):
+			ui.player.attack_release()
+		ui.player.move_in = Vector2.ZERO
+		stick_id = -1
+		btn_down.clear()
+		shake.clear()
 
 	func _apply() -> void:
 		var u := size.y / 720.0
