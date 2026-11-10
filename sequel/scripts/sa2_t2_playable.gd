@@ -267,6 +267,7 @@ func _t2_start_training(resume: bool) -> void:
         t6_retry_button.hide()
         ui.pad.reset_input()
         t2_manual.reset_training()
+        battle.ally_ult = battle.ULT_MAX # Let the tutorial teach all four techniques in one attempt.
     t2_lily.position = Vector3(0, 0, 0)
     t2_lily.face = 1
     t2_lily.state = "move"

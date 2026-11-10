@@ -20,6 +20,9 @@ func _run() -> void:
     game.t2_flow.begin_dialogue("C1-06", Vector3.ZERO)
     game.t2_flow.finish_dialogue()
     game._t2_start_training(false)
+    if game.battle.ally_ult != game.battle.ULT_MAX or not game.ui.pad._btns().has("ult"):
+        _fail("the tutorial exposes the ultimate from the start")
+        return
     for id in ["rush", "barrage", "storm", "ult"]:
         for foe in game.battle.enemies:
             foe.hp = 10000.0
@@ -79,6 +82,9 @@ func _run() -> void:
     game.t6_retry_button.pressed.emit()
     if game.t2_done or game.t2_result_button.visible or game.battle.enemies.size() != 2 or game.battle.hp != 100.0:
         _fail("retry restores a fresh exercise")
+        return
+    if game.battle.ally_ult != game.battle.ULT_MAX:
+        _fail("retry makes the ultimate available again")
         return
     for cd in manual.skill_cd.values():
         if float(cd) != 0.0:

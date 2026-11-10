@@ -120,7 +120,7 @@ func _run() -> void:
         return
     var pad: Control = game.ui.pad
     var buttons: Dictionary = pad._btns()
-    if buttons.size() != 5 or not buttons.has("atk") or not buttons.has("dodge"):
+    if buttons.size() != 6 or not buttons.has("atk") or not buttons.has("dodge"):
         _fail("Lily only exposes her supported actions")
         return
     var stick := Vector2(200, pad.size.y - 170)
