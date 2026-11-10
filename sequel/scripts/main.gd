@@ -1781,11 +1781,11 @@ func _bt_tex_wall(parent: Node3D, tex_name: String, x0: float, y0: float, x1: fl
 const BT_NPC_MOTION := preload("res://scripts/backtown_npc_motion.gdshader")
 # center/radii, joint, travel, rotation, period, phase offset, upper-body sway
 const BT_NPC_GESTURES := {
-	"prosthesis_repair": [Vector4(0.86, 0.18, 0.23, 0.18), Vector2(0.82, 0.31), Vector2(-0.035, -0.018), -0.12, 3.6, 0.00, 0.008],
+	"prosthesis_repair": [Vector4(0.86, 0.18, 0.23, 0.18), Vector2(0.82, 0.31), Vector2(-0.075, -0.044), -0.24, 3.6, 0.00, 0.008],
 	"courtesan": [Vector4(0.80, 0.51, 0.32, 0.22), Vector2(0.72, 0.39), Vector2(-0.010, -0.050), -0.18, 4.2, 0.19, 0.009],
 	"gambler": [Vector4(0.23, 0.29, 0.28, 0.14), Vector2(0.33, 0.34), Vector2(0.033, 0.016), 0.13, 3.5, 0.52, 0.007],
-	"food_vendor": [Vector4(0.83, 0.31, 0.27, 0.19), Vector2(0.68, 0.37), Vector2(-0.022, -0.018), -0.19, 2.6, 0.34, 0.008],
-	"apothecary": [Vector4(0.15, 0.16, 0.23, 0.18), Vector2(0.17, 0.23), Vector2(0.022, -0.016), 0.22, 3.7, 0.12, 0.008],
+	"food_vendor": [Vector4(0.83, 0.31, 0.27, 0.19), Vector2(0.68, 0.37), Vector2(-0.046, 0.066), 0.24, 2.6, 0.34, 0.008],
+	"apothecary": [Vector4(0.15, 0.16, 0.23, 0.18), Vector2(0.17, 0.23), Vector2(0.051, -0.046), 0.33, 3.7, 0.12, 0.008],
 	"night_worker": [Vector4(0.78, 0.91, 0.24, 0.21), Vector2(0.70, 0.76), Vector2(0.025, -0.027), -0.13, 2.9, 0.27, 0.020],
 	"drunk": [Vector4(0.09, 0.48, 0.26, 0.19), Vector2(0.24, 0.37), Vector2(0.026, -0.034), 0.13, 3.4, 0.64, 0.040],
 }
@@ -1831,6 +1831,36 @@ func _bt_npc(parent: Node3D, x: float, z: float, idx: int, preview_key: String =
 	s.flip_h = preview_key.is_empty() and idx % 2 == 0
 	s.position = Vector3(x, height_m * 0.5, z)
 	parent.add_child(s)
+
+func _bt_start_patrol(walker: Sprite3D, east: float) -> void:
+	var frames: Array[Texture2D] = []
+	for index in 4:
+		var frame := load("res://assets/npc/night_worker_walk_%d.webp" % index) as Texture2D
+		if frame == null:
+			return
+		frames.append(frame)
+	var material := walker.material_override as ShaderMaterial
+	material.shader = SPRITE_SHADER
+	material.set_shader_parameter("tint", BT_NPC_LOCAL_TINT["night_worker"])
+	material.set_shader_parameter("bg_layer", 1.0)
+	walker.texture = frames[0]
+	material.set_shader_parameter("tex", frames[0])
+	walker.pixel_size = walker.position.y * 2.0 / float(frames[0].get_height())
+	var west := walker.position.x
+	var duration := (east - west) / 1.35
+	var move := func(x: float, going_left: bool) -> void:
+		var distance := east - x if going_left else x - west
+		var frame := frames[int(distance * 6.0 / 1.35) % frames.size()]
+		walker.position.x = x
+		walker.flip_h = going_left
+		if walker.texture != frame:
+			walker.texture = frame
+			material.set_shader_parameter("tex", frame)
+	var patrol := walker.create_tween().set_loops()
+	patrol.tween_method(move.bind(false), west, east, duration)
+	patrol.tween_interval(0.35)
+	patrol.tween_method(move.bind(true), east, west, duration)
+	patrol.tween_interval(0.35)
 
 ## 24章：吊るす所 → [上端の y, z]（綱は BT.ROPES、軒・手すりは BT.ANCHORS）
 func _bt_anchor(id: String) -> Array:
@@ -2230,7 +2260,9 @@ func build_backtown(with_gate: bool = true) -> void:
 		ni += 1
 		bt_marks.append(["person", pp[2], Vector3(pp[0], 1.9, pp[1])])
 	if with_gate:
-		_bt_npc(st, -14.3, -1.2, 0, "night_worker", 1.74)
+		_bt_npc(st, -16.4, -1.2, 0, "night_worker", 1.74)
+		if not _q("npc_motion=off"):
+			_bt_start_patrol(st.get_node("night_worker"), -12.0)
 	# 手前の物（届いた絵）
 	var fgn := Node3D.new()
 	fgn.name = "foreground"
