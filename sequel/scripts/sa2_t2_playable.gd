@@ -19,6 +19,10 @@ var t2_ally_load_done := false
 @export var t5_training_preview := false
 var t5_talk_button: Button
 var t5_meeting_marker: Label3D
+var t5_fade: ColorRect
+var t5_dialogue_camera: Camera3D
+var t5_instructor: Sprite3D
+var t5_transitioning := false
 
 var t2_flow = Flow.new()
 var t2_manual
@@ -182,7 +186,10 @@ func _t2_on_dialogue_closed() -> void:
         push_error("SA2_T2_FAIL: invalid dialogue completion")
         return
     _t2_save()
-    _t2_start_training(false)
+    if t5_training_preview:
+        await _t5_reveal_training()
+    else:
+        _t2_start_training(false)
 
 func _t2_start_training(resume: bool) -> void:
     var checkpoint: Vector3 = t2_flow.return_position if t5_training_preview else t2_rana.position
@@ -207,7 +214,7 @@ func _t2_start_training(resume: bool) -> void:
     t2_lily.position = Vector3(0, 0, 0)
     t2_lily.face = 1
     t2_lily.state = "move"
-    t2_manual.locked = false
+    t2_manual.locked = t5_transitioning
     t2_manual.move_in = Vector2.ZERO
     battle.hp_max = 100.0
     battle.hp = battle.hp_max
@@ -359,6 +366,9 @@ func _t2_restore_exploration() -> void:
     t2_label.text = "演習完了・探索へ復帰"
 
 func _input(event: InputEvent) -> void:
+    if t5_transitioning:
+        get_viewport().set_input_as_handled()
+        return
     if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ENTER and _t5_is_approaching() and _t5_within_talk_range():
         _t5_open_briefing()
         get_viewport().set_input_as_handled()
@@ -416,6 +426,27 @@ func _t5_begin_exploration() -> void:
     t5_talk_button.pressed.connect(_t5_open_briefing)
     t2_layer.add_child(t5_talk_button)
 
+    var fade_layer := CanvasLayer.new()
+    fade_layer.layer = 100
+    add_child(fade_layer)
+    t5_fade = ColorRect.new()
+    t5_fade.color = Color.BLACK
+    t5_fade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+    t5_fade.hide()
+    fade_layer.add_child(t5_fade)
+
+    t5_dialogue_camera = Camera3D.new()
+    t5_dialogue_camera.fov = 32.0
+    add_child(t5_dialogue_camera)
+    t5_instructor = Sprite3D.new()
+    t5_instructor.texture = preload("res://assets/npc/man_1.webp")
+    t5_instructor.pixel_size = 1.85 / t5_instructor.texture.get_height()
+    t5_instructor.offset.y = t5_instructor.texture.get_height() * 0.5
+    t5_instructor.flip_h = true
+    t5_instructor.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
+    t5_instructor.hide()
+    add_child(t5_instructor)
+
 func _t5_is_approaching() -> bool:
     return is_instance_valid(t5_talk_button) and t2_flow.mode == Flow.EXPLORE and t2_flow.event_id.is_empty() and not t2_flow.completed.get(EVENT_ID, false)
 
@@ -430,12 +461,56 @@ func _t5_open_briefing() -> void:
     t2_manual.locked = true
     t2_manual.move_in = Vector2.ZERO
     t2_finger = -1
-    t2_rana.position = t2_lily.position + Vector3(0.9, 0, -0.55)
-    t2_lily._show("idle", 0)
-    t2_label.hide()
     t5_talk_button.hide()
+    await _t5_fade_to_black()
+
+    t2_label.hide()
     t5_meeting_marker.hide()
+    _t5_stage_briefing()
+    await _t5_fade_from_black()
     _t2_open_dialogue(EVENT_ID)
+
+func _t5_stage_briefing() -> void:
+    t2_lily.position = T5_MEETING_POINT + Vector3(-1.35, 0, 0.15)
+    t2_rana.position = T5_MEETING_POINT + Vector3(-0.1, 0, -0.25)
+    t5_instructor.position = T5_MEETING_POINT + Vector3(1.55, 0, -0.12)
+    t5_instructor.show()
+
+    # Keep the actor origins on the floor. Event clips replace only these idle poses.
+    t2_lily.face = 1
+    t2_rana.face = 1
+    t2_lily._show("idle", 0)
+    t2_rana._show_frame("idle", 0)
+    t5_dialogue_camera.position = T5_MEETING_POINT + Vector3(0.55, 2.2, 6.1)
+    t5_dialogue_camera.look_at(T5_MEETING_POINT + Vector3(0.15, 0.97, 0))
+    t5_dialogue_camera.make_current()
+
+func _t5_reveal_training() -> void:
+    await _t5_fade_to_black()
+    t5_instructor.hide()
+    _t2_start_training(false)
+    t2_lily._show("idle", 0)
+    _place_cam(true)
+    cam.make_current()
+    await _t5_fade_from_black()
+    t2_manual.locked = false
+
+func _t5_fade_to_black() -> void:
+    t5_transitioning = true
+    battle.cine = true
+    t5_fade.color.a = 0.0
+    t5_fade.show()
+    await create_tween().tween_property(t5_fade, "color:a", 1.0, 0.22).finished
+    await get_tree().process_frame
+
+func _t5_fade_from_black() -> void:
+    var fade := create_tween()
+    fade.tween_interval(0.10)
+    fade.tween_property(t5_fade, "color:a", 0.0, 0.30)
+    await fade.finished
+    t5_fade.hide()
+    battle.cine = false
+    t5_transitioning = false
 
 func _t2_movie_demo() -> void:
     await _t2_frames(36)

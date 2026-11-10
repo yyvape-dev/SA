@@ -36,9 +36,20 @@ func _run() -> void:
         return
     for frame in 16:
         await process_frame
+    var approach_position: Vector3 = game.t2_lily.position
     _key(KEY_ENTER, true)
     _key(KEY_ENTER, false)
     await process_frame
+    if game.t2_dialogue.active or game.t2_lily.position != approach_position or not game.t2_manual.locked:
+        _fail("talk locks input before moving actors or showing dialogue")
+        return
+    for frame in 90:
+        if game.t2_dialogue.active:
+            break
+        await process_frame
+    if root.get_camera_3d() == game.cam or game.t2_lily.position == approach_position:
+        _fail("dark cut stages actors and switches to a dedicated dialogue camera")
+        return
     if not game.t2_dialogue.active or game.t2_dialogue.speaker.text != "教官":
         _fail("interaction starts the instructor dialogue")
         return
@@ -61,6 +72,16 @@ func _run() -> void:
         _key(KEY_SPACE, true)
         _key(KEY_SPACE, false)
         await process_frame
+    if game.t2_active or not game.t2_manual.locked or root.get_camera_3d() == game.cam:
+        _fail("closing dialogue starts a separate fade with input still locked")
+        return
+    for frame in 90:
+        if game.t2_active and not game.t2_manual.locked:
+            break
+        await process_frame
+    if root.get_camera_3d() != game.cam or game.t2_manual.locked:
+        _fail("gameplay camera and movement return after the reveal")
+        return
     if game.t2_dialogue.active or not game.t2_active or game.t2_flow.mode != "instance_battle" or game.battle.enemies.size() != 2:
         _fail("dialogue closes and the two-target exercise starts")
         return
@@ -74,7 +95,7 @@ func _run() -> void:
         return
     for frame in 50:
         await process_frame
-    print("SA2_T5_PREVIEW_PASS: explore, proximity, four lines, input lock, two targets, movement restored")
+    print("SA2_T5_PREVIEW_PASS: explore, proximity, four lines, two fades, camera swap, input lock, two targets, movement restored")
     quit(0)
 
 func _key(code: Key, pressed: bool) -> void:
