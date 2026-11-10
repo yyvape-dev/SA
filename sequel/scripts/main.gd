@@ -2173,7 +2173,13 @@ func build_backtown(with_gate: bool = true) -> void:
 		if s2.art != "" and _bt_art(s2.art) != null:
 			var sp: float = BT.STALL_SPLIT
 			_bt_quad(st, s2.art, sx - sw * 0.5, sh * (1.0 - sp), sx + sw * 0.5, sh, BT.STALL_Z - 0.2, BT_ART_DIM, [0.0, 0.0, 1.0, sp])
-			var food_front: bool = with_gate and s2.id == "stall_food" and _bt_art("stall_food_griddle") != null
+			var front_art: String = {
+				"stall_food": "stall_food_griddle",
+				"stall_crystal": "stall_crystal_counter",
+				"stall_parts": "stall_parts_workbench",
+			}.get(s2.id, "")
+			var low_front: bool = with_gate and not front_art.is_empty() and _bt_art(front_art) != null
+			var food_front: bool = low_front and s2.id == "stall_food"
 			if food_front:
 				# Fill below the retained shelf, behind the keeper and the lower counter.
 				_bt_tex_wall(st, "tex_boards", sx - 1.08, 0.0, sx + 1.08, sh * (1.0 - sp), BT.STALL_Z - 0.21, 0.44)
@@ -2182,11 +2188,21 @@ func build_backtown(with_gate: bool = true) -> void:
 				_bt_quad(st, "fg_crate", sx + 0.95, 0.0, sx + 1.54, 0.49, BT.STALL_Z + 0.49, 0.67)
 				_bt_barrel(st, sx + 1.30, 0.0, BT.STALL_Z + 0.31, 0.23, 0.71, 0.75)
 				_bt_quad(st, "banner_red", sx + 1.15, 0.34, sx + 1.49, 0.72, BT.STALL_Z + 0.56, 0.67)
+			elif low_front:
+				_bt_tex_wall(st, "tex_boards", sx - 1.08, 0.0, sx + 1.08, sh * (1.0 - sp), BT.STALL_Z - 0.21, 0.42)
+				var crystal: bool = s2.id == "stall_crystal"
+				var front := _bt_quad(st, front_art, sx - 1.16, 0.0, sx + 1.16, 1.08, BT.STALL_Z + 0.25, 0.72)
+				front.name = String(s2.id) + "_front"
+				var side := -1.0 if crystal else 1.0
+				var prop_x := sx + side * 1.15
+				_bt_quad(st, "fg_crate" if crystal else "fg_crates", prop_x - 0.34, 0.0, prop_x + 0.34, 0.48, BT.STALL_Z + 0.46, 0.65)
 			else:
 				_bt_quad(st, s2.art, sx - sw * 0.5, 0.0, sx + sw * 0.5, sh * (1.0 - sp), BT.STALL_Z + 0.2, BT_ART_DIM, [0.0, sp, 1.0, 1.0])
 			if s2.keeper:
 				var keeper: Array = preview_keepers.get(s2.id, ["", 1.72, 0.30]) if with_gate else ["", 1.72, 0.30]
-				var offset_x: float = 0.42 if food_front else keeper[2]
+				var offset_x: float = keeper[2]
+				if low_front:
+					offset_x = 0.42 if s2.id != "stall_parts" else -0.24
 				_bt_npc(st, sx + offset_x, BT.STALL_Z, ni, keeper[0], keeper[1])
 				ni += 1
 		else:   # 遊技の屋台（下絵）：台・歯車仕掛けの機械・光る窓・天幕。下絵の書き出しのため、屋台ごとの Node3D に入れる
