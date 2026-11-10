@@ -14,6 +14,14 @@ const GUARD_MAX := 0.32
 const GUARD_REACH := 1.8
 const ATTACKS := ["atk_jabkick", "atk_highkick", "atk_roundhouse", "atk_heeldrop", "atk_rush"]
 
+var combat_enabled := true
+var skills_enabled := false
+var skills := {}
+var skill_ready_flash := {}
+var skill_cd: Dictionary:
+    get:
+        return actor.sk_cd if actor != null else {}
+
 var actor
 var battle
 var move_in := Vector2.ZERO
@@ -46,7 +54,7 @@ static func guard_candidate(e, at: Vector3) -> bool:
     return absf(offset.x) <= GUARD_REACH and absf(offset.z) <= 0.9
 
 func attack_press() -> void:
-    if locked or actor == null or actor.state != "move" or dodge_left > 0.0:
+    if locked or not combat_enabled or actor == null or actor.state != "move" or dodge_left > 0.0:
         return
     var e = actor._nearest()
     if e == null:
@@ -59,11 +67,44 @@ func attack_press() -> void:
     attack_count += 1
     attack_started.emit(clip)
 
+func use_skill(id: String) -> bool:
+    if locked or not combat_enabled or not skills_enabled or actor.state != "move" or dodge_left > 0.0:
+        return false
+    if not skills.has(id) or float(skill_cd.get(id, 0.0)) > 0.0:
+        return false
+    var foe = actor._nearest()
+    if foe == null:
+        return false
+    actor.force_skill(id, foe)
+    return true
+
+func use_ult() -> void:
+    if locked or not combat_enabled or not skills_enabled or actor.state != "move" or dodge_left > 0.0 or battle.cine or battle.ally_ult < battle.ULT_MAX:
+        return
+    var foe = actor._ult_target()
+    if foe != null:
+        actor.force_skill("ult", foe)
+
+func reset_training() -> void:
+    combat_enabled = true
+    move_in = Vector2.ZERO
+    dodge_left = 0.0
+    actor.inv = 0.0
+    actor.flash = 0.0
+    actor.t = 0.0
+    actor.clip = "idle"
+    actor.sk_cd = {"rush": 0.0, "barrage": 0.0, "storm": 0.0}
+    battle.ally_ult = 0.0
+    battle.ally_ult_gain = true
+    battle.cine = false
+    battle.cam_focus = null
+    battle.cam_zoom = 0.0
+
 func attack_release() -> void:
     pass # Not a hold attack: existing Lily clips are discrete.
 
 func dodge() -> void:
-    if locked or actor == null or actor.state != "move" or dodge_left > 0.0:
+    if locked or not combat_enabled or actor == null or actor.state != "move" or dodge_left > 0.0:
         return
     for foe in battle.enemies:
         if not is_instance_valid(foe):
@@ -94,6 +135,8 @@ func _physics_process(delta: float) -> void:
     if dt <= 0.0:
         return
     actor.inv = maxf(0.0, actor.inv - dt)
+    for id in actor.sk_cd:
+        actor.sk_cd[id] = maxf(0.0, float(actor.sk_cd[id]) - dt)
     animation_t += dt
     var direction := move_in
     if Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT):

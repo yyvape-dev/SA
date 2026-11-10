@@ -18,6 +18,7 @@ var cam_zoom := 0.0
 var ally: Node3D = null   # 仲間（ally.gd）。絵を読み終えるまで null
 ## リリィの必殺技のゲージ（2026-11-07）：リリィの当たり 1 体 ALLY_ULT_GAIN。満タンで自動。cam_focus＝寄る相手（null ならラナ）
 const ALLY_ULT_GAIN := 1.2
+var manual_ally: Node3D
 var ally_ult := 0.0
 var ally_ult_gain := true
 var cam_focus: Node3D = null
@@ -314,7 +315,7 @@ func _attack_from(p: Node3D, spec: Dictionary, mul: float) -> int:
 		fx.shockwave(p.position + Vector3(dir * minf(spec.r, 2.0) * 0.5, 0.9, 0), 0.9 + mini(hits, 5) * 0.12)
 	if hits > 0 and p == player and ult_gain:
 		ult = minf(ULT_MAX, ult + hits * 1.5)
-	if hits > 0 and p == ally and ally_ult_gain:
+	if hits > 0 and (p == ally or p == manual_ally) and ally_ult_gain:
 		ally_ult = minf(ULT_MAX, ally_ult + hits * ALLY_ULT_GAIN)
 	if hits > 0:
 		if fx.legacy:   # 前の値（比較用）

@@ -36,6 +36,9 @@ var t2_combat_controls: Control
 var t2_dialogue: Control
 var t2_label: Label
 var t2_result_button: Button
+var t6_retry_button: Button
+var t6_finishing := false
+var t6_won := false
 var t2_kills := 0
 var t2_active := false
 var t2_done := false
@@ -91,7 +94,11 @@ func _ready() -> void:
     _t2_build_ui()
     if t5_training_preview:
         ui.player = t2_manual
-        ui.basic_combat_only = true
+        ui.basic_combat_only = false
+        ui.lily_controls = true
+        t2_manual.skills_enabled = true
+        t2_manual.skills = t2_lily.sk_tab
+        battle.manual_ally = t2_lily
         hud.hide()
         _t5_begin_exploration()
         if waiting_for_lily:
@@ -152,7 +159,7 @@ func _t2_build_ui() -> void:
     add_child(t2_layer)
     t2_dialogue = DialogueScene.instantiate()
     if t5_training_preview:
-        t2_dialogue.dialogue_font = load("res://assets/event_idle/sa2_t5_ja.otf") as Font
+        t2_dialogue.dialogue_font = load("res://assets/event_idle/sa2_t6_ja.otf") as Font
     t2_layer.add_child(t2_dialogue)
     t2_dialogue.dialogue_closed.connect(_t2_on_dialogue_closed)
     t2_dialogue.line_changed.connect(_t2_on_line_changed)
@@ -182,6 +189,31 @@ func _t2_build_ui() -> void:
     t2_result_button.hide()
     t2_result_button.pressed.connect(_t2_result_action)
     t2_layer.add_child(t2_result_button)
+    if t5_training_preview:
+        t2_result_button.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+        t2_result_button.position = Vector2(16, 160)
+        t2_result_button.custom_minimum_size = Vector2(260, 72)
+        t2_result_button.add_theme_font_size_override("font_size", 26)
+        t6_retry_button = Button.new()
+        t6_retry_button.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+        t6_retry_button.position = Vector2(-276, 160)
+        t6_retry_button.custom_minimum_size = Vector2(260, 72)
+        t6_retry_button.add_theme_font_size_override("font_size", 26)
+        t6_retry_button.text = "もう一度"
+        t6_retry_button.hide()
+        t6_retry_button.pressed.connect(_t6_retry)
+        t2_layer.add_child(t6_retry_button)
+        var button_style := StyleBoxFlat.new()
+        button_style.bg_color = Color(0.04, 0.05, 0.09, 0.94)
+        button_style.border_color = Color(0.72, 0.57, 0.32)
+        button_style.set_border_width_all(2)
+        button_style.set_corner_radius_all(12)
+        for button in [t2_result_button, t6_retry_button]:
+            button.add_theme_stylebox_override("normal", button_style)
+            var hover := button_style.duplicate() as StyleBoxFlat
+            hover.bg_color = Color(0.16, 0.18, 0.26, 0.96)
+            button.add_theme_stylebox_override("hover", hover)
+            button.add_theme_stylebox_override("pressed", hover)
 
 func _t2_save() -> void:
     if not t2_demo and not t5_training_preview:
@@ -229,7 +261,12 @@ func _t2_start_training(resume: bool) -> void:
     _t2_build_arena()
     t2_kills = 0
     t2_done = false
+    t6_finishing = false
     t2_result_button.hide()
+    if t5_training_preview:
+        t6_retry_button.hide()
+        ui.pad.reset_input()
+        t2_manual.reset_training()
     t2_lily.position = Vector3(0, 0, 0)
     t2_lily.face = 1
     t2_lily.state = "move"
@@ -326,6 +363,14 @@ func _on_foe_killed(_e) -> void:
 
 func _process(delta: float) -> void:
     super._process(delta)
+    if t5_training_preview and battle != null:
+        for foe in battle.enemies:
+            if foe.state == "dying":
+                var shell := foe.get_node_or_null("Nonlethal mechanical target") as Node3D
+                if shell != null:
+                    var progress := clampf(float(foe.die_t) / 0.75, 0.0, 1.0)
+                    shell.rotation.z = float(foe.die_dir) * progress * PI * 0.5
+                    shell.scale = Vector3.ONE * (1.0 - progress * 0.8)
     if is_instance_valid(t5_rana_idle) and t5_rana_idle.visible:
         t5_idle_elapsed = fmod(t5_idle_elapsed + delta, 3.0)
         var frame := int(t5_idle_elapsed * 12.0)
@@ -333,6 +378,13 @@ func _process(delta: float) -> void:
         t5_lily_idle.frame = frame
     if _t5_is_approaching():
         t5_talk_button.visible = _t5_within_talk_range()
+    if t5_training_preview and is_instance_valid(t2_result_button) and t2_result_button.visible:
+        _t6_layout_result()
+    if t6_finishing:
+        if t2_lily.state == "move" and battle.enemies.is_empty():
+            t6_finishing = false
+            _t2_finish_result(t6_won)
+        return
     if not t2_active or t2_done:
         return
     if battle.hp <= 0.0:
@@ -350,10 +402,20 @@ func _t2_end(won: bool) -> void:
     if t2_done:
         return
     t2_done = true
-    t2_active = false
     if t5_training_preview:
-        ui.set_controls_enabled(false)
-    t2_manual.locked = true
+        t2_manual.combat_enabled = false
+        t2_manual.move_in = Vector2.ZERO
+        t6_finishing = true
+        t6_won = won
+        if not won:
+            for foe in battle.enemies.duplicate():
+                battle.remove_enemy(foe)
+        return
+    _t2_finish_result(won)
+
+func _t2_finish_result(won: bool) -> void:
+    t2_active = false
+    t2_manual.locked = not t5_training_preview
     t2_manual.move_in = Vector2.ZERO
     if not t2_flow.finish_battle(won):
         push_error("SA2_T2_FAIL: invalid battle finish")
@@ -364,7 +426,11 @@ func _t2_end(won: bool) -> void:
 func _t2_show_result() -> void:
     var won: bool = t2_flow.result == "win"
     t2_label.text = "演習クリア" if won else "演習失敗"
-    t2_result_button.text = "探索へ戻る" if won else "再挑戦"
+    t2_result_button.text = "探索へ戻る" if won or t5_training_preview else "再挑戦"
+    if t5_training_preview:
+        t6_retry_button.show()
+    if t5_training_preview:
+        _t6_layout_result()
     t2_result_button.show()
 
 func _t2_result_action() -> void:
@@ -373,10 +439,22 @@ func _t2_result_action() -> void:
         push_error("SA2_T2_FAIL: cannot restore exploration")
         return
     _t2_save()
-    if won:
+    if won or t5_training_preview:
         _t2_restore_exploration()
     else:
         _t2_start_training(false)
+
+func _t6_layout_result() -> void:
+    var center_x := get_viewport().get_visible_rect().size.x * 0.5
+    t2_result_button.position = Vector2(center_x + 16, 160)
+    t6_retry_button.position = Vector2(center_x - 276, 160)
+
+func _t6_retry() -> void:
+    if t2_flow.mode != Flow.RESULT:
+        return
+    t2_flow.mode = Flow.EXPLORE
+    t2_flow.result = ""
+    _t2_start_training(false)
 
 func _t2_restore_exploration() -> void:
     # Shared by live victory and a saved exploration state.
@@ -396,6 +474,10 @@ func _t2_restore_exploration() -> void:
     t2_rana.position = t2_flow.player_position
     ui.player = t2_rana
     ui.basic_combat_only = false
+    ui.lily_controls = false
+    battle.manual_ally = null
+    if is_instance_valid(t6_retry_button):
+        t6_retry_button.hide()
     ui.set_controls_enabled(true)
     hud.show()
     t2_result_button.hide()
@@ -427,6 +509,7 @@ func _t5_begin_exploration() -> void:
     var control_theme := Theme.new()
     control_theme.default_font = font
     t2_result_button.theme = control_theme
+    t6_retry_button.theme = control_theme
     t2_label.add_theme_font_override("font", font)
     t2_label.position.y = 112
     t2_label.add_theme_color_override("font_outline_color", Color(0.05, 0.04, 0.08))

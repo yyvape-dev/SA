@@ -120,7 +120,7 @@ func _run() -> void:
         return
     var pad: Control = game.ui.pad
     var buttons: Dictionary = pad._btns()
-    if buttons.size() != 2 or not buttons.has("atk") or not buttons.has("dodge"):
+    if buttons.size() != 5 or not buttons.has("atk") or not buttons.has("dodge"):
         _fail("Lily only exposes her supported actions")
         return
     var stick := Vector2(200, pad.size.y - 170)
@@ -184,14 +184,14 @@ func _run() -> void:
     foe.face = -1
     foe._start_atk()
     foe.atk.t = float(foe.atk.hit_t)
-    for frame in 30:
+    for frame in 120:
         if game.t2_flow.result == "lose":
             break
         await physics_frame
-    if game.t2_flow.result != "lose" or game.ui.pad.is_processing_input():
+    if game.t2_flow.result != "lose" or not game.ui.pad.is_processing_input():
         _fail("a lethal hit locks touch input and offers a retry")
         return
-    game.t2_result_button.pressed.emit()
+    game.t6_retry_button.pressed.emit()
     if not game.t2_active or not game.ui.pad.is_processing_input() or game.battle.hp != game.battle.hp_max:
         _fail("retry restores the shared touch controls and HP")
         return
@@ -223,7 +223,11 @@ func _run() -> void:
             if not captured_hit and is_instance_valid(target) and target.hp < target_hp:
                 await _capture("hit")
                 captured_hit = true
-    if game.t2_flow.result != "win" or game.ui.pad.is_processing_input() or not captured_hit:
+    for frame in 180:
+        if game.t2_flow.result == "win":
+            break
+        await physics_frame
+    if game.t2_flow.result != "win" or not game.ui.pad.is_processing_input() or not captured_hit:
         _fail("touch attacks can win and lock the pad on the results screen")
         return
     game.t2_result_button.pressed.emit()

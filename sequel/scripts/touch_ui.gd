@@ -9,6 +9,10 @@ var battle: Node3D
 var pad: Control
 var hud: Control
 var basic_combat_only := false
+var lily_controls := false
+
+func ult_value() -> float:
+	return battle.ally_ult if lily_controls else battle.ult
 
 func _ready() -> void:
 	pad = _Pad.new()
@@ -49,7 +53,7 @@ class _Hud extends Control:
 		if ui.basic_combat_only:
 			return
 		# 必殺技のゲージ（金の細い帯）。満タンで脈打つ
-		var g: float = ui.battle.ult / ui.battle.ULT_MAX
+		var g: float = ui.ult_value() / ui.battle.ULT_MAX
 		var gp := p + Vector2(0, h + 8 * u)
 		draw_rect(Rect2(gp - Vector2(2, 2) * u, Vector2(w, 9 * u) + Vector2(4, 4) * u), Color(0.02, 0.03, 0.07, 0.75))
 		var full := g >= 1.0
@@ -89,10 +93,10 @@ class _Pad extends Control:
 		for i in 3:
 			var a := deg_to_rad(SKILL_ANG[i])
 			b["sk%d" % i] = [ac + Vector2(cos(a), -sin(a)) * 175 * u, 52 * u]
-		if ui.battle and ui.battle.ult >= ui.battle.ULT_MAX:   # 必殺技：4枠目の場所（215°）に、満タンの時だけ大きな金のボタン
+		if ui.battle and ui.ult_value() >= ui.battle.ULT_MAX:   # 必殺技：4枠目の場所（215°）に、満タンの時だけ大きな金のボタン
 			var a4 := deg_to_rad(215.0)
 			b["ult"] = [ac + Vector2(cos(a4), -sin(a4)) * 175 * u, 60 * u]
-		if ui.main and ui.main.hud and ui.main.dungeon == null and not ui.main.hud.menu_open and not ui.main.hud.slot_open:
+		if not ui.lily_controls and ui.main and ui.main.hud and ui.main.dungeon == null and not ui.main.hud.menu_open and not ui.main.hud.slot_open:
 			b["gear"] = [Vector2(s.x - 420 * u, s.y - 52 * u), 30 * u]
 		return b
 
@@ -104,6 +108,8 @@ class _Pad extends Control:
 		queue_redraw()
 
 	func _slot_id(i: int) -> String:
+		if ui.lily_controls:
+			return ["rush", "barrage", "storm"][i]
 		if ui.main and ui.main.progress:
 			return str(ui.main.progress.skill_slots[i])
 		return ""
@@ -236,7 +242,12 @@ class _Pad extends Control:
 					var ic := Color(1, 1, 1, 0.9) if cd <= 0.0 else Color(1, 1, 1, 0.35)
 					if cd > 0.0:
 						draw_circle(p, r, Color(0, 0, 0, 0.5))
-					SkillIcons.draw(self, id, p, r, ic, u)
+					if ui.lily_controls:
+						var label: String = {"rush": "迅雷", "barrage": "雷連打", "storm": "雷陣"}[id]
+						var fs := int(19 * u)
+						draw_string(ui.main.t2_dialogue.dialogue_font, p + Vector2(-r, fs * 0.35), label, HORIZONTAL_ALIGNMENT_CENTER, r * 2, fs, ic)
+					else:
+						SkillIcons.draw(self, id, p, r, ic, u)
 					if cd > 0.0:   # 外周：残りの割合（金、12時から時計回りに減る）＋残り秒
 						draw_arc(p, r - 2 * u, -PI / 2.0, -PI / 2.0 + TAU * (cd / full), 48, Color("ffc94d"), 4 * u, true)
 						var txt := ("%.1f" % cd) if cd < 10.0 else str(int(ceil(cd)))
