@@ -2199,6 +2199,84 @@ func _bt_finish_alley(id: String, left: float, right: float) -> void:
 	_bt_box(alley, Vector3(lamp_x, 2.74, mouth - 1.08), Vector3(0.31, 0.045, 0.055), "iron")
 	_bt_quad(alley, art, lamp_x - 0.13, 2.29, lamp_x + 0.13, 2.73, mouth - 1.05, 0.64)
 
+	if id == "alley_gate":
+		_bt_east_alley_depth(alley, left, right, mouth)
+
+## A boxed member with its long axis following two 3D attachment points.
+func _bt_alley_member(parent: Node3D, from: Vector3, to: Vector3, section: Vector2, material: String) -> MeshInstance3D:
+	var member := _bt_box(parent, (from + to) * 0.5, Vector3(section.x, section.y, from.distance_to(to)), material)
+	member.look_at(parent.to_global(to))
+	return member
+
+func _bt_east_alley_depth(alley: Node3D, left: float, right: float, mouth: float) -> void:
+	var bridge := Node3D.new()
+	bridge.name = "patched_walkway"
+	alley.add_child(bridge)
+	var start := Vector3(left - 0.05, 3.05, mouth - 1.55)
+	var end := Vector3(right + 0.05, 3.18, mouth - 2.22)
+	var front := Vector3(0, 0, 0.33)
+	var rise := Vector3.UP * 0.57
+
+	_bt_alley_member(bridge, start, end, Vector2(0.72, 0.16), "wood")
+	_bt_alley_member(bridge, start + front - Vector3.UP * 0.10, end + front - Vector3.UP * 0.10, Vector2(0.12, 0.16), "iron")
+	_bt_alley_member(bridge, start + front + rise, end + front + rise, Vector2(0.055, 0.065), "iron")
+	_bt_alley_member(bridge, start - front + rise, end - front + rise, Vector2(0.05, 0.055), "iron")
+	for t in [0.08, 0.34, 0.65, 0.92]:
+		var anchor := start.lerp(end, t)
+		for edge in [-front, front]:
+			_bt_box(bridge, anchor + edge + rise * 0.5, Vector3(0.05, rise.y, 0.05), "iron")
+	# A patched timber skirt and dissimilar braces give the crossing two visibly different anchors.
+	_bt_alley_member(bridge, start + front + Vector3.UP * 0.16, start.lerp(end, 0.49) + front + Vector3.UP * 0.16, Vector2(0.065, 0.25), "wood_lt")
+	_bt_alley_member(bridge, start - Vector3.UP * 0.74, start.lerp(end, 0.23), Vector2(0.11, 0.14), "wood")
+	_bt_alley_member(bridge, end - Vector3.UP * 0.55, end.lerp(start, 0.23), Vector2(0.085, 0.095), "iron")
+
+	var rig := Node3D.new()
+	rig.name = "depth_cable"
+	alley.add_child(rig)
+	var points := PackedVector3Array([
+		Vector3(right + 1.48, 3.58, mouth + 3.36),
+		Vector3(right + 0.54, 3.04, mouth + 1.78),
+		Vector3(right - 0.31, 2.94, mouth + 0.38),
+		Vector3(left + 0.58, 3.21, mouth - 1.72),
+		Vector3(left + 0.33, 2.91, mouth - 3.73),
+		Vector3(left + 0.07, 3.13, mouth - 5.03),
+	])
+	var near_cable := StandardMaterial3D.new()
+	near_cable.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	near_cable.albedo_color = Color(0.22, 0.145, 0.12)
+	for i in range(1, points.size()):
+		var gauge := 0.043 if i <= 2 else 0.026
+		var wire := _bt_alley_member(rig, points[i - 1], points[i], Vector2(gauge, gauge), "cable")
+		if i <= 2:
+			wire.material_override = near_cable
+	# Tie the visible front end back to the iron frontage and clip the tail to the alley wall.
+	_bt_alley_member(rig, points[0], Vector3(right + 1.48, 3.70, mouth + 0.02), Vector2(0.065, 0.07), "iron")
+	_bt_box(rig, points[-1], Vector3(0.18, 0.14, 0.12), "iron")
+	for mount in [[1, "market_lamp_ruby", 0.27, 1.02], [2, "market_lamp_jade", 0.21, 0.86], [4, "market_lamp_cobalt", 0.16, 0.71]]:
+		var joint := points[int(mount[0])]
+		var art: String = mount[1]
+		var width: float = mount[2]
+		var tex := _bt_art(art)
+		if tex == null:
+			continue
+		var height := width * float(tex.get_height()) / float(tex.get_width())
+		var light := _bt_quad(rig, art, joint.x - width * 0.5, joint.y - 0.04 - height, joint.x + width * 0.5, joint.y - 0.04, joint.z + 0.013, float(mount[3]))
+		light.name = "depth_lamp_%d" % int(mount[0])
+
+	# Laundry follows the lodging wall, leaving the center of the passage visible.
+	var line_start := Vector3(left + 0.25, 3.43, mouth - 0.52)
+	var line_mid := Vector3(left + 0.48, 3.12, mouth - 1.12)
+	var line_end := Vector3(left + 0.32, 3.31, mouth - 2.33)
+	_bt_alley_member(alley, line_start, line_mid, Vector2(0.025, 0.023), "cable")
+	_bt_alley_member(alley, line_mid, line_end, Vector2(0.025, 0.023), "cable")
+	var cloth := _bt_quad(alley, "market_cloth_teal", line_mid.x - 0.25, 2.53, line_mid.x + 0.25, 3.17, line_mid.z + 0.02, 0.62)
+	if cloth != null:
+		cloth.rotation.y = -0.70
+	cloth = _bt_quad(alley, "market_cloth_ochre", line_end.x - 0.18, 2.77, line_end.x + 0.18, 3.26, line_end.z + 0.29, 0.52)
+	if cloth != null:
+		cloth.rotation.y = -0.79
+
+
 func build_backtown(with_gate: bool = true) -> void:
 	_clear_level()
 	_build_floor()
