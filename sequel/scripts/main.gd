@@ -1685,7 +1685,7 @@ var bt_fg := []      # 手前の物 [{node, mat, half}]（ラナから左右 2.5
 ## 床の映り込みの色（光る部品・灯り・屋台）
 const BT_GLINT_COL := {"sign_sigil": [0.35, 1.0, 0.5], "sign_vneon": [1.0, 0.3, 0.75], "sign_rune": [0.25, 0.9, 1.0], "vision_screen": [0.3, 0.85, 1.0],
 	"pend_cyan": [0.3, 0.95, 1.0], "pend_violet": [0.8, 0.4, 1.0], "pend_green": [0.4, 1.0, 0.5], "pend_warm": [1.0, 0.72, 0.3],
-	"stall": [1.0, 0.68, 0.32], "cabaret_neon": [1.0, 0.3, 0.75], "cabaret_bulbs": [1.0, 0.88, 0.55], "gate": [0.75, 0.4, 1.0], "shady": [0.35, 1.0, 0.55], "tube": [0.35, 1.0, 0.55]}
+	"stall": [1.0, 0.68, 0.32], "west_grill": [1.0, 0.65, 0.29], "west_crystal": [0.33, 0.78, 0.73], "cabaret_neon": [1.0, 0.3, 0.75], "cabaret_bulbs": [1.0, 0.88, 0.55], "gate": [0.75, 0.4, 1.0], "shady": [0.35, 1.0, 0.55], "tube": [0.35, 1.0, 0.55]}
 const BT_ART_DIM := 0.62      # 届いた絵（壁・屋台・手前）の明るさ（U1＝中間：壁と床は暗め）
 const BT_GLOW := 1.35         # 光る部品の明るさ（1 を超えて 3D の glow がにじむ）
 
@@ -2079,6 +2079,84 @@ func _bt_extras(st: Node3D) -> void:
 			bt_marks.append(["chk", "slot_corner:" + ns[0], cpt])
 		bt_target_rects.append(["slot:" + ns[0], x0, y0, x1, y1, nz])
 
+# One west-market frontage. The fixtures stay behind the playable belt.
+func _bt_west_market_finish(stalls: Node3D) -> void:
+	var market := Node3D.new()
+	market.name = "west_market_finish"
+	stalls.add_child(market)
+
+	var cable_z := -4.72
+	var cable := PackedVector2Array([
+		Vector2(-24.7, 3.62), Vector2(-23.45, 3.42), Vector2(-22.03, 3.27),
+		Vector2(-20.5, 3.20), Vector2(-18.96, 3.24), Vector2(-17.38, 3.39),
+		Vector2(-15.18, 3.72),
+	])
+	for i in range(1, cable.size()):
+		var span := cable[i] - cable[i - 1]
+		var midpoint := (cable[i] + cable[i - 1]) * 0.5
+		var wire := _bt_box(market, Vector3(midpoint.x, midpoint.y, cable_z), Vector3(span.length() + 0.012, 0.027, 0.024), "cable")
+		wire.rotation.z = span.angle()
+	for anchor in [cable[0], cable[-1]]:
+		_bt_box(market, Vector3(anchor.x, anchor.y, (BT.WALL_Z + cable_z) * 0.5), Vector3(0.065, 0.065, cable_z - BT.WALL_Z), "iron")
+
+	# Reuse the town's painted amber pendant at irregular intervals and heights.
+	for mount in [[1, 0.32, 0.03], [2, 0.25, 0.14], [4, 0.29, 0.07], [5, 0.33, 0.12]]:
+		var index: int = mount[0]
+		var width: float = mount[1]
+		var drop: float = mount[2]
+		var joint := cable[index]
+		var top := joint.y - drop
+		if _bt_art("pend_warm") != null:
+			var height := width * float(_bt_art("pend_warm").get_height()) / float(_bt_art("pend_warm").get_width())
+			var pendant := _bt_quad(market, "pend_warm", joint.x - width * 0.5, top - height, joint.x + width * 0.5, top, cable_z + 0.018, 1.08)
+			pendant.name = "pendant_%d" % index
+			_bt_box(market, Vector3(joint.x, joint.y - drop * 0.5, cable_z), Vector3(0.021, drop + 0.02, 0.02), "cable")
+
+	# Loose fabric and a low cluster sit against the posts, outside the hand area.
+	var cloth := _bt_quad(market, "banner_red", -22.43, 1.92, -21.94, 2.78, -5.25, 0.56)
+	if cloth != null:
+		cloth.rotation.z = -0.13
+	cloth = _bt_quad(market, "banner_violet", -17.23, 2.21, -16.82, 2.95, -5.31, 0.59)
+	if cloth != null:
+		cloth.rotation.z = 0.11
+	_bt_quad(market, "fg_crate", -22.46, 0.0, -21.75, 0.53, -4.97, 0.65)
+	_bt_quad(market, "fg_crate", -22.12, 0.39, -21.68, 0.73, -4.99, 0.63)
+	_bt_quad(market, "fg_crate", -17.37, 0.0, -16.77, 0.42, -5.07, 0.55)
+
+	# Three fading wisps stay at the food stall's grill, below the pendant line.
+	var fade := Gradient.new()
+	fade.offsets = PackedFloat32Array([0.0, 0.42, 1.0])
+	fade.colors = PackedColorArray([Color.WHITE, Color(1, 1, 1, 0.35), Color(1, 1, 1, 0)])
+	var vapor := GradientTexture2D.new()
+	vapor.gradient = fade
+	vapor.width = 32
+	vapor.height = 32
+	vapor.fill = GradientTexture2D.FILL_RADIAL
+	vapor.fill_from = Vector2(0.5, 0.5)
+	vapor.fill_to = Vector2(1.0, 0.5)
+	var puff := QuadMesh.new()
+	puff.size = Vector2(0.32, 0.46)
+	for i in 3:
+		var material := StandardMaterial3D.new()
+		material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		material.albedo_texture = vapor
+		var wisp := MeshInstance3D.new()
+		wisp.name = "grill_steam_%d" % i
+		wisp.mesh = puff
+		wisp.material_override = material
+		wisp.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		market.add_child(wisp)
+		var phase := float(i) / 3.0
+		var drift := func(t: float) -> void:
+			var age := fposmod(t + phase, 1.0)
+			wisp.position = Vector3(-24.22 + age * 0.30 + sin(age * TAU) * 0.07, 1.15 + age * 0.94, -5.16)
+			wisp.scale = Vector3.ONE * lerpf(0.55, 1.32, age)
+			material.albedo_color = Color(0.91, 0.74, 0.60, sin(age * PI) * 0.30)
+		drift.call(0.0)
+		wisp.create_tween().set_loops().tween_method(drift, 0.0, 1.0, 2.35)
+
+
 func build_backtown(with_gate: bool = true) -> void:
 	_clear_level()
 	_build_floor()
@@ -2244,7 +2322,12 @@ func build_backtown(with_gate: bool = true) -> void:
 			_bt_box(gn, Vector3(sx, 1.85, BT.STALL_Z - 0.18), Vector3(sw * 0.5, 0.7, 0.02), "neon_c")
 			_bt_box(gn, Vector3(sx, sh - 0.25, BT.STALL_Z - 0.2), Vector3(sw + 0.2, 0.5, 0.02), "awning")
 		bt_marks.append(["stall", s2.id, Vector3(sx, sh, BT.STALL_Z)])
-		bt_lights.append(["stall", sx, 1.6, BT.STALL_Z + 0.2, sw * 0.7])
+		var light_key: String = "stall"
+		if with_gate and s2.id == "stall_food":
+			light_key = "west_grill"
+		elif with_gate and s2.id == "stall_crystal":
+			light_key = "west_crystal"
+		bt_lights.append([light_key, sx, 1.6, BT.STALL_Z + 0.2, sw * 0.7])
 	# 22章：屋台風の飲み屋・吊り布・ガラス管・歯車の輪・光るネオンの置き場所。人の立ち位置（前作の町の人を仮に）
 	_bt_extras(st)
 	for pp in BT.PEOPLE:
@@ -2260,6 +2343,7 @@ func build_backtown(with_gate: bool = true) -> void:
 		ni += 1
 		bt_marks.append(["person", pp[2], Vector3(pp[0], 1.9, pp[1])])
 	if with_gate:
+		_bt_west_market_finish(st)
 		var motion_enabled := not _q("npc_motion=off")
 		var edge_margin := 0.5
 		var start_x := BT.ROOM_X.x + edge_margin if motion_enabled else -16.4
@@ -2312,7 +2396,13 @@ func build_backtown(with_gate: bool = true) -> void:
 		var key: String = L[0]
 		var col: Array = BT_GLINT_COL.get(key, [1.0, 0.8, 0.5])
 		var p: float = 0.95 if key in ["vision_screen", "cabaret_neon", "sign_sigil", "gate"] else (0.55 if key.begins_with("pend") else 0.75)
-		glints.append({"x": L[1], "y": L[2], "z": L[3] + 0.2, "w": clampf(float(L[4]), 0.4, 2.4), "col": col, "p": p, "k": 0.8})
+		var glint := {"x": L[1], "y": L[2], "z": L[3] + 0.2, "w": clampf(float(L[4]), 0.4, 2.4), "col": col, "p": p, "k": 0.8}
+		if key in ["west_grill", "west_crystal"]:
+			glint.w = 0.93
+			glint.len = 4.6
+		elif with_gate and key == "vision_screen" and is_equal_approx(float(L[1]), -18.8):
+			glint.k = 0.47
+		glints.append(glint)
 	if with_gate:
 		_build_gate(BT.DUNGEON_GATE_X, true)
 	_build_glints()
