@@ -1,0 +1,22 @@
+{
+  "approved_source_tight_png_sha256": "d9e200bbdb5059613a3ea52804abe8f95cada42cb82e82e4705054ad140951a1",
+  "approved_source_size": [
+    1488,
+    992
+  ],
+  "output_file": "gamehall_approved_16m_preview.png",
+  "output_size": [
+    3200,
+    2000
+  ],
+  "output_sha256": "811d1dd9dee49b6299e56a834f7d5b4edac81905df555cb3f73d2d5abbf31e4a",
+  "method": "deterministic Pillow Lanczos; NOT AI upscaling",
+  "no_geometric_stretch": true,
+  "crop_top_pixels_after_upscale": 133,
+  "facade_width_m": 16.0,
+  "visible_facade_height_m": 10.0,
+  "pixel_per_meter": 200.0,
+  "cropped_upper_facade": true,
+  "character_motion": "NOT TESTED",
+  "new_map_integration": "NOT TESTED"
+}

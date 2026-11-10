@@ -6,7 +6,8 @@ extends RefCounted
 ## 横幅の半分は 7.0m。歩ける左右 ±24（約 3 画面、U8）、カメラが動ける左右 ±19.1、正面の壁は ±26.5（計算 ±26.1）。
 ## 並び（12 章）：左＝明るく賑やか → 右＝暗く怪しい（門に近いほど混沌）。
 
-const ROOM_X := Vector2(-24.0, 24.0)
+const ROOM_X := Vector2(-24.0, 28.0)
+const DUNGEON_GATE_X := 26.0
 const BELT_Z := Vector2(-2.0, 2.0)
 const WALL_Z := -6.5
 const WALL_H := 14.0
@@ -40,11 +41,11 @@ const MAT := {
 ##   filler＝つなぎの壁（横の壁の素材を実寸で繰り返す）、pillar＝鉄骨の柱、alley＝路地の口
 static func segments() -> Array:
 	return [
-		{"kind": "filler", "x0": -26.5, "x1": -22.2, "tex": "tex_brick"},
+		{"kind": "filler", "x0": -31.5, "x1": -22.2, "tex": "tex_brick"},
 		{"kind": "pillar", "x0": -22.2, "x1": -21.6},
 		{"kind": "wall", "id": "w3_vision", "x0": -21.6, "x1": -16.2, "note": "ビジョンの建物（届いた絵）", "art": "w3_vision_off",
 			"art_box": [-22.65, 0.0, -15.15, 5.0], "upper_tex": "tex_iron"},
-		{"kind": "filler", "x0": -16.2, "x1": -14.4, "tex": "tex_iron"},
+		{"kind": "filler", "finish": true, "x0": -16.2, "x1": -14.4, "tex": "tex_iron"},
 		{"kind": "alley", "x0": -14.4, "x1": -12.0, "id": "alley_towers"},
 		{"kind": "pillar", "x0": -12.0, "x1": -11.4},
 	## 24章（ユーザー決定）：小屋を低く詰める。1階の軒 約2.6m／バルコニー 2.6〜3.0m／2階の窓とネオンの枠 3.0〜3.8m／扉 2.3m前後。
@@ -77,7 +78,7 @@ static func segments() -> Array:
 		[-5.5, 0.0, -5.0, 0.32, 0.9, "crate"],             # 戸口の脇の樽
 	]},
 	{"kind": "pillar", "x0": -4.0, "x1": -3.4},
-		{"kind": "filler", "x0": -3.4, "x1": -2.0, "tex": "tex_boards"},
+		{"kind": "filler", "finish": true, "x0": -3.4, "x1": -2.0, "tex": "tex_boards"},
 	## キャバレー（24章）：1階＝左に開いた店先（暖かい店内）・電球で縁取った入口（残す）・右に貼り紙。2階＝バルコニー 2.6〜3.0m、
 	##   壁にピンクのネオン 3.05〜3.75m・カーテンの窓・増築の箱の窓。天幕は左の店先だけ（入口は電球の縁を見せる、右は遊技の屋台の天幕の前）
 	{"kind": "wall", "id": "n2_cabaret", "x0": -2.0, "x1": 5.2, "base": "wood", "note": "劇場・キャバレーの入口（小屋）", "art": "w_cabaret", "art_box": [-2.0, 0.0, 5.2, 5.0], "parts": [
@@ -99,7 +100,7 @@ static func segments() -> Array:
 	], "rails": [[-2.0, 3.65, 2.6, 3.0, -5.7, "iron"]],
 	 "roofs": [[-2.0, 0.1, 2.52, -5.7, 2.35, -5.0, "awning"]]},
 	{"kind": "pillar", "x0": 5.2, "x1": 5.8},
-		{"kind": "filler", "x0": 5.8, "x1": 7.0, "tex": "tex_plaster"},
+		{"kind": "filler", "finish": true, "x0": 5.8, "x1": 7.0, "tex": "tex_plaster"},
 	## 娼館風の宿（24章）：1階＝開いた店先（暖かい店内・戸口・両脇のカーテン）と天幕。2階＝バルコニー 2.6〜3.0m、
 	##   カーテンの窓2（人影は全身を窓の中に）・真ん中に女性のシルエットのネオンの枠（3.05〜3.75m、切れずに映る）。外階段は明るい木と明るい地
 	{"kind": "wall", "id": "n3_brothel", "x0": 7.0, "x1": 14.2, "base": "wood", "note": "娼館風の宿（小屋）", "art": "w_brothel", "art_box": [7.0, 0.0, 14.2, 5.0], "parts": [
@@ -120,7 +121,7 @@ static func segments() -> Array:
 	 "roofs": [[7.85, 11.9, 2.52, -5.6, 2.35, -5.0, "awning"]],
 	 "stairs": [[14.05, 12.7, 2.6, -5.85, 0.8, 10]]},   # [下の x, 上の x, 上の y, 前の z, 奥行き, 段数]
 	{"kind": "pillar", "x0": 14.2, "x1": 14.8},
-		{"kind": "filler", "x0": 14.8, "x1": 16.0, "tex": "tex_iron"},
+		{"kind": "filler", "finish": true, "x0": 14.8, "x1": 16.0, "tex": "tex_iron"},
 		{"kind": "alley", "x0": 16.0, "x1": 18.2, "id": "alley_gate"},
 		{"kind": "pillar", "x0": 18.2, "x1": 18.8},
 	## 怪しい店（24章）：暗い店先と格子の小窓のまま、右ほど暗く。1階の軒 2.6m、小さなバルコニー 2.6〜3.0m、2階の窓と緑の小さな看板 3.05m〜。
@@ -143,7 +144,7 @@ static func segments() -> Array:
 		[22.5, 2.52, 24.9, 2.6, -5.9, "iron", 0.6],        # 小さなバルコニー（2.6m）
 	], "rails": [[22.5, 24.9, 2.6, 3.0, -5.9, "iron"]],
 	 "roofs": [[21.95, 22.5, 2.6, -6.5, 2.35, -5.0, "tin"], [22.5, 24.9, 2.52, -5.9, 2.35, -5.0, "tin"]]},
-	{"kind": "filler", "x0": 25.0, "x1": 26.5, "tex": "tex_brick"},
+	{"kind": "filler", "x0": 25.0, "x1": 35.0, "tex": "tex_brick"},
 	]
 
 ## 路地の奥の書き割り（届いた絵）
@@ -157,7 +158,6 @@ const ALLEYS := [{"id": "alley_towers", "x": -13.2, "w": 2.4}, {"id": "alley_gat
 const STALLS := [
 	{"id": "stall_food", "x": -23.6, "w": 2.48, "h": 3.45, "art": "stall_food", "keeper": true},
 	{"id": "stall_crystal", "x": -15.6, "w": 2.48, "h": 3.45, "art": "stall_crystal", "keeper": true},
-	{"id": "stall_game", "x": 4.3, "w": 2.4, "h": 3.0, "art": "", "keeper": false, "note": "遊技の屋台（歯車仕掛けの機械）。絵は未発注"},
 	{"id": "stall_parts", "x": 20.6, "w": 2.48, "h": 3.45, "art": "stall_parts", "keeper": true},
 ]
 const STALL_SPLIT := 0.65     # 屋台の絵の上から 65％ ＝ 奥の層（天幕・棚）、下 35％ ＝ カウンターの層（発注の下絵の 1024 行目）

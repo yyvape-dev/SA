@@ -1,0 +1,169 @@
+{
+  "generated_streetbars": {
+    "source_size": [
+      1254,
+      1254
+    ],
+    "source_sha256": "89df62fa96c38a15860f6d610edbc043d95042d0acfef0154fff3aab494f58d8",
+    "assets": [
+      {
+        "asset": "sbar_a",
+        "source_cell": [
+          0,
+          0,
+          627,
+          627
+        ],
+        "crop": [
+          92,
+          21,
+          539,
+          601
+        ],
+        "size": [
+          447,
+          580
+        ],
+        "resized": false,
+        "sha256": "139d2bec954498f926ad6f82e3d9cef754c18e4d7cc7ba4db61d792a4ed33206"
+      },
+      {
+        "asset": "sbar_b",
+        "source_cell": [
+          627,
+          0,
+          1254,
+          627
+        ],
+        "crop": [
+          88,
+          21,
+          538,
+          601
+        ],
+        "size": [
+          450,
+          580
+        ],
+        "resized": false,
+        "sha256": "8ea96621c5d9449555cf6bc20374c71c1e34a85598c3f49db5bf8b4348595aba"
+      },
+      {
+        "asset": "sbar_c",
+        "source_cell": [
+          0,
+          627,
+          627,
+          1254
+        ],
+        "crop": [
+          88,
+          21,
+          539,
+          600
+        ],
+        "size": [
+          451,
+          579
+        ],
+        "resized": false,
+        "sha256": "f921d58821a20a1e0c89c7ba8d7619376c00d79ba0698b3433964321a3af1ae4"
+      },
+      {
+        "asset": "sbar_d",
+        "source_cell": [
+          627,
+          627,
+          1254,
+          1254
+        ],
+        "crop": [
+          88,
+          21,
+          539,
+          600
+        ],
+        "size": [
+          451,
+          579
+        ],
+        "resized": false,
+        "sha256": "1e71ed28c7b01f5d353094e98542eb9b608070fddd459f4f93f45b8f874439d6"
+      }
+    ]
+  },
+  "generation_tool": "image_gen.imagegen",
+  "style_reference": "art/painted_bt_src/w_bar_user_20261109.jpg",
+  "generation_prompt_summary": "4 isolated front-view street bar stalls; violet/burgundy/ochre/plum canopy, worn timber/iron/brass, amber lamps, no people/text; magenta exterior. Requested 2048 square; actual delivered 1254 square, no upscaling/downscaling performed.",
+  "generated_source": "art/painted_bt_src/street_bars_generated_20261109.png",
+  "adopted_gamehall_files": [
+    {
+      "path": "art/painted_bt/gamehall_approved_16m_preview.json",
+      "bytes": 674,
+      "sha256": "79a0c1d77c03b74a6e2053a49d31e9e5be700d2415b8435a5156b84724c0fea7",
+      "source_commit": "6404831131a8f9b4bb31f7711ac2453e354f57bd"
+    },
+    {
+      "path": "art/painted_bt/gamehall_approved_16m_preview.png",
+      "bytes": 9929583,
+      "sha256": "811d1dd9dee49b6299e56a834f7d5b4edac81905df555cb3f73d2d5abbf31e4a",
+      "source_commit": "6404831131a8f9b4bb31f7711ac2453e354f57bd"
+    },
+    {
+      "path": "art/painted_bt/gamehall_motion/playable/accepted_people.json",
+      "bytes": 6369,
+      "sha256": "1d5eade8a06044e89cc208b351563a20e1fc67d3d9e20fe8716c32f2f3888ebf",
+      "source_commit": "6404831131a8f9b4bb31f7711ac2453e354f57bd"
+    },
+    {
+      "path": "art/painted_bt/gamehall_motion/playable/accepted_people_atlas.png",
+      "bytes": 261738,
+      "sha256": "36841d94c86bbbae97ad587ba7d729fbfa72db93deca8ca18120e00246f52d24",
+      "source_commit": "6404831131a8f9b4bb31f7711ac2453e354f57bd",
+      "size": [
+        1024,
+        416
+      ]
+    },
+    {
+      "path": "art/painted_bt/gamehall_motion/remaining_animation/motion_frames_00.png",
+      "bytes": 410130,
+      "sha256": "e55e8bcb0131a38c50a2c234e4dbbce5292aaae211e3dd777afea85896294c26",
+      "source_commit": "6404831131a8f9b4bb31f7711ac2453e354f57bd",
+      "size": [
+        2050,
+        3645
+      ]
+    },
+    {
+      "path": "art/painted_bt/gamehall_motion/remaining_animation/motion_frames_01.png",
+      "bytes": 934075,
+      "sha256": "e6486e0d6eeda1c86dcbbc9b93bb3cfc2264f826fae1e94ae61473c2b268313e",
+      "source_commit": "6404831131a8f9b4bb31f7711ac2453e354f57bd",
+      "size": [
+        2050,
+        3645
+      ]
+    },
+    {
+      "path": "art/painted_bt/gamehall_motion/remaining_animation/motion_frames_02.png",
+      "bytes": 731207,
+      "sha256": "0b76f5769f948b34f5ef1c8c50ee795f7ba00e78dc4e6c6ac43f2aff3b3882a9",
+      "source_commit": "6404831131a8f9b4bb31f7711ac2453e354f57bd",
+      "size": [
+        2050,
+        3645
+      ]
+    },
+    {
+      "path": "art/painted_bt/gamehall_motion/remaining_animation/motion_frames_03.png",
+      "bytes": 196341,
+      "sha256": "d37b91db6ee254c577860e10196aecfa7511531fa0ed187cdd6693e65e1ab33d",
+      "source_commit": "6404831131a8f9b4bb31f7711ac2453e354f57bd",
+      "size": [
+        2050,
+        3645
+      ]
+    }
+  ]
+}

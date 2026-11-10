@@ -44,8 +44,21 @@ var t2_finger := -1
 var t2_touch_origin := Vector2.ZERO
 var t2_arena: Node3D
 
+func _startup_town() -> String:
+    return "back" if t5_training_preview else super._startup_town()
+
+func _check_town_edge() -> void:
+    if not t5_training_preview:
+        super._check_town_edge()
+
+func _check_gate() -> void:
+    if not t5_training_preview:
+        super._check_gate()
+
 func _ready() -> void:
     await super._ready()
+    if battle == null:
+        return
     t2_demo = OS.has_environment("SA2_T2_MOVIE")
     battle.auto_spawn = false
     for e in battle.enemies.duplicate():

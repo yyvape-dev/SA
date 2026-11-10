@@ -17,6 +17,9 @@ func _run() -> void:
     if not is_instance_valid(game.t2_dialogue) or game.t2_flow.mode != "explore":
         _fail("starts in exploration")
         return
+    if game.town != "back" or game.find_child("street_overpass", true, false) == null:
+        _fail("T5 starts on the current Backtown map")
+        return
     _key(KEY_ENTER, true)
     _key(KEY_ENTER, false)
     await process_frame
