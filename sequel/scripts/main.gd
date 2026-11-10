@@ -2312,18 +2312,39 @@ func _bt_street_overpass(parent: Node3D) -> void:
 
 	for side in [-1.0, 1.0]:
 		var foot := near + Vector3(side * 0.93, -near.y, 0)
-		var post := _bt_box(bridge, foot + Vector3.UP * 1.56, Vector3(0.27, 3.12, 0.38), "scaffold", "near_left_post" if side < 0.0 else "near_right_post")
+		var post := _bt_box(bridge, foot + Vector3.UP * 1.56, Vector3(0.54, 3.12, 0.59), "scaffold", "near_left_post" if side < 0.0 else "near_right_post")
 		var fade_material := post.material_override.duplicate() as StandardMaterial3D
 		fade_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		post.material_override = fade_material
-		bt_fg.append({"node": post, "mat": fade_material, "half": 0.16, "overpass": true})
-		_bt_box(bridge, foot + Vector3.UP * 0.19, Vector3(0.35, 0.38, 0.43), "stone")
+		bt_fg.append({"node": post, "mat": fade_material, "half": 0.29, "overpass": true})
+		var plinth := _bt_box(bridge, foot + Vector3.UP * 0.20, Vector3(0.68, 0.40, 0.71), "stone")
+		var plinth_mat := plinth.material_override.duplicate() as StandardMaterial3D
+		plinth_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		plinth.material_override = plinth_mat
+		bt_fg.append({"node": plinth, "mat": plinth_mat, "half": 0.34, "overpass": true})
 		_bt_alley_member(bridge, foot + Vector3.UP * 2.63, near + Vector3(side * 0.43, -0.24, 0.05), Vector2(0.12, 0.12), "wood")
 	# Brackets run into the facade instead of adding a post in the walking lane.
 	for side in [-1.0, 1.0]:
 		var plate := far + Vector3(side * 0.71, -0.45, -0.04)
 		_bt_box(bridge, plate, Vector3(0.22, 0.83, 0.12), "iron")
 		_bt_alley_member(bridge, plate - Vector3.UP * 0.26, far + Vector3(side * 0.71, -0.15, 1.0), Vector2(0.11, 0.12), "iron")
+
+	# Keep the storage on one edge so the deck still reads as a passage.
+	var props := Node3D.new()
+	props.name = "deck_props"
+	bridge.add_child(props)
+	var crate_spot := near.lerp(far, 0.69) + Vector3(0.43, 0.105, 0.0)
+	var crate := _bt_box(props, crate_spot + Vector3.UP * 0.22, Vector3(0.48, 0.44, 0.44), "crate")
+	crate.rotation.y = -0.19
+	var small_spot := near.lerp(far, 0.76) + Vector3(0.24, 0.24, 0.0)
+	var small_crate := _bt_box(props, small_spot, Vector3(0.35, 0.26, 0.34), "wood_lt")
+	small_crate.rotation.y = 0.13
+	var barrel_spot := near.lerp(far, 0.82) + Vector3(0.50, 0.105, 0.0)
+	_bt_barrel(props, barrel_spot.x, barrel_spot.y, barrel_spot.z, 0.17, 0.49)
+	var rail := near.lerp(far, 0.61) + right + Vector3.UP * 0.57
+	var cloth := _bt_quad(props, "market_cloth_ochre", rail.x - 0.33, rail.y - 0.75, rail.x + 0.33, rail.y, rail.z, 0.74)
+	if cloth != null:
+		cloth.rotation.y = 1.0
 
 	var wires := PackedVector3Array([
 		near + Vector3(0.52, -0.27, -0.07),
