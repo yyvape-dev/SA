@@ -2173,10 +2173,21 @@ func build_backtown(with_gate: bool = true) -> void:
 		if s2.art != "" and _bt_art(s2.art) != null:
 			var sp: float = BT.STALL_SPLIT
 			_bt_quad(st, s2.art, sx - sw * 0.5, sh * (1.0 - sp), sx + sw * 0.5, sh, BT.STALL_Z - 0.2, BT_ART_DIM, [0.0, 0.0, 1.0, sp])
-			_bt_quad(st, s2.art, sx - sw * 0.5, 0.0, sx + sw * 0.5, sh * (1.0 - sp), BT.STALL_Z + 0.2, BT_ART_DIM, [0.0, sp, 1.0, 1.0])
+			var food_front: bool = with_gate and s2.id == "stall_food" and _bt_art("stall_food_griddle") != null
+			if food_front:
+				# Fill below the retained shelf, behind the keeper and the lower counter.
+				_bt_tex_wall(st, "tex_boards", sx - 1.08, 0.0, sx + 1.08, sh * (1.0 - sp), BT.STALL_Z - 0.21, 0.44)
+				var griddle := _bt_quad(st, "stall_food_griddle", sx - 1.12, 0.0, sx + 1.24, 1.10, BT.STALL_Z + 0.25, 0.73)
+				griddle.name = "food_stall_front"
+				_bt_quad(st, "fg_crate", sx + 0.95, 0.0, sx + 1.54, 0.49, BT.STALL_Z + 0.49, 0.67)
+				_bt_barrel(st, sx + 1.30, 0.0, BT.STALL_Z + 0.31, 0.23, 0.71, 0.75)
+				_bt_quad(st, "banner_red", sx + 1.15, 0.34, sx + 1.49, 0.72, BT.STALL_Z + 0.56, 0.67)
+			else:
+				_bt_quad(st, s2.art, sx - sw * 0.5, 0.0, sx + sw * 0.5, sh * (1.0 - sp), BT.STALL_Z + 0.2, BT_ART_DIM, [0.0, sp, 1.0, 1.0])
 			if s2.keeper:
 				var keeper: Array = preview_keepers.get(s2.id, ["", 1.72, 0.30]) if with_gate else ["", 1.72, 0.30]
-				_bt_npc(st, sx + keeper[2], BT.STALL_Z, ni, keeper[0], keeper[1])
+				var offset_x: float = 0.42 if food_front else keeper[2]
+				_bt_npc(st, sx + offset_x, BT.STALL_Z, ni, keeper[0], keeper[1])
 				ni += 1
 		else:   # 遊技の屋台（下絵）：台・歯車仕掛けの機械・光る窓・天幕。下絵の書き出しのため、屋台ごとの Node3D に入れる
 			var gn := Node3D.new()
