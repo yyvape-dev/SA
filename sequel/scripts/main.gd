@@ -1977,7 +1977,7 @@ func _bt_shack(root: Node3D, sg: Dictionary) -> void:
 		bt_lights.append(["pend_warm", -9.3, 1.9, -6.3, 2.0])
 
 ## 屋台風の飲み屋・吊り布・ガラス管・歯車・ネオンの置き場所（22章）
-func _bt_extras(st: Node3D) -> void:
+func _bt_extras(st: Node3D, finished: bool) -> void:
 	var ex := Node3D.new()
 	ex.name = "extras22"
 	st.add_child(ex)
@@ -2016,6 +2016,8 @@ func _bt_extras(st: Node3D) -> void:
 		bt_hang_rects.append(["sbar_roof:" + sb.id, x - hw - 0.15, 2.28, x + hw + 0.15, 2.55, z + 0.25])
 		bt_lights.append(["stall", x, 2.0, z, sw * 0.6])
 	for c in BT.CLOTHS:   # 吊り布（24章：手すりに掛けるか綱から。下の端に切れ込み＝短い布 2 枚）
+		if finished and c[4] == "rope_cb" and _bt_art("market_cloth_cream") != null:
+			continue
 		if (c[4] == "rail_cabaret" and _bt_art("w_cabaret") != null) or (c[4] == "rail_brothel" and _bt_art("w_brothel") != null) or (c[4] == "rail_shady" and _bt_art("w_shady") != null):
 			continue   # 納品画に装飾を焼き込み済み。仮の色面を重ねない。
 		var ay: Array = _bt_anchor(c[4])
@@ -2079,39 +2081,60 @@ func _bt_extras(st: Node3D) -> void:
 			bt_marks.append(["chk", "slot_corner:" + ns[0], cpt])
 		bt_target_rects.append(["slot:" + ns[0], x0, y0, x1, y1, nz])
 
-# One west-market frontage. The fixtures stay behind the playable belt.
+func _bt_hanging_run(parent: Node3D, cable: PackedVector2Array, z: float, lamps: Array, laundry: Array = []) -> void:
+	for i in range(1, cable.size()):
+		var span := cable[i] - cable[i - 1]
+		var midpoint := (cable[i] + cable[i - 1]) * 0.5
+		var wire := _bt_box(parent, Vector3(midpoint.x, midpoint.y, z), Vector3(span.length() + 0.012, 0.026, 0.024), "cable")
+		wire.rotation.z = span.angle()
+	for anchor in [cable[0], cable[-1]]:
+		_bt_box(parent, Vector3(anchor.x, anchor.y, (BT.WALL_Z + z) * 0.5), Vector3(0.065, 0.065, z - BT.WALL_Z), "iron")
+	for mount in lamps + laundry:
+		var joint := cable[int(mount[0])]
+		var art: String = mount[1]
+		var width: float = mount[2]
+		var drop: float = mount[3]
+		var tex := _bt_art(art)
+		if tex == null:
+			continue
+		var height := width * float(tex.get_height()) / float(tex.get_width())
+		var top := joint.y - drop
+		var brightness := 0.92 if art.begins_with("market_lamp") else 0.58
+		_bt_quad(parent, art, joint.x - width * 0.5, top - height, joint.x + width * 0.5, top, z + 0.02, brightness)
+		if drop > 0.0:
+			_bt_box(parent, Vector3(joint.x, joint.y - drop * 0.5, z), Vector3(0.021, drop + 0.02, 0.02), "cable")
+
+func _bt_market_overhead(parent: Node3D) -> void:
+	var hang := Node3D.new()
+	hang.name = "market_overhead"
+	parent.add_child(hang)
+	# The alley openings stay clear. Laundry belongs to the tavern and the lodging.
+	_bt_hanging_run(hang, PackedVector2Array([
+		Vector2(-24.7, 3.62), Vector2(-23.45, 3.42), Vector2(-22.03, 3.27),
+		Vector2(-20.5, 3.20), Vector2(-18.96, 3.24), Vector2(-17.38, 3.39), Vector2(-15.18, 3.72),
+	]), -4.72, [[1, "market_lamp_ruby", 0.31, 0.04], [2, "market_lamp_jade", 0.28, 0.13],
+		[4, "market_lamp_cobalt", 0.32, 0.06], [5, "market_lamp_ruby", 0.30, 0.13]])
+	_bt_hanging_run(hang, PackedVector2Array([
+		Vector2(-11.35, 3.67), Vector2(-10.05, 3.44), Vector2(-8.65, 3.37),
+		Vector2(-7.15, 3.39), Vector2(-5.4, 3.52), Vector2(-3.45, 3.75),
+	]), -4.86, [[1, "market_lamp_jade", 0.32, 0.07], [3, "market_lamp_ruby", 0.31, 0.12]],
+		[[2, "market_cloth_teal", 0.72, 0.0], [4, "market_cloth_ochre", 0.65, 0.0]])
+	_bt_hanging_run(hang, PackedVector2Array([
+		Vector2(4.95, 3.75), Vector2(6.15, 3.57), Vector2(7.42, 3.45),
+		Vector2(8.6, 3.47), Vector2(9.9, 3.63), Vector2(11.12, 3.83),
+	]), -5.32, [[1, "market_lamp_cobalt", 0.31, 0.08], [4, "market_lamp_jade", 0.28, 0.07]],
+		[[2, "market_cloth_cream", 0.65, 0.0], [3, "market_cloth_teal", 0.68, 0.0]])
+	_bt_hanging_run(hang, PackedVector2Array([
+		Vector2(18.83, 3.74), Vector2(20.12, 3.56), Vector2(21.78, 3.40),
+		Vector2(23.27, 3.45), Vector2(25.0, 3.68),
+	]), -5.05, [[1, "market_lamp_ruby", 0.30, 0.06], [2, "market_lamp_cobalt", 0.31, 0.12],
+		[3, "market_lamp_jade", 0.30, 0.08]])
+
+# Existing west-market foreground dressing stays behind the playable belt.
 func _bt_west_market_finish(stalls: Node3D) -> void:
 	var market := Node3D.new()
 	market.name = "west_market_finish"
 	stalls.add_child(market)
-
-	var cable_z := -4.72
-	var cable := PackedVector2Array([
-		Vector2(-24.7, 3.62), Vector2(-23.45, 3.42), Vector2(-22.03, 3.27),
-		Vector2(-20.5, 3.20), Vector2(-18.96, 3.24), Vector2(-17.38, 3.39),
-		Vector2(-15.18, 3.72),
-	])
-	for i in range(1, cable.size()):
-		var span := cable[i] - cable[i - 1]
-		var midpoint := (cable[i] + cable[i - 1]) * 0.5
-		var wire := _bt_box(market, Vector3(midpoint.x, midpoint.y, cable_z), Vector3(span.length() + 0.012, 0.027, 0.024), "cable")
-		wire.rotation.z = span.angle()
-	for anchor in [cable[0], cable[-1]]:
-		_bt_box(market, Vector3(anchor.x, anchor.y, (BT.WALL_Z + cable_z) * 0.5), Vector3(0.065, 0.065, cable_z - BT.WALL_Z), "iron")
-
-	# Reuse the town's painted amber pendant at irregular intervals and heights.
-	for mount in [[1, 0.32, 0.03], [2, 0.25, 0.14], [4, 0.29, 0.07], [5, 0.33, 0.12]]:
-		var index: int = mount[0]
-		var width: float = mount[1]
-		var drop: float = mount[2]
-		var joint := cable[index]
-		var top := joint.y - drop
-		if _bt_art("pend_warm") != null:
-			var height := width * float(_bt_art("pend_warm").get_height()) / float(_bt_art("pend_warm").get_width())
-			var pendant := _bt_quad(market, "pend_warm", joint.x - width * 0.5, top - height, joint.x + width * 0.5, top, cable_z + 0.018, 1.08)
-			pendant.name = "pendant_%d" % index
-			_bt_box(market, Vector3(joint.x, joint.y - drop * 0.5, cable_z), Vector3(0.021, drop + 0.02, 0.02), "cable")
-
 	# Loose fabric and a low cluster sit against the posts, outside the hand area.
 	var cloth := _bt_quad(market, "banner_red", -22.43, 1.92, -21.94, 2.78, -5.25, 0.56)
 	if cloth != null:
@@ -2157,6 +2180,25 @@ func _bt_west_market_finish(stalls: Node3D) -> void:
 		wisp.create_tween().set_loops().tween_method(drift, 0.0, 1.0, 2.35)
 
 
+func _bt_finish_alley(id: String, left: float, right: float) -> void:
+	var alley := Node3D.new()
+	alley.name = id + "_finish"
+	level.add_child(alley)
+	var center := (left + right) * 0.5
+	var mouth := BT.WALL_Z
+	var depth := BT.ALLEY_DEPTH
+	_ground(Vector3(center, 0.008, mouth - depth * 0.5), Vector2(right - left, depth + 0.14), cobble_tex, COBBLE_TILE)
+	for side in [-1.0, 1.0]:
+		var jamb := left + 0.11 if side < 0 else right - 0.11
+		for offset in [0.04, 1.42, 3.15]:
+			_bt_box(alley, Vector3(jamb, 2.27, mouth - offset), Vector3(0.15, 4.54, 0.20), "brick")
+		_bt_box(alley, Vector3(jamb, 0.15, mouth - depth * 0.5), Vector3(0.14, 0.30, depth), "brick")
+	_bt_box(alley, Vector3(center, 0.025, mouth + 0.02), Vector3(right - left - 0.19, 0.05, 0.22), "stone")
+	var lamp_x := right - 0.33 if id == "alley_gate" else left + 0.32
+	var art := "market_lamp_cobalt" if id == "alley_gate" else "market_lamp_jade"
+	_bt_box(alley, Vector3(lamp_x, 2.74, mouth - 1.08), Vector3(0.31, 0.045, 0.055), "iron")
+	_bt_quad(alley, art, lamp_x - 0.13, 2.29, lamp_x + 0.13, 2.73, mouth - 1.05, 0.64)
+
 func build_backtown(with_gate: bool = true) -> void:
 	_clear_level()
 	_build_floor()
@@ -2196,18 +2238,25 @@ func build_backtown(with_gate: bool = true) -> void:
 				bt_marks.append(["wall", sg.id, Vector3(cx, 0, wz)])
 			"filler":
 				_bt_tex_wall(level, sg.tex, x0, 0.0, x1, h, wz - 0.2, 0.5)
+				if with_gate and sg.get("finish", false):
+					var crop := (x1 - x0) / lh * 0.5
+					_bt_quad(level, "market_wall", x0, 0.0, x1, lh, wz - 0.18, 0.63, [0.5 - crop, 0.0, 0.5 + crop, 1.0])
 			"pillar":
 				_bt_box(level, Vector3(cx, h * 0.5, wz + 0.15), Vector3(x1 - x0, h, 0.5), "scaffold")
 			"alley":
 				var ad: float = BT.ALLEY_DEPTH
 				for sx in [x0, x1]:
 					_bt_box(level, Vector3(sx, h * 0.5, wz - ad * 0.5), Vector3(0.2, h, ad), "shadow")
-				_bt_box(level, Vector3(cx, -0.01, wz - ad * 0.5), Vector3(x1 - x0, 0.02, ad), "dark")
+				if with_gate:
+					_bt_finish_alley(sg.id, x0, x1)
+				else:
+					_bt_box(level, Vector3(cx, -0.01, wz - ad * 0.5), Vector3(x1 - x0, 0.02, ad), "dark")
 				var art_name: String = BT.ALLEY_BACKS.get(sg.id, "")
 				var bw: float = x1 - x0 + 0.4
 				var tex := _bt_art(art_name)
 				var bh: float = bw * float(tex.get_height()) / float(tex.get_width()) if tex else 6.0
-				if _bt_quad(level, art_name, cx - bw * 0.5, 0.0, cx + bw * 0.5, bh, wz - ad, 0.75) == null:
+				var half_back := bw * 0.5 + (0.7 if with_gate else 0.0)
+				if _bt_quad(level, art_name, cx - half_back, 0.0, cx + half_back, bh, wz - ad, 0.75) == null:
 					_bt_box(level, Vector3(cx, 3.0, wz - ad), Vector3(bw, 6.0, 0.1), "cloth2")
 	# 光る看板（届いた光る部品）
 	var glow := Node3D.new()
@@ -2329,7 +2378,7 @@ func build_backtown(with_gate: bool = true) -> void:
 			light_key = "west_crystal"
 		bt_lights.append([light_key, sx, 1.6, BT.STALL_Z + 0.2, sw * 0.7])
 	# 22章：屋台風の飲み屋・吊り布・ガラス管・歯車の輪・光るネオンの置き場所。人の立ち位置（前作の町の人を仮に）
-	_bt_extras(st)
+	_bt_extras(st, with_gate)
 	for pp in BT.PEOPLE:
 		if with_gate and pp[2] == "屋台風の飲み屋D の客":
 			ni += 1
@@ -2344,6 +2393,7 @@ func build_backtown(with_gate: bool = true) -> void:
 		bt_marks.append(["person", pp[2], Vector3(pp[0], 1.9, pp[1])])
 	if with_gate:
 		_bt_west_market_finish(st)
+		_bt_market_overhead(fr)
 		var motion_enabled := not _q("npc_motion=off")
 		var edge_margin := 0.5
 		var start_x := BT.ROOM_X.x + edge_margin if motion_enabled else -16.4
@@ -2762,6 +2812,8 @@ func make_portal(center: Vector3, along_x: bool, length: float, col: Color, post
 
 func set_portal_color(n: Node3D, col: Color, a: float) -> void:
 	for ch in n.get_children():
+		if not ch is MeshInstance3D:
+			continue
 		var m = ch.material_override
 		if m is StandardMaterial3D and m.shading_mode == BaseMaterial3D.SHADING_MODE_UNSHADED:
 			if ch.name == "band":
@@ -2776,9 +2828,22 @@ func _build_gate(x: float = GATE_X, straight: bool = false) -> void:
 	gate = make_portal(Vector3(x, 0, 0.0 if straight else BELT_Z.x - 0.15), true, 2.6, GATE_COL)
 	gate.set_meta("straight_entry", straight)
 	if straight:
+		var trim := Node3D.new()
+		trim.name = "painted_gate_frame"
+		gate.add_child(trim)
 		for child in gate.get_children():
-			if child is MeshInstance3D and child.mesh is BoxMesh and child.material_override.shading_mode != BaseMaterial3D.SHADING_MODE_UNSHADED:
-				child.material_override = _bt_mat("stone").duplicate()
+			if child is MeshInstance3D and child.mesh is BoxMesh:
+				if String(child.name).begins_with("lamp"):
+					gate.remove_child(child)
+					child.queue_free()
+				else:
+					child.reparent(trim, false)
+					child.material_override = _bt_mat("stone")
+		_bt_box(trim, Vector3(0, 2.86, -0.02), Vector3(2.99, 0.39, 0.31), "iron")
+		_bt_box(trim, Vector3(0, 3.06, 0.04), Vector3(3.14, 0.105, 0.33), "brass")
+		for x_post in [-1.3, 1.3]:
+			_bt_box(trim, Vector3(x_post, 0.23, 0.03), Vector3(0.32, 0.46, 0.31), "iron")
+			_bt_quad(trim, "market_lamp_cobalt", x_post - 0.13, 2.35, x_post + 0.13, 2.77, 0.19, 0.88)
 	# 柱の間の光る扉（縦の板、下ほど明るい）と上の梁。遠くからでも入口と分かるように
 	var door := MeshInstance3D.new()
 	var qm := QuadMesh.new()
@@ -2791,17 +2856,18 @@ func _build_gate(x: float = GATE_X, straight: bool = false) -> void:
 	door.position = Vector3(0, 1.45, -0.05)
 	door.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	gate.add_child(door)
-	var beam := MeshInstance3D.new()
-	var bm := BoxMesh.new()
-	bm.size = Vector3(3.0, 0.22, 0.26)
-	beam.mesh = bm
-	var lm := StandardMaterial3D.new()
-	lm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	lm.albedo_color = GATE_COL
-	beam.material_override = lm
-	beam.position = Vector3(0, 2.95, 0)
-	beam.name = "lamp_beam"
-	gate.add_child(beam)
+	if not straight:
+		var beam := MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		bm.size = Vector3(3.0, 0.22, 0.26)
+		beam.mesh = bm
+		var lm := StandardMaterial3D.new()
+		lm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		lm.albedo_color = GATE_COL
+		beam.material_override = lm
+		beam.position = Vector3(0, 2.95, 0)
+		beam.name = "lamp_beam"
+		gate.add_child(beam)
 	glints.append({"x": x, "y": 2.0, "z": gate.position.z, "w": 1.6, "col": [GATE_COL.r, GATE_COL.g, GATE_COL.b], "p": 0.8, "len": 4.0})
 
 func _check_gate() -> void:
