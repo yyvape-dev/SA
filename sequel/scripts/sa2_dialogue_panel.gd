@@ -11,14 +11,18 @@ const CHARS_PER_SECOND := 28.0
 @onready var portrait: TextureRect = $Panel/Padding/Layout/Content/Portrait
 @onready var advance_button: Button = $Panel/Padding/Layout/Advance
 
+var dialogue_font: Font
 var lines: Array = []
 var line_index: int = 0
 var active: bool = false
 var reveal_progress: float = 0.0
 
 func _ready() -> void:
-	var font := SystemFont.new()
-	font.font_names = PackedStringArray(["Noto Sans CJK JP", "Yu Gothic", "Hiragino Sans", "sans-serif"])
+	var font := dialogue_font
+	if font == null:
+		var system_font := SystemFont.new()
+		system_font.font_names = PackedStringArray(["Noto Sans CJK JP", "Yu Gothic", "Hiragino Sans", "sans-serif"])
+		font = system_font
 	speaker.add_theme_font_override("font", font)
 	body.add_theme_font_override("normal_font", font)
 	advance_button.add_theme_font_override("font", font)

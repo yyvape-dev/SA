@@ -137,6 +137,8 @@ func _t2_build_ui() -> void:
     t2_layer.layer = 20
     add_child(t2_layer)
     t2_dialogue = DialogueScene.instantiate()
+    if t5_training_preview:
+        t2_dialogue.dialogue_font = load("res://assets/event_idle/sa2_t5_ja.otf") as Font
     t2_layer.add_child(t2_dialogue)
     t2_dialogue.dialogue_closed.connect(_t2_on_dialogue_closed)
     t2_dialogue.line_changed.connect(_t2_on_line_changed)
@@ -394,8 +396,11 @@ func _input(event: InputEvent) -> void:
         t2_manual.move_in = ((event.position - t2_touch_origin) / 90.0).limit_length(1.0)
 
 func _t5_begin_exploration() -> void:
-    var font := SystemFont.new()
-    font.font_names = PackedStringArray(["Noto Sans CJK JP", "Yu Gothic", "Hiragino Sans"])
+    var font: Font = t2_dialogue.dialogue_font
+    var control_theme := Theme.new()
+    control_theme.default_font = font
+    t2_combat_controls.theme = control_theme
+    t2_result_button.theme = control_theme
     t2_label.add_theme_font_override("font", font)
     t2_label.position.y = 112
     t2_label.add_theme_color_override("font_outline_color", Color(0.05, 0.04, 0.08))
