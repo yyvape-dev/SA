@@ -415,8 +415,16 @@ func _process(delta: float) -> void:
 	# 手前の板：ラナと重なったら半分ほど透ける
 	for f in bt_fg:   # 裏の町の手前の柱（StandardMaterial3D）：ラナから左右 2.5m 以内で透ける
 		var near: bool = absf(player.position.x - f.node.global_position.x) < f.half + 2.5
+		var overpass: bool = f.get("overpass", false)
+		if overpass:
+			var post: Vector3 = f.node.global_position
+			var eye := cam.global_position
+			var hero := player.global_position
+			# Project the line of sight onto the post's depth, including camera follow lag.
+			var depth := inverse_lerp(eye.z, hero.z, post.z)
+			near = absf(lerpf(eye.x, hero.x, depth) - post.x) < f.half + 0.38
 		var cc: Color = f.mat.albedo_color
-		cc.a = move_toward(cc.a, 0.3 if near else 1.0, delta * 3.0)
+		cc.a = move_toward(cc.a, 0.3 if near else 1.0, delta * (7.5 if overpass else 3.0))
 		f.mat.albedo_color = cc
 	for f in fg_list:
 		var over: bool = absf(player.position.x - (f.node.global_position.x)) < f.half + 2.5   # カメラを寄せたので広めに、薄く
@@ -2277,6 +2285,60 @@ func _bt_east_alley_depth(alley: Node3D, left: float, right: float, mouth: float
 		cloth.rotation.y = -0.79
 
 
+## A separate crossing over the playable street, from a foreground gantry to the east facade.
+func _bt_street_overpass(parent: Node3D) -> void:
+	var bridge := Node3D.new()
+	bridge.name = "street_overpass"
+	parent.add_child(bridge)
+	var near := Vector3(17.0, 3.32, BT.FG_Z + 0.35)
+	var far := Vector3(18.72, 3.16, BT.WALL_Z + 0.03)
+	var left := Vector3.LEFT * 0.86
+	var right := -left
+
+	var deck := _bt_alley_member(bridge, near, far, Vector2(1.72, 0.21), "wood")
+	deck.name = "deck"
+	for edge in [left, right]:
+		_bt_alley_member(bridge, near + edge - Vector3.UP * 0.18, far + edge - Vector3.UP * 0.18, Vector2(0.12, 0.16), "iron")
+		_bt_alley_member(bridge, near + edge + Vector3.UP * 0.58, far + edge + Vector3.UP * 0.58, Vector2(0.06, 0.07), "iron")
+		for t in [0.04, 0.24, 0.43, 0.64, 0.84, 0.98]:
+			var p: Vector3 = near.lerp(far, t) + edge
+			_bt_box(bridge, p + Vector3.UP * 0.33, Vector3(0.06, 0.53, 0.06), "iron")
+	for t in [0.04, 0.16, 0.31, 0.48, 0.63, 0.77, 0.92]:
+		var p := near.lerp(far, t) - Vector3.UP * 0.19
+		_bt_alley_member(bridge, p + left, p + right, Vector2(0.16, 0.14), "wood")
+	# The left side has a later timber repair, the other side is mostly open ironwork.
+	_bt_alley_member(bridge, near + left + Vector3.UP * 0.28, near.lerp(far, 0.41) + left + Vector3.UP * 0.28, Vector2(0.09, 0.32), "wood")
+	_bt_alley_member(bridge, near.lerp(far, 0.51) + right + Vector3.UP * 0.17, near.lerp(far, 0.75) + right + Vector3.UP * 0.17, Vector2(0.07, 0.17), "tin")
+
+	for side in [-1.0, 1.0]:
+		var foot := near + Vector3(side * 0.93, -near.y, 0)
+		var post := _bt_box(bridge, foot + Vector3.UP * 1.56, Vector3(0.27, 3.12, 0.38), "scaffold", "near_left_post" if side < 0.0 else "near_right_post")
+		var fade_material := post.material_override.duplicate() as StandardMaterial3D
+		fade_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		post.material_override = fade_material
+		bt_fg.append({"node": post, "mat": fade_material, "half": 0.16, "overpass": true})
+		_bt_box(bridge, foot + Vector3.UP * 0.19, Vector3(0.35, 0.38, 0.43), "stone")
+		_bt_alley_member(bridge, foot + Vector3.UP * 2.63, near + Vector3(side * 0.43, -0.24, 0.05), Vector2(0.12, 0.12), "wood")
+	# Brackets run into the facade instead of adding a post in the walking lane.
+	for side in [-1.0, 1.0]:
+		var plate := far + Vector3(side * 0.71, -0.45, -0.04)
+		_bt_box(bridge, plate, Vector3(0.22, 0.83, 0.12), "iron")
+		_bt_alley_member(bridge, plate - Vector3.UP * 0.26, far + Vector3(side * 0.71, -0.15, 1.0), Vector2(0.11, 0.12), "iron")
+
+	var wires := PackedVector3Array([
+		near + Vector3(0.52, -0.27, -0.07),
+		near.lerp(far, 0.25) + Vector3(0.42, -0.38, 0),
+		near.lerp(far, 0.54) + Vector3(0.28, -0.33, 0),
+		far + Vector3(0.40, -0.22, 0),
+	])
+	for i in range(1, wires.size()):
+		_bt_alley_member(bridge, wires[i - 1], wires[i], Vector2(0.037, 0.035), "cable")
+	for lamp in [[1, "market_lamp_ruby", 0.18, 1.0], [2, "market_lamp_jade", 0.15, 0.84]]:
+		var p := wires[int(lamp[0])]
+		var w: float = lamp[2]
+		_bt_quad(bridge, lamp[1], p.x - w * 0.5, p.y - 0.39, p.x + w * 0.5, p.y, p.z + 0.015, lamp[3])
+
+
 func build_backtown(with_gate: bool = true) -> void:
 	_clear_level()
 	_build_floor()
@@ -2492,6 +2554,8 @@ func build_backtown(with_gate: bool = true) -> void:
 		var fq := _bt_quad(fgn, f[0], f[1] - w * 0.5, 0.0, f[1] + w * 0.5, hh, BT.FG_Z, 0.45, [0.0, 0.0, 1.0, 1.0], 2)   # 透けるので半透明の描き方
 		if fq and String(f[0]).begins_with("fg_pillar"):
 			bt_fg.append({"node": fq, "mat": fq.material_override, "half": w * 0.5})
+	if with_gate:
+		_bt_street_overpass(fgn)
 	for fb in BT.FG_BARRELS:   # 22章：手前の樽
 		_bt_barrel(fgn, fb[0], 0.0, BT.FG_Z, fb[1], fb[2], 0.55)
 	# 印（扉・路地の口・人混みの帯）。正面図には写さない
