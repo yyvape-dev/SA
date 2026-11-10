@@ -6,12 +6,19 @@ const Flow := preload("res://scripts/sa2_flow_state.gd")
 const DB := preload("res://scripts/sa2_dialogue_database.gd")
 const DialogueScene := preload("res://ui/sa2_dialogue_panel.tscn")
 const EVENT_ID := "C1-06"
+const T5_DIALOGUE_ID := "C1-06-t5-preview"
+const T5_MEETING_POINT := Vector3(3.5, 0, 0)
+const T5_TALK_DISTANCE := 1.3
 const DEMO_SAVE := "user://sa2_t2_demo_save.json"
 const NORMAL_SAVE := "user://sa2_t2_progress.json"
 # Unscaled seconds, independent of rendering FPS. See docs/sa2_t2_asset_wait_20261108.md.
 const ALLY_LOAD_TIMEOUT_SECONDS := 60.0
 signal t2_ally_load_resolved(loaded: bool)
 var t2_ally_load_done := false
+
+@export var t5_training_preview := false
+var t5_talk_button: Button
+var t5_meeting_marker: Label3D
 
 var t2_flow = Flow.new()
 var t2_manual
@@ -64,6 +71,11 @@ func _ready() -> void:
     t2_manual.locked = true
     add_child(t2_manual)
     _t2_build_ui()
+    if t5_training_preview:
+        _t5_begin_exploration()
+        if waiting_for_lily:
+            loading.hide_soon()
+        return
     var restored: bool = not t2_demo and t2_flow.load_from(NORMAL_SAVE)
     if not restored:
         t2_flow = Flow.new()
@@ -148,12 +160,12 @@ func _t2_build_ui() -> void:
     t2_layer.add_child(t2_result_button)
 
 func _t2_save() -> void:
-    if not t2_demo:
+    if not t2_demo and not t5_training_preview:
         t2_flow.save_to(NORMAL_SAVE)
 
 func _t2_open_dialogue(event_id: String, index: int = 0) -> void:
     var db := DB.new()
-    var entry: Dictionary = db.load_event(event_id)
+    var entry: Dictionary = db.load_event(T5_DIALOGUE_ID if t5_training_preview else event_id)
     if entry.is_empty() or not t2_dialogue.start(entry, index):
         push_error("SA2_T2_FAIL: dialogue cannot load: " + db.last_error)
         get_tree().quit(1)
@@ -173,12 +185,19 @@ func _t2_on_dialogue_closed() -> void:
     _t2_start_training(false)
 
 func _t2_start_training(resume: bool) -> void:
-    if not resume and not t2_flow.enter_battle(EVENT_ID, t2_rana.position):
+    var checkpoint: Vector3 = t2_flow.return_position if t5_training_preview else t2_rana.position
+    if not resume and not t2_flow.enter_battle(EVENT_ID, checkpoint):
         push_error("SA2_T2_FAIL: cannot transition into battle")
         return
     if resume and t2_flow.mode != Flow.INSTANCE:
         push_error("SA2_T2_FAIL: invalid resume mode")
         return
+    if t5_training_preview:
+        t2_rana.hide()
+        t2_rana.position = t2_flow.return_position
+        t2_manual.set_process_unhandled_key_input(true)
+        t2_label.show()
+        t2_combat_controls.show()
     for e in battle.enemies.duplicate():
         battle.remove_enemy(e)
     _t2_build_arena()
@@ -279,6 +298,8 @@ func _on_foe_killed(_e) -> void:
 
 func _process(delta: float) -> void:
     super._process(delta)
+    if _t5_is_approaching():
+        t5_talk_button.visible = _t5_within_talk_range()
     if not t2_active or t2_done:
         return
     if battle.hp <= 0.0:
@@ -338,7 +359,11 @@ func _t2_restore_exploration() -> void:
     t2_label.text = "演習完了・探索へ復帰"
 
 func _input(event: InputEvent) -> void:
-    if not t2_active or t2_manual == null:
+    if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ENTER and _t5_is_approaching() and _t5_within_talk_range():
+        _t5_open_briefing()
+        get_viewport().set_input_as_handled()
+        return
+    if t2_manual == null or (not t2_active and not _t5_is_approaching()):
         return
     if event is InputEventScreenTouch:
         if event.pressed and event.position.x < 550 and t2_finger < 0:
@@ -349,6 +374,58 @@ func _input(event: InputEvent) -> void:
             t2_manual.move_in = Vector2.ZERO
     elif event is InputEventScreenDrag and event.index == t2_finger:
         t2_manual.move_in = ((event.position - t2_touch_origin) / 90.0).limit_length(1.0)
+
+func _t5_begin_exploration() -> void:
+    var font := SystemFont.new()
+    font.font_names = PackedStringArray(["Noto Sans CJK JP", "Yu Gothic", "Hiragino Sans"])
+    t2_label.add_theme_font_override("font", font)
+    t2_label.text = "公開演習  ›  教官のいる受付へ"
+    t2_combat_controls.hide()
+    t2_manual.locked = false
+    t2_manual.set_process_unhandled_key_input(false)
+    t2_rana.position = T5_MEETING_POINT + Vector3(0.55, 0, -0.55)
+    t2_rana.show()
+
+    t5_meeting_marker = Label3D.new()
+    t5_meeting_marker.text = "演習受付"
+    t5_meeting_marker.font = font
+    t5_meeting_marker.font_size = 48
+    t5_meeting_marker.outline_size = 8
+    t5_meeting_marker.position = T5_MEETING_POINT + Vector3.UP * 2.45
+    t5_meeting_marker.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+    add_child(t5_meeting_marker)
+
+    t5_talk_button = Button.new()
+    t5_talk_button.text = "話す  [Enter]"
+    t5_talk_button.add_theme_font_override("font", font)
+    t5_talk_button.add_theme_font_size_override("font_size", 24)
+    t5_talk_button.custom_minimum_size = Vector2(194, 66)
+    t5_talk_button.position = Vector2(1044, 602)
+    t5_talk_button.focus_mode = Control.FOCUS_NONE
+    t5_talk_button.hide()
+    t5_talk_button.pressed.connect(_t5_open_briefing)
+    t2_layer.add_child(t5_talk_button)
+
+func _t5_is_approaching() -> bool:
+    return is_instance_valid(t5_talk_button) and t2_flow.mode == Flow.EXPLORE and t2_flow.event_id.is_empty() and not t2_flow.completed.get(EVENT_ID, false)
+
+func _t5_within_talk_range() -> bool:
+    return t2_lily.position.distance_to(T5_MEETING_POINT) <= T5_TALK_DISTANCE
+
+func _t5_open_briefing() -> void:
+    if not _t5_is_approaching() or not _t5_within_talk_range():
+        return
+    if not t2_flow.begin_dialogue(EVENT_ID, t2_lily.position):
+        return
+    t2_manual.locked = true
+    t2_manual.move_in = Vector2.ZERO
+    t2_finger = -1
+    t2_rana.position = t2_lily.position + Vector3(0.9, 0, -0.55)
+    t2_lily._show("idle", 0)
+    t2_label.hide()
+    t5_talk_button.hide()
+    t5_meeting_marker.hide()
+    _t2_open_dialogue(EVENT_ID)
 
 func _t2_movie_demo() -> void:
     await _t2_frames(36)

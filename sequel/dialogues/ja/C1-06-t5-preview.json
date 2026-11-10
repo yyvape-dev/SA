@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "id": "C1-06-t5-preview",
+  "lines": [
+    {
+      "line_id": "c1-06-t5-001",
+      "speaker_id": "instructor",
+      "speaker": "教官",
+      "text": "実際に触れていただくのは訓練用の器具です。安全のため、標的は非致死性のものに限ります。危険だと感じたら合図してください。",
+      "portrait_id": ""
+    },
+    {
+      "line_id": "c1-06-t5-002",
+      "speaker_id": "lily",
+      "speaker": "リリィ",
+      "text": "分かりました。では、お願いします。",
+      "portrait_id": ""
+    },
+    {
+      "line_id": "c1-06-t5-003",
+      "speaker_id": "rana",
+      "speaker": "ラナ",
+      "text": "リリィ、無理はしないでね。",
+      "portrait_id": ""
+    },
+    {
+      "line_id": "c1-06-t5-004",
+      "speaker_id": "lily",
+      "speaker": "リリィ",
+      "text": "ええ。正式な演習ですから、決まりを守ります。",
+      "portrait_id": ""
+    }
+  ]
+}
