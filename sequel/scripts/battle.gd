@@ -10,7 +10,8 @@ var ROOM_X := Vector2(-19, 19)
 var player: Node3D
 var main                  # main.gd（スキルの枠・進み具合を読む）
 ## 必殺技（2026-11-07）：ゲージ 0〜ULT_MAX。当てると 1 体 1.5、被弾で 5。cine＝演出の間（敵と仲間は止まる）、cam_zoom＝カメラの寄り 0〜1
-const ULT_MAX := 100.0
+const ULT_COST := 100.0
+const ULT_MAX := ULT_COST * 2.0
 var ult := 0.0
 var ult_gain := true
 var cine := false

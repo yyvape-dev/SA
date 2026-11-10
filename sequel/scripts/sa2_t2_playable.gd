@@ -381,6 +381,10 @@ func _process(delta: float) -> void:
         t5_talk_button.visible = _t5_within_talk_range()
     if t5_training_preview and is_instance_valid(t2_result_button) and t2_result_button.visible:
         _t6_layout_result()
+    if t5_training_preview and is_instance_valid(t2_label):
+        t2_label.size.x = 340
+        t2_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+        t2_label.position = Vector2((get_viewport().get_visible_rect().size.x - 340) * 0.5, 22)
     if t6_finishing:
         if t2_lily.state == "move" and battle.enemies.is_empty():
             t6_finishing = false

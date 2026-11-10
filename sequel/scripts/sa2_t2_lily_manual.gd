@@ -79,7 +79,7 @@ func use_skill(id: String) -> bool:
     return true
 
 func use_ult() -> void:
-    if locked or not combat_enabled or not skills_enabled or actor.state != "move" or dodge_left > 0.0 or battle.cine or battle.ally_ult < battle.ULT_MAX:
+    if locked or not combat_enabled or not skills_enabled or actor.state != "move" or dodge_left > 0.0 or battle.cine or battle.ally_ult < battle.ULT_COST:
         return
     var foe = actor._ult_target()
     if foe != null:

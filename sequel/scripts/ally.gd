@@ -427,7 +427,7 @@ func _pick_skill(e: Node3D) -> bool:
 		return false
 	var pl: Node3D = world.player
 	# 必殺技：満タン・誰も演出中でない
-	if world.ally_ult >= world.ULT_MAX and not world.cine and pl.state != "ult":
+	if world.ally_ult >= world.ULT_COST and not world.cine and pl.state != "ult":
 		var tg := _ult_target()
 		if tg:
 			_start_ult(tg)
@@ -589,7 +589,7 @@ func _ult_target() -> Node3D:
 	return best
 
 func _start_ult(e: Node3D) -> void:
-	world.ally_ult = 0.0
+	world.ally_ult = maxf(0.0, world.ally_ult - world.ULT_COST)
 	world.ally_ult_gain = false
 	sk_id = "ult"
 	sk = sk_tab["ult"]
