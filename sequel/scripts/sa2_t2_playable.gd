@@ -379,6 +379,16 @@ func _t5_begin_exploration() -> void:
     var font := SystemFont.new()
     font.font_names = PackedStringArray(["Noto Sans CJK JP", "Yu Gothic", "Hiragino Sans"])
     t2_label.add_theme_font_override("font", font)
+    t2_label.position.y = 112
+    t2_label.add_theme_color_override("font_outline_color", Color(0.05, 0.04, 0.08))
+    t2_label.add_theme_constant_override("outline_size", 6)
+    var panel := t2_dialogue.get_node("Panel") as PanelContainer
+    var style := StyleBoxFlat.new()
+    style.bg_color = Color(0.05, 0.04, 0.08, 0.88)
+    style.border_color = Color(0.64, 0.49, 0.28, 0.8)
+    style.border_width_top = 2
+    style.set_corner_radius_all(8)
+    panel.add_theme_stylebox_override("panel", style)
     t2_label.text = "公開演習  ›  教官のいる受付へ"
     t2_combat_controls.hide()
     t2_manual.locked = false

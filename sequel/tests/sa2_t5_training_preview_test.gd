@@ -23,6 +23,8 @@ func _run() -> void:
     if game.t2_dialogue.active:
         _fail("cannot open from out of range")
         return
+    for frame in 15:
+        await process_frame
     _key(KEY_D, true)
     for frame in 130:
         if game.t5_talk_button.visible:
@@ -32,6 +34,8 @@ func _run() -> void:
     if not game.t5_talk_button.visible:
         _fail("normal movement reaches the interaction")
         return
+    for frame in 16:
+        await process_frame
     _key(KEY_ENTER, true)
     _key(KEY_ENTER, false)
     await process_frame
