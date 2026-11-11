@@ -381,6 +381,28 @@ func player_skill(spec: Dictionary, p: Node3D) -> void:
 func hit_count_in_skill(p: Node3D) -> int:
 	return int(p.hit_i)
 
+# Successful defense: cancel exactly one strike, leaving a manual counter opportunity.
+func just_guard(p: Node3D, e) -> void:
+	if e.atk.get("warn") != null:
+		fx.drop(e.atk.warn)
+		e.atk.warn = null
+	e.atk.done = true
+	e.state = "stun"
+	e.stun = maxf(e.stun, 0.8)
+	e.kx = (-1 if e.position.x < p.position.x else 1) * 1.2
+	e.flash = maxf(e.flash, 0.1)
+	p.inv = maxf(p.inv, 0.6)
+	var direction := 1 if e.position.x >= p.position.x else -1
+	p.face = direction
+	var contact: Vector3 = p.position + Vector3(direction * minf(absf(e.position.x - p.position.x) * 0.5, 0.75), 1.05, (e.position.z - p.position.z) * 0.5 + 0.05)
+	freeze = maxf(freeze, 0.07)
+	shake = maxf(shake, 4.0)
+	if fx2d and fx2d.enabled and not fx.legacy:
+		fx2d.guard(contact)
+	else:
+		fx.tex_quad("circle_03", contact, 0.26, {"add": true, "col": Color(1.0, 0.78, 0.32), "raw": 1.3, "size": 0.55, "grow": 2.1})
+		fx.hit(contact, -direction, false, true)
+
 # ---------- 敵の攻撃 ----------
 func player_alive() -> bool:
 	return hp > 0.0

@@ -310,6 +310,13 @@ func hit(wp: Vector3, dir: int, strong: bool, pal: String = "blue") -> void:
 	if strong:
 		sprite("circle_03", wp, 0.7, 0.32, b, {"raw": 1.6, "erode_from": 0.0, "erode_soft": 0.1, "noise_amt": 0.3, "cool": 0.6}, 0.0, false, 3.2)
 
+## Defense contact: compact gold ring and sparks, distinct from offensive blue/silver.
+## 0-45ms ignition, 45-100ms peak, 100-280ms erosion/decay. No full-screen flash.
+func guard(wp: Vector3) -> void:
+	sprite("light_01", wp, 0.7, 0.10, "gold", {"raw": 1.6, "alpha": 0.7, "erode_from": 0.25}, 0.0, false, 1.1)
+	sprite("circle_03", wp, 0.55, 0.26, "gold", {"raw": 1.3, "erode_from": 0.0, "erode_soft": 0.12, "cool": 0.5}, 0.0, false, 2.1)
+	burst(["spark_05", "trace_01"], wp, 8, "gold", Vector2(2.5, 5.0), 0.28, Vector2(0.10, 0.22), 14.0, 0.0, true, 0.0, 0.5, 1.8)
+
 ## 振りの弧：Kenney の三日月（slash_02）を、弧に沿って先端が走り、尾から消えるように。angle は画面での向き（0＝右を上から下へ）
 func slash(wp: Vector3, face: int, size_m: float, angle: float, col: Color = BLUE) -> void:
 	var b := "gold" if col == GOLD else "blue"

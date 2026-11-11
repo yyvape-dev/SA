@@ -120,11 +120,7 @@ func dodge() -> void:
         if not is_instance_valid(foe):
             continue
         if guard_candidate(foe, actor.position):
-            foe.atk.done = true
-            foe.state = "stun"
-            foe.stun = maxf(foe.stun, 0.8)
-            foe.kx = (-1 if foe.position.x < actor.position.x else 1) * 1.2
-            actor.inv = maxf(actor.inv, 0.6)
+            battle.just_guard(actor, foe)
             guard_count += 1
             guard_success.emit()
             return
