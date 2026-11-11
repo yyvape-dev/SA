@@ -311,7 +311,11 @@ func _attack_from(p: Node3D, spec: Dictionary, mul: float) -> int:
 			var big: bool = spec.strong
 			var ang: float = 0.0 if sl.get("plane", "h") == "h" else 25.0   # 三日月の向き（0＝前を上から下へ。縦振りは少し前へ倒す）
 			var col: Color = fx2d.GOLD if sl.has("pal") else fx2d.BLUE
-			fx2d.slash(p.position + Vector3(dir * float(sl.get("r", 2.0)) * 0.35, float(sl.get("y", 1.0)) + 0.1, 0.2), dir, float(sl.get("r", 2.0)) * (0.8 if big else 0.6), ang + randf_range(-12.0, 12.0), col)
+			var edge_at: Vector3 = p.position + Vector3(dir * float(sl.get("r", 2.0)) * 0.35, float(sl.get("y", 1.0)) + 0.1, 0.2)
+			if sl.has("edge_angle"):
+				fx2d.flurry_edge(edge_at, dir, float(sl.r), float(sl.edge_angle), big)
+			else:
+				fx2d.slash(edge_at, dir, float(sl.get("r", 2.0)) * (0.8 if big else 0.6), ang + randf_range(-12.0, 12.0), col)
 	if hits > 0 and spec.strong and (fx.legacy or spec.get("wave", false)):   # 画面のゆがみは大技の一瞬だけ（2026-11-07。iPhone で重い）。前は強い当たりすべて
 		fx.shockwave(p.position + Vector3(dir * minf(spec.r, 2.0) * 0.5, 0.9, 0), 0.9 + mini(hits, 5) * 0.12)
 	if hits > 0 and p == player and ult_gain:
@@ -336,19 +340,28 @@ const GOLD_PAL := [Color8(255, 150, 40), Color8(255, 210, 110), Color8(255, 250,
 func player_skill(spec: Dictionary, p: Node3D) -> void:
 	var f: int = p.face
 	match spec.get("fx", ""):
-		"flurry":   # 金の弧を毎回、大きさと角度をずらして重ねる
-			var base: Dictionary = [p.SL_SWEEP, p.SL_DOWN, p.SL_BACK, p.SL_THRUST][randi() % 4].duplicate()
-			base.r = float(base.r) * randf_range(0.85, 1.15) * 0.9
-			var rot := randf_range(-35.0, 35.0)
-			base.a0 = float(base.a0) + rot
-			base.a1 = float(base.a1) + rot
+		"flurry":
+			# Authored crossing cuts: the tail of one swing leads into the next.
+			var index := clampi(hit_count_in_skill(p), 0, 9)
+			var progress := float(index) / 9.0
+			var base: Dictionary = [p.SL_DOWN, p.SL_BACK, p.SL_SWEEP, p.SL_DOWN][index % 4].duplicate()
+			base.r = lerpf(1.9, 2.3, progress)
+			base.w = lerpf(0.32, 0.72, progress)
+			base.a0 = [125.0, -55.0, 105.0, 135.0][index % 4]
+			base.a1 = [-45.0, 120.0, -50.0, -55.0][index % 4]
+			base.y = [1.05, 0.95, 1.0, 1.15][index % 4]
 			base.pal = GOLD_PAL
-			base.life = 0.22
+			base.life = lerpf(0.14, 0.23, progress)
+			base.draw = lerpf(0.045, 0.025, progress)
+			base.edge_angle = -35.0 if index % 2 == 0 else 40.0
 			spec.slash = base
-			if hit_count_in_skill(p) >= 9:
-				shake = maxf(shake, 3.0)   # 10 回目以降はわずかに揺れ続ける
 		"flurry_end":
 			var big: Dictionary = p.SL_BIG.duplicate()
+			big.r = 2.5
+			big.w = 1.15
+			big.life = 0.36
+			big.draw = 0.045
+			big.edge_angle = -30.0
 			big.pal = GOLD_PAL
 			spec.slash = big
 			chroma_hit(0.8)

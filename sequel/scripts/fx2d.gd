@@ -359,3 +359,10 @@ func big(wp: Vector3, col: Color, fx3d = null, foot: Vector3 = Vector3.ZERO) -> 
 	if fx3d:
 		fx3d.tex_quad("light_01", foot, 0.6, {"floor": true, "add": true, "col": col, "raw": 1.3, "size": 3.5, "grow": 1.6})
 		fx3d.tex_quad("scorch_02", foot, 2.0, {"floor": true, "add": false, "col": Color(0.05, 0.03, 0.04, 0.6), "size": 2.4, "fade_in": 0.05})
+
+## Flowing Rana skill edge: broad colored silhouette, brief white core, crossing motion.
+func flurry_edge(wp: Vector3, face: int, reach: float, angle: float, final: bool) -> void:
+	sprite("slash_02", wp, reach * (1.65 if final else 1.35), 0.30 if final else 0.17, "gold", {"raw": 1.55, "arc": 1.0, "erode_from": 0.35, "noise_amt": 0.25, "cool": 0.45}, (-90.0 + angle) * face, face < 0, 1.08)
+	if final:
+		sprite("trace_01", wp, 2.4, 0.18, "gold", {"raw": 1.45, "alpha": 0.7, "erode_from": 0.25, "cool": 0.6}, -25.0 * face, face < 0, 1.2)
+		burst(["trace_01", "spark_05"], wp, 16, "gold", Vector2(5.0, 10.0), 0.32, Vector2(0.08, 0.18), 12.0, 0.0, true, 0.0, 0.5, 2.5, false)
