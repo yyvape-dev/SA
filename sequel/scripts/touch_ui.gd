@@ -11,6 +11,20 @@ var pad: Control
 var hud: Control
 var basic_combat_only := false
 var lily_controls := false
+# Optional contextual replacement for the attack slot. Other scenes keep normal attacks.
+var attack_context_available: Callable
+var attack_context_action: Callable
+var attack_context_font: Font
+
+func attack_is_contextual() -> bool:
+	return attack_context_available.is_valid() and attack_context_action.is_valid() and attack_context_available.call()
+
+func draw_attack_context(canvas: CanvasItem, center: Vector2, radius: float, pressed: bool) -> void:
+	Art.button(canvas, center, radius, pressed, false, true)
+	var font: Font = attack_context_font if attack_context_font != null else ThemeDB.fallback_font
+	var font_size := int(24 * radius / 78.0)
+	canvas.draw_string(font, center + Vector2(-radius, font_size * 0.35), "話す", HORIZONTAL_ALIGNMENT_CENTER, radius * 2, font_size, Color(1, 1, 1, 0.9))
+
 
 func ult_value() -> float:
 	return battle.ally_ult if lily_controls else battle.ult
@@ -91,7 +105,13 @@ class _Pad extends Control:
 	func _press(k: String) -> void:
 		var pl = ui.player
 		match k:
-			"atk": pl.attack_press()
+			"atk":
+				if ui.attack_is_contextual():
+					# No attack press/release ownership is created for a Talk touch.
+					btn_down.erase("atk")
+					ui.attack_context_action.call()
+				else:
+					pl.attack_press()
 			"dodge": pl.dodge()
 			"gear": ui.main.hud.open_slots()
 			"ult": pl.use_ult()
@@ -179,6 +199,9 @@ class _Pad extends Control:
 			if shake.has(key):
 				center.x += sin(float(shake[key]) * 80.0) * 4 * u
 			var pressed := btn_down.has(key)
+			if key == "atk" and ui.attack_is_contextual():
+				ui.draw_attack_context(self, center, radius, pressed)
+				continue
 			var action: bool = key == "atk" or key.begins_with("sk")
 			Art.button(self, center, radius, pressed, key == "ult", action)
 			var color := Color(1, 1, 1, (1.0 if pressed else 0.9) if action else (0.7 if pressed else 0.38))

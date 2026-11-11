@@ -389,8 +389,12 @@ func _on_foe_killed(_e) -> void:
 func _process(delta: float) -> void:
     super._process(delta)
     if is_instance_valid(street_button):
-        street_button.visible = _street_available()
-        street_button.position = Vector2((get_viewport().get_visible_rect().size.x - 220) * 0.5, get_viewport().get_visible_rect().size.y - 90)
+        # Before training the legacy exploration controls are active; afterwards the shared pad owns Talk.
+        street_button.visible = _street_available() and not ui.pad.is_processing_input()
+        var attack: Array = ui.pad._btns().atk
+        street_button.size = Vector2.ONE * attack[1] * 2
+        street_button.position = attack[0] - street_button.size * 0.5
+        street_button.queue_redraw()
     if t5_training_preview and battle != null:
         for foe in battle.enemies:
             if foe.state == "dying":
@@ -773,11 +777,13 @@ func _street_setup() -> void:
         return
     street_camera = Camera3D.new()
     add_child(street_camera)
-    street_button = Button.new()
-    street_button.text = "話す"
-    street_button.add_theme_font_override("font", t2_dialogue.dialogue_font)
-    street_button.add_theme_font_size_override("font_size", 24)
-    street_button.custom_minimum_size = Vector2(220, 66)
+    ui.attack_context_available = _street_available
+    ui.attack_context_action = _street_open
+    ui.attack_context_font = t2_dialogue.dialogue_font
+    street_button = StreetTalkButton.new()
+    street_button.touch_ui = ui
+    for state in ["normal", "hover", "pressed", "focus"]:
+        street_button.add_theme_stylebox_override(state, StyleBoxEmpty.new())
     street_button.focus_mode = Control.FOCUS_NONE
     street_button.hide()
     street_button.pressed.connect(_street_open)
@@ -879,3 +885,12 @@ func _street_close() -> void:
     street_active = false
     street_returning = false
     street_snapshot.clear()
+
+# Uses the identical shared attack renderer and circular hit area while the legacy pad is hidden.
+class StreetTalkButton extends Button:
+    var touch_ui
+    func _has_point(point: Vector2) -> bool:
+        return point.distance_to(size * 0.5) < size.x * 0.5 * 1.15
+    func _draw() -> void:
+        if touch_ui != null:
+            touch_ui.draw_attack_context(self, size * 0.5, size.x * 0.5, is_pressed())

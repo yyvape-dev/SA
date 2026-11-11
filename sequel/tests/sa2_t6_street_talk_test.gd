@@ -31,10 +31,20 @@ func _run() -> void:
         fail("cannot interrupt a running dodge")
         return
     game.t2_manual.dodge_left = 0.0
+    for dimensions in [Vector2i(1280, 720), Vector2i(1560, 720)]:
+        root.size = dimensions
+        for frame in 3: await process_frame
+        var attack: Array = game.ui.pad._btns().atk
+        if game.street_button.get_global_rect().get_center() != attack[0] or game.street_button.size != Vector2.ONE * attack[1] * 2:
+            fail("Talk uses the shared attack center and diameter at each viewport width")
+            return
+    root.size = Vector2i(1280, 720)
+    for frame in 3: await process_frame
     await capture("street-nearby")
     var original_position: Vector3 = game.player.position
     var original_camera: Transform3D = game.cam.global_transform
     var original_flow: Dictionary = game.t2_flow.to_dict()
+    var attacks: int = game.t2_manual.attack_count
     for attempt in 2:
         var key := InputEventKey.new()
         key.keycode = KEY_ENTER
@@ -47,6 +57,9 @@ func _run() -> void:
             await process_frame
             touch(at, false)
         await process_frame
+        if game.t2_manual.attack_count != attacks:
+            fail("Talk does not increment Lily attack count")
+            return
         if not game.street_active or not game.t2_manual.locked or game.t5_fade.visible:
             fail("Enter locks without blackout")
             return
@@ -98,7 +111,17 @@ func _run() -> void:
         return
     game.player.position = Vector3(-3.6, 0, -1.8)
     await process_frame
-    game._street_open()
+    await process_frame
+    var attack: Array = game.ui.pad._btns().atk
+    if game.street_button.visible:
+        fail("shared Talk action has no duplicate overlay button")
+        return
+    touch(attack[0], true)
+    await process_frame
+    touch(attack[0], false)
+    if game.t2_rana.atk_held:
+        fail("Talk touch never presses attack")
+        return
     for frame in 60: await process_frame
     if not game.street_active or not game.t2_rana.locked or game.ui.pad.is_processing_input():
         fail("Rana and shared touch controls lock")
@@ -109,6 +132,17 @@ func _run() -> void:
         fail("Rana shared controls restore")
         return
     await capture("street-return-rana")
+    game.player.position = Vector3(0, 0, 0)
+    await process_frame
+    if game.ui.attack_is_contextual():
+        fail("leaving range restores attack action")
+        return
+    touch(attack[0], true)
+    await process_frame
+    if not game.t2_rana.atk_held:
+        fail("same slot receives attack outside talk range")
+        return
+    touch(attack[0], false)
     print("SA2_T6_STREET_PASS: range Enter no-blackout lock camera repeat flow-isolation movement")
     quit(0)
 func fail(message: String) -> void:
