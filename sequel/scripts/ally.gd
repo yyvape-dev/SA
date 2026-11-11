@@ -36,6 +36,7 @@ const HIP := Vector2(0.05, 0.95)   # 腰（足元から m）。軌跡を外へ�
 const TRAIL_K := 1.3               # 軌跡の長さ（通り道の 1.3 倍）
 const CHARGE_T := 0.12             # 溜め（つま先に蒼い光が集まる）
 
+var normal_attack_scale := 1.0 # Manual control may accelerate normals; AI and skills retain their timing.
 var world               # battle.gd
 var data := {}
 var pages := {}
@@ -152,6 +153,7 @@ func _nearest() -> Node3D:
 	return best
 
 func _start_atk(e: Node3D) -> void:
+	normal_attack_scale = 1.0
 	var opts := []
 	for p in PATTERNS:
 		if p != last and data.clips.has(p):
@@ -166,7 +168,8 @@ func _start_atk(e: Node3D) -> void:
 	dash_x0 = position.x
 
 ## 撮影用：決まった技を出させる
-func force_attack(c: String, e: Node3D) -> void:
+func force_attack(c: String, e: Node3D, speed_scale: float = 1.0) -> void:
+	normal_attack_scale = speed_scale
 	last = ""
 	clip = c
 	face = 1 if e.position.x >= position.x else -1
@@ -256,7 +259,7 @@ func _physics_process(delta: float) -> void:
 				_show("hit", hi)
 		"atk":
 			var c: Dictionary = data.clips[clip]
-			var fps: float = float(c.fps) * SPD
+			var fps: float = float(c.fps) * SPD * normal_attack_scale
 			var i := int(t * fps)
 			var hits: Array = c.hits
 			var legacy: bool = world.fx.legacy or not c.has("tip")
@@ -320,7 +323,7 @@ func _trail(c: Dictionary, h: int) -> Array:
 ## 溜め・突進・残像（当たりの前）
 func _atk_extras(c: Dictionary, i: int, dt: float) -> void:
 	var hits: Array = c.hits
-	var fps: float = float(c.fps) * SPD
+	var fps: float = float(c.fps) * SPD * normal_attack_scale
 	if hit_i < hits.size():
 		var h: int = int(hits[hit_i])
 		if charged < hit_i and i >= h - int(ceil(CHARGE_T * fps)):

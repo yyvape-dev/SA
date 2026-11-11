@@ -179,8 +179,9 @@ class _Pad extends Control:
 			if shake.has(key):
 				center.x += sin(float(shake[key]) * 80.0) * 4 * u
 			var pressed := btn_down.has(key)
-			Art.button(self, center, radius, pressed, key == "ult")
-			var color := Color(1, 1, 1, 0.7 if pressed else 0.38)
+			var action: bool = key == "atk" or key.begins_with("sk")
+			Art.button(self, center, radius, pressed, key == "ult", action)
+			var color := Color(1, 1, 1, (1.0 if pressed else 0.9) if action else (0.7 if pressed else 0.38))
 			match key:
 				"atk":
 					if ui.lily_controls:

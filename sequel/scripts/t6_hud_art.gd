@@ -43,9 +43,9 @@ static func icon(canvas: CanvasItem, texture: Texture2D, center: Vector2, extent
     var size := dimensions * scale
     canvas.draw_texture_rect(texture, Rect2(center - size * 0.5, size), false, color)
 
-static func button(canvas: CanvasItem, center: Vector2, radius: float, pressed: bool, ultimate: bool = false) -> void:
-    var opacity := 0.7 if pressed else 0.38
-    canvas.draw_circle(center, radius * 0.85, Color(0.02, 0.03, 0.05, 0.23 if pressed else 0.12))
+static func button(canvas: CanvasItem, center: Vector2, radius: float, pressed: bool, ultimate: bool = false, action: bool = false) -> void:
+    var opacity := (0.9 if pressed else 0.65) if action else (0.7 if pressed else 0.38)
+    canvas.draw_circle(center, radius * 0.85, Color(0.02, 0.03, 0.05, (0.55 if pressed else 0.28) if action else (0.23 if pressed else 0.12)))
     if ultimate:
         var points := PackedVector2Array([center + Vector2(0, -radius), center + Vector2(radius, 0), center + Vector2(0, radius), center + Vector2(-radius, 0), center + Vector2(0, -radius)])
         canvas.draw_colored_polygon(points, Color(0.05, 0.02, 0.08, 0.28))

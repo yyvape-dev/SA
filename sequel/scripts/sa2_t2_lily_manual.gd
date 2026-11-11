@@ -5,6 +5,8 @@ signal guard_success
 signal dodge_started
 signal attack_started(clip: String)
 
+const RANA := preload("res://scripts/player.gd")
+const NORMAL_SPEED: float = RANA.ATK_SPD.atkA
 const WALK_SPEED := 4.0
 const DEPTH_FACTOR := 0.75
 const DODGE_TIME := 0.24
@@ -30,6 +32,7 @@ var dodge_left := 0.0
 var dodge_direction := Vector2.RIGHT
 var animation_t := 0.0
 var attack_index := 0
+var attack_queued := false
 var guard_count := 0
 var dodge_count := 0
 var attack_count := 0
@@ -54,7 +57,12 @@ static func guard_candidate(e, at: Vector3) -> bool:
     return absf(offset.x) <= GUARD_REACH and absf(offset.z) <= 0.9
 
 func attack_press() -> void:
-    if locked or not combat_enabled or actor == null or actor.state != "move" or dodge_left > 0.0:
+    if locked or not combat_enabled or actor == null:
+        return
+    if actor.state == "atk" or dodge_left > 0.0:
+        attack_queued = true
+        return
+    if actor.state != "move":
         return
     var e = actor._nearest()
     if e == null:
@@ -63,7 +71,8 @@ func attack_press() -> void:
     attack_index += 1
     if not actor.data.clips.has(clip):
         return
-    actor.force_attack(clip, e)
+    attack_queued = false
+    actor.force_attack(clip, e, NORMAL_SPEED)
     attack_count += 1
     attack_started.emit(clip)
 
@@ -87,6 +96,7 @@ func use_ult() -> void:
 
 func reset_training() -> void:
     combat_enabled = true
+    attack_queued = false
     move_in = Vector2.ZERO
     dodge_left = 0.0
     actor.inv = 0.0
@@ -126,11 +136,28 @@ func dodge() -> void:
     dodge_started.emit()
 
 func _physics_process(delta: float) -> void:
+    if locked or not combat_enabled:
+        attack_queued = false
     if actor == null or battle == null or locked:
         return
     if actor.state != "move":
-        actor._physics_process(delta) # Existing Lily hit-frame timing, VFX and combat callbacks.
+        if actor.state != "atk":
+            attack_queued = false
+        actor._physics_process(delta) # Existing Lily hit callbacks, VFX and skills.
+        if attack_queued and combat_enabled:
+            if actor.state == "atk":
+                var c: Dictionary = actor.data.clips[actor.clip]
+                var hits: Array = c.hits
+                var final_hit: float = float(hits.back()) / (float(c.fps) * actor.SPD * NORMAL_SPEED)
+                if actor.hit_i >= hits.size() and actor.t >= final_hit + RANA.CANCEL_AFTER:
+                    actor.state = "move"
+            if actor.state == "move":
+                attack_press()
         return
+    if attack_queued and dodge_left <= 0.0:
+        attack_press()
+        if actor.state != "move":
+            return
     var dt: float = battle.dt(delta)
     if dt <= 0.0:
         return
