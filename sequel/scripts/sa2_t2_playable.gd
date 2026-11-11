@@ -30,6 +30,21 @@ var street_snapshot := {}
 
 @export var rana_test_room := false
 var rana_test_ready := false
+## ランカの操作（2026-11-12）：イベント中の主人公格として自分で動かす入口。?mode=ranka／SA2_RANKA_TEST／ranka_test_room
+@export var ranka_test_room := false
+var ranka_test_ready := false
+var ranka_live_enemies := false
+var t7_ranka
+var t7_manual
+var ranka_reset_button: Button
+var ranka_enemy_button: Button
+var ranka_idle_button: Button
+var ranka_lily_button: Button
+var ranka_with_lily := false
+var event_idles := {}            # actor_id → Sprite3D（会話用の立ち絵ループ）
+var event_idle_t := 0.0
+## 会話用の立ち絵の形：[横のコマ数, 縦のコマ数, コマ数, 足元の点（コマの中の画素）]。1コマ 200×376・12fps
+const EVENT_IDLE := {"rana": [6, 6, 36, Vector2(105, 367.5)], "lily": [6, 6, 36, Vector2(115, 371.5)], "ranka": [9, 8, 72, Vector2(100, 371)]}
 var rana_live_enemies := false
 var rana_reset_button: Button
 var rana_enemy_button: Button
@@ -109,6 +124,15 @@ func _ready() -> void:
     t2_manual.locked = true
     add_child(t2_manual)
     _t2_build_ui()
+    if t5_training_preview and _ranka_mode():
+        if not await _ranka_wait():
+            push_error("SA2_T7_FAIL: Ranka atlas/companion did not load")
+            get_tree().quit(1)
+            return
+        _ranka_setup_room()
+        if waiting_for_lily:
+            loading.hide_soon()
+        return
     if t5_training_preview and (rana_test_room or _q("mode=rana") or OS.has_environment("SA2_RANA_TEST")):
         _rana_setup_room()
         if waiting_for_lily:
@@ -389,7 +413,7 @@ func _t2_build_target(foe) -> void:
     shell.add_child(mark)
 
 func _on_foe_killed(_e) -> void:
-    if rana_test_room:
+    if rana_test_room or ranka_test_room:
         return # Testing must not award XP or write normal progression.
     if t2_active:
         t2_kills += 1
@@ -400,6 +424,13 @@ func _on_foe_killed(_e) -> void:
 
 func _process(delta: float) -> void:
     super._process(delta)
+    _event_idle_tick(delta)
+    if ranka_test_ready:
+        t2_label.position = Vector2((get_viewport().get_visible_rect().size.x - 340) * 0.5, 22)
+        var busy: bool = battle.cine or t7_ranka.state == "ult"
+        for b in [ranka_reset_button, ranka_enemy_button, ranka_idle_button, ranka_lily_button]:
+            b.disabled = busy
+        return
     if rana_test_ready:
         t2_label.position = Vector2((get_viewport().get_visible_rect().size.x - 340) * 0.5, 22)
         rana_reset_button.disabled = battle.cine or player.state == "ult"
@@ -998,3 +1029,172 @@ func _rana_reset_room() -> void:
             foe.atk_cd = 99999.0
     rana_enemy_button.text = "実戦中 → 標的へ" if rana_live_enemies else "標的中 → 実戦へ"
     _place_cam(true)
+
+
+# ---------- ランカの操作の入口（2026-11-12）。ラナの入口（_rana_setup_room）と同じ形：標的 3 体（600）、標的／実戦、全部リセット。
+## 演習の会話・FlowState は通らない。撃破で経験値は増えない。必殺技 天照のゲージは最初から 2 段。
+## 「リリィ同行」で、リリィを自動の仲間として一緒に出す（3人同時の作りの確認。ラナはこの入口では出さない）。
+func ranka_wanted() -> bool:
+    return t5_training_preview and _ranka_mode()
+
+func _ranka_mode() -> bool:
+    return ranka_test_room or _q("mode=ranka") or OS.has_environment("SA2_RANKA_TEST")
+
+func _ranka_wait(timeout_seconds: float = ALLY_LOAD_TIMEOUT_SECONDS) -> bool:
+    if is_instance_valid(battle.ranka):
+        return true
+    var deadline := get_tree().create_timer(timeout_seconds, true, false, true)
+    var done := [false, false]
+    ranka_loaded.connect(func(ok):
+        done[0] = true
+        done[1] = ok, CONNECT_ONE_SHOT)
+    while not done[0] and deadline.time_left > 0.0:
+        await get_tree().process_frame
+    return is_instance_valid(battle.ranka)
+
+func _ranka_setup_room() -> void:
+    ranka_test_room = true
+    t7_ranka = battle.ranka
+    player = t7_ranka
+    battle.player = t7_ranka
+    battle.manual_ally = t7_ranka
+    battle.ally = null
+    t2_manual.locked = true
+    t2_manual.set_physics_process(false)
+    t2_manual.set_process_unhandled_key_input(false)
+    t2_lily.set_physics_process(false)
+    t2_lily.hide()
+    t2_rana.hide()
+    t2_rana.locked = true
+    t2_rana.set_physics_process(false)
+    t7_manual = Manual.new()
+    t7_manual.name = "RankaManual"
+    t7_manual.setup(t7_ranka, battle)
+    t7_manual.skills_enabled = true
+    t7_manual.skills = t7_ranka.sk_tab
+    add_child(t7_manual)
+    ui.player = t7_manual
+    ui.lily_controls = true
+    ui.basic_combat_only = false
+    ui.set_controls_enabled(true)
+    hud.hide()
+    t2_label.text = "ランカ戦闘テスト"
+    t2_label.show()
+    _event_idle_sprite("ranka", t7_ranka.height_m)
+    var font: Font = t2_dialogue.dialogue_font
+    var mk := func(text: String, y: float, cb: Callable) -> Button:
+        var b := Button.new()
+        b.text = text
+        b.position = Vector2(20, y)
+        b.custom_minimum_size = Vector2(240, 56)
+        b.add_theme_font_override("font", font)
+        b.add_theme_font_size_override("font_size", 22)
+        b.focus_mode = Control.FOCUS_NONE
+        b.pressed.connect(cb)
+        t2_layer.add_child(b)
+        return b
+    ranka_reset_button = mk.call("すべてリセット", 140, _ranka_reset_room)
+    ranka_enemy_button = mk.call("", 204, func():
+        ranka_live_enemies = not ranka_live_enemies
+        _ranka_reset_room())
+    ranka_lily_button = mk.call("", 268, func():
+        ranka_with_lily = not ranka_with_lily
+        _ranka_reset_room())
+    ranka_idle_button = mk.call("会話の立ち絵", 332, _ranka_toggle_idle)
+    _ranka_reset_room()
+    ranka_test_ready = true
+
+func _ranka_reset_room() -> void:
+    if battle.cine or t7_ranka.state == "ult":
+        return
+    _ranka_show_idle(false)
+    ui.pad.reset_input()
+    t7_manual.reset_training()
+    t7_manual.locked = false
+    t7_ranka.state = "move"
+    t7_ranka.clip = "idle"
+    t7_ranka.t = 0.0
+    t7_ranka.chain_broken = true
+    t7_ranka.position = Vector3.ZERO
+    t7_ranka.face = 1
+    t7_ranka._show("idle", 0)
+    battle.ranka_ult = battle.ULT_MAX
+    battle.ranka_ult_gain = true
+    battle.hp_max = 100.0
+    battle.hp = battle.hp_max
+    battle.freeze = 0.0
+    battle.cam_focus = null
+    battle.cam_zoom = 0.0
+    # リリィ同行：自動の仲間として出す（ゲージも 2 段）
+    if ranka_with_lily:
+        battle.ally = t2_lily
+        t2_lily.show()
+        t2_lily.state = "move"
+        t2_lily.clip = "idle"
+        t2_lily.position = Vector3(-1.4, 0, 0.7)
+        t2_lily.sk_cd = t2_lily.fresh_cd()
+        t2_lily.set_physics_process(true)
+        battle.ally_ult = battle.ULT_MAX
+    else:
+        battle.ally = null
+        t2_lily.set_physics_process(false)
+        t2_lily.hide()
+    for foe in battle.enemies.duplicate():
+        battle.remove_enemy(foe)
+    for at in [Vector3(2.4, 0, 0), Vector3(4.2, 0, -0.5), Vector3(6.4, 0, 0.45)]:
+        battle.spawn("1", at)
+        var foe = battle.enemies.back()
+        foe.hp_max = 600.0
+        foe.hp = foe.hp_max
+        if not ranka_live_enemies:
+            foe.sp = 0.0
+            foe.atk_cd = 99999.0
+    ranka_enemy_button.text = "実戦中 → 標的へ" if ranka_live_enemies else "標的中 → 実戦へ"
+    ranka_lily_button.text = "リリィ同行中 → 単独へ" if ranka_with_lily else "単独 → リリィ同行へ"
+    _place_cam(true)
+
+## 会話用の立ち絵（ループ）をその場で見る：戦闘の絵を隠して、同じ足元に立ち絵を出す。もう一度押すと戻る
+func _ranka_toggle_idle() -> void:
+    _ranka_show_idle(not event_idles["ranka"].visible)
+
+func _ranka_show_idle(on: bool) -> void:
+    var sp: Sprite3D = event_idles.get("ranka")
+    if sp == null:
+        return
+    sp.position = t7_ranka.position
+    sp.flip_h = t7_ranka.face < 0
+    sp.visible = on
+    t7_ranka.sprite.visible = not on
+    t7_manual.locked = on
+    if on:
+        ui.pad.reset_input()
+        event_idle_t = 0.0
+    if is_instance_valid(ranka_idle_button):
+        ranka_idle_button.text = "戦闘へ戻る" if on else "会話の立ち絵"
+
+## 会話用の立ち絵のループ（assets/event_idle/<id>_idle.webp、EVENT_IDLE の形）。会話の場面でも使えるよう actor_id ごとに1つ
+func _event_idle_sprite(actor_id: String, height_m: float) -> Sprite3D:
+    if event_idles.has(actor_id):
+        return event_idles[actor_id]
+    var f: Array = EVENT_IDLE[actor_id]
+    var sprite := Sprite3D.new()
+    sprite.name = actor_id.capitalize() + "EventIdle"
+    sprite.texture = load("res://assets/event_idle/%s_idle.webp" % actor_id) as Texture2D
+    sprite.hframes = int(f[0])
+    sprite.vframes = int(f[1])
+    var pivot: Vector2 = f[3]
+    sprite.offset = Vector2(100 - pivot.x, pivot.y - 188)
+    sprite.pixel_size = height_m / pivot.y
+    sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
+    sprite.hide()
+    add_child(sprite)
+    event_idles[actor_id] = sprite
+    return sprite
+
+func _event_idle_tick(delta: float) -> void:
+    event_idle_t += delta
+    for id in event_idles:
+        var sp: Sprite3D = event_idles[id]
+        if sp.visible:
+            var n: int = int(EVENT_IDLE[id][2])
+            sp.frame = int(event_idle_t * 12.0) % n

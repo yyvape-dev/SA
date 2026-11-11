@@ -6,6 +6,7 @@ const TUBE := preload("res://assets/ui/t6/t6_tube_frame.png")
 const RING := preload("res://assets/ui/t6/t6_ring.png")
 const LILY := preload("res://assets/ui/t6/t6_portrait.png")
 const RANA := preload("res://assets/ui/t6/t6_rana_portrait.png")
+const RANKA := preload("res://assets/ui/t6/t6_ranka_portrait.png")   # 2026-11-12：会話用の立ち絵の顔を丸く切ったもの（tools/make_ranka_ui.py）
 const FIST := preload("res://assets/ui/t6/t6_fist.png")
 const DODGE := preload("res://assets/ui/t6/t6_dodge.png")
 const ICONS := {
@@ -64,9 +65,10 @@ static func gauges(canvas: CanvasItem, ui, unit: float, shown_hp: float) -> void
     panel(canvas, Rect2(Vector2(30, 15) * u, Vector2(440, 64) * u))
     canvas.draw_circle(portrait, 39 * u, Color(0.04, 0.04, 0.06, 0.94))
     gear(canvas, portrait, 42 * u, 0.8)
-    icon(canvas, LILY if ui.lily_controls else RANA, portrait, 75 * u, Color.WHITE)
+    var manual_id := str(ui.player.actor.actor_id) if ui.lily_controls and ui.player != null and "actor" in ui.player and ui.player.actor != null else "lily"
+    icon(canvas, (RANKA if manual_id == "ranka" else LILY) if ui.lily_controls else RANA, portrait, 75 * u, Color.WHITE)
     var font: Font = FONT
-    var name := "リリィ" if ui.lily_controls else "ラナ"
+    var name := ("ランカ" if manual_id == "ranka" else "リリィ") if ui.lily_controls else "ラナ"
     canvas.draw_string(font, Vector2(104, 37) * u, name, HORIZONTAL_ALIGNMENT_LEFT, 180 * u, int(22 * u), Color(0.91, 0.88, 0.78))
     var hp_text := "%d / %d" % [int(ui.battle.hp), int(ui.battle.hp_max)]
     canvas.draw_string(ThemeDB.fallback_font, Vector2(265, 37) * u, hp_text, HORIZONTAL_ALIGNMENT_RIGHT, 185 * u, int(19 * u), Color(0.91, 0.92, 0.93))
@@ -85,6 +87,8 @@ static func gauges(canvas: CanvasItem, ui, unit: float, shown_hp: float) -> void
     canvas.draw_texture_rect(TUBE, Rect2(Vector2(24, 78) * u, Vector2(448, 44) * u), false)
     if ui.battle.ally and not ui.lily_controls:
         liquid(canvas, Rect2(Vector2(103, 118) * u, Vector2(240, 8) * u), ui.battle.ally_ult / ui.battle.ULT_MAX, u * 0.65)
+    if ui.battle.ranka and ui.battle.ranka != ui.battle.player and not ui.lily_controls:   # ランカのゲージ（リリィの下）
+        liquid(canvas, Rect2(Vector2(103, 134) * u, Vector2(240, 8) * u), ui.battle.ranka_ult / ui.battle.ULT_MAX, u * 0.65)
 
 static func liquid(canvas: CanvasItem, rect: Rect2, fraction: float, u: float) -> void:
     canvas.draw_rect(rect.grow(5 * u), Color(0.025, 0.02, 0.04, 0.8))

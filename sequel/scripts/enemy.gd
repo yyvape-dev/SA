@@ -183,8 +183,9 @@ func _physics_process(delta: float) -> void:
 				if dx > -0.3 and dx < float(atk.reach) and dz < float(atk.lane):
 					battle.enemy_hits_player(self)
 				# 仲間（リリィ）も同じ範囲にいれば当たる（体力は無い。揺れて押し戻されるだけ。2026-11-06）
-				var al: Node3D = battle.ally
-				if al and al.can_be_hit():
+				for al in battle.ally_list():   # 2026-11-12：仲間が2人（リリィ・ランカ）
+					if not al.can_be_hit():
+						continue
 					var adx: float = (al.position.x - position.x) * face
 					if atk.wide:
 						adx = absf(al.position.x - position.x)

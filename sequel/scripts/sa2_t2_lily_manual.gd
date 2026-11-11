@@ -39,6 +39,8 @@ var attack_count := 0
 
 func setup(lily, combat) -> void:
     actor = lily
+    if "manual" in actor:   # ランカ：手動のときは連撃を自分で続けない（押した分だけ）
+        actor.manual = true
     battle = combat
     actor.set_physics_process(false)
     actor.state = "move"
@@ -67,7 +69,7 @@ func attack_press() -> void:
     var e = actor._nearest()
     if e == null:
         return
-    var clip: String = ATTACKS[attack_index % ATTACKS.size()]
+    var clip: String = actor.manual_next(attack_index) # 2026-11-12: per-actor order (Lily: ATTACKS, Ranka: c1→c2→c3→palm)
     attack_index += 1
     if not actor.data.clips.has(clip):
         return
@@ -87,8 +89,11 @@ func use_skill(id: String) -> bool:
     actor.force_skill(id, foe)
     return true
 
+func ult_value() -> float:
+    return float(battle.get(actor.ult_key)) if actor != null else 0.0
+
 func use_ult() -> void:
-    if locked or not combat_enabled or not skills_enabled or actor.state != "move" or dodge_left > 0.0 or battle.cine or battle.ally_ult < battle.ULT_COST:
+    if locked or not combat_enabled or not skills_enabled or actor.state != "move" or dodge_left > 0.0 or battle.cine or ult_value() < battle.ULT_COST:
         return
     var foe = actor._ult_target()
     if foe != null:
@@ -103,9 +108,9 @@ func reset_training() -> void:
     actor.flash = 0.0
     actor.t = 0.0
     actor.clip = "idle"
-    actor.sk_cd = {"rush": 0.0, "barrage": 0.0, "storm": 0.0}
-    battle.ally_ult = 0.0
-    battle.ally_ult_gain = true
+    actor.sk_cd = actor.fresh_cd()
+    battle.set(actor.ult_key, 0.0)
+    battle.set(actor.ult_key + "_gain", true)
     battle.cine = false
     battle.cam_focus = null
     battle.cam_zoom = 0.0
@@ -144,7 +149,7 @@ func _physics_process(delta: float) -> void:
             if actor.state == "atk":
                 var c: Dictionary = actor.data.clips[actor.clip]
                 var hits: Array = c.hits
-                var final_hit: float = float(hits.back()) / (float(c.fps) * actor.SPD * NORMAL_SPEED)
+                var final_hit: float = (float(hits.back()) if not hits.is_empty() else 0.0) / (float(c.fps) * actor.SPD * NORMAL_SPEED)
                 if actor.hit_i >= hits.size() and actor.t >= final_hit + RANA.CANCEL_AFTER:
                     actor.state = "move"
             if actor.state == "move":

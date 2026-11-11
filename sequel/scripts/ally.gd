@@ -37,6 +37,13 @@ const TRAIL_K := 1.3               # 軌跡の長さ（通り道の 1.3 倍）
 const CHARGE_T := 0.12             # 溜め（つま先に蒼い光が集まる）
 
 var normal_attack_scale := 1.0 # Manual control may accelerate normals; AI and skills retain their timing.
+## 仲間ごとに変える所（2026-11-12、ランカの追加で共通化。リリィの値は従来どおり）：絵の置き場所・必殺技のゲージ（battle の変数名）・
+## ラナについて歩く位置・名前（操作するときの HUD）
+var asset_dir := "res://assets/lily/"
+var ult_key := "ally_ult"
+var follow_ofs := Vector3(-1.4, 0, 0.7)
+var actor_id := "lily"
+var display_name := "リリィ"
 var world               # battle.gd
 var data := {}
 var pages := {}
@@ -122,7 +129,7 @@ func height() -> float:
 
 func _tex(p: int) -> Texture2D:
 	if not pages.has(p):
-		pages[p] = load("res://assets/lily/" + str(data.pages[p]))
+		pages[p] = load(asset_dir + str(data.pages[p]))
 	return pages[p]
 
 func _show(c: String, i: int) -> void:
@@ -197,7 +204,7 @@ func _physics_process(delta: float) -> void:
 	var pl: Node3D = world.player
 	# ラナから離れすぎたら（部屋の移動など）すぐそばへ
 	if absf(pl.position.x - position.x) > 9.0:
-		position = pl.position + Vector3(-pl.face * 1.4, 0, 0.6)
+		position = pl.position + Vector3(pl.face * follow_ofs.x, 0, follow_ofs.z - 0.1)
 		state = "move"
 	match state:
 		"move":
@@ -208,7 +215,7 @@ func _physics_process(delta: float) -> void:
 				var side := 1.0 if position.x >= e.position.x else -1.0
 				goal = Vector3(e.position.x + side * ATK_X * 0.9, 0, e.position.z)
 			else:
-				goal = pl.position + Vector3(-pl.face * 1.4, 0, 0.7)
+				goal = pl.position + Vector3(pl.face * follow_ofs.x, 0, follow_ofs.z)
 			var d := goal - position
 			var moving := absf(d.x) > 0.12 or absf(d.z) > 0.08
 			var run := Vector2(d.x, d.z).length() > RUN_D
@@ -276,13 +283,14 @@ func _physics_process(delta: float) -> void:
 					_hit_new(c, int(hits[hit_i]), hit_i, last_hit)
 				hit_i += 1
 			if i >= c.frames.size():
-				state = "move"
-				clip = "idle"
-				mv = ""
-				t = 0.0
-				cd = randf_range(0.2, 0.45)   # 次の攻撃まで（前 0.5〜1.1）
-				_show("idle", 0)
-			else:
+				if not _after_atk():   # 仲間ごとのつなぎ（ランカ：連撃の続き・構えへの戻り）
+					state = "move"
+					clip = "idle"
+					mv = ""
+					t = 0.0
+					cd = randf_range(0.2, 0.45)   # 次の攻撃まで（前 0.5〜1.1）
+					_show("idle", 0)
+			elif state == "atk":
 				_show(clip, i)
 	mat.set_shader_parameter("tint", Color(1, 1, 1, 1))
 	world.apply_light(sprite, mat, refl, position)
@@ -430,7 +438,7 @@ func _pick_skill(e: Node3D) -> bool:
 		return false
 	var pl: Node3D = world.player
 	# 必殺技：満タン・誰も演出中でない
-	if world.ally_ult >= world.ULT_COST and not world.cine and pl.state != "ult":
+	if float(world.get(ult_key)) >= world.ULT_COST and not world.cine and not world.ult_busy(self):
 		var tg := _ult_target()
 		if tg:
 			_start_ult(tg)
@@ -585,8 +593,8 @@ func _ult_target() -> Node3D:
 	return best
 
 func _start_ult(e: Node3D) -> void:
-	world.ally_ult = maxf(0.0, world.ally_ult - world.ULT_COST)
-	world.ally_ult_gain = false
+	world.set(ult_key, maxf(0.0, float(world.get(ult_key)) - world.ULT_COST))
+	world.set(ult_key + "_gain", false)
 	sk_id = "ult"
 	sk = sk_tab["ult"]
 	sk_used["ult"] = int(sk_used.get("ult", 0)) + 1
@@ -631,7 +639,7 @@ func _ult_process(delta: float) -> void:
 		_end_ult()
 
 func _end_ult() -> void:
-	world.ally_ult_gain = true
+	world.set(ult_key + "_gain", true)
 	world.cine = false
 	world.cam_zoom = 0.0
 	world.cam_focus = null
@@ -641,6 +649,21 @@ func _end_ult() -> void:
 	t = 0.0
 	cd = 0.4
 	_show("idle", 0)
+
+## 攻撃の動画が終わったとき。true を返すと続きを自分で始めた（state はそのまま）。リリィは何もしない
+func _after_atk() -> bool:
+	return false
+
+## 手動操作（イベントの主人公格）の通常攻撃：次に出す clip。リリィは 5 本を順に
+func manual_next(index: int) -> String:
+	return PATTERNS[index % PATTERNS.size()]
+
+## スキル枠の並び（タッチの3枠）と、待ちを全部明けた表
+func slot_ids() -> Array:
+	return ["rush", "barrage", "storm"]
+
+func fresh_cd() -> Dictionary:
+	return {"rush": 0.0, "barrage": 0.0, "storm": 0.0}
 
 ## 撮影用：決まった技を出させる（id＝rush・barrage・storm・ult）
 func force_skill(id: String, e: Node3D) -> void:

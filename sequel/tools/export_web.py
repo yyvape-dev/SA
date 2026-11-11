@@ -26,8 +26,10 @@ DISTRICTS = {
             "files": ["assets/vfx/reeboo.json"]},
     "al1": {"res": ["assets/lily/*.webp"],                           # 仲間リリィ（起動の後に読む。読み終えてから出てくる）
             "files": []},
+    "al2": {"res": ["assets/ranka/*.webp"],                          # 仲間ランカ（2026-11-12。リリィの後に読む。json は本体）
+            "files": []},
 }
-MAIN_EXCLUDE = ["captures/*", "art/guide/*.png", "art/guide_bt/*", "art/painted_bt/*", "art/painted_bt_src/*", "tools/*", "districts/*", "art/incoming/*", "addons/*"]   # addons/＝取得した素材の元（使う絵は assets/vfx/ に写した。2026-11-07）
+MAIN_EXCLUDE = ["captures/*", "art/ranka/*", "art/guide/*.png", "art/guide_bt/*", "art/painted_bt/*", "art/painted_bt_src/*", "tools/*", "districts/*", "art/incoming/*", "addons/*"]   # addons/＝取得した素材の元（使う絵は assets/vfx/ に写した。2026-11-07）
 
 
 def resource_files(spec):

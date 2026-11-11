@@ -27,6 +27,8 @@ func draw_attack_context(canvas: CanvasItem, center: Vector2, radius: float, pre
 
 
 func ult_value() -> float:
+	if lily_controls and player != null and player.has_method("ult_value"):
+		return player.ult_value()   # 手動の仲間（リリィ ally_ult・ランカ ranka_ult）
 	return battle.ally_ult if lily_controls else battle.ult
 
 func _ready() -> void:
@@ -97,6 +99,8 @@ class _Pad extends Control:
 
 	func _slot_id(i: int) -> String:
 		if ui.lily_controls:
+			if ui.player != null and ui.player.actor != null:
+				return str(ui.player.actor.slot_ids()[i])
 			return ["rush", "barrage", "storm"][i]
 		if ui.main and ui.main.progress:
 			return str(ui.main.progress.skill_slots[i])
