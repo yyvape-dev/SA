@@ -84,7 +84,7 @@ class _Pad extends Control:
 			var a := deg_to_rad(SKILL_ANG[i])
 			b["sk%d" % i] = [ac + Vector2(cos(a), -sin(a)) * 175 * u, 52 * u]
 		b["ult"] = [Vector2(s.x - 100 * u, 210 * u), 62 * u]
-		if not ui.lily_controls and ui.main and ui.main.hud and ui.main.dungeon == null and not ui.main.hud.menu_open and not ui.main.hud.slot_open:
+		if not ui.lily_controls and ui.main and ui.main.hud and ui.main.hud.visible and ui.main.dungeon == null and not ui.main.hud.menu_open and not ui.main.hud.slot_open:
 			b["gear"] = [Vector2(s.x - 420 * u, s.y - 52 * u), 30 * u]
 		return b
 

@@ -28,6 +28,11 @@ var street_camera: Camera3D
 var street_snapshot := {}
 
 
+@export var rana_test_room := false
+var rana_test_ready := false
+var rana_live_enemies := false
+var rana_reset_button: Button
+var rana_enemy_button: Button
 @export var t5_training_preview := false
 var t5_talk_button: Button
 var t5_meeting_marker: Label3D
@@ -104,6 +109,11 @@ func _ready() -> void:
     t2_manual.locked = true
     add_child(t2_manual)
     _t2_build_ui()
+    if t5_training_preview and (rana_test_room or _q("mode=rana") or OS.has_environment("SA2_RANA_TEST")):
+        _rana_setup_room()
+        if waiting_for_lily:
+            loading.hide_soon()
+        return
     if t5_training_preview:
         ui.player = t2_manual
         ui.basic_combat_only = false
@@ -379,6 +389,8 @@ func _t2_build_target(foe) -> void:
     shell.add_child(mark)
 
 func _on_foe_killed(_e) -> void:
+    if rana_test_room:
+        return # Testing must not award XP or write normal progression.
     if t2_active:
         t2_kills += 1
         if t2_kills >= 2 and not t2_done:
@@ -388,6 +400,11 @@ func _on_foe_killed(_e) -> void:
 
 func _process(delta: float) -> void:
     super._process(delta)
+    if rana_test_ready:
+        t2_label.position = Vector2((get_viewport().get_visible_rect().size.x - 340) * 0.5, 22)
+        rana_reset_button.disabled = battle.cine or player.state == "ult"
+        rana_enemy_button.disabled = rana_reset_button.disabled
+        return
     if is_instance_valid(street_button):
         # Before training the legacy exploration controls are active; afterwards the shared pad owns Talk.
         street_button.visible = _street_available() and not ui.pad.is_processing_input()
@@ -894,3 +911,87 @@ class StreetTalkButton extends Button:
     func _draw() -> void:
         if touch_ui != null:
             touch_ui.draw_attack_context(self, size * 0.5, size.x * 0.5, is_pressed())
+
+# Direct Rana testing entry, isolated from Lily's dialogue/training FlowState.
+func _rana_setup_room() -> void:
+    rana_test_room = true
+    player = t2_rana
+    battle.player = t2_rana
+    battle.ally = null
+    battle.manual_ally = null
+    t2_manual.locked = true
+    t2_manual.set_physics_process(false)
+    t2_lily.set_physics_process(false)
+    t2_lily.hide()
+    t2_rana.show()
+    t2_rana.locked = false
+    t2_rana.set_physics_process(true)
+    progress.skill_slots = ["flurry", "rift", "vortex"] # Session only; never save this preset.
+    ui.player = t2_rana
+    ui.lily_controls = false
+    ui.basic_combat_only = false
+    ui.set_controls_enabled(true)
+    hud.hide()
+    t2_label.text = "ラナ戦闘テスト"
+    var font: Font = t2_dialogue.dialogue_font
+    rana_reset_button = Button.new()
+    rana_reset_button.text = "すべてリセット"
+    rana_reset_button.position = Vector2(20, 140)
+    rana_reset_button.custom_minimum_size = Vector2(240, 60)
+    rana_reset_button.add_theme_font_override("font", font)
+    rana_reset_button.add_theme_font_size_override("font_size", 23)
+    rana_reset_button.focus_mode = Control.FOCUS_NONE
+    rana_reset_button.pressed.connect(_rana_reset_room)
+    t2_layer.add_child(rana_reset_button)
+    rana_enemy_button = Button.new()
+    rana_enemy_button.position = Vector2(20, 212)
+    rana_enemy_button.custom_minimum_size = Vector2(240, 60)
+    rana_enemy_button.add_theme_font_override("font", font)
+    rana_enemy_button.add_theme_font_size_override("font_size", 23)
+    rana_enemy_button.focus_mode = Control.FOCUS_NONE
+    rana_enemy_button.pressed.connect(func():
+        if battle.cine or player.state == "ult": return
+        rana_live_enemies = not rana_live_enemies
+        _rana_reset_room())
+    t2_layer.add_child(rana_enemy_button)
+    _rana_reset_room()
+    rana_test_ready = true
+
+func _rana_reset_room() -> void:
+    if battle.cine or player.state == "ult":
+        return
+    ui.pad.reset_input()
+    player.attack_release()
+    player.state = "move"
+    player.clip = "idle"
+    player.t = 0.0
+    player.inv = 0.0
+    player.flash = 0.0
+    player.kb = 0.0
+    player.queued = false
+    player.queued_hold = false
+    player.atk_next = "atkA"
+    player.position = Vector3.ZERO
+    player.face = 1
+    player.move_in = Vector2.ZERO
+    for id in player.skill_cd:
+        player.skill_cd[id] = 0.0
+    battle.hp_max = 100.0
+    battle.hp = battle.hp_max
+    battle.ult = battle.ULT_MAX
+    battle.ult_gain = true
+    battle.freeze = 0.0
+    battle.cam_focus = null
+    battle.cam_zoom = 0.0
+    for foe in battle.enemies.duplicate():
+        battle.remove_enemy(foe)
+    for at in [Vector3(2.1, 0, 0), Vector3(3.5, 0, -0.45), Vector3(5.2, 0, 0.4)]:
+        battle.spawn("1", at)
+        var foe = battle.enemies.back()
+        foe.hp_max = 600.0
+        foe.hp = foe.hp_max
+        if not rana_live_enemies:
+            foe.sp = 0.0
+            foe.atk_cd = 99999.0
+    rana_enemy_button.text = "実戦中 → 標的へ" if rana_live_enemies else "標的中 → 実戦へ"
+    _place_cam(true)
