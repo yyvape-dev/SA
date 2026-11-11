@@ -23,6 +23,7 @@ var ally_ult_gain := true
 var cam_focus: Node3D = null
 var fx: Node3D
 var fx2d                  # 2D のエフェクトの層（fx2d.gd）。無ければ従来の fx.hit
+var rana_sfx: Node
 ## 大技の暗転（specs/vfx_overhaul.md）：bg_dim＝背景の明るさ（1→0.4 を 0.15 秒、戻り 0.25 秒）、dim_hold＝暗いままの残り
 const DIM_TO := 0.4
 var bg_dim := 1.0
@@ -59,6 +60,8 @@ var RIM_MODE: String = OS.get_environment("RIM_MODE") if OS.has_environment("RIM
 const BODY_DIM := 0.8   # 2026-11-06：縁取りを柔らかくしたので少し明るく（前 0.7）。   # キャラの体の明るさ（夜。縁取りは暗くしない）
 
 func _ready() -> void:
+	rana_sfx = load("res://scripts/rana_sfx.gd").new()
+	add_child(rana_sfx)
 	var d = JSON.parse_string(FileAccess.get_file_as_string("res://assets/foe/foe.json"))
 	foe_clips = d
 	shadow_mat = StandardMaterial3D.new()
@@ -252,6 +255,8 @@ func ally_attack(a: Node3D, spec: Dictionary) -> int:
 	return _attack_from(a, spec, atk_mul)
 
 func _attack_from(p: Node3D, spec: Dictionary, mul: float) -> int:
+	if p == player and rana_sfx:
+		rana_sfx.play_sfx("swing")
 	var dir: int = p.face * (spec.side if spec.side != 0 else 1)
 	var shape: String = spec.get("shape", "both" if spec.side == 0 else "fwd")
 	var hits := 0
@@ -312,6 +317,8 @@ func _attack_from(p: Node3D, spec: Dictionary, mul: float) -> int:
 			fx2d.slash(p.position + Vector3(dir * float(sl.get("r", 2.0)) * 0.35, float(sl.get("y", 1.0)) + 0.1, 0.2), dir, float(sl.get("r", 2.0)) * (0.8 if big else 0.6), ang + randf_range(-12.0, 12.0), col)
 	if hits > 0 and spec.strong and (fx.legacy or spec.get("wave", false)):   # 画面のゆがみは大技の一瞬だけ（2026-11-07。iPhone で重い）。前は強い当たりすべて
 		fx.shockwave(p.position + Vector3(dir * minf(spec.r, 2.0) * 0.5, 0.9, 0), 0.9 + mini(hits, 5) * 0.12)
+	if hits > 0 and p == player and rana_sfx:
+		rana_sfx.play_sfx("hit")
 	if hits > 0 and p == player and ult_gain:
 		ult = minf(ULT_MAX, ult + hits * 1.5)
 	if hits > 0 and p == ally and ally_ult_gain:
