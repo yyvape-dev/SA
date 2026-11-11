@@ -16,6 +16,18 @@ const ALLY_LOAD_TIMEOUT_SECONDS := 60.0
 signal t2_ally_load_resolved(loaded: bool)
 var t2_ally_load_done := false
 
+# Ordinary talk owns no FlowState event or checkpoint: closing must never start training.
+var street_active := false
+var street_returning := false
+var street_camera_hold := false
+var street_hold_position := Vector3.ZERO
+var street_npc: Sprite3D
+var street_button: Button
+var street_marker: Label3D
+var street_camera: Camera3D
+var street_snapshot := {}
+
+
 @export var t5_training_preview := false
 var t5_talk_button: Button
 var t5_meeting_marker: Label3D
@@ -101,6 +113,7 @@ func _ready() -> void:
         battle.manual_ally = t2_lily
         hud.hide()
         _t5_begin_exploration()
+        _street_setup()
         if waiting_for_lily:
             loading.hide_soon()
         return
@@ -229,6 +242,8 @@ func _t2_open_dialogue(event_id: String, index: int = 0) -> void:
     t2_label.text = "演習前の会話"
 
 func _t2_on_line_changed(index: int, _line_id: String) -> void:
+    if street_active:
+        return
     if t5_training_preview and is_instance_valid(t2_dialogue) and index < t2_dialogue.lines.size():
         var id: String = str(t2_dialogue.lines[index].get("speaker_id", ""))
         if is_instance_valid(t5_rana_idle):
@@ -240,6 +255,9 @@ func _t2_on_line_changed(index: int, _line_id: String) -> void:
         _t2_save()
 
 func _t2_on_dialogue_closed() -> void:
+    if street_active:
+        _street_close()
+        return
     if not t2_flow.finish_dialogue():
         push_error("SA2_T2_FAIL: invalid dialogue completion")
         return
@@ -370,6 +388,9 @@ func _on_foe_killed(_e) -> void:
 
 func _process(delta: float) -> void:
     super._process(delta)
+    if is_instance_valid(street_button):
+        street_button.visible = _street_available()
+        street_button.position = Vector2((get_viewport().get_visible_rect().size.x - 220) * 0.5, get_viewport().get_visible_rect().size.y - 90)
     if t5_training_preview and battle != null:
         for foe in battle.enemies:
             if foe.state == "dying":
@@ -495,6 +516,13 @@ func _t2_restore_exploration() -> void:
     t2_label.text = "演習完了・探索へ復帰"
 
 func _input(event: InputEvent) -> void:
+    if street_active:
+        # The shared panel receives unhandled dialogue input. No legacy drag routing.
+        return
+    if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ENTER and _street_available():
+        _street_open()
+        get_viewport().set_input_as_handled()
+        return
     if t5_transitioning:
         get_viewport().set_input_as_handled()
         return
@@ -588,7 +616,7 @@ func _t5_make_idle_sprite(node_name: String, actor_id: String, pivot: Vector2, h
     return sprite
 
 func _t5_is_approaching() -> bool:
-    return is_instance_valid(t5_talk_button) and t2_flow.mode == Flow.EXPLORE and t2_flow.event_id.is_empty() and not t2_flow.completed.get(EVENT_ID, false)
+    return not street_active and is_instance_valid(t5_talk_button) and t2_flow.mode == Flow.EXPLORE and t2_flow.event_id.is_empty() and not t2_flow.completed.get(EVENT_ID, false)
 
 func _t5_within_talk_range() -> bool:
     return t2_lily.position.distance_to(T5_MEETING_POINT) <= T5_TALK_DISTANCE
@@ -730,3 +758,124 @@ func _t2_movie_demo() -> void:
 func _t2_frames(n: int) -> void:
     for i in n:
         await get_tree().process_frame
+
+# Freeze the gameplay camera throughout the borrowed camera's round trip, including follow lag.
+func _place_cam(snap: bool, delta: float = 0.0) -> void:
+    if street_camera_hold and player != null and player.global_position != street_hold_position:
+        street_camera_hold = false
+    if not street_active and not street_camera_hold:
+        super._place_cam(snap, delta)
+
+func _street_setup() -> void:
+    street_npc = level.find_child("drunk", true, false) as Sprite3D
+    if street_npc == null:
+        push_error("SA2_STREET: existing Backtown customer missing")
+        return
+    street_camera = Camera3D.new()
+    add_child(street_camera)
+    street_button = Button.new()
+    street_button.text = "話す"
+    street_button.add_theme_font_override("font", t2_dialogue.dialogue_font)
+    street_button.add_theme_font_size_override("font_size", 24)
+    street_button.custom_minimum_size = Vector2(220, 66)
+    street_button.focus_mode = Control.FOCUS_NONE
+    street_button.hide()
+    street_button.pressed.connect(_street_open)
+    t2_layer.add_child(street_button)
+    street_marker = Label3D.new()
+    street_marker.text = "住人"
+    street_marker.font = t2_dialogue.dialogue_font
+    street_marker.font_size = 32
+    street_marker.outline_size = 8
+    street_marker.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+    street_npc.add_child(street_marker)
+    street_marker.position = Vector3(0, 1.2, 0)
+
+func _street_available() -> bool:
+    if not is_instance_valid(street_npc) or not is_instance_valid(t2_dialogue) or player == null:
+        return false
+    if street_active or t5_transitioning or t2_active or t2_dialogue.active or t2_flow.mode != Flow.EXPLORE or battle.cine or town_floor_busy or town != "back" or (player == t2_rana and t2_rana.locked):
+        return false
+    if player == t2_lily and (not is_instance_valid(t2_manual) or t2_manual.locked or t2_manual.dodge_left > 0.0):
+        return false
+    # The existing customer stands behind the belt; the nearest playable edge is 1.85m away.
+    var offset: Vector3 = player.global_position - street_npc.global_position
+    return absf(offset.x) <= 1.25 and absf(offset.z) <= 2.5 and player.state == "move"
+
+func _street_open() -> void:
+    if not _street_available():
+        return
+    var entry: Dictionary = DB.new().load_event("street-customer-prototype")
+    if entry.is_empty():
+        push_error("SA2_STREET: prototype dialogue cannot load")
+        return
+    var controller = t2_manual if player == t2_lily else player
+    street_snapshot = {
+        "position": player.global_position, "face": player.face,
+        "controller": controller, "locked": controller.locked,
+        "ui_enabled": ui.pad.is_processing_input(), "cine": battle.cine,
+        "label_visible": t2_label.visible, "marker_visible": t5_meeting_marker.visible,
+        "lily_physics": t2_lily.is_physics_processing(),
+        "manual_physics": is_instance_valid(t2_manual) and t2_manual.is_physics_processing()
+    }
+    street_active = true
+    street_returning = false
+    controller.locked = true
+    controller.move_in = Vector2.ZERO
+    if controller == t2_manual:
+        controller.attack_queued = false
+        controller.set_physics_process(false)
+    t2_lily.set_physics_process(false)
+    if player == t2_rana:
+        player.attack_release()
+    t2_finger = -1
+    ui.set_controls_enabled(false)
+    battle.cine = true
+    street_button.hide()
+    t5_talk_button.hide()
+    t2_label.hide()
+    t5_meeting_marker.hide()
+    street_marker.hide()
+    street_camera.projection = cam.projection
+    street_camera.fov = cam.fov
+    street_camera.size = cam.size
+    street_camera.near = cam.near
+    street_camera.far = cam.far
+    street_camera.global_transform = cam.global_transform
+    street_camera.make_current()
+    # Keep the accepted projection and street art; move only slightly closer to frame both actors.
+    var midpoint: Vector3 = (player.global_position + street_npc.global_position - Vector3.UP * 0.845) * 0.5
+    var destination := cam.global_transform
+    destination.origin = Vector3(midpoint.x, cam.global_position.y, cam.global_position.z - 1.2)
+    var tween := create_tween().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+    tween.tween_property(street_camera, "global_transform", destination, 0.35)
+    await tween.finished
+    if not t2_dialogue.start(entry):
+        _street_close()
+
+func _street_close() -> void:
+    if not street_active or street_returning:
+        return
+    street_returning = true
+    var tween := create_tween().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+    tween.tween_property(street_camera, "global_transform", cam.global_transform, 0.35)
+    await tween.finished
+    player.global_position = street_snapshot.position
+    player.face = street_snapshot.face
+    var controller = street_snapshot.controller
+    controller.move_in = Vector2.ZERO
+    controller.locked = street_snapshot.locked
+    if is_instance_valid(t2_manual):
+        t2_manual.set_physics_process(street_snapshot.manual_physics)
+    t2_lily.set_physics_process(street_snapshot.lily_physics)
+    battle.cine = street_snapshot.cine
+    t2_label.visible = street_snapshot.label_visible
+    t5_meeting_marker.visible = street_snapshot.marker_visible
+    street_marker.show()
+    ui.set_controls_enabled(street_snapshot.ui_enabled)
+    cam.make_current()
+    street_hold_position = player.global_position
+    street_camera_hold = true
+    street_active = false
+    street_returning = false
+    street_snapshot.clear()

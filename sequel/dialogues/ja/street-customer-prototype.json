@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "id": "street-customer-prototype",
+  "status": "prototype_noncanonical",
+  "lines": [
+    {
+      "line_id": "street-prototype-001",
+      "speaker_id": "customer",
+      "speaker": "住人",
+      "text": "何か用か？",
+      "portrait_id": ""
+    },
+    {
+      "line_id": "street-prototype-002",
+      "speaker_id": "customer",
+      "speaker": "住人",
+      "text": "それじゃあ、またな。",
+      "portrait_id": ""
+    }
+  ]
+}
