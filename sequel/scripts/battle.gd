@@ -2,6 +2,9 @@ extends Node3D
 ## 戦闘のまとめ役：敵の群れの出現、当たりの判定、ヒットストップ（止め）、画面の揺れ、ラナの体力。
 ## 敵は小さな群れで左右から来る。倒しきると少しして次の群れ（だんだん増える）。
 
+const CombatAudio := preload("res://scripts/combat_audio.gd")
+var combat_audio: Node
+
 const Enemy := preload("res://scripts/enemy.gd")
 const HPBAR := preload("res://scripts/hpbar.gdshader")
 
@@ -61,6 +64,8 @@ var RIM_MODE: String = OS.get_environment("RIM_MODE") if OS.has_environment("RIM
 const BODY_DIM := 0.8   # 2026-11-06：縁取りを柔らかくしたので少し明るく（前 0.7）。   # キャラの体の明るさ（夜。縁取りは暗くしない）
 
 func _ready() -> void:
+	combat_audio = CombatAudio.new()
+	add_child(combat_audio)
 	var d = JSON.parse_string(FileAccess.get_file_as_string("res://assets/foe/foe.json"))
 	foe_clips = d
 	shadow_mat = StandardMaterial3D.new()
@@ -304,6 +309,12 @@ func _attack_from(p: Node3D, spec: Dictionary, mul: float) -> int:
 				fx.zap(hp_pos, 6 if spec.strong else 4, 0.9 if spec.strong else 0.6)
 			fx.number(e.position + Vector3(0, e.height() + 0.5, 0), int(round(d)), "strong" if spec.strong else "")
 			hits += 1
+	# One cue per resolved strike, regardless of how many enemies were hit.
+	if combat_audio != null:
+		if p == player and p != manual_ally and spec.has("slash"):
+			combat_audio.play_cue("swing")
+		if hits > 0:
+			combat_audio.play_cue("heavy" if spec.strong or p == ally or p == manual_ally else "hit")
 	if spec.has("slash"):
 		fx.slash(p.position, dir, spec.slash)
 		if fx2d and fx2d.enabled and not fx.legacy and p == player:   # 振りの弧に REEBO の三日月を重ねる（光る縁）
@@ -396,6 +407,8 @@ func hit_count_in_skill(p: Node3D) -> int:
 
 # Successful defense: cancel exactly one strike, leaving a manual counter opportunity.
 func just_guard(p: Node3D, e) -> void:
+	if combat_audio != null:
+		combat_audio.play_cue("guard")
 	if e.atk.get("warn") != null:
 		fx.drop(e.atk.warn)
 		e.atk.warn = null
