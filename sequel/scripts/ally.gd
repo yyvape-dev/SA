@@ -560,19 +560,12 @@ func _skill_hit(spec: Dictionary) -> void:
 		"ult_end":   # 天雷：狙った敵へ巨大な雷の柱
 			hs.only = target if _alive(target) else null
 			var g2: Vector3 = (target.position if _alive(target) else position + Vector3(face * 1.0, 0, 0)) + Vector3(0, 0, 0.1)
-			fx.sky_bolt(g2, 0.0, true)
-			fx.sky_bolt(g2 + Vector3(0.25, 0, 0), 0.05, true)
-			fx.pillar(g2, 7.0)
-			fx.floor_bolts(g2, 16, 3.6)
-			fx.storm_ring(g2, 3.6)
-			fx.shockwave(g2 + Vector3(0, 1.0, 0), 2.2, 0.6, 0.9)
-			world.chroma_hit(1.0)
+			# The damage is locked to one target: avoid the storm's broad radial language here.
+			fx.focused_strike(g2)
+			world.chroma_hit(0.55)
 			if world.fx2d and not fx.legacy:
-				world.fx2d.big(g2 + Vector3(0, 1.2, 0), world.fx2d.SILVER, fx, g2)
-			fx.dust(g2, 2.4)
+				world.fx2d.target_hit(g2 + Vector3(0, 1.15, 0))
 			world.shake = maxf(world.shake, 24.0)
-			if world.main and world.main.lily_cutin:
-				world.main.lily_cutin.flash_white()
 	var nh: int = world.ally_attack(self, hs)
 	if OS.has_environment("LSKILL_LOG"):
 		print("  hit ", spec.get("fx", ""), " dmg ", hs.dmg, " 当たった ", nh)

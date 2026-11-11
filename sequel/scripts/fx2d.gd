@@ -305,10 +305,19 @@ func _pal(strong: bool, pal: String) -> String:
 ## 当たり：芯の閃光（侵食で消える）＋飛ぶ向きに伸びる火花。輪は強い当たりだけ（広がるほど細く＝侵食で外から食う）
 func hit(wp: Vector3, dir: int, strong: bool, pal: String = "blue") -> void:
 	var b := _pal(strong, pal)
-	sprite("light_01", wp, 1.2 if strong else 0.9, 0.18, b, {"raw": CORE_RAW, "erode_from": 0.4, "cool": 0.5}, 0.0, false, 1.4)
-	burst(["spark_05", "trace_01"], wp, 14 if strong else 8, b, Vector2(4.0, 9.0), 0.35, Vector2(0.18, 0.4), 14.0, 0.0, true, 0.0, 0.5, 2.2)
+	# Local sharp contact, then a colored directional tail. Broad particle halos stack into white discs in crowds.
+	sprite("light_01", wp, 0.50 if strong else 0.38, 0.11 if strong else 0.08, b, {"raw": CORE_RAW, "erode_from": 0.2, "cool": 0.65}, 0.0, false, 1.1)
+	sprite("trace_01", wp, 0.85 if strong else 0.65, 0.20, b, {"raw": 1.2, "alpha": 0.55, "erode_from": 0.3, "cool": 0.65}, 90.0 * dir, false, 1.3)
+	burst(["spark_05", "trace_01"], wp, 14 if strong else 8, b, Vector2(4.0, 9.0), 0.28, Vector2(0.10, 0.23), 14.0, 0.0, true, 0.0, 0.5, 2.2, false)
 	if strong:
 		sprite("circle_03", wp, 0.7, 0.32, b, {"raw": 1.6, "erode_from": 0.0, "erode_soft": 0.1, "noise_amt": 0.3, "cool": 0.6}, 0.0, false, 3.2)
+
+## Single-target finisher: a vertical silver needle plus local contact, without an area-sized flare.
+func target_hit(wp: Vector3) -> void:
+	sprite("trace_01", wp, 1.15, 0.20, "silver", {"raw": 1.6, "alpha": 0.85, "erode_from": 0.2, "cool": 0.6})
+	sprite("light_01", wp, 0.55, 0.11, "silver", {"raw": 1.8, "erode_from": 0.15, "cool": 0.65}, 0.0, false, 1.1)
+	sprite("circle_03", wp, 0.6, 0.32, "silver", {"raw": 1.3, "erode_from": 0.0, "cool": 0.6}, 0.0, false, 1.6)
+	burst(["spark_05", "trace_01"], wp, 12, "silver", Vector2(3.0, 7.0), 0.32, Vector2(0.10, 0.22), 14.0, 0.0, true, 0.0, 0.5, 2.0, false)
 
 ## Defense contact: compact gold ring and sparks, distinct from offensive blue/silver.
 ## 0-45ms ignition, 45-100ms peak, 100-280ms erosion/decay. No full-screen flash.

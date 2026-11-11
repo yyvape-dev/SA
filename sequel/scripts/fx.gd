@@ -738,6 +738,17 @@ func sky_bolt(g: Vector3, delay: float = 0.0, big: bool = false) -> void:
 		var a := randf() * TAU
 		_spark(g + Vector3(0, 0.1, 0), Vector3(cos(a) * randf_range(2, 6), randf_range(2.0, 6.0), sin(a) * randf_range(1, 3)), randf_range(0.25, 0.45), 0.026, SILVER[0] if i % 2 else SILVER[2], delay)
 
+## 天雷の単体着弾：細い芯・青紫の尾・標的の足元だけの印。雷陣の範囲輪とは区別する。
+func focused_strike(g: Vector3) -> void:
+	var path := [g + Vector3(-0.12, 7.0, 0.1), g + Vector3(0.18, 3.5, 0.1), g + Vector3(0, 0.05, 0.1)]
+	bolt(path, 0.09, BOLT_BLUE, 0.30, 0.0, 0.22, false, 1)
+	bolt(path, 0.032, SILVER[0], 0.16, 0.0, 0.10, false, 1)
+	bolt([g + Vector3(0.3, 5.5, 0.1), g + Vector3(0, 0.05, 0.1)], 0.025, BOLT_VIOLET, 0.24, 0.035, 0.18, false, 1)
+	tex_quad("circle_03", g + Vector3(0, 0.035, 0), 0.34, {"floor": true, "add": true, "col": BOLT_BLUE, "raw": 1.2, "size": 1.1, "grow": 1.2, "erode_from": 0.15})
+	for i in 10:
+		var angle := randf() * TAU
+		_spark(g + Vector3(0, 0.3, 0), Vector3(cos(angle) * 1.6, randf_range(2.0, 4.5), sin(angle) * 0.8), 0.28, 0.02, SILVER[1] if i % 2 else BOLT_VIOLET, 0.0)
+
 ## 雷陣の締め：蒼い輪が外へ弾けて、白銀の粒が外へ飛ぶ（金の渦の締めの蒼い版）
 func storm_ring(p: Vector3, r: float) -> void:
 	for k in 2:   # 太さの違う2重の輪（均一にしない）
