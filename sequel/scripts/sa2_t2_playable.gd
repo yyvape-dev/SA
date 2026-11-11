@@ -427,6 +427,10 @@ func _process(delta: float) -> void:
         t5_lily_idle.frame = frame
     if _t5_is_approaching():
         t5_talk_button.visible = _t5_within_talk_range()
+        var attack: Array = ui.pad._btns().atk
+        t5_talk_button.size = Vector2.ONE * attack[1] * 2
+        t5_talk_button.position = attack[0] - t5_talk_button.size * 0.5
+        t5_talk_button.queue_redraw()
     if t5_training_preview and is_instance_valid(t2_result_button) and t2_result_button.visible:
         _t6_layout_result()
     if t5_training_preview and is_instance_valid(t2_label):
@@ -589,12 +593,11 @@ func _t5_begin_exploration() -> void:
     t5_meeting_marker.billboard = BaseMaterial3D.BILLBOARD_ENABLED
     add_child(t5_meeting_marker)
 
-    t5_talk_button = Button.new()
-    t5_talk_button.text = "話す  [Enter]"
-    t5_talk_button.add_theme_font_override("font", font)
-    t5_talk_button.add_theme_font_size_override("font_size", 24)
-    t5_talk_button.custom_minimum_size = Vector2(194, 66)
-    t5_talk_button.position = Vector2(1044, 602)
+    t5_talk_button = StreetTalkButton.new()
+    t5_talk_button.touch_ui = ui
+    ui.attack_context_font = font
+    for state in ["normal", "hover", "pressed", "focus"]:
+        t5_talk_button.add_theme_stylebox_override(state, StyleBoxEmpty.new())
     t5_talk_button.focus_mode = Control.FOCUS_NONE
     t5_talk_button.hide()
     t5_talk_button.pressed.connect(_t5_open_briefing)

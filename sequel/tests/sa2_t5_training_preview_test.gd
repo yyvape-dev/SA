@@ -41,6 +41,10 @@ func _run() -> void:
         return
     for frame in 16:
         await process_frame
+    var attack: Array = game.ui.pad._btns().atk
+    if game.t5_talk_button.get_global_rect().get_center() != attack[0] or game.t5_talk_button.size != Vector2.ONE * attack[1] * 2:
+        _fail("instructor Talk uses the shared attack position and diameter")
+        return
     var approach_position: Vector3 = game.t2_lily.position
     _key(KEY_ENTER, true)
     _key(KEY_ENTER, false)
