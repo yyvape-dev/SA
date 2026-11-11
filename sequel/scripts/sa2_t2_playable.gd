@@ -229,6 +229,12 @@ func _t2_open_dialogue(event_id: String, index: int = 0) -> void:
     t2_label.text = "演習前の会話"
 
 func _t2_on_line_changed(index: int, _line_id: String) -> void:
+    if t5_training_preview and is_instance_valid(t2_dialogue) and index < t2_dialogue.lines.size():
+        var id: String = str(t2_dialogue.lines[index].get("speaker_id", ""))
+        if is_instance_valid(t5_rana_idle):
+            t5_rana_idle.modulate = Color.WHITE if id == "rana" else Color(0.65, 0.65, 0.7)
+        if is_instance_valid(t5_lily_idle):
+            t5_lily_idle.modulate = Color.WHITE if id == "lily" else Color(0.65, 0.65, 0.7)
     if t2_flow.mode == Flow.DIALOGUE:
         t2_flow.set_dialogue_line_index(index)
         _t2_save()
@@ -519,13 +525,6 @@ func _t5_begin_exploration() -> void:
     t2_label.position.y = 112
     t2_label.add_theme_color_override("font_outline_color", Color(0.05, 0.04, 0.08))
     t2_label.add_theme_constant_override("outline_size", 6)
-    var panel := t2_dialogue.get_node("Panel") as PanelContainer
-    var style := StyleBoxFlat.new()
-    style.bg_color = Color(0.05, 0.04, 0.08, 0.88)
-    style.border_color = Color(0.64, 0.49, 0.28, 0.8)
-    style.border_width_top = 2
-    style.set_corner_radius_all(8)
-    panel.add_theme_stylebox_override("panel", style)
     t2_label.text = "公開演習  ›  教官のいる受付へ"
     t2_manual.locked = false
     t2_manual.set_process_unhandled_key_input(false)
