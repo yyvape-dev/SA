@@ -1,3 +1,7 @@
+## 2026-11-12 SA2 ラナ・リリィの大技の締めを焼いた連番に（ブランチ feat/sa2-ranka-20261112）
+- ラナ必殺・リリィ必殺・雷陣の締めを、ランカと同じ焼きの型（溜め→炸裂→散り→暗い土煙）で色と散る物だけ変えた。詳細は `sequel/docs/sa2_ranka_handoff_20261112.md`。
+- 確認：https://yyvape-dev.github.io/SA/previews/sa2-ranka/?mode=rana ／ ?mode=lily
+
 # 03 引き継ぎの追記（2026-10-31 10:30 以降）
 
 ## 2026-11-12（Claude）続編：ランカの導入

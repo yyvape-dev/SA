@@ -67,7 +67,8 @@
 - 当たり：ラナ＝flare（色の帯 ranka）、リリィ＝plasma（新しい色の帯 lily：白銀→蒼→紫）、強い当たりは burst。ランカは自分で出すので除外。
 - 地走り＝rift の床の板（コードの線はやめた）、金の渦＝vortex 2 枚を逆回転（Kenney の渦巻きから差し替え）・締めに ring と burst、落雷（sky_bolt・pillar）＝bolt_v、迅雷の通り道＝床の bolt_h。
 - 比較：`docs/sa2_ranka_img/rana_lily_before_after.jpg`（各段の上＝前、下＝今。CAPTURE_FX の skill・lilyskill）。
-- 未着手（ユーザーの判定待ち）：ラナの必殺技の締め・リリィの必殺技の締め・雷陣の締めを焼いた連番にするか（ランカと同じ型か、手本を先にもらうか）。
+- 済（2026-11-12、ユーザー決定「A」＝ランカと同じ型で色と散る物だけ変える）：ラナの必殺技（金＋青・十字の斬り筋）・リリィの必殺技（雷の柱＋プラズマの芯）・雷陣（床を走る雷 7 本）の締めを焼いた連番に。`tools/bake_ranka_finale.gd` の CONF（rana_ult／lily_ult／lily_storm）→ `pack_ranka_finale.py` → `assets/vfx/seq/`（目録 `seq.json`、fx1 に入る）。ゲームでは `fx.seq(名前, 位置, 倍率)`：ラナ 0.6（player.gd、ULT_FINAL の 0.25 秒前）、リリィ必殺 0.55・雷陣 0.9（ally.gd の `_skill_hit`、fx=="seq"）。倍率は画面の白（輝度>235）の割合で決めた：ラナ 1.1 では 19%・キャラが隠れた → 0.6 で 12%（1コマだけ）。焼いた連番が無いときだけ前のコードの見た目に戻る。
+- テストは `--fixed-fps 60` を付けて回す（付けないと sa2_t6_vfx_quality と sa2_t7_ranka が時間のずれで落ちる）。
 
 ## 確認（事実）
 - Godot 4.7.2 で既存の全テスト（21本）＋新しい `tests/sa2_t7_ranka_test.gd` が通過（`sa2_world_failure_test` は出力に "FAILURE" の語を含むが結果は PASS）。
