@@ -613,9 +613,13 @@ func _place_cam(snap: bool, delta: float = 0.0) -> void:
 	if z > 0.0:   # 必殺技：ラナへ寄る（なめらかに）
 		var zz := z * z * (3.0 - 2.0 * z)
 		var fo: Node3D = battle.cam_focus if battle.cam_focus else player   # リリィの必殺技ではリリィへ寄る
-		var near := Vector3(fo.position.x + fo.face * 0.6, 0, fo.position.z) + ULT_OFS
+		# 2026-11-12：キャラごとの顔の位置へ寄る（背の高さ・向きの違いで顔が切れていた）。顔を画面のやや上に
+		var fp: Vector3 = fo.zoom_face() if fo.has_method("zoom_face") else fo.position + Vector3(0, 1.6, 0)
+		var look := Vector3(fp.x, fp.y - 0.22, fp.z)
+		var near := look + Vector3(0, 0.22, ULT_OFS.z)
 		cam.position = want.lerp(near, zz)
-		cam.look_at(Vector3(cam.position.x, 0, fo.position.z * zz) + play_look.lerp(ULT_LOOK, zz), Vector3.UP)
+		var far_look := Vector3(cam.position.x, 0, 0) + play_look
+		cam.look_at(far_look.lerp(look, zz), Vector3.UP)
 	else:
 		cam.position = want if snap else cam.position.lerp(want, minf(1.0, delta * 5.0))
 		cam.look_at(Vector3(cam.position.x, 0, 0) + play_look, Vector3.UP)

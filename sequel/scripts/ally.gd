@@ -110,6 +110,10 @@ func set_height(h: float) -> void:
 	px = h / float(data.body_px)
 	_show(clip, 0)
 
+## 必殺技の寄りで画面の中心に置く点（顔。main._place_cam）
+func zoom_face() -> Vector3:
+	return position + Vector3(face * 0.15, height_m * 0.91, 0)
+
 ## 敵の攻撃が当たった（enemy.gd から）
 func can_be_hit() -> bool:
 	return inv <= 0.0 and data.clips.has("hit") and state != "skill" and state != "ult"
@@ -644,7 +648,7 @@ func _ult_process(delta: float) -> void:
 		world.cam_zoom = minf(1.0, ult_t / ULT_CUT.zoom)
 		if ult_t - delta < ULT_CUT.cut_start and ult_t >= ULT_CUT.cut_start and world.main and world.main.lily_cutin:
 			world.main.lily_cutin.play()
-		_show("atk_jabkick", 13)   # 構え
+		_show("atk_heeldrop", 8)   # 構え（膝を上げる。2026-11-12：立ち姿のままにしない）
 		return
 	if not ult_jumped:   # 狙った敵の横へ瞬間移動（元の場所と着いた所に蒼い光）
 		ult_jumped = true

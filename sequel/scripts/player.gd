@@ -248,6 +248,10 @@ const ULT_HITS := [1.42, 1.52, 1.62, 1.72, 1.82, 1.92, 2.02]
 const ULT_FINAL := 2.18
 var ult_pt := Vector3.ZERO
 
+## 必殺技の寄りで画面の中心に置く点（顔。main._place_cam）
+func zoom_face() -> Vector3:
+	return position + Vector3(face * 0.15, HEIGHT_M * 0.92, 0)
+
 ## 必殺技の締めの炸裂の位置：前 4.5m 以内のいちばん近い敵の胸、いなければ剣先
 func _ult_point() -> Vector3:
 	var best: Node3D = null
@@ -298,7 +302,7 @@ func _ult_process(delta: float) -> void:
 		world.cam_zoom = minf(1.0, ult_t / zt)
 		if ult_t - delta < ULT_T.cut_start and ult_t >= ULT_T.cut_start and world.main and world.main.cutin:
 			world.main.cutin.play()   # 寄りきってから立ち絵が差し込む
-		_show_frame("idle", 0)
+		_show_frame("flurry", 24)   # 2026-11-12：寄りの間は構え（剣を立てる）。立ち姿のままにしない
 		return
 	world.cine = false
 	world.cam_zoom = maxf(0.0, 1.0 - (ult_t - ULT_T.cut_end) / 0.35)
@@ -436,7 +440,7 @@ func _physics_process(delta: float) -> void:
 		mv = Vector2.ZERO
 	flash = maxf(0.0, flash - delta)
 	_update_ghosts(delta)
-	var blink := inv > 0.0 and state != "down" and int(Time.get_ticks_msec() / 42) % 2 == 0
+	var blink := inv > 0.0 and state != "down" and state != "ult" and int(Time.get_ticks_msec() / 42) % 2 == 0
 	mat.set_shader_parameter("flash", Color(1.0, 0.25, 0.2, 0.7 if flash > 0.0 else 0.0))
 	for id in skill_cd:   # 待ちは止め（ヒットストップ）中も進める
 		if float(skill_cd[id]) > 0.0:
