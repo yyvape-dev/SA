@@ -90,3 +90,29 @@
 - 2026-11-12 追記（ユーザー指摘）：大技の締めは自分中心でなく当たる所に出す。ラナ＝前 4.5m 以内のいちばん近い敵の胸、いなければ剣先（player.gd `_ult_point`）。リリィの雷陣・必殺技＝かかとの落ちる所（lily_skills.gd の seq に `ofs`＝[前へ m, 高さ m]・`s`＝倍率）。雷連打（スキル2）の1発ごとに気の帯・閃光・稲妻、2発に1回残像、4発に1回床の輪、蹴り上げで雷の柱＋爆ぜ＋小さな焼いた連番（lily_ult 0.32）。ally.gd `_rush_fx`。
 - 2026-11-12 追記（ユーザー指摘）：ラナの必殺技中の点滅を止めた（無敵 inv の点滅を state=="ult" で出さない）。必殺技の寄りはキャラごとの顔へ（`zoom_face()`：player＝HEIGHT_M×0.92、仲間＝height_m×0.91、前へ 0.15m。main._place_cam で顔を画面のやや上に）。寄りの間の絵は構え：ラナ flurry 24（剣を立てる）、リリィ atk_heeldrop 8（膝を上げる）、ランカ skill_ring 12（変更なし）。
 - 2026-11-12 追記（ユーザー選択）：寄りの絵はラナ flurry 21（剣を振る前、候補 4B）、リリィ atk_jabkick 12（拳を前に、候補 2B）。寄りの深さは「中」（main.gd `ult_dist` 3.8・`ult_drop` 0.3。3人共通。2.7 では絵の粗さが目立った）。専用の一枚絵の発注は没（良い絵が出なかった）。寄りの間は `fx.gather`（外から集まる細い光の筋＋胸の芯＋閉じる床の輪。ラナ金・リリィ青）。
+
+## 3人同時の本編の試し版（2026-11-12、iPhone 確認用）
+### 何を書き出したか
+- 元：このブランチ `ab9da07` の本編 `main.tscn`（起動シーンは元から main.tscn。project.godot は差し替えていない）。
+- `WEB_OUT=../previews/sa2-3p python3 -I sequel/tools/export_web.py`（Godot 4.7.2、web_nothreads）。版 `20261112130637-ab9da07-g4.7.2`。
+- main に `previews/sa2-3p/` だけを push（main `6e2457b`）。本編 `sequel/web/` と main の起動シーンは触っていない。書き出しで書き換わる `build_ver.json`・`districts/*_ver.json`・`export_presets.cfg` は戻した（コミットしていない）。
+- URL：https://yyvape-dev.github.io/SA/previews/sa2-3p/ ／ 街の門の前から：https://yyvape-dev.github.io/SA/previews/sa2-3p/?at=gate （`&diag=1` で版と読み込みの状態、`&ranka=0` で2人に戻る）
+
+### 確認した事実
+- pck：本体 index.pck 67.6MB、地区 gh1 8.8・bt1 27.0・d1 17.5・dg1 10.3・fx1 10.3・al1 20.5・**al2 32.0MB**。export_web.py の検査で「足りない物なし」「どの pck にも無い絵なし」。
+- 新しい素材フォルダ：`assets/vfx/shared`（13枚）・`assets/vfx/seq`（3枚）は **fx1** に全部、`assets/vfx/ranka`（3枚）は **al2** に全部入っている（前回の白い四角の原因＝どの pck にも入らない、は起きていない）。目録の json（seq.json・vfx_shared.json・ranka.json）は本体。
+- 本体が 2人版 `sequel/web`（40.0MB）より +27MB。内訳の約 **13MB は `docs/sa2_ranka_img/*.jpg`（資料の比較画像）**が Godot に取り込まれて本体に入ったもの（ゲームでは使わない。ダウンロードが増えるだけで、読まないので GPU メモリには乗らない）。残りは会話の立ち絵（ranka_idle 5.4MB 等）。
+- 手元の gzip 配信（serve_gzip.py）＋chromium（swiftshader、844×390）、`?at=gate&diag=1`：起動 → fx1 約9〜12秒・al1 約12〜14秒・**ranka_loaded 約27〜30秒** → 門で難易度メニュー → タップ（マウスの擬似タッチ）でノーマル → dg1 読み込み → ダンジョン（タイマー・小地図）に3人が出て戦う所まで。ページのエラーなし。
+- 起動時のメモリの目安（chromium のプロセスの RSS、swiftshader なので GPU も CPU 側のメモリ。iPhone の値そのものではない）：
+  - 3人：読み込み後 renderer 約810〜850MB＋gpu 約870〜890MB、ダンジョンで gpu 約900〜960MB。
+  - 2人（`?ranka=0`）：読み込み後 renderer 約710MB＋gpu 約750MB、ダンジョンで gpu 約780MB。
+  - 差は **約 +100〜140MB（renderer）・+120〜170MB（gpu）**。絵の展開後の大きさの計算（RGBA）でも al2 のランカ 107MB＋vfx/ranka 45MB ≒ 150MB と合う。
+- PC のキーボード：3人の版では難易度メニューで **Enter が効かなかった（2回中2回）**。`?ranka=0` では Enter で入れた（1回中1回）。タップでは3人でも入れる。原因は未調査（回数が少なく、偶然の可能性もある）。
+
+### 未確認
+- **iPhone 実機**（起動できるか・落ちないか・白い四角が出ないか）と、Pages の URL そのもの（この作業環境から github.io を開けない。Pages の反映 `pages build and deployment` は success）。
+- iPhone Safari の起動クラッシュ（T6 から原因未特定、仮説：メモリ）に対して、3人で +150MB 前後が効くかどうか。落ちたら `?ranka=0` で2人なら起動するかを比べると切り分けられる。
+- Enter が効かない件の原因（ランカの手動操作の入力処理などを疑うが未確認）。
+
+### 次の候補（提案、未実施）
+- 本体の除外に `docs/*` を足す（`export_web.py` の `MAIN_EXCLUDE`）か `sequel/docs/.gdignore` を置くと、本体 pck が約13MB減る。
