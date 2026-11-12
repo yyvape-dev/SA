@@ -322,6 +322,12 @@ func _attack_from(p: Node3D, spec: Dictionary, mul: float) -> int:
 			if fx2d and fx2d.enabled and not fx.legacy:   # 当たり：REEBO の火花＋Kenney の細い火花（2D の層で光る）
 				if hits < 4:
 					fx2d.hit(hp_pos, edir, spec.strong, str(p.get("hit_pal")) if p.get("hit_pal") != null else ("silver" if p == ally else "blue"))
+					if p != ranka and (p == player or p == ally or p == manual_ally):   # 2026-11-12：当たりの閃光（白黒の素材。ランカは自分で出す）
+						var lily: bool = p == ally or str(p.get("actor_id")) == "lily"
+						fx.sx("plasma" if lily else "flare", hp_pos + Vector3(0, 0, 0.22), 0.2 if not spec.strong else 0.28,
+							{"band": "lily" if lily else "ranka", "size": (0.9 if not spec.strong else 1.4) * (1.0 if hits < 2 else 0.7), "raw": 1.3, "grow": 1.3, "spin": randf_range(-3.0, 3.0), "erode_from": 0.1})
+						if spec.strong and hits == 0:
+							fx.sx("burst", hp_pos + Vector3(0, 0, 0.18), 0.35, {"band": "lily" if lily else "ranka", "size": 2.0, "raw": 1.1, "grow": 1.3, "erode_from": 0.1})
 			else:
 				fx.hit(hp_pos, edir, spec.strong, hits < 4)
 			if spec.get("zap", false):   # 当たった所で稲妻が弾ける（リリィ）
@@ -411,8 +417,9 @@ func player_skill(spec: Dictionary, p: Node3D) -> void:
 			if int(spec.n) == 0:
 				fx.vortex(p, 3.2, 1.25)
 				# 床の渦：3D の板（キャラより先に描く＝足元・奥に見える）。Kenney の渦巻き 2 枚を逆に回す
-				fx.tex_quad("twirl_02", p.position, 1.3, {"floor": true, "add": true, "col": Color(1.0, 0.72, 0.28), "raw": 1.3, "size": 6.4, "grow": 0.55, "spin": -7.0, "follow": p})
-				fx.tex_quad("twirl_03", p.position, 1.2, {"floor": true, "add": true, "col": Color(1.0, 0.85, 0.5), "raw": 1.0, "size": 4.6, "grow": 0.6, "spin": 5.0, "follow": p})
+				# 2026-11-12：渦の素材（GPT、白黒）を2枚、逆に回しながら縮める（Kenney の渦巻きから差し替え）
+				fx.sx("vortex", p.position, 1.3, {"floor": true, "band": "gold", "raw": 1.6, "size": 7.0, "grow": 0.5, "spin": -6.0, "follow": p, "erode_from": 0.55})
+				fx.sx("vortex", p.position, 1.2, {"floor": true, "band": "gold", "raw": 1.2, "size": 4.8, "grow": 0.55, "spin": 4.5, "follow": p, "erode_from": 0.5})
 		"vortex_end":
 			fx.vortex_burst(p.position, 3.4)
 			if fx2d and not fx.legacy:

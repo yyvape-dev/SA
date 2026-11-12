@@ -93,6 +93,11 @@ func slash(origin: Vector3, face: int, spec: Dictionary) -> void:
 	mi.material_override.set_shader_parameter("noise", noise_tex)   # 流れる模様（2026-11-06）
 	mi.material_override.set_shader_parameter("n_amt", 0.0 if legacy else spec.get("noise", 1.0))
 	mi.material_override.set_shader_parameter("seed", randf() * 10.0)
+	# 2026-11-12：帯の中の模様を白黒の素材で（SA1 の斬撃の帯）。太い＝smash、細い＝blade、他＝ink。spec.tex で指定も
+	var bt := band_tex(String(spec.get("tex", "band_smash" if float(spec.w) >= 1.0 else ("band_blade" if float(spec.w) < 0.4 else "band_ink"))))
+	if bt:
+		mi.material_override.set_shader_parameter("band_tex", bt)
+		mi.material_override.set_shader_parameter("b_amt", 1.0)
 	mi.sorting_offset = 0.05
 	# 暗い下地：少し太く、少し外側まで
 	var dk := MeshInstance3D.new()
@@ -305,6 +310,12 @@ func _spark(p: Vector3, v: Vector3, life: float, w: float, c: Color, delay: floa
 	sparks.append({"p": p, "v": v, "t": -delay, "life": life, "w": w, "c": c})
 
 func _process(delta: float) -> void:
+	for i in range(_later_q.size() - 1, -1, -1):
+		_later_q[i][0] -= delta
+		if _later_q[i][0] <= 0.0:
+			var q: Array = _later_q[i]
+			_later_q.remove_at(i)
+			sx(q[1], q[2], q[3], q[4])
 	_update_tq(delta)
 	_update_waves(delta)
 	for i in range(items.size() - 1, -1, -1):
@@ -492,6 +503,10 @@ func ribbon(pts: Array, spec: Dictionary) -> void:
 	mi.material_override.set_shader_parameter("n_amt", spec.get("noise", 0.5))
 	mi.material_override.set_shader_parameter("seed", randf() * 10.0)
 	mi.material_override.set_shader_parameter("tail", spec.get("tail", 2.2))   # 尾を長く（余韻）
+	var bt := band_tex(String(spec.get("tex", "bolt_h" if pal == SILVER else "ki_band")))   # 2026-11-12：リリィ＝稲妻、他＝気の帯
+	if bt:
+		mi.material_override.set_shader_parameter("band_tex", bt)
+		mi.material_override.set_shader_parameter("b_amt", 1.0)
 	var dk := MeshInstance3D.new()
 	dk.mesh = _strip(pts, w * 1.9, 1.0)
 	dk.material_override = _dark(0, 0.55)
@@ -649,6 +664,8 @@ func pillar(g: Vector3, h: float) -> void:
 	m.set_shader_parameter("core_gain", 0.35)
 	_quad(g + Vector3(0, h * 0.45, 0.15), Vector2(0.9, h * 1.1), m, "flash", 0.26, 0.0)
 	_quad(g + Vector3(0, 0.3, 0.2), Vector2(2.6, 1.2), _mat(1, SILVER), "flash", 0.22, 0.02)
+	sx("bolt_v", g + Vector3(0, h * 0.5 - 0.15, 0.16), 0.38, {"band": "lily", "size": h * 1.1, "raw": 1.4, "erode_from": 0.2, "ang": 0.0, "grow": 1.04})
+	sx("ring", g, 0.45, {"floor": true, "band": "lily", "size": 3.2, "grow": 1.5, "raw": 1.6, "erode_from": 0.1, "spin": 1.5})
 
 ## 床を走る稲妻（かかと落としの着地）：中心から放射状に、床に寝かせた折れ線
 func floor_bolts(p: Vector3, n: int, r: float) -> void:
@@ -667,8 +684,13 @@ func rift(x0: float, x1: float, z: float, n: int) -> void:
 	var d := signf(x1 - x0)
 	var a := Vector3(x0, 0.03, z)
 	var b := Vector3(x1, 0.03, z)
-	bolt([a, a.lerp(b, 0.5), b], 0.07, GOLD[1], 0.55, 0.0, 0.25, true, 2)
-	bolt([a + Vector3(0, 0, 0.15), b + Vector3(0, 0, -0.1)], 0.04, Color8(79, 184, 255), 0.45, 0.03, 0.2, true, 1)
+	if band_tex("rift"):   # 2026-11-12：地割れは手描きの素材（線で描かない約束）。床に寝かせ、左＝割れ始めを x0 に
+		var len := absf(x1 - x0) * 1.15
+		sx("rift", a.lerp(b, 0.5), 0.75, {"floor": true, "band": "gold", "size": 3.2, "aspect": len / 3.2 * 0.55, "grow_x": 1.0 / 0.55, "grow": 1.05,
+			"raw": 2.6, "erode_from": 0.45, "prio": 0, "ang": 0.0 if d > 0 else PI, "spin": 0.0, "fade_in": 0.02})
+	else:
+		bolt([a, a.lerp(b, 0.5), b], 0.07, GOLD[1], 0.55, 0.0, 0.25, true, 2)
+		bolt([a + Vector3(0, 0, 0.15), b + Vector3(0, 0, -0.1)], 0.04, Color8(79, 184, 255), 0.45, 0.03, 0.2, true, 1)
 	for i in 9:
 		var q := a.lerp(b, randf())
 		_spark(q + Vector3(0, 0.05, randf_range(-0.3, 0.3)), Vector3(d * randf_range(-0.5, 1.5), randf_range(4.0, 8.0), randf_range(-0.4, 0.4)), randf_range(0.3, 0.55), 0.03, GOLD[2] if i % 2 else GOLD[1], 0.0)
@@ -720,6 +742,8 @@ func vortex_burst(p: Vector3, r: float) -> void:
 		_spark(p + Vector3(0, randf_range(0.3, 1.3), 0), Vector3(cos(a) * randf_range(6, 11), randf_range(0.5, 3.0), sin(a) * randf_range(3, 6)), randf_range(0.3, 0.55), 0.03, GOLD[1] if i % 2 else GOLD[2], 0.0)
 	_quad(p + Vector3(0, 0.9, 0.2), Vector2(2.6, 2.6), _mat(1, GOLD), "flash", 0.16, 0.0)
 	shockwave(p + Vector3(0, 0.8, 0), 1.5, 0.5, 0.75)
+	sx("ring", p, 0.5, {"floor": true, "band": "gold", "size": r * 1.6, "grow": 1.3, "raw": 1.7, "erode_from": 0.12, "spin": -2.0})
+	sx("burst", p + Vector3(0, 1.0, 0.2), 0.45, {"band": "gold", "size": 3.2, "raw": 1.5, "grow": 1.25, "erode_from": 0.1, "spin": 0.0})
 
 # ---------- リリィのスキル（2026-11-07） ----------
 ## 空から落ちる稲妻（雷陣・天雷）：上から足元へ太い稲妻＋落ちた所の光と床の稲妻と粒。big で太く高く
@@ -734,6 +758,8 @@ func sky_bolt(g: Vector3, delay: float = 0.0, big: bool = false) -> void:
 		m.set_shader_parameter("core_gain", 0.3)
 		_quad(g + Vector3(0, h * 0.4, 0.15), Vector2(1.0, h), m, "flash", 0.18, delay)
 	_quad(g + Vector3(0, 0.2, 0.2), Vector2(1.6 if not big else 3.6, 0.7 if not big else 1.6), _mat(1, SILVER), "flash", 0.16, delay)
+	var bh := 4.6 if not big else 7.0   # 落雷の絵（下端で地面に当たって枝が這う）
+	_later_quad(delay, "bolt_v", g + Vector3(0, bh * 0.47, 0.14), 0.3, {"band": "lily", "size": bh, "raw": 1.25, "erode_from": 0.15, "ang": 0.0, "fade_in": 0.02})
 	for i in (10 if not big else 22):
 		var a := randf() * TAU
 		_spark(g + Vector3(0, 0.1, 0), Vector3(cos(a) * randf_range(2, 6), randf_range(2.0, 6.0), sin(a) * randf_range(1, 3)), randf_range(0.25, 0.45), 0.026, SILVER[0] if i % 2 else SILVER[2], delay)
@@ -775,6 +801,7 @@ func dash_trail(a: Vector3, b: Vector3) -> void:
 	bolt([fa + Vector3(0, 0, 0.12), fb + Vector3(0, 0, -0.1)], 0.035, BOLT_VIOLET, 0.4, 0.03, 0.18, true, 1)
 	var y := Vector3(0, 1.0, 0.12)
 	ribbon([a + y, a.lerp(b, 0.5) + y + Vector3(0, 0.08, 0), b + y], {"w": 0.5, "life": 0.42, "bolts": 1})
+	sx("bolt_h", Vector3((a.x + b.x) * 0.5, 0.03, a.z), 0.5, {"floor": true, "band": "lily", "size": 1.4, "aspect": absf(b.x - a.x) * 1.1 / 1.4, "raw": 1.7, "erode_from": 0.25, "ang": 0.0 if b.x >= a.x else PI, "spin": 0.0})
 	dust(fa.lerp(fb, 0.2), 1.0)
 
 
@@ -788,6 +815,7 @@ const TQ_BANDS := {
 	"smoke": [[0.0, Color(1, 1, 1, 1)], [0.5, Color(0.8, 0.78, 0.85, 0.9)], [1.0, Color(0.5, 0.45, 0.55, 0)]],
 	# 2026-11-12 ランカ（青・白・朱色の花・金）
 	"ranka": [[0.0, Color(0.92, 0.97, 1, 1)], [0.22, Color(0.55, 0.78, 1.0, 1)], [0.55, Color(0.22, 0.45, 1.0, 0.95)], [1.0, Color(0.06, 0.1, 0.55, 0)]],
+	"lily": [[0.0, Color(1, 1, 1, 1)], [0.3, Color(0.86, 0.92, 1.0, 1)], [0.62, Color(0.36, 0.74, 1.0, 0.95)], [1.0, Color(0.32, 0.2, 0.75, 0)]],   # 白銀→蒼→紫（リリィ）
 	"vermilion": [[0.0, Color(1, 0.97, 0.94, 1)], [0.3, Color(1.0, 0.66, 0.52, 1)], [0.65, Color(0.93, 0.29, 0.16, 0.95)], [1.0, Color(0.45, 0.05, 0.05, 0)]],
 }
 var tq_band := {}
@@ -817,6 +845,28 @@ func ken(name: String) -> Texture2D:
 
 ## 板を出す。o：floor（床に寝かせる）・add（加算）・raw・col・size（m、始め）・grow（終わりの倍率）・rise（m/秒）・spin（ラジアン/秒）・
 ##   fade_in（秒）・prio（描く順。床は −2 でキャラより先＝足元・奥に見える）
+## キャラ共通の白黒の素材（2026-11-12、Skill game-vfx-juice 12.）。名前＝assets/vfx/shared/<名前>.png、横÷縦は ASPECT
+const SHARED := "res://assets/vfx/shared/"
+const ASPECT := {"pillar": 0.393, "ki_band": 3.923, "band_blade": 5.361, "band_ink": 3.938, "band_smash": 2.909, "flare": 1.166,
+	"rift": 2.212, "bolt_h": 2.674, "bolt_v": 0.664}
+func sx(name: String, pos: Vector3, life: float, o: Dictionary) -> MeshInstance3D:
+	if not o.has("aspect") and ASPECT.has(name):
+		o["aspect"] = ASPECT[name]
+	return tex_quad(SHARED + name + ".png", pos, life, o)
+
+## 帯（斬撃・リボン）の中の模様に使う素材（読み終えていなければ null）
+var _later_q := []
+func _later_quad(delay: float, name: String, pos: Vector3, life: float, o: Dictionary) -> void:
+	if delay <= 0.0:
+		sx(name, pos, life, o)
+	else:
+		_later_q.append([delay, name, pos, life, o])
+
+func band_tex(name: String) -> Texture2D:
+	if legacy or not assets_ok or name == "":
+		return null
+	return ken(SHARED + name + ".png")
+
 func tex_quad(name: String, pos: Vector3, life: float, o: Dictionary) -> MeshInstance3D:
 	if legacy or not assets_ok:
 		return null

@@ -60,6 +60,15 @@
 - ゲーム：`ranka_fx.seq(名前, 中心, 大きさ)`＝Sprite3D でめくるだけ（iPhone で確実）。星震は ev 34 で出し 38 で炸裂、天照は決めの 0.07 秒で出す。
 - 比較：`docs/sa2_ranka_img/quake_finale_before_after.jpg`（上＝前、下＝今）・`ult_finale.jpg`。
 
+## ラナ・リリィのブラッシュアップ（2026-11-12 14:38、同じ白黒の素材の方式）
+- 追加の素材（GPT）：rift（地割れ）・vortex（渦）・bolt_h（稲妻 横）・bolt_v（落雷）・plasma（放電の玉）。元 `art/vfx_src/shared/`。
+- キャラ共通の素材は `assets/vfx/shared/`（地区 pck **fx1**）に移した（ランカの al2 には花びらと焼いた連番だけ）。`fx.sx(名前, …)` で出す。
+- `fx_add.gdshader` の帯（mode 0）に `band_tex`・`b_amt`：斬撃・リボンの中の模様を素材で（先端＝素材の頭）。`fx.slash` は太さで band_smash／band_blade／band_ink、`fx.ribbon` はリリィ（SILVER）＝bolt_h、他＝ki_band。iPhone では未確認（既存のシェーダーにテクスチャを1枚足しただけ）。
+- 当たり：ラナ＝flare（色の帯 ranka）、リリィ＝plasma（新しい色の帯 lily：白銀→蒼→紫）、強い当たりは burst。ランカは自分で出すので除外。
+- 地走り＝rift の床の板（コードの線はやめた）、金の渦＝vortex 2 枚を逆回転（Kenney の渦巻きから差し替え）・締めに ring と burst、落雷（sky_bolt・pillar）＝bolt_v、迅雷の通り道＝床の bolt_h。
+- 比較：`docs/sa2_ranka_img/rana_lily_before_after.jpg`（各段の上＝前、下＝今。CAPTURE_FX の skill・lilyskill）。
+- 未着手（ユーザーの判定待ち）：ラナの必殺技の締め・リリィの必殺技の締め・雷陣の締めを焼いた連番にするか（ランカと同じ型か、手本を先にもらうか）。
+
 ## 確認（事実）
 - Godot 4.7.2 で既存の全テスト（21本）＋新しい `tests/sa2_t7_ranka_test.gd` が通過（`sa2_world_failure_test` は出力に "FAILURE" の語を含むが結果は PASS）。
 - 新テストの内容：入口・操作の担当・3枠・ゲージ2段、連撃の順 c1→c2→c3→掌底、単発の c1 から戻り→構え、3スキルとも敵に当たり待ちが入る、天照で画面の敵すべてに当たりゲージ 100 消費・演出の後に cine とカメラが戻る、リリィ同行で自動のリリィが戦う、会話の立ち絵の切り替え、経験値が増えない。

@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dw87ik5o76a0v"
-path="res://.godot/imported/band_smash.png-e646636ac07d171a2d0192c73cff3a8c.ctex"
+uid="uid://dxgoavqwt3aut"
+path="res://.godot/imported/rift.png-ed082050539565ea34548d14cae114ec.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/vfx/ranka/band_smash.png"
-dest_files=["res://.godot/imported/band_smash.png-e646636ac07d171a2d0192c73cff3a8c.ctex"]
+source_file="res://assets/vfx/shared/rift.png"
+dest_files=["res://.godot/imported/rift.png-ed082050539565ea34548d14cae114ec.ctex"]
 
 [params]
 

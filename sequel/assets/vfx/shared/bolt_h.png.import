@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://baqyobxb00oa4"
-path="res://.godot/imported/ki_band.png-9ca8bf49610aa561c29ed9775145a400.ctex"
+uid="uid://c7bmid88sy4u6"
+path="res://.godot/imported/bolt_h.png-6d71a1522454920cca872485cb232927.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/vfx/ranka/ki_band.png"
-dest_files=["res://.godot/imported/ki_band.png-9ca8bf49610aa561c29ed9775145a400.ctex"]
+source_file="res://assets/vfx/shared/bolt_h.png"
+dest_files=["res://.godot/imported/bolt_h.png-6d71a1522454920cca872485cb232927.ctex"]
 
 [params]
 

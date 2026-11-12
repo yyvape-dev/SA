@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cglxfhdighppx"
-path="res://.godot/imported/flare.png-c3e8cf6d618082502c670ded3b95a39f.ctex"
+uid="uid://coehpyfbn24bf"
+path="res://.godot/imported/quake_finale_before_after.jpg-5f62cd118e8d658f5251fb7243f158d1.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/vfx/ranka/flare.png"
-dest_files=["res://.godot/imported/flare.png-c3e8cf6d618082502c670ded3b95a39f.ctex"]
+source_file="res://docs/sa2_ranka_img/quake_finale_before_after.jpg"
+dest_files=["res://.godot/imported/quake_finale_before_after.jpg-5f62cd118e8d658f5251fb7243f158d1.ctex"]
 
 [params]
 

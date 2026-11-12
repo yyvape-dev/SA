@@ -18,6 +18,7 @@ const GROUND := 300.0 + 1.3 * 64.0
 const FPS := 30
 const HIT := 0.25
 const TX := "res://assets/vfx/ranka/"
+const SHARED := "res://assets/vfx/shared/"
 
 const CONF := {
 	"quake": {"dur": 0.95, "burst": 0.66, "gold": 0.25, "petals": 12, "streaks": 34, "sparks": 70, "frags": 16, "wave2": false, "band": "blue"},
@@ -130,7 +131,7 @@ func _bake(name: String, cf: Dictionary) -> void:
 	var tv := _view(true)   # 上の回：花びら（光の上に重ねる。朱が光に埋もれないように）
 	var tex := {}
 	for k in ["burst", "flare", "ring", "band_blade", "pillar", "petals"]:
-		tex[k] = load(TX + k + ".png")
+		tex[k] = load((TX if k == "petals" else SHARED) + k + ".png")
 	var smoke: Texture2D = load("res://assets/vfx/kenney/smoke_04.png")
 	var main_band: String = cf.band
 	# ---- 光の回 ----

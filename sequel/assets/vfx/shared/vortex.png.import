@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bb7p75fa3u8mw"
-path="res://.godot/imported/pillar.png-50531c597cd662a78029678c83c284f7.ctex"
+uid="uid://cimd7ojduhx5"
+path="res://.godot/imported/vortex.png-ed31f3e3dd1d248ff0c577c7c06f6c73.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/vfx/ranka/pillar.png"
-dest_files=["res://.godot/imported/pillar.png-50531c597cd662a78029678c83c284f7.ctex"]
+source_file="res://assets/vfx/shared/vortex.png"
+dest_files=["res://.godot/imported/vortex.png-ed31f3e3dd1d248ff0c577c7c06f6c73.ctex"]
 
 [params]
 

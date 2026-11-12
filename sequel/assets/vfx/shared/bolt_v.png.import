@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dlugtcqb3id17"
-path="res://.godot/imported/ring.png-a41ed8dab841cf79fc26cf536c790112.ctex"
+uid="uid://bvxi8y7onxhr6"
+path="res://.godot/imported/bolt_v.png-e360ec62a65f338bf25fb8de53c52fc7.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/vfx/ranka/ring.png"
-dest_files=["res://.godot/imported/ring.png-a41ed8dab841cf79fc26cf536c790112.ctex"]
+source_file="res://assets/vfx/shared/bolt_v.png"
+dest_files=["res://.godot/imported/bolt_v.png-e360ec62a65f338bf25fb8de53c52fc7.ctex"]
 
 [params]
 

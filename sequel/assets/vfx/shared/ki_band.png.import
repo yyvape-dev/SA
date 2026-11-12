@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://crcpn4l20g5g0"
-path="res://.godot/imported/band_ink.png-47e09ee093c69da4852f0185fe635a9b.ctex"
+uid="uid://xfvej4q6j74m"
+path="res://.godot/imported/ki_band.png-6638aa22a39500342c7a8fa90f284e3b.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/vfx/ranka/band_ink.png"
-dest_files=["res://.godot/imported/band_ink.png-47e09ee093c69da4852f0185fe635a9b.ctex"]
+source_file="res://assets/vfx/shared/ki_band.png"
+dest_files=["res://.godot/imported/ki_band.png-6638aa22a39500342c7a8fa90f284e3b.ctex"]
 
 [params]
 

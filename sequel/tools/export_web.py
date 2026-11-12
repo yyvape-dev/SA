@@ -22,11 +22,11 @@ DISTRICTS = {
            "files": ["assets/ground/glints.json"]},                # 映り込みの元（json は include_filter で入れる）
     "dg1": {"res": ["assets/foe/gen_g1.webp", "assets/foe/foeduel_g1_*.webp"],   # ダンジョンのボス（仮置きの敵将 g1）。入るときに読む
             "files": []},
-    "fx1": {"res": ["assets/vfx/*.png", "assets/vfx/kenney/*.png"],    # エフェクトの絵（焼いた REEBO・Kenney の粒。起動の後に読む。2026-11-07）
+    "fx1": {"res": ["assets/vfx/*.png", "assets/vfx/kenney/*.png", "assets/vfx/shared/*.png"],    # エフェクトの絵（焼いた REEBO・Kenney の粒。起動の後に読む。2026-11-07）
             "files": ["assets/vfx/reeboo.json"]},
     "al1": {"res": ["assets/lily/*.webp"],                           # 仲間リリィ（起動の後に読む。読み終えてから出てくる）
             "files": []},
-    "al2": {"res": ["assets/ranka/*.webp", "assets/vfx/ranka/*.png"],   # 仲間ランカ（2026-11-12。リリィの後に読む。json は本体）＋ランカのエフェクトの白黒の素材
+    "al2": {"res": ["assets/ranka/*.webp", "assets/vfx/ranka/*.png"],   # 仲間ランカ（2026-11-12。リリィの後に読む。json は本体）＋ランカ専用のエフェクト（花びら・焼いた連番）。共通の白黒の素材は fx1 の assets/vfx/shared
             "files": []},
 }
 MAIN_EXCLUDE = ["captures/*", "art/ranka/*", "art/guide/*.png", "art/guide_bt/*", "art/painted_bt/*", "art/painted_bt_src/*", "tools/*", "districts/*", "art/incoming/*", "addons/*"]   # addons/＝取得した素材の元（使う絵は assets/vfx/ に写した。2026-11-07）

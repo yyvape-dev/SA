@@ -15,7 +15,8 @@ var fx            # fx.gd
 var world         # battle.gd
 var petal_tex: Texture2D
 var petal_sheet: Texture2D     # 外部AIの花びら 8 枚（4×2、白黒）。色は modulate で朱・桃・白・金
-const TX := "res://assets/vfx/ranka/"
+const TX := "res://assets/vfx/ranka/"      # ランカ専用（花びら・焼いた連番、al2）
+const SHARED := "res://assets/vfx/shared/"  # キャラ共通の白黒の素材（fx1）
 const ASPECT := {"pillar": 0.393, "ki_band": 3.923, "band_blade": 5.361, "band_ink": 3.938, "band_smash": 2.909, "flare": 1.166}
 
 ## 素材の板（fx.gd の tex_quad）。band＝色の帯、aspect は絵の縦横
@@ -24,7 +25,7 @@ func tx(name: String, pos: Vector3, life: float, o: Dictionary) -> MeshInstance3
 		o["band"] = "ranka"
 	if not o.has("aspect") and ASPECT.has(name):
 		o["aspect"] = ASPECT[name]
-	return fx.tex_quad(TX + name + ".png", pos, life, o)
+	return fx.tex_quad(SHARED + name + ".png", pos, life, o)
 var petals := []  # {node, v, t, life, spin, sway, ph, drag}
 var orbs := []    # 気弾 {node, a, b, t, life}
 

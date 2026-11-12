@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://hkvlf38mm7rt"
-path="res://.godot/imported/burst.png-1c5a0e35390f6292cc39e20d77bb9a4d.ctex"
+uid="uid://c5724pwcve4nl"
+path="res://.godot/imported/ring.png-c6b13b92b87f84ffa73d537536f324f8.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/vfx/ranka/burst.png"
-dest_files=["res://.godot/imported/burst.png-1c5a0e35390f6292cc39e20d77bb9a4d.ctex"]
+source_file="res://assets/vfx/shared/ring.png"
+dest_files=["res://.godot/imported/ring.png-c6b13b92b87f84ffa73d537536f324f8.ctex"]
 
 [params]
 

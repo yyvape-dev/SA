@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://ufjv1efcsmp2"
-path="res://.godot/imported/band_blade.png-9cd653abf2f738eeaf9675ba99710738.ctex"
+uid="uid://dcwc705g7ilb1"
+path="res://.godot/imported/pillar.png-53cd8bc31609686b156df9160cdbaca3.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/vfx/ranka/band_blade.png"
-dest_files=["res://.godot/imported/band_blade.png-9cd653abf2f738eeaf9675ba99710738.ctex"]
+source_file="res://assets/vfx/shared/pillar.png"
+dest_files=["res://.godot/imported/pillar.png-53cd8bc31609686b156df9160cdbaca3.ctex"]
 
 [params]
 
