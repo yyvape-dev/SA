@@ -56,7 +56,38 @@ func _run():
 		return
 	await _frames(30)
 	await _shot("00_room")
-	# 通常攻撃：押し続けると c1 → c2 → c3 → 掌底
+	# 歩き・走り：スティックを弱く倒すと歩き、強く倒す（0.9 超）と走り
+	m.move_in = Vector2(0.5, 0)
+	await _frames(20)
+	var walk_clip: String = m.move_clip
+	var x0: float = r.position.x
+	m.move_in = Vector2(1.0, 0)
+	await _frames(20)
+	var run_clip: String = m.move_clip
+	var run_dx: float = r.position.x - x0
+	m.move_in = Vector2.ZERO
+	await _frames(5)
+	print("RANKA move walk=%s run=%s" % [walk_clip, run_clip])
+	if walk_clip != "walk" or run_clip != "run" or run_dx <= 0.0:
+		_fail("walk/run " + walk_clip + " " + run_clip)
+		return
+	game._ranka_reset_room()
+	await _frames(5)
+	# くらい：on_hurt で hit を流して構えに戻る
+	r.on_hurt(-1)
+	var hurt_seen: bool = r.state == "hurt" and r.clip == "hit"
+	await _frames(8)
+	await _shot("00_hurt_a")
+	await _frames(8)
+	await _shot("00_hurt_b")
+	await _frames(44)
+	print("RANKA hurt seen=%s back=%s" % [str(hurt_seen), r.state])
+	if not hurt_seen or r.state != "move":
+		_fail("hurt")
+		return
+	game._ranka_reset_room()
+	await _frames(5)
+	# 通常攻撃：押し続けると c1 → c2 → c3 → c1
 	var seen := []
 	for k in 240:
 		if r.state == "move" or m.attack_queued == false:
@@ -68,7 +99,7 @@ func _run():
 		if seen.size() >= 4:
 			break
 	print("RANKA chain ", seen)
-	if seen.slice(0, 4) != ["atk_c1", "atk_c2", "atk_c3", "atk_palm"]:
+	if seen.slice(0, 4) != ["atk_c1", "atk_c2", "atk_c3", "atk_c1"]:
 		_fail("chain order " + str(seen))
 		return
 	await _frames(90)
@@ -116,7 +147,7 @@ func _run():
 	while r.state == "ult" and u < 900:
 		await process_frame
 		u += 1
-		if cap != "" and u in [10, 60, 100, 130, 162, 168, 180]:
+		if cap != "" and u in [145, 155, 162, 166, 175, 190]:
 			await _shot("03_ult_%d" % u)
 	var all_hit := true
 	for i in game.battle.enemies.size():

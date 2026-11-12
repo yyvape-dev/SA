@@ -1,9 +1,10 @@
 extends "res://scripts/ally.gd"
 ## 仲間ランカ（2026-11-12、ユーザー決定「同時参戦（3人）」）。動き方の土台は ally.gd（リリィ）と同じで、絵・技・エフェクトだけ差し替える。
 ## 絵：assets/ranka/ranka.json（tools/make_ranka.py。地区 pck「al2」）。背 1.93m は仮（前作の比。ユーザー判定待ち）。
-## 通常攻撃（ユーザー承認）：掌底（atk_palm）と、三連撃の動画を 3 本に分けた c1 突き → c2 前蹴り → c3 横蹴り・足払い・回し蹴り。
-##   自動：c1 → c2 → c3 と続けて出す（届く敵がいる間）。途中で止めるときは「戻り」（atk_back）で構えへ。掌底は c1 と交互に選ぶ。
-##   手動（イベントの主人公格、sa2_t2_lily_manual.gd）：押すたびに c1 → c2 → c3 → 掌底。間が空いたら c1 から。
+## 通常攻撃：三連撃の動画を 3 本に分けた c1 突き → c2 前蹴り → c3 横蹴り・足払い・回し蹴り。
+##   （2026-11-12 09:59 ユーザー指摘：掌底と思った動画は「くらい」だった → 被弾の clip「hit」に回し、通常攻撃は 3 本に）
+##   自動：c1 → c2 → c3 と続けて出す（届く敵がいる間）。途中で止めるときは「戻り」（atk_back）で構えへ。
+##   手動（イベントの主人公格、sa2_t2_lily_manual.gd）：押すたびに c1 → c2 → c3。間が空いたら c1 から。
 ## スキル（ユーザー決定）：指弾 shot・円環 ring・星震 quake、必殺技 天照（表は scripts/ranka_skills.gd）。
 ## 色：青・白・朱色の花・金（scripts/ranka_fx.gd）。リリィの稲妻は使わない。
 
@@ -11,16 +12,14 @@ const RankaSkills := preload("res://scripts/ranka_skills.gd")
 const RankaFx := preload("res://scripts/ranka_fx.gd")
 const RDMG := 13.0            # 1発の強さ（リリィ 11。人類最強なので少し強く。仮）
 const CHAIN := {"atk_c1": "atk_c2", "atk_c2": "atk_c3"}
-const MANUAL_ORDER := ["atk_c1", "atk_c2", "atk_c3", "atk_palm"]
-## 絵の速さ（ゲームの 1 秒あたりのコマ数 ÷ ally.SPD）。連撃は元の動画の約 2.6 倍、掌底は 3 倍、戻りは速く
-const CLIP_FPS := {"atk_c1": 7.8, "atk_c2": 7.8, "atk_c3": 7.8, "atk_palm": 9.0, "atk_back": 10.0}
-const PALM_END := 24          # 掌底は構えに戻りきる前（24 コマ目）で切る（後ろはゆっくり戻るだけ）
+const MANUAL_ORDER := ["atk_c1", "atk_c2", "atk_c3"]
+## 絵の速さ（ゲームの 1 秒あたりのコマ数 ÷ ally.SPD）。連撃は元の動画の約 2.6 倍、戻りは速く。くらい（hit）は json の 6（約 0.54 秒）
+const CLIP_FPS := {"atk_c1": 7.8, "atk_c2": 7.8, "atk_c3": 7.8, "atk_back": 10.0}
 ## 当たりごとの見せ方（hit_i ごと）。kind：fist＝拳の気の槍、kick＝つま先の通り道の帯、low＝床すれすれの払い、palm＝掌から気の爆ぜ
 const RFX := {
 	"atk_c1": [{"kind": "fist"}],
 	"atk_c2": [{"kind": "kick", "lift": 2.6}],
 	"atk_c3": [{"kind": "fist", "w": 0.36}, {"kind": "low", "kb": 0.6}, {"kind": "kick", "kb": 2.2, "w": 0.75}],
-	"atk_palm": [{"kind": "palm", "kb": 2.6}],
 }
 const SHOT_MIN := 2.5
 const SHOT_MAX := 9.0
@@ -46,8 +45,6 @@ func setup(w, d: Dictionary) -> void:
 	for c in CLIP_FPS:
 		if data.clips.has(c):
 			data.clips[c].fps = CLIP_FPS[c]
-	if data.clips.has("atk_palm") and data.clips.atk_palm.frames.size() > PALM_END:
-		data.clips.atk_palm.frames = data.clips.atk_palm.frames.slice(0, PALM_END)
 	sk_cd = {"shot": 2.0, "ring": 4.0, "quake": 8.0}
 
 func _ready() -> void:
@@ -70,8 +67,7 @@ func fresh_cd() -> Dictionary:
 
 # ---------- 通常攻撃 ----------
 func _start_atk(e: Node3D) -> void:
-	var c := "atk_palm" if (last == "atk_c3" or (last != "atk_palm" and randf() < 0.35)) else "atk_c1"
-	force_attack(c, e, 1.0)
+	force_attack("atk_c1", e, 1.0)
 
 func force_attack(c: String, e: Node3D, speed_scale: float = 1.0) -> void:
 	super.force_attack(c, e, speed_scale)
@@ -144,14 +140,6 @@ func _hit_new(c: Dictionary, h: int, n: int, last_hit: bool) -> void:
 			hs.side = 0
 			world.fx.slash(position, face, {"plane": "h", "r": r, "w": 0.6, "a0": -60.0, "a1": 200.0, "y": 0.25, "life": 0.36, "draw": 0.07, "squash": 0.5, "tilt": 2.0, "pal": RankaFx.BLUE})
 			world.fx.dust(position + Vector3(face * 1.0, 0, 0), 1.2)
-		"palm":   # 掌から気が爆ぜる：前に円い光と衝撃波、金の粒、朱の花びら
-			hs.r = maxf(r, 2.6)
-			var at := position + Vector3(face * 1.1, 1.15, 0.15)
-			world.fx._quad(at, Vector2(2.4, 2.4), world.fx._mat(1, RankaFx.BLUE), "flash", 0.16, 0.0)
-			world.fx._quad(at, Vector2(1.2, 1.2), world.fx._mat(1, RankaFx.GOLD), "flash", 0.12, 0.02)
-			world.fx.shockwave(at, 1.3, 0.4, 0.6)
-			rfx.petals_burst(at, 12, {"spd": Vector2(3.0, 6.5), "up": 0.2, "size": 0.15})
-			world.shake = maxf(world.shake, 12.0)
 	var nh: int = world.ally_attack(self, hs)
 	if nh > 0:
 		rfx.hit(tip, strong)
@@ -247,7 +235,10 @@ func _start_ult(e: Node3D) -> void:
 	ult_targets = _screen_foes()
 
 const STEP_DT := 0.13
-const STEP_POSES := [["atk_c1", 6], ["atk_c3", 8], ["atk_c2", 2], ["atk_c3", 3], ["atk_palm", 7], ["atk_c3", 6], ["atk_c1", 6], ["atk_c3", 8]]
+const STEP_POSES := [["atk_c1", 6], ["atk_c3", 8], ["atk_c2", 2], ["atk_c3", 3], ["atk_c1", 7], ["atk_c3", 6], ["atk_c2", 3], ["atk_c3", 8]]
+const FIN_FROM := 13          # 決め：星震の動画の「腕を交差」（13）→「頭に蒼い雷」（21）→ 構えたまま（28）
+const FIN_HIT := 21
+const FIN_HOLD := 28
 
 func _ult_process(delta: float) -> void:
 	ult_t += delta
@@ -272,11 +263,12 @@ func _ult_process(delta: float) -> void:
 			ult_next_t += STEP_DT
 		_update_ghosts(delta)
 		return
-	# 決め：掌底（0.0〜0.32 秒で当たりのコマまで → 0.32 で当たり → 0.9 秒で終わり）
+	# 決め：腕を交差して雷をまとう（0.0〜0.32 秒で 13→21）→ 0.32 で画面全体が光る → 0.95 秒まで構えたまま（21→28）
 	var t3 := t2 - steps * STEP_DT
-	var c: Dictionary = data.clips["atk_palm"]
-	var fi := clampi(int(t3 / 0.32 * 7.0), 0, c.frames.size() - 1) if t3 < 0.32 else clampi(7 + int((t3 - 0.32) * 18.0), 0, c.frames.size() - 1)
-	_show("atk_palm", fi)
+	var fi := FIN_FROM + int(t3 / 0.32 * float(FIN_HIT - FIN_FROM)) if t3 < 0.32 else mini(FIN_HOLD, FIN_HIT + int((t3 - 0.32) * 12.0))
+	_show("skill_thunder", clampi(fi, 0, data.clips.skill_thunder.frames.size() - 1))
+	if t3 < 0.32 and int(t3 * 30.0) % 3 == 0:
+		rfx.charge(position + Vector3(0, 1.4, 0), 1.8, 0.2)
 	if t3 >= 0.32 and not ult_done_end:
 		ult_done_end = true
 		_ult_end_hit()
@@ -316,7 +308,7 @@ func _ult_flash_step(n: int) -> void:
 
 func _ult_end_hit() -> void:
 	var cx := position.x
-	var at := position + Vector3(face * 1.1, 1.15, 0.15)
+	var at := position + Vector3(0, 1.3, 0.15)   # 交差した腕（胸の前）から光が爆ぜる
 	world.fx._quad(at, Vector2(6.0, 6.0), world.fx._mat(1, RankaFx.GOLD), "flash", 0.3, 0.0)
 	world.fx._quad(at, Vector2(9.0, 4.0), world.fx._mat(1, RankaFx.BLUE), "flash", 0.35, 0.03)
 	var m: ShaderMaterial = world.fx._mat(1, RankaFx.BLUE)

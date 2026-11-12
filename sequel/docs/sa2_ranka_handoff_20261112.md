@@ -7,7 +7,8 @@
 
 ## ユーザーの決定（2026-11-12 チャット。ユーザーの言葉を要約）
 - ランカは **リリィと同時参戦（ラナ＋リリィ＋ランカの3人）**。仲間としてのオート稼働と、特定イベントで主人公格として自分で操作する、の2つを入れる。
-- 通常攻撃：掌底と、三連撃の動画（突き→上段→回し蹴り）を分けた計4種を順に（ユーザー承認）。
+- 通常攻撃：三連撃の動画（突き→上段→回し蹴り）を分けた 3 本を順に。（最初は「掌底」を足した 4 種だったが、09:59 ユーザー指摘で掌底の動画は「くらい」と判明 → 被弾の clip `hit` に回した）
+- 09:59 ユーザー指摘：歩きと、スティックを強く倒したときの走りを分ける（手動操作は回避中しか走らなかった）。天照の決めの絵がくらいに見える → 差し替え（星震の動画の腕の交差→雷）。
 - スキル：
   - 技1 **指弾**（指さしの動画）＝指先から気弾を遠くへ。
   - 技2 **円環**（小瓶を飲むように見える動画。ユーザー「指を顔の前に構えるポーズ」）＝**自分を中心にした大きな円環の連続範囲攻撃**。
@@ -25,8 +26,8 @@
 ## 入れたもの
 ### 素材（`tools/make_ranka.py`、`RANKA_STAGE=cut|pack|idle|cutin`）
 - 元：`art/ranka/src/*.mp4`（8本、マゼンタ背景、24fps）。atk_palm・atk_combo・skill_point・skill_ring・skill_thunder・walk・run・event_idle。
-- `assets/ranka/ranka_0〜1.webp`（可逆、計 24MB、地区 pck **al2**）・`ranka.json`・`cutin.webp`（会話の立ち絵の1コマ目、縮めない）。
-- clip：idle・walk(27)・run(31)・atk_palm・atk_c1／c2／c3（三連撃を切り分け）・atk_back（c1 の出だしを逆に＝構えへの戻り）・skill_point／ring／thunder（8fps に間引き）。
+- `assets/ranka/ranka_0〜1.webp`（可逆、計 22MB、地区 pck **al2**）・`ranka.json`・`cutin.webp`（会話の立ち絵の1コマ目、縮めない）。
+- clip：idle・walk(27)・run(31)・hit（くらい 13 コマ。元 `src/hit.mp4` の胸の閃光と破片のコマは飛ばした）・atk_c1／c2／c3（三連撃を切り分け）・atk_back（c1 の出だしを逆に＝構えへの戻り）・skill_point／ring／thunder（8fps に間引き）。
 - atk_combo の焼き込みの黄〜橙の閃光・弧・ピンクのぶれは、コマごとの枠（`FX_BOX`）の中だけ消した（比較：`docs/sa2_ranka_img/combo_baked_removed.jpg`）。**残り**：足の一部にピンクのぶれ（動きのぶれとして残した）。
 - 会話用の立ち絵：`assets/event_idle/ranka_idle.webp`（**9×8＝72 コマ・12fps＝6秒**。リリィ・ラナは 6×6・3秒。6秒の動画が最初と最後でほぼ同じなので丸ごと使った）。
 - HUD の顔：`assets/ui/t6/t6_ranka_portrait.png`（`tools/make_ranka_ui.py`）。
@@ -38,9 +39,9 @@
 - `scripts/ranka_skills.gd`：技の表（形は lily_skills.gd と同じ）。shape `"screen"`＝ランカから左右 9.5m の敵すべて。
 - `scripts/ranka_fx.gd`：花びら（コードで作る絵）・気弾・円環・星の雨・夜空の星・光の柱。リリィの稲妻（白銀＋蒼）とは別の見た目。
 - `scripts/battle.gd`：`ranka`・`ranka_ult`・`ranka_ult_gain`、`ally_list()`（自動の仲間）、`ult_busy(who)`（必殺技の重なり防止。ラナ・リリィ・ランカ共通）。ゲージは仲間ごと（`ult_key`）。当たりの色 `hit_pal`。
-- `scripts/enemy.gd`：敵の攻撃が仲間2人に当たる（ランカは被弾の動画が無いので当たらない＝リリィの初期と同じ扱い）。
+- `scripts/enemy.gd`：敵の攻撃が仲間2人に当たる。ランカも hit で被弾する。
 - `scripts/main.gd`：`_load_ranka()`（リリィの後、待たない）。`ranka_wanted()`：`?ranka=0`／`RANKA=0` で出さない、撮影の起動（CAPTURE_*）は `RANKA=1` のときだけ。カットイン `ranka_cutin`（藍の帯・朱の線）。
-- `scripts/sa2_t2_lily_manual.gd`：手動操作をキャラ共通に（通常攻撃の順は `actor.manual_next`、ゲージは `actor.ult_key`、待ちは `actor.fresh_cd()`）。
+- `scripts/sa2_t2_lily_manual.gd`：スティック 0.9 超か Shift で走り（6.2m/秒、ラナと同じ）。リリィの手動操作にも効く。手動操作をキャラ共通に（通常攻撃の順は `actor.manual_next`、ゲージは `actor.ult_key`、待ちは `actor.fresh_cd()`）。
 - `scripts/touch_ui.gd`・`t6_hud_art.gd`・`skill_icons.gd`：手動中の3枠・ゲージ・顔・名前をキャラに合わせる。ランカの技アイコンは**コードの図形（仮）**。ラナの HUD にランカのゲージ（リリィの下）。
 - `scripts/sa2_t2_playable.gd`：**ランカの操作の入口** `?mode=ranka`（`SA2_RANKA_TEST`／`ranka_test_room`）。標的3体（600）、標的／実戦、全部リセット、**リリィ同行**（自動の仲間を一緒に出す）、**会話の立ち絵**（その場で立ち絵ループに切り替え）。撃破で経験値は増えない。天照のゲージは2段で開始。会話の立ち絵は `_event_idle_sprite(actor_id)`（`EVENT_IDLE` の表）で、今後の会話イベントでも使える。
 - `tools/export_web.py`：地区 `al2`、`art/ranka/*` を本体から除外。
@@ -59,5 +60,5 @@
 ## 未確認・残り
 - **Web 書き出し・iPhone 実機は未実施**（この作業では書き出しテンプレートを入れていない）。配信するときは `python3 -I sequel/tools/export_web.py` で al2 が出来るか、起動時のメモリ（ランカの絵 GPU 約 2 ページ分＝4096² 2枚）を確認。T6 で iPhone Safari の起動クラッシュの原因が未特定なので、3人同時の本編は特に重さに注意（仮説：メモリ）。
 - 星震の「夜空へ暗転」：`battle.big_moment` の背景の暗さは、今の T6 の裏町の背景では目に見えて暗くならなかった（撮影で確認。原因は未調査）。
-- ランカの被弾・ダウンの動画は無い（敵の攻撃は当たらない）。
+- ダウン（倒れる）の動画は無い。
 - 技アイコン・エフェクトの見た目はユーザーの判定前。T6 の決まり「VFX の追加作業は勝手に横展開しない」に従い、ランカ以外の技は触っていない。

@@ -8,6 +8,9 @@ signal attack_started(clip: String)
 const RANA := preload("res://scripts/player.gd")
 const NORMAL_SPEED: float = RANA.ATK_SPD.atkA
 const WALK_SPEED := 4.0
+const RUN_SPEED := 6.2      # 2026-11-12：スティックを強く倒す（0.9 以上）か Shift で走る（ラナの player.gd と同じ決まり・速さ）
+const RUN_STICK := 0.9
+var move_clip := "idle"     # いま流している移動の絵（idle・walk・run。確認用）
 const DEPTH_FACTOR := 0.75
 const DODGE_TIME := 0.24
 const DODGE_DISTANCE := 3.5
@@ -176,24 +179,28 @@ func _physics_process(delta: float) -> void:
     if Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN):
         direction.y += 1.0
     direction = direction.limit_length(1.0)
-    if dodge_left > 0.0:
+    var dodging := dodge_left > 0.0
+    if dodging:
         direction = dodge_direction
         var step := minf(dodge_left, dt)
         dodge_left = maxf(0.0, dodge_left - dt)
         actor.position.x += direction.x * DODGE_DISTANCE / DODGE_TIME * step
         actor.position.z += direction.y * DODGE_DISTANCE / DODGE_TIME * step * DEPTH_FACTOR
-    else:
-        actor.position.x += direction.x * WALK_SPEED * dt
-        actor.position.z += direction.y * WALK_SPEED * dt * DEPTH_FACTOR
+    var running: bool = not dodging and direction.length() > 0.12 and (move_in.length() > RUN_STICK or Input.is_key_pressed(KEY_SHIFT))
+    if not dodging:
+        var sp := RUN_SPEED if running else WALK_SPEED
+        actor.position.x += direction.x * sp * dt
+        actor.position.z += direction.y * sp * dt * DEPTH_FACTOR
     actor.position.x = clampf(actor.position.x, battle.ROOM_X.x, battle.ROOM_X.y)
     actor.position.z = clampf(actor.position.z, battle.BELT_Z.x, battle.BELT_Z.y)
     if absf(direction.x) > 0.1:
         actor.face = 1 if direction.x > 0.0 else -1
-    var clip: String = "run" if dodge_left > 0.0 else "walk"
+    var clip: String = "run" if dodging or running else "walk"
     if direction.length() < 0.1:
         clip = "idle"
     if not actor.data.clips.has(clip):
         clip = "idle"
+    move_clip = clip
     var frames: Array = actor.data.clips[clip].frames
     var fps: float = float(actor.data.clips[clip].fps)
     actor._show(clip, int(animation_t * fps) % frames.size())

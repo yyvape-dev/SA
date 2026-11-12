@@ -2,7 +2,7 @@
 使い方（リポジトリのルートで）：python3 -I sequel/tools/make_ranka.py [作業フォルダ]   （numpy・scipy・matplotlib・PIL・ffmpeg。約3〜5分）
   段階だけ：RANKA_STAGE=cut（背景抜き）／pack（アトラス）／idle（会話の立ち絵）／cutin のどれか（カンマ区切り）。既定は全部。
 素材 sequel/art/ranka/src/（マゼンタ背景・右向き・24fps。ユーザーの動画AI。2026-11-12 チャットで受け取り）：
-  atk_palm＝掌底（3秒、1104×832）／atk_combo＝突き→前蹴り→横蹴り→足払い→回し蹴り（3秒。黄〜橙の閃光・弧・ピンクのぶれが焼き込み）
+  hit＝くらい（3秒、1104×832。胸に閃光を受けて頭がのけぞる。2026-11-12 09:59 ユーザー指摘で掌底から「くらい」に変更）／atk_combo＝突き→前蹴り→横蹴り→足払い→回し蹴り（3秒。黄〜橙の閃光・弧・ピンクのぶれが焼き込み）
   skill_point＝指さし（4秒）→ 技1「指弾」／skill_ring＝指を顔の前に構える（4秒）→ 技2「円環」（ユーザー：自分中心の大きな円環の連続範囲攻撃）
   skill_thunder＝頭に蒼い雷をまとって腕を交差（6秒）→ 技3「星震」（SA1 の星震。画面の広い範囲）
   walk・run＝その場の歩き・走り（6秒）／event_idle＝会話用の立ち絵（6秒、784×1168）
@@ -36,7 +36,7 @@ STAGES = [s for s in os.environ.get("RANKA_STAGE", "cut,pack,idle,cutin").split(
 
 HEIGHT_M = 1.93
 BODY_PX = round(366 * HEIGHT_M / 1.85)
-CLIPS = ["atk_palm", "atk_combo", "skill_point", "skill_ring", "skill_thunder", "walk", "run"]
+CLIPS = ["hit", "atk_combo", "skill_point", "skill_ring", "skill_thunder", "walk", "run"]
 LOOPS = ["walk", "run"]
 STEP = 2   # 24fps → 12fps（ゲームでは速さを掛けて流す）
 PAGE = 4096
@@ -62,9 +62,15 @@ _C[54] = [(680, 120, 1104, 660)]
 for f in (55, 56): _C[f] = [(560, 80, 1104, 832)]
 _C[57] = [(560, 80, 1104, 832)]
 FX_BOX = {"atk_combo": _C}
+# くらい：胸の黄色い閃光（11〜14）と散る赤い破片（15〜19）。体の上なので、黄色の強い所とピンクだけ消す（STRICT）
+_H = {}
+for f in range(11, 15): _H[f] = [(330, 180, 580, 410)]
+for f in range(15, 20): _H[f] = [(430, 170, 640, 590)]
+FX_BOX["hit"] = _H
+STRICT = {"hit"}
 # 通常攻撃の切り分け（元の 24fps のコマ番号 0 始まり、終わりを含まない）と当たり（同じ番号）
 SPLIT = {"atk_c1": (0, 26, [12]), "atk_c2": (25, 37, [29]), "atk_c3": (36, 73, [42, 48, 52])}
-HITS = {"atk_palm": None, "skill_point": None, "skill_ring": None, "skill_thunder": None}
+
 
 
 def video_frames(clip):
@@ -90,7 +96,7 @@ def remove_smear(c):
     return a, int(m.sum())
 
 
-def remove_baked(c, boxes):
+def remove_baked(c, boxes, strict=False):
     """枠の中の焼き込みの光（黄〜橙の明るい所・ピンクのぶれ・半透明・細い光線）を透明に。体の暗い所は残す。"""
     if not boxes:
         return c, 0
@@ -105,7 +111,11 @@ def remove_baked(c, boxes):
     warm = (h >= 8) & (h <= 72) & (s > 0.3) & (v > 0.66)
     pale = (v > 0.9) & (s < 0.35) & (al < 0.95)
     pinkred = ((h >= 300) | (h <= 6)) & (s > 0.25) & (v > 0.35)   # 弧の縁の赤・ピンクのぶれ
-    m = zone & (al > 0) & (warm | pale | pinkred | (al < 0.6) | thin) & ~((v < 0.4) & ~pinkred)
+    if strict:   # 体の上の閃光：はっきりした黄色・ピンク・半透明だけ（肌・シャツは残す）
+        yellow = (h >= 38) & (h <= 66) & (s > 0.45) & (v > 0.85)
+        m = zone & (al > 0) & (yellow | pinkred | (al < 0.5))
+    else:
+        m = zone & (al > 0) & (warm | pale | pinkred | (al < 0.6) | thin) & ~((v < 0.4) & ~pinkred)
     a[m, 3] = 0
     n = int(m.sum())
     # 本体から離れた粒（光線の欠片）を消す
@@ -168,7 +178,7 @@ def cut_clip(clip):
     imgs, removed, fringe = [], 0, 0
     for i, f in enumerate(raw):
         c = key_soft(f.astype(np.float32))
-        c, n = remove_baked(c, boxes.get(i + 1))
+        c, n = remove_baked(c, boxes.get(i + 1), clip in STRICT)
         if clip == "atk_combo":
             c, n2 = remove_smear(c)
             n += n2
@@ -247,7 +257,6 @@ def pack():
     pk = Packer()
     cache = {}
     out = {"height_m": HEIGHT_M, "body_px": BODY_PX, "clips": {}, "note": "ランカ（2026-11-12）。make_ranka.py。frames=[ページ, x, y, w, h, 足元から見た左上 x, y]、fps は 12（歩き・走りは 24）"}
-    base_h = meta["clips"]["atk_palm"]["body_h"]   # 構えの背（掌底の最初のコマ）。動画ごとに大きさが少し違うので各 clip の body_h で合わせる
 
     def put(clip, j, s, dx_off=0.0):
         key = (clip, j)
@@ -274,13 +283,13 @@ def pack():
         out["clips"][name] = {"fps": fps, "frames": frames, "hits": hits, "src": clip, "src_frames": picks}
         print(name, len(frames), "コマ、当たり", hits)
 
-    # 構え（idle）＝掌底の最初のコマ
-    make("idle", "atk_palm", [0], [], 1)
+    # 構え（idle）＝くらいの動画の最初のコマ（どの動画も同じ構えから始まる）
+    make("idle", "hit", [0], [], 1)
     for lp in LOOPS:
         L = meta["clips"][lp]["loop"]
         make(lp, lp, list(range(L["start"], L["start"] + L["len"])), [], 24, loop=True)
-    n = meta["clips"]["atk_palm"]["count"]
-    make("atk_palm", "atk_palm", list(range(0, n, STEP)), _auto_hit(meta, "atk_palm"), 24 / STEP)
+    # くらい：構え → のけぞり（元の 19〜30。閃光と破片の 10〜18 は飛ばす＝頭が弾かれる一瞬に見える）→ 構えへ早戻し
+    make("hit", "hit", [6, 19, 20, 21, 22, 24, 26, 28, 30, 24, 8, 4, 0], [], 6.0)
     for name, (a, b, h) in SPLIT.items():
         make(name, "atk_combo", list(range(a, b, STEP)) + ([b - 1] if (b - 1 - a) % STEP else []), h, 24 / STEP)
     make("atk_back", "atk_combo", list(range(12, -1, -STEP)), [], 24 / STEP)   # 戻り：c1 の出だしを逆に（踏み込み→構え）
