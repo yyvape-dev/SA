@@ -109,6 +109,9 @@ func advance() -> bool:
 	return true
 
 func _unhandled_input(event: InputEvent) -> void:
+	for options in get_tree().get_nodes_in_group("sound_options"):
+		if options.panel.visible:
+			return
 	if not active or log_panel.visible or skip_confirm.visible:
 		return
 	var pressed := false

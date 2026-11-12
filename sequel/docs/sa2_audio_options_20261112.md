@@ -1,0 +1,7 @@
+# Sound options
+Branch: feat/sa2-audio-options-20261112. main remains unchanged.
+Top-right translucent speaker opens BGM/SE sliders (0–100%), mute and close. Initial 100% retains adopted mix levels. Device-local user://sound_options.cfg persists the choices; mute preserves slider positions. Existing dialogue attenuation is combined with user volume, and currently playing cues update immediately.
+Controls use a transparent input shield while open. Shared touch pad, legacy T5 movement and dialogue advance respect this panel. The game continues to run while settings are open.
+Verification: Godot 4.7.2, all 25 *_test.gd tests pass. New tests cover independent gains, silence, unmute, active voices, disk-backed reload, icon pointer input, touch routing, slider signals. Existing audio/music, conversation/training/recovery tests pass. Real 1280x720 rendering inspected (local render evidence). Packed preview rechecked separately. Exit ObjectDB leak warnings also occur in existing harnesses; no claim that these are fixed.
+Web export reuses accepted T6 runtime/assets/district packs. Only audio options and input-related scripts plus a small Noto Japanese font subset are replaced. Existing private Site audience and staged startup are retained. The existing font-license.txt covers the bundled Noto font subset.
+iPhone Safari playback, touch feel and persistence across browser termination remain device acceptance items.

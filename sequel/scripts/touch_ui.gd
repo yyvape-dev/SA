@@ -33,6 +33,7 @@ func _ready() -> void:
 	pad = _Pad.new()
 	pad.ui = self
 	pad.set_anchors_preset(Control.PRESET_FULL_RECT)
+	pad.add_to_group("sound_touch_pad")
 	pad.mouse_filter = Control.MOUSE_FILTER_PASS
 	add_child(pad)
 	hud = _Hud.new()
@@ -121,6 +122,11 @@ class _Pad extends Control:
 					shake[k] = 0.25
 
 	func _input(e: InputEvent) -> void:
+		if e is InputEventScreenTouch or e is InputEventScreenDrag:
+			for options in get_tree().get_nodes_in_group("sound_options"):
+				if options.blocks_touch(e.position):
+					reset_input()
+					return
 		var pos := Vector2.ZERO
 		var idx := 0
 		var pressed := false

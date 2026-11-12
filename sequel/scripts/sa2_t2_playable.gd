@@ -541,6 +541,12 @@ func _t2_restore_exploration() -> void:
     t2_label.text = "演習完了・探索へ復帰"
 
 func _input(event: InputEvent) -> void:
+    if event is InputEventScreenTouch or event is InputEventScreenDrag:
+        for options in get_tree().get_nodes_in_group("sound_options"):
+            if options.blocks_touch(event.position):
+                t2_finger = -1
+                if t2_manual != null: t2_manual.move_in = Vector2.ZERO
+                return
     if street_active:
         # The shared panel receives unhandled dialogue input. No legacy drag routing.
         return
