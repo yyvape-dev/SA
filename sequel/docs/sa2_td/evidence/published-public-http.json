@@ -1,0 +1,98 @@
+{
+  "url": "https://yyvape-dev.github.io/SA2-TD/",
+  "source": "903b0b9e2c9c91151d35f3802197fc127cae469a",
+  "landing_status": 200,
+  "files": [
+    {
+      "path": "index.audio.position.worklet.js",
+      "status": 200,
+      "bytes": 2973,
+      "sha256": "be33985bc7160d6bf9646f259cd86b259cd67b02ccb297ee5c44f8ac84327bc8",
+      "content_type": "application/javascript; charset=utf-8"
+    },
+    {
+      "path": "index.audio.worklet.js",
+      "status": 200,
+      "bytes": 7298,
+      "sha256": "5b476a9c9ce642c0ee4256436d1bc31d9c38f868aca0f9a8e2a57c18d2dec2a3",
+      "content_type": "application/javascript; charset=utf-8"
+    },
+    {
+      "path": "index.html",
+      "status": 200,
+      "bytes": 5413,
+      "sha256": "dc29d9214e3483a3f8cd4b009671ff1a777f7876cd41a2e149977ec9f8644a69",
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "path": "index.js",
+      "status": 200,
+      "bytes": 279815,
+      "sha256": "33c94cb3175f3333b82e2a3be5e8e86f77986f0aa2042b1631f6367a4e5bb6ba",
+      "content_type": "application/javascript; charset=utf-8"
+    },
+    {
+      "path": "index.pck",
+      "status": 200,
+      "bytes": 107476144,
+      "sha256": "c821e4225c591b7915907b5cf39f7bb8f1e41ff4db8472a755779bc119450a3c",
+      "content_type": "application/octet-stream"
+    },
+    {
+      "path": "index.png",
+      "status": 200,
+      "bytes": 21443,
+      "sha256": "3cb4495c0b98dfbe4b663cbf2b6836473572339beb66d902367893162a70be0e",
+      "content_type": "image/png"
+    },
+    {
+      "path": "index.wasm",
+      "status": 200,
+      "bytes": 39514754,
+      "sha256": "fc74679e3b97f76878947fcd4fbe1268cbfa6188182a2e33bbc3f5dc9bfa57d0",
+      "content_type": "application/wasm"
+    }
+  ],
+  "manifest": {
+    "sha": "903b0b9e2c9c91151d35f3802197fc127cae469a",
+    "dirty": false,
+    "godot": "4.7.2.stable.official.ed1daf0bf",
+    "files": [
+      {
+        "path": "index.audio.position.worklet.js",
+        "bytes": 2973,
+        "sha256": "be33985bc7160d6bf9646f259cd86b259cd67b02ccb297ee5c44f8ac84327bc8"
+      },
+      {
+        "path": "index.audio.worklet.js",
+        "bytes": 7298,
+        "sha256": "5b476a9c9ce642c0ee4256436d1bc31d9c38f868aca0f9a8e2a57c18d2dec2a3"
+      },
+      {
+        "path": "index.html",
+        "bytes": 5413,
+        "sha256": "dc29d9214e3483a3f8cd4b009671ff1a777f7876cd41a2e149977ec9f8644a69"
+      },
+      {
+        "path": "index.js",
+        "bytes": 279815,
+        "sha256": "33c94cb3175f3333b82e2a3be5e8e86f77986f0aa2042b1631f6367a4e5bb6ba"
+      },
+      {
+        "path": "index.pck",
+        "bytes": 107476144,
+        "sha256": "c821e4225c591b7915907b5cf39f7bb8f1e41ff4db8472a755779bc119450a3c"
+      },
+      {
+        "path": "index.png",
+        "bytes": 21443,
+        "sha256": "3cb4495c0b98dfbe4b663cbf2b6836473572339beb66d902367893162a70be0e"
+      },
+      {
+        "path": "index.wasm",
+        "bytes": 39514754,
+        "sha256": "fc74679e3b97f76878947fcd4fbe1268cbfa6188182a2e33bbc3f5dc9bfa57d0"
+      }
+    ]
+  }
+}

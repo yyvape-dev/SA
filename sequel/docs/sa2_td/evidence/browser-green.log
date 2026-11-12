@@ -1,0 +1,2 @@
+T2_AFTER_INPUT {"actor_state":"move","attacks":1,"combat_active":true,"dialogue_active":false,"dialogue_next":[1385.5,654],"dirty":false,"dodges":0,"elapsed_ms":24066,"fps":2,"frames":65,"guide_json":true,"mean_ms":337.804615384615,"p95_ms":715.3,"persistent":true,"player_x":0,"probe":{"schema":1,"token":"1794198658.876"},"scene_ready":true,"sha":"903b0b9e2c9c91151d35f3802197fc127cae469a","spot":"t2","user_dir":"/userfs/SA2-TD-Mobile-Spots","viewport":"(1558.0, 720.0)"}
+TD_BROWSER_SMOKE_PASS

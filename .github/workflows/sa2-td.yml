@@ -1,0 +1,33 @@
+name: SA2 TD mobile Web build
+on:
+  push:
+    branches: [feat/sa2-td-mobile-spots-20261109]
+  workflow_dispatch:
+jobs:
+  web:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install official Godot 4.7.2 Web templates
+        run: |
+          curl -fL --retry 3 https://github.com/godotengine/godot-builds/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip -o /tmp/godot.zip
+          unzip -q /tmp/godot.zip -d /tmp
+          curl -fL --retry 3 https://github.com/godotengine/godot-builds/releases/download/4.7.2-stable/Godot_v4.7.2-stable_export_templates.tpz -o /tmp/templates.tpz
+          mkdir -p "$HOME/.local/share/godot/export_templates/4.7.2.stable"
+          unzip -j /tmp/templates.tpz 'templates/web_nothreads_release.zip' -d "$HOME/.local/share/godot/export_templates/4.7.2.stable"
+      - name: Native contracts and fresh regressions
+        run: |
+          /tmp/Godot_v4.7.2-stable_linux.x86_64 --headless --path sequel --editor --import --quit
+          /tmp/Godot_v4.7.2-stable_linux.x86_64 --headless --path sequel --script res://tests/sa2_td_test.gd
+          /tmp/Godot_v4.7.2-stable_linux.x86_64 --headless --path sequel --fixed-fps 60 --script res://tests/sa2_td_lily_controls_test.gd
+          GODOT_BIN=/tmp/Godot_v4.7.2-stable_linux.x86_64 bash sequel/tests/run_sa2_t3.sh
+      - name: Actual standalone Web export
+        run: GODOT_BIN=/tmp/Godot_v4.7.2-stable_linux.x86_64 python sequel/tools/export_td_web.py --out /tmp/sa2-td-web
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sa2-td-web-${{ github.sha }}
+          path: |
+            /tmp/sa2-td-web/
+            /tmp/sa2-t3-logs/

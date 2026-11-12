@@ -1,0 +1,55 @@
+[
+  {
+    "spot": "t0",
+    "storageReload": true,
+    "metrics": {
+      "dirty": false,
+      "elapsed_ms": 979,
+      "fps": 44,
+      "frames": 54,
+      "guide_json": true,
+      "mean_ms": 17.7833333333333,
+      "p95_ms": 25.3,
+      "persistent": true,
+      "probe": {
+        "schema": 1,
+        "token": "1794199160.277"
+      },
+      "scene_ready": true,
+      "sha": "903b0b9e2c9c91151d35f3802197fc127cae469a",
+      "spot": "t0",
+      "user_dir": "/userfs/SA2-TD-Mobile-Spots",
+      "viewport": "(1558.0, 720.0)"
+    }
+  },
+  {
+    "spot": "t1",
+    "loadToReadyMs": 1810,
+    "loadToSampleMs": 5989,
+    "metrics": {
+      "dialogue_line": 1,
+      "dialogue_next": [
+        1396,
+        654
+      ],
+      "dirty": false,
+      "elapsed_ms": 5044,
+      "fps": 55,
+      "frames": 259,
+      "guide_json": true,
+      "mean_ms": 18.9942084942085,
+      "p95_ms": 40.5,
+      "persistent": true,
+      "probe": {
+        "schema": 1,
+        "token": "1794199160.277"
+      },
+      "scene_ready": true,
+      "sha": "903b0b9e2c9c91151d35f3802197fc127cae469a",
+      "spot": "t1",
+      "user_dir": "/userfs/SA2-TD-Mobile-Spots",
+      "viewport": "(1558.0, 720.0)"
+    },
+    "errors": []
+  }
+]

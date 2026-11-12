@@ -1,0 +1,49 @@
+name: Build and publish pinned SA2 TD Web candidate
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Checkout verified game source
+        uses: actions/checkout@v4
+        with:
+          repository: yyvape-dev/SA
+          ref: 1bd34b84811cc255a98bb4b268e4525005d834c6
+          path: source
+          persist-credentials: false
+      - name: Install official Godot 4.7.2 Web templates
+        run: |
+          curl -fL --retry 3 https://github.com/godotengine/godot-builds/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip -o /tmp/godot.zip
+          unzip -q /tmp/godot.zip -d /tmp
+          curl -fL --retry 3 https://github.com/godotengine/godot-builds/releases/download/4.7.2-stable/Godot_v4.7.2-stable_export_templates.tpz -o /tmp/templates.tpz
+          mkdir -p "$HOME/.local/share/godot/export_templates/4.7.2.stable"
+          unzip -j /tmp/templates.tpz 'templates/web_nothreads_release.zip' -d "$HOME/.local/share/godot/export_templates/4.7.2.stable"
+      - name: Build pinned Web candidate and verify file manifest
+        run: |
+          GODOT_BIN=/tmp/Godot_v4.7.2-stable_linux.x86_64 python source/sequel/tools/export_td_web.py --out /tmp/td-web
+          python tools/prepare_site.py --build /tmp/td-web --out /tmp/td-site --preserve-url https://yyvape-dev.github.io/SA2-TD/
+      - name: Save actual published build manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: published-web-manifest
+          path: /tmp/td-web/manifest.json
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: /tmp/td-site
+      - name: Publish Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

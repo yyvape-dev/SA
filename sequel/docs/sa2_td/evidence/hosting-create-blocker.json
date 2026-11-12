@@ -1,0 +1,9 @@
+{
+  "operation": "POST /user/repos",
+  "target": "yyvape-dev/SA2-TD",
+  "http_status": 403,
+  "message": "Resource not accessible by integration",
+  "user_approved": true,
+  "repository_created": false,
+  "existing_SA_pages_changed": false
+}

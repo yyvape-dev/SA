@@ -1,0 +1,134 @@
+[
+  {
+    "spot": "t0",
+    "storageReload": true,
+    "metrics": {
+      "controls_active": false,
+      "dirty": false,
+      "elapsed_ms": 964,
+      "fps": 42,
+      "frames": 51,
+      "guide_json": true,
+      "mean_ms": 18.5254901960784,
+      "p95_ms": 40,
+      "persistent": true,
+      "probe": {
+        "schema": 1,
+        "token": "1794202125.254"
+      },
+      "scene_ready": true,
+      "sha": "1bd34b84811cc255a98bb4b268e4525005d834c6",
+      "spot": "t0",
+      "user_dir": "/userfs/SA2-TD-Mobile-Spots",
+      "viewport": "(1558.0, 720.0)"
+    }
+  },
+  {
+    "spot": "t2",
+    "loadToReadyMs": 8636,
+    "loadToSampleMs": 44676,
+    "metrics": {
+      "action_buttons": {
+        "atk": [
+          1383,
+          530,
+          78
+        ],
+        "dodge": [
+          1213,
+          615,
+          50
+        ]
+      },
+      "actor_state": "move",
+      "attacks": 1,
+      "combat_active": true,
+      "control_panel": "legacy_touch_pad",
+      "controls_active": true,
+      "dialogue_active": false,
+      "dialogue_next": [
+        1385.5,
+        654
+      ],
+      "dirty": false,
+      "dodges": 1,
+      "elapsed_ms": 42228,
+      "fps": 3,
+      "frames": 104,
+      "guide_json": true,
+      "mean_ms": 381.906730769231,
+      "move_vector": [
+        0,
+        0
+      ],
+      "p95_ms": 751.7,
+      "persistent": true,
+      "player_x": 7.23333024978638,
+      "probe": {
+        "schema": 1,
+        "token": "1794202125.254"
+      },
+      "scene_ready": true,
+      "sha": "1bd34b84811cc255a98bb4b268e4525005d834c6",
+      "spot": "t2",
+      "user_dir": "/userfs/SA2-TD-Mobile-Spots",
+      "viewport": "(1558.0, 720.0)"
+    },
+    "errors": []
+  },
+  {
+    "spot": "t3",
+    "loadToReadyMs": 8285,
+    "loadToSampleMs": 17741,
+    "metrics": {
+      "action_buttons": {
+        "atk": [
+          1383,
+          530,
+          78
+        ],
+        "dodge": [
+          1213,
+          615,
+          50
+        ]
+      },
+      "actor_state": "move",
+      "control_panel": "legacy_touch_pad",
+      "controls_active": true,
+      "dirty": false,
+      "elapsed_ms": 15574,
+      "evac_moving": true,
+      "fps": 4,
+      "frames": 44,
+      "guide_button": [
+        1398,
+        146
+      ],
+      "guide_json": true,
+      "mean_ms": 305.354545454546,
+      "move_vector": [
+        0,
+        0
+      ],
+      "p95_ms": 542.8,
+      "persistent": true,
+      "phase": "street",
+      "player_x": 10.9375915527344,
+      "probe": {
+        "schema": 1,
+        "token": "1794202125.254"
+      },
+      "scene_ready": true,
+      "sha": "1bd34b84811cc255a98bb4b268e4525005d834c6",
+      "spot": "t3",
+      "start_button": [
+        236,
+        231
+      ],
+      "user_dir": "/userfs/SA2-TD-Mobile-Spots",
+      "viewport": "(1558.0, 720.0)"
+    },
+    "errors": []
+  }
+]

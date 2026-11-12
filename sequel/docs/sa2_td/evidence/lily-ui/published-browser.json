@@ -1,0 +1,193 @@
+[
+  {
+    "spot": "t0",
+    "storageReload": true,
+    "metrics": {
+      "controls_active": false,
+      "dirty": false,
+      "elapsed_ms": 968,
+      "fps": 43,
+      "frames": 53,
+      "guide_json": true,
+      "mean_ms": 17.9056603773585,
+      "p95_ms": 26.6,
+      "persistent": true,
+      "probe": {
+        "schema": 1,
+        "token": "1794202581.172"
+      },
+      "scene_ready": true,
+      "sha": "1bd34b84811cc255a98bb4b268e4525005d834c6",
+      "spot": "t0",
+      "user_dir": "/userfs/SA2-TD-Mobile-Spots",
+      "viewport": "(1558.0, 720.0)"
+    }
+  },
+  {
+    "spot": "t1",
+    "loadToReadyMs": 3559,
+    "loadToSampleMs": 7731,
+    "metrics": {
+      "controls_active": false,
+      "dialogue_line": 1,
+      "dialogue_next": [
+        1396,
+        654
+      ],
+      "dirty": false,
+      "elapsed_ms": 5008,
+      "fps": 55,
+      "frames": 272,
+      "guide_json": true,
+      "mean_ms": 18.0275735294118,
+      "p95_ms": 42,
+      "persistent": true,
+      "probe": {
+        "schema": 1,
+        "token": "1794202581.172"
+      },
+      "scene_ready": true,
+      "sha": "1bd34b84811cc255a98bb4b268e4525005d834c6",
+      "spot": "t1",
+      "user_dir": "/userfs/SA2-TD-Mobile-Spots",
+      "viewport": "(1558.0, 720.0)"
+    },
+    "errors": []
+  },
+  {
+    "spot": "explore",
+    "loadToReadyMs": 9979,
+    "loadToSampleMs": 17146,
+    "metrics": {
+      "actor_state": "move",
+      "controls_active": false,
+      "dirty": false,
+      "elapsed_ms": 14139,
+      "fps": 3,
+      "frames": 34,
+      "guide_json": true,
+      "mean_ms": 349.511764705882,
+      "p95_ms": 725.1,
+      "persistent": true,
+      "player_x": -4,
+      "probe": {
+        "schema": 1,
+        "token": "1794202581.172"
+      },
+      "scene_ready": true,
+      "sha": "1bd34b84811cc255a98bb4b268e4525005d834c6",
+      "spot": "explore",
+      "user_dir": "/userfs/SA2-TD-Mobile-Spots",
+      "viewport": "(1558.0, 720.0)"
+    },
+    "errors": []
+  },
+  {
+    "spot": "t2",
+    "loadToReadyMs": 9388,
+    "loadToSampleMs": 44628,
+    "metrics": {
+      "action_buttons": {
+        "atk": [
+          1383,
+          530,
+          78
+        ],
+        "dodge": [
+          1213,
+          615,
+          50
+        ]
+      },
+      "actor_state": "move",
+      "attacks": 1,
+      "combat_active": true,
+      "control_panel": "legacy_touch_pad",
+      "controls_active": true,
+      "dialogue_active": false,
+      "dialogue_next": [
+        1385.5,
+        654
+      ],
+      "dirty": false,
+      "dodges": 1,
+      "elapsed_ms": 40045,
+      "fps": 3,
+      "frames": 108,
+      "guide_json": true,
+      "mean_ms": 351.105555555556,
+      "move_vector": [
+        0,
+        0
+      ],
+      "p95_ms": 781.6,
+      "persistent": true,
+      "player_x": 6.09573936462402,
+      "probe": {
+        "schema": 1,
+        "token": "1794202581.172"
+      },
+      "scene_ready": true,
+      "sha": "1bd34b84811cc255a98bb4b268e4525005d834c6",
+      "spot": "t2",
+      "user_dir": "/userfs/SA2-TD-Mobile-Spots",
+      "viewport": "(1558.0, 720.0)"
+    },
+    "errors": []
+  },
+  {
+    "spot": "t3",
+    "loadToReadyMs": 9478,
+    "loadToSampleMs": 20395,
+    "metrics": {
+      "action_buttons": {
+        "atk": [
+          1383,
+          530,
+          78
+        ],
+        "dodge": [
+          1213,
+          615,
+          50
+        ]
+      },
+      "actor_state": "move",
+      "control_panel": "legacy_touch_pad",
+      "controls_active": true,
+      "dirty": false,
+      "elapsed_ms": 16500,
+      "evac_moving": true,
+      "fps": 4,
+      "frames": 49,
+      "guide_button": [
+        1398,
+        146
+      ],
+      "guide_json": true,
+      "mean_ms": 290.363265306122,
+      "move_vector": [
+        0,
+        0
+      ],
+      "p95_ms": 471.7,
+      "persistent": true,
+      "phase": "street",
+      "player_x": 10.9375915527344,
+      "probe": {
+        "schema": 1,
+        "token": "1794202581.172"
+      },
+      "scene_ready": true,
+      "sha": "1bd34b84811cc255a98bb4b268e4525005d834c6",
+      "spot": "t3",
+      "start_button": [
+        236,
+        231
+      ],
+      "user_dir": "/userfs/SA2-TD-Mobile-Spots",
+      "viewport": "(1558.0, 720.0)"
+    },
+    "errors": []
+  }
+]
