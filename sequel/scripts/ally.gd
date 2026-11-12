@@ -644,6 +644,8 @@ func _end_ult() -> void:
 
 ## 撮影用：決まった技を出させる（id＝rush・barrage・storm・ult）
 func force_skill(id: String, e: Node3D) -> void:
+	if world.combat_audio != null:
+		world.combat_audio.play_cue("skill")
 	if id == "ult":
 		_start_ult(e)
 	else:

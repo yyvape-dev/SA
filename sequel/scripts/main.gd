@@ -391,6 +391,8 @@ func change_town_floor(enter_hall: bool) -> void:
 func _process(delta: float) -> void:
 	if player == null:
 		return   # 地区の読み込み中
+	if battle != null and battle.combat_audio != null:
+		battle.combat_audio.set_region(town, dungeon != null)
 	_place_cam(false, delta)
 	_check_town_edge()
 	_check_gate()

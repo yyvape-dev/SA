@@ -1,0 +1,25 @@
+extends SceneTree
+func _initialize(): call_deferred("run")
+func run():
+    var script = load("res://scripts/combat_audio.gd")
+    var sound = script.new()
+    root.add_child(sound)
+    if not sound.has_method("set_region"):
+        push_error("MUSIC_FAIL: region music not implemented")
+        quit(1)
+        return
+    sound.set_region("back", false)
+    assert(sound.current_music == "town" and sound.music.playing)
+    var playback = sound.music.get_stream_playback()
+    sound.set_region("back", false)
+    assert(playback == sound.music.get_stream_playback())
+    sound.set_region("back", true)
+    assert(sound.current_music == "dungeon" and sound.music.stream.loop)
+    sound.set_dialogue_duck(true)
+    assert(sound.music.volume_db < -20.0)
+    sound.set_dialogue_duck(false)
+    assert(sound.music.volume_db == -20.0)
+    assert(sound.streams.dash.get_length() < 0.6)
+    assert(sound.streams.skill.get_length() > 0.1)
+    print("MUSIC_PASS: region change, no restart, loop, dialogue duck, cue loading")
+    quit()

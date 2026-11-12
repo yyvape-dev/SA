@@ -56,6 +56,7 @@ func start(data: Dictionary, from_index: int = 0) -> bool:
 	auto_enabled = false
 	auto_button.text = "自動"
 	active = true
+	_duck_music(true)
 	show()
 	set_process(true)
 	_show_line()
@@ -137,6 +138,7 @@ func _close_dialogue() -> void:
 	if not active:
 		return
 	active = false
+	_duck_music(false)
 	auto_enabled = false
 	log_panel.hide()
 	skip_confirm.hide()
@@ -258,3 +260,12 @@ func _draw() -> void:
 	draw_rect(tube.grow(1), Color(0.6, 0.44, 0.23))
 	draw_rect(tube, Color(0.58, 0.16, 0.78))
 	draw_line(tube.position + Vector2(4, 2), tube.end - Vector2(4, 5), Color(0.94, 0.63, 1), 2)
+
+func _duck_music(enabled: bool) -> void:
+	var scene := get_tree().current_scene
+	if scene == null:
+		# Runtime tests attach the gameplay root directly.
+		for child in get_tree().root.get_children():
+			if child.get("battle") != null: scene = child; break
+	if scene != null and scene.get("battle") != null and scene.battle.combat_audio != null:
+		scene.battle.combat_audio.set_dialogue_duck(enabled)

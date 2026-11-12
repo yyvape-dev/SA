@@ -231,6 +231,8 @@ func use_skill(id: String) -> bool:
 	atk_next = "atkA"
 	skill_cd[id] = float(sk.cd)
 	skill_uses[id] = int(skill_uses.get(id, 0)) + 1
+	if world.combat_audio != null:
+		world.combat_audio.play_cue("skill")
 	world.big_moment(float(sk.total) * 0.85)   # 大技の暗転（specs/vfx_overhaul.md）
 	return true
 
@@ -343,6 +345,8 @@ func dodge() -> void:
 				queued_hold = false
 				return
 	state = "dodge"
+	if world != null and world.combat_audio != null:
+		world.combat_audio.play_cue("dash")
 	dodge_t = 0.0
 	ghost_t = 0.0
 	queued = false

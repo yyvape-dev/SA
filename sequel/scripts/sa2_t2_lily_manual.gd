@@ -129,6 +129,8 @@ func dodge() -> void:
     dodge_left = DODGE_TIME
     actor.inv = maxf(actor.inv, DODGE_TIME + 0.12)
     dodge_count += 1
+    if battle.combat_audio != null:
+        battle.combat_audio.play_cue("dash")
     dodge_started.emit()
 
 func _physics_process(delta: float) -> void:
