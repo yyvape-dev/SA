@@ -46,6 +46,13 @@
 - `scripts/sa2_t2_playable.gd`：**ランカの操作の入口** `?mode=ranka`（`SA2_RANKA_TEST`／`ranka_test_room`）。標的3体（600）、標的／実戦、全部リセット、**リリィ同行**（自動の仲間を一緒に出す）、**会話の立ち絵**（その場で立ち絵ループに切り替え）。撃破で経験値は増えない。天照のゲージは2段で開始。会話の立ち絵は `_event_idle_sprite(actor_id)`（`EVENT_IDLE` の表）で、今後の会話イベントでも使える。
 - `tools/export_web.py`：地区 `al2`、`art/ranka/*` を本体から除外。
 
+## エフェクトの方式（2026-11-12 10:25 ユーザー決定「SA1 と同じ方式でやってみよう」）
+- 外部AI（GPT）の白黒の素材（黒地・白黒・中に濃淡）に、コードで色の帯・侵食・ノイズ・大きさの曲線を付ける。SA2 には前からこの描き方がある（`scripts/tex_fx.gdshader`、`fx.gd` の `tex_quad`）ので、新しいシェーダーは作っていない。
+- 素材：元 `art/vfx_src/ranka/`（ring・pillar・flare・ki_band・petals・burst〈GPT、2026-11-12〉、band_blade・band_ink・band_smash〈SA1 の物〉）→ `tools/make_vfx_tex.py` → `assets/vfx/ranka/`（RGBA、RGB＝明るさ、A＝形。花びらは 4×2 のシート）。
+- `fx.gd`：`tex_quad` に `aspect`（横÷縦）・`grow_x`・`ang`、戻り値（板）、`res://` の名前、色の帯 `ranka`・`vermilion`。既存の呼び出しは変わらない。
+- 使い所（`ranka_fx.gd`・`ranka_ally.gd`）：当たり＝flare（強い当たりは burst も）、突き・指弾＝ki_band、蹴り＝band_blade、円環・着弾＝ring（床）、星震の柱・円環の締め・天照の決め＝pillar、星震の締め・天照の決め＝burst、天照の連撃＝band_ink、花びら＝petals。
+- 比較：`docs/sa2_ranka_img/vfx_tex_before_after.jpg`（左＝前、右＝今）。iPhone での見え方は未確認。
+
 ## 確認（事実）
 - Godot 4.7.2 で既存の全テスト（21本）＋新しい `tests/sa2_t7_ranka_test.gd` が通過（`sa2_world_failure_test` は出力に "FAILURE" の語を含むが結果は PASS）。
 - 新テストの内容：入口・操作の担当・3枠・ゲージ2段、連撃の順 c1→c2→c3→掌底、単発の c1 から戻り→構え、3スキルとも敵に当たり待ちが入る、天照で画面の敵すべてに当たりゲージ 100 消費・演出の後に cine とカメラが戻る、リリィ同行で自動のリリィが戦う、会話の立ち絵の切り替え、経験値が増えない。

@@ -786,6 +786,9 @@ const TQ_BANDS := {
 	"white": [[0.0, Color(1, 1, 1, 1)], [0.6, Color(0.85, 0.85, 0.85, 1)], [1.0, Color(0.5, 0.5, 0.5, 0)]],
 	"gold": [[0.0, Color(1, 1, 1, 1)], [0.35, Color(1.0, 0.86, 0.45, 1)], [0.7, Color(1.0, 0.5, 0.12, 0.9)], [1.0, Color(0.6, 0.1, 0.1, 0)]],
 	"smoke": [[0.0, Color(1, 1, 1, 1)], [0.5, Color(0.8, 0.78, 0.85, 0.9)], [1.0, Color(0.5, 0.45, 0.55, 0)]],
+	# 2026-11-12 ランカ（青・白・朱色の花・金）
+	"ranka": [[0.0, Color(0.92, 0.97, 1, 1)], [0.22, Color(0.55, 0.78, 1.0, 1)], [0.55, Color(0.22, 0.45, 1.0, 0.95)], [1.0, Color(0.06, 0.1, 0.55, 0)]],
+	"vermilion": [[0.0, Color(1, 0.97, 0.94, 1)], [0.3, Color(1.0, 0.66, 0.52, 1)], [0.65, Color(0.93, 0.29, 0.16, 0.95)], [1.0, Color(0.45, 0.05, 0.05, 0)]],
 }
 var tq_band := {}
 func band(name: String) -> GradientTexture1D:
@@ -808,15 +811,15 @@ var assets_ok := false   # 絵（地区 pck fx1）を読み終えたか
 var ken_tex := {}
 
 func ken(name: String) -> Texture2D:
-	if not ken_tex.has(name):
-		ken_tex[name] = load(KEN + name + ".png")
+	if not ken_tex.has(name):   # res:// で始まる名前はそのパス（2026-11-12：ランカの素材 assets/vfx/ranka/）
+		ken_tex[name] = load(name if name.begins_with("res://") else KEN + name + ".png")
 	return ken_tex[name]
 
 ## 板を出す。o：floor（床に寝かせる）・add（加算）・raw・col・size（m、始め）・grow（終わりの倍率）・rise（m/秒）・spin（ラジアン/秒）・
 ##   fade_in（秒）・prio（描く順。床は −2 でキャラより先＝足元・奥に見える）
-func tex_quad(name: String, pos: Vector3, life: float, o: Dictionary) -> void:
+func tex_quad(name: String, pos: Vector3, life: float, o: Dictionary) -> MeshInstance3D:
 	if legacy or not assets_ok:
-		return
+		return null
 	var mi := MeshInstance3D.new()
 	var floor: bool = o.get("floor", false)
 	if floor:
@@ -844,11 +847,13 @@ func tex_quad(name: String, pos: Vector3, life: float, o: Dictionary) -> void:
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mi.position = pos + (Vector3(0, 0.03, 0) if floor else Vector3.ZERO)
 	var sz: float = float(o.get("size", 1.0))
-	mi.scale = Vector3(sz, sz if not floor else 1.0, sz * (0.6 if floor else 1.0))
+	var asp: float = float(o.get("aspect", 1.0))   # 横÷縦（2026-11-12：帯・柱など正方形でない絵。size は縦の長さ）
+	mi.scale = Vector3(sz * asp, sz if not floor else 1.0, sz * (0.6 if floor else 1.0))
 	add_child(mi)
 	tq.append({"node": mi, "mat": m, "t": 0.0, "life": life * randf_range(0.85, 1.15), "size": sz, "grow": float(o.get("grow", 1.0)),
-		"rise": float(o.get("rise", 0.0)), "spin": float(o.get("spin", 0.0)), "ang": randf() * TAU, "fade_in": float(o.get("fade_in", 0.04)),
-		"floor": floor, "follow": o.get("follow", null)})
+		"rise": float(o.get("rise", 0.0)), "spin": float(o.get("spin", 0.0)), "ang": float(o.get("ang", randf() * TAU)), "fade_in": float(o.get("fade_in", 0.04)),
+		"floor": floor, "follow": o.get("follow", null), "aspect": asp, "grow_x": float(o.get("grow_x", 1.0))})
+	return mi
 
 func _update_tq(delta: float) -> void:
 	for i in range(tq.size() - 1, -1, -1):
@@ -862,7 +867,7 @@ func _update_tq(delta: float) -> void:
 			continue
 		var e := 1.0 - pow(1.0 - k, 2.0)   # 速く広がり、ゆっくり止まる
 		var sz: float = q.size * lerpf(1.0, q.grow, e)
-		q.node.scale = Vector3(sz, sz if not q.floor else 1.0, sz * (0.6 if q.floor else 1.0))
+		q.node.scale = Vector3(sz * float(q.get("aspect", 1.0)) * lerpf(1.0, float(q.get("grow_x", 1.0)), e), sz if not q.floor else 1.0, sz * (0.6 if q.floor else 1.0))
 		q.node.position.y += q.rise * delta * (1.0 - k)
 		if q.follow != null and is_instance_valid(q.follow):
 			q.node.position.x = q.follow.position.x

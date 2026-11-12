@@ -128,11 +128,12 @@ func _hit_new(c: Dictionary, h: int, n: int, last_hit: bool) -> void:
 	var tip := _tip_world_f(c, h)
 	match String(spec.kind):
 		"fist":   # 拳の先から前へ、まっすぐな蒼白の気の槍
-			var base := position + Vector3(face * 0.3, tip.y, 0.12)
 			var end := tip + Vector3(face * 0.9, 0, 0)
-			world.fx.ribbon([base, base.lerp(end, 0.5), end], {"w": spec.get("w", 0.3), "life": 0.3, "bolts": 0, "pal": RankaFx.BLUE, "noise": 0.3})
+			rfx.tx("ki_band", tip + Vector3(face * 0.1, 0, 0.14), 0.32, {"size": 0.55 * (1.3 if spec.has("w") else 1.0), "raw": 1.7, "erode_from": 0.25, "grow_x": 1.5, "ang": 0.0 if face > 0 else PI})
+			rfx.tx("flare", end, 0.18, {"size": 1.1, "raw": 1.8, "grow": 1.3, "spin": 2.5})
 		"kick":
 			world.fx.ribbon(_trail(c, h), {"w": spec.get("w", 0.55), "life": 0.42, "bolts": 0, "pal": RankaFx.BLUE, "noise": 0.35})
+			rfx.tx("band_blade", tip + Vector3(-face * 0.6, 0, 0.14), 0.3, {"size": 0.45, "raw": 1.5, "erode_from": 0.2, "ang": 0.0 if face > 0 else PI})
 			if strong:
 				rfx.petals_burst(tip, 10, {"spd": Vector2(2.0, 5.0), "size": 0.15})
 		"low":   # 足払い：床すれすれの横の弧（前後）
@@ -300,7 +301,8 @@ func _ult_flash_step(n: int) -> void:
 	world.fx.ribbon([position + Vector3(-face * 0.8, 0.6 + 0.1 * (n % 3), 0.12), position + Vector3(face * 0.2, 1.2, 0.12), at + Vector3(face * 0.8, 0.1, 0)],
 		{"w": 0.5, "life": 0.3, "bolts": 0, "pal": RankaFx.BLUE if n % 3 else RankaFx.GOLD, "noise": 0.3})
 	rfx.petals_burst(at, 12, {"spd": Vector2(3.0, 7.0), "size": 0.17})
-	world.fx._quad(at, Vector2(2.0, 2.0), world.fx._mat(1, RankaFx.BLUE), "flash", 0.1, 0.0)
+	rfx.tx("flare", at, 0.2, {"size": 2.2, "raw": 1.9, "grow": 1.3, "spin": 3.0, "band": "gold" if n % 3 == 0 else "ranka"})
+	rfx.tx("band_ink", at + Vector3(-face * 1.2, 0, -0.02), 0.3, {"size": 0.9, "raw": 1.5, "erode_from": 0.2, "ang": 0.0 if face > 0 else PI})
 	world.shake = maxf(world.shake, 9.0)
 	var hs := {"shape": "circle", "side": 1, "r": RankaSkills.SCREEN_R, "cx": 0.0, "lane": 99.0, "dmg": RDMG * float(sk_tab.ult.k_step),
 		"strong": false, "kb": 0.15, "shake": 6.0}
@@ -309,8 +311,10 @@ func _ult_flash_step(n: int) -> void:
 func _ult_end_hit() -> void:
 	var cx := position.x
 	var at := position + Vector3(0, 1.3, 0.15)   # 交差した腕（胸の前）から光が爆ぜる
-	world.fx._quad(at, Vector2(6.0, 6.0), world.fx._mat(1, RankaFx.GOLD), "flash", 0.3, 0.0)
-	world.fx._quad(at, Vector2(9.0, 4.0), world.fx._mat(1, RankaFx.BLUE), "flash", 0.35, 0.03)
+	rfx.tx("burst", at, 0.9, {"size": 9.0, "raw": 1.2, "grow": 1.3, "erode_from": 0.15, "spin": 0.4, "band": "gold"})
+	rfx.tx("burst", at, 0.7, {"size": 6.0, "raw": 1.4, "grow": 1.4, "erode_from": 0.1, "spin": -0.8})
+	rfx.tx("pillar", position + Vector3(0, 3.8, 0.12), 1.0, {"size": 8.0, "raw": 1.8, "erode_from": 0.3, "grow_x": 2.0, "ang": 0.0})
+	rfx.tx("flare", at, 0.45, {"size": 5.0, "raw": 1.6, "grow": 1.5, "spin": 1.0})
 	var m: ShaderMaterial = world.fx._mat(1, RankaFx.BLUE)
 	m.set_shader_parameter("core_gain", 0.4)
 	world.fx._quad(Vector3(cx, 3.5, position.z), Vector2(20.0, 8.0), m, "flash", 0.45, 0.05)   # 画面全体を覆う光

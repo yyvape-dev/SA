@@ -1,0 +1,66 @@
+{
+ "ring": {
+  "size": [
+   768,
+   757
+  ],
+  "aspect": 1.015
+ },
+ "flare": {
+  "size": [
+   512,
+   439
+  ],
+  "aspect": 1.166
+ },
+ "pillar": {
+  "size": [
+   302,
+   768
+  ],
+  "aspect": 0.393
+ },
+ "ki_band": {
+  "size": [
+   1024,
+   261
+  ],
+  "aspect": 3.923
+ },
+ "burst": {
+  "size": [
+   750,
+   768
+  ],
+  "aspect": 0.977
+ },
+ "band_blade": {
+  "size": [
+   1024,
+   191
+  ],
+  "aspect": 5.361
+ },
+ "band_ink": {
+  "size": [
+   1024,
+   260
+  ],
+  "aspect": 3.938
+ },
+ "band_smash": {
+  "size": [
+   1024,
+   352
+  ],
+  "aspect": 2.909
+ },
+ "petals": {
+  "size": [
+   1024,
+   512
+  ],
+  "hframes": 4,
+  "vframes": 2
+ }
+}
