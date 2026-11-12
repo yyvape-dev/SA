@@ -29,7 +29,7 @@ DISTRICTS = {
     "al2": {"res": ["assets/ranka/*.webp", "assets/vfx/ranka/*.png"],   # 仲間ランカ（2026-11-12。リリィの後に読む。json は本体）＋ランカ専用のエフェクト（花びら・焼いた連番）。共通の白黒の素材は fx1 の assets/vfx/shared
             "files": []},
 }
-MAIN_EXCLUDE = ["captures/*", "art/ranka/*", "art/guide/*.png", "art/guide_bt/*", "art/painted_bt/*", "art/painted_bt_src/*", "tools/*", "districts/*", "art/incoming/*", "addons/*"]   # addons/＝取得した素材の元（使う絵は assets/vfx/ に写した。2026-11-07）
+MAIN_EXCLUDE = ["captures/*", "docs/*", "art/ranka/*", "art/guide/*.png", "art/guide_bt/*", "art/painted_bt/*", "art/painted_bt_src/*", "tools/*", "districts/*", "art/incoming/*", "addons/*"]   # docs/＝資料の比較画像（ゲームで使わない。2026-11-12 に本体から外して約13MB減）。addons/＝取得した素材の元（使う絵は assets/vfx/ に写した。2026-11-07）
 
 
 def resource_files(spec):
