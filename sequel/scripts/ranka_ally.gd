@@ -33,6 +33,7 @@ var ult_step := 0
 var ult_next_t := 0.0
 var ult_targets := []
 var ult_done_end := false
+var ult_seq_started := false
 var hit_pal := "blue"
 
 func setup(w, d: Dictionary) -> void:
@@ -213,11 +214,12 @@ func _skill_hit(spec: Dictionary) -> void:
 					n += 1
 			for k in 2:   # 敵のいない所にも降らせる（画面全体）
 				rfx.star(Vector3(cx + randf_range(-8.0, 8.0), 0, randf_range(-2.5, 2.5)), randf_range(0.0, 0.08), k == 1)
+		"quake_seq":   # 2026-11-12：締めは Godot で焼いた連番（予兆→炸裂→余韻の層）。白い板を1枚出して回す方式はやめた
+			rfx.seq("quake", position + Vector3(0, 1.3, 0), 0.6)
+			return
 		"quake_end":
-			rfx.quake_end(cx, position.z, 9.0)
-			world.chroma_hit(1.0)
-			if world.main and world.main.ranka_cutin:
-				world.main.ranka_cutin.flash_white()
+			world.chroma_hit(0.35)   # 強いと虹色の輪が出て安っぽい（sa2-skill-craft 3.5）
+			world.fx.shockwave(position + Vector3(0, 1.3, 0), 1.8, 0.5, 0.9)
 	if String(spec.get("shape", "")) == "none":
 		return
 	if String(spec.get("shape", "")) == "screen":
@@ -233,6 +235,7 @@ func _start_ult(e: Node3D) -> void:
 	ult_step = 0
 	ult_next_t = 0.0
 	ult_done_end = false
+	ult_seq_started = false
 	ult_targets = _screen_foes()
 
 const STEP_DT := 0.13
@@ -270,6 +273,9 @@ func _ult_process(delta: float) -> void:
 	_show("skill_thunder", clampi(fi, 0, data.clips.skill_thunder.frames.size() - 1))
 	if t3 < 0.32 and int(t3 * 30.0) % 3 == 0:
 		rfx.charge(position + Vector3(0, 1.4, 0), 1.8, 0.2)
+	if t3 >= 0.07 and not ult_seq_started:   # 焼いた決めの連番（炸裂の 0.25 秒前から）
+		ult_seq_started = true
+		rfx.seq("ama", position + Vector3(0, 1.3, 0), 0.8)
 	if t3 >= 0.32 and not ult_done_end:
 		ult_done_end = true
 		_ult_end_hit()
@@ -311,16 +317,8 @@ func _ult_flash_step(n: int) -> void:
 func _ult_end_hit() -> void:
 	var cx := position.x
 	var at := position + Vector3(0, 1.3, 0.15)   # 交差した腕（胸の前）から光が爆ぜる
-	rfx.tx("burst", at, 0.9, {"size": 9.0, "raw": 1.2, "grow": 1.3, "erode_from": 0.15, "spin": 0.4, "band": "gold"})
-	rfx.tx("burst", at, 0.7, {"size": 6.0, "raw": 1.4, "grow": 1.4, "erode_from": 0.1, "spin": -0.8})
-	rfx.tx("pillar", position + Vector3(0, 3.8, 0.12), 1.0, {"size": 8.0, "raw": 1.8, "erode_from": 0.3, "grow_x": 2.0, "ang": 0.0})
-	rfx.tx("flare", at, 0.45, {"size": 5.0, "raw": 1.6, "grow": 1.5, "spin": 1.0})
-	var m: ShaderMaterial = world.fx._mat(1, RankaFx.BLUE)
-	m.set_shader_parameter("core_gain", 0.4)
-	world.fx._quad(Vector3(cx, 3.5, position.z), Vector2(20.0, 8.0), m, "flash", 0.45, 0.05)   # 画面全体を覆う光
-	for x in [cx - 6.0, cx, cx + 6.0]:
-		rfx.ring(Vector3(x, 0, position.z), 6.0, 0, true)
-	rfx.petals_burst(at, 60, {"spd": Vector2(4.0, 11.0), "up": 0.4, "size": 0.2, "spread": Vector3(1.0, 0.6, 0.6)})
+	# 炸裂の見た目は焼いた連番（rfx.seq "ama"、_ult_process で 0.25 秒前に出している）。ここは余韻の 3D の花びらと手応えだけ
+	rfx.petals_burst(at, 24, {"spd": Vector2(4.0, 9.0), "up": 0.4, "size": 0.2, "spread": Vector3(1.0, 0.6, 0.6), "delay": 0.15})
 	rfx.petals_rain(cx, 10.0, 90, 2.6)
 	world.fx.shockwave(at, 2.6, 0.7, 1.1)
 	world.chroma_hit(1.0)

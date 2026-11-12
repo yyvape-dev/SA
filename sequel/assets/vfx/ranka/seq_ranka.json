@@ -1,0 +1,27 @@
+{
+ "note": "ランカの大技の締め（tools/bake_ranka_finale.gd → pack_ranka_finale.py）。1コマ 512×288＝16m×9m（32px＝1m）、中心（ランカの胸）＝(256,150)、地面＝中心の 1.3m 下。fps 30。炸裂は 0.25 秒（7.5 コマ目）",
+ "cell": [
+  512,
+  288
+ ],
+ "cols": 8,
+ "fps": 30,
+ "px_per_m": 32,
+ "center": [
+  256,
+  150
+ ],
+ "hit_s": 0.25,
+ "seq": {
+  "ama": {
+   "frames": 38,
+   "rows": 5,
+   "file": "seq_ama.png"
+  },
+  "quake": {
+   "frames": 29,
+   "rows": 4,
+   "file": "seq_quake.png"
+  }
+ }
+}

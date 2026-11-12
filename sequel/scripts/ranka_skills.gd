@@ -40,6 +40,7 @@ static func table() -> Dictionary:
 		[21, {"shape": "circle", "side": 1, "r": 3.0, "cx": 0.0, "lane": 9.0, "k": 1.0, "strong": true, "kb": 0.6, "fx": "quake_burst", "shake": 12.0}]]
 	for i in 6:
 		qev.append([23 + i * 2, {"shape": "screen", "side": 1, "k": 0.6, "strong": false, "kb": 0.1, "fx": "star", "n": i, "shake": 5.0}])
+	qev.append([34, {"shape": "none", "k": 0.0, "fx": "quake_seq"}])   # 焼いた締めの連番を 0.22 秒前から（溜め 0.25 秒 → 38 で炸裂）
 	qev.append([38, {"shape": "screen", "side": 1, "k": 3.0, "strong": true, "kb": 2.6, "fx": "quake_end", "shake": 22.0, "wave": true, "freeze_add": 0.08}])
 	t["quake"] = {"clip": "skill_thunder", "frames": qf, "fps": 18.0, "cd": 22.0, "ev": qev}
 	# 必殺技 天照：当たりは ranka_ally.gd の _ult_process（画面の敵すべてへ 8 回 1.0 倍＋決め 9.0 倍）

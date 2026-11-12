@@ -192,11 +192,56 @@ func hit(p: Vector3, strong: bool) -> void:
 	if strong:
 		petals_burst(p, 8, {"spd": Vector2(2.0, 5.5), "size": 0.15})
 
+# ---------- 焼いた連番（大技の締め。tools/bake_ranka_finale.gd → pack_ranka_finale.py → assets/vfx/ranka/seq_<名前>.png） ----------
+## Sprite3D でめくるだけ（自前のシェーダーを使わない＝iPhone で確実）。at＝炸裂の中心（ランカの胸）。炸裂は再生から hit_s 秒後
+var seq_meta: Dictionary = {}
+var seqs := []
+func seq(name: String, at: Vector3, scale: float = 1.0) -> float:
+	if seq_meta.is_empty():
+		var m = JSON.parse_string(FileAccess.get_file_as_string(TX + "seq_ranka.json"))
+		if m is Dictionary:
+			seq_meta = m
+	if seq_meta.is_empty() or not seq_meta.seq.has(name):
+		return 0.0
+	var info: Dictionary = seq_meta.seq[name]
+	var s := Sprite3D.new()
+	s.texture = load(TX + str(info.file))
+	s.hframes = int(seq_meta.cols)
+	s.vframes = int(info.rows)
+	s.frame = 0
+	s.pixel_size = scale / float(seq_meta.px_per_m)
+	var cell: Array = seq_meta.cell
+	var ctr: Array = seq_meta.center
+	s.offset = Vector2(float(cell[0]) * 0.5 - float(ctr[0]), float(ctr[1]) - float(cell[1]) * 0.5)   # 中心（胸）を at に
+	s.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	s.shaded = false
+	s.transparent = true
+	s.no_depth_test = true
+	s.render_priority = 20
+	s.alpha_cut = SpriteBase3D.ALPHA_CUT_DISABLED
+	s.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
+	s.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	s.position = at + Vector3(0, 0, 0.3)
+	s.modulate = Color(0.8, 0.8, 0.8, 1.0)   # 白い芯が 3D の glow（閾値 0.78）を大きく越えて画面が白く飛んだ → 少し落とす
+	add_child(s)
+	seqs.append({"node": s, "t": 0.0, "n": int(info.frames), "fps": float(seq_meta.fps)})
+	return float(seq_meta.hit_s)
+
 var later := []
 func _later(t: float, f: Callable) -> void:
 	later.append([t, f])
 
 func _process(delta: float) -> void:
+	for i in range(seqs.size() - 1, -1, -1):
+		var q: Dictionary = seqs[i]
+		q.t += delta
+		var f := int(q.t * q.fps)
+		if f >= q.n or not is_instance_valid(q.node):
+			if is_instance_valid(q.node):
+				q.node.queue_free()
+			seqs.remove_at(i)
+			continue
+		q.node.frame = f
 	for i in range(later.size() - 1, -1, -1):
 		later[i][0] -= delta
 		if later[i][0] <= 0.0:

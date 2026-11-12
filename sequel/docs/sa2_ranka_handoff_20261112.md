@@ -53,6 +53,13 @@
 - 使い所（`ranka_fx.gd`・`ranka_ally.gd`）：当たり＝flare（強い当たりは burst も）、突き・指弾＝ki_band、蹴り＝band_blade、円環・着弾＝ring（床）、星震の柱・円環の締め・天照の決め＝pillar、星震の締め・天照の決め＝burst、天照の連撃＝band_ink、花びら＝petals。
 - 比較：`docs/sa2_ranka_img/vfx_tex_before_after.jpg`（左＝前、右＝今）。iPhone での見え方は未確認。
 
+## 大技の締めは Godot で焼いた連番（2026-11-12 13:27 ユーザー決定）
+- 経緯：星震の締めを素材1枚の拡大・回転・薄く消す方式にしたら「絵を貼って動かしている感」（ユーザー指摘）。Skill game-vfx-juice・naraku-vfx 7.・sa2-skill-craft 3.5 の既定（大技は Godot で描いて焼く・置いて薄くするだけにしない・回さない・予兆）を読まずに作ったのが原因。
+- `tools/bake_ranka_finale.gd`（xvfb の実描画・30fps・乱数固定）：予兆 0.25 秒（外から中心へ集まる光の筋・中心の光が育つ・床の輪が閉じる）→ 炸裂（芯の閃光 2 コマ・爆ぜの絵が中心から外へ現れて外と暗い所から侵食で消える・回さない・色は寿命で冷める）→ 光の筋と粒（減速・重力）・床の輪 → 抜き（黒い破片・地を這う土煙）→ 上（朱の花びら、明るさ→色の焼き専用シェーダー）。焼き専用のシェーダーは `tools/bake_texfx.gdshader`（ゲームでは使わない）。
+- `tools/pack_ranka_finale.py`：光・抜き・上の3回を1枚の straight alpha にまとめ、`assets/vfx/ranka/seq_quake.png`（29コマ）・`seq_ama.png`（38コマ）・`seq_ranka.json`。1コマ 512×288。
+- ゲーム：`ranka_fx.seq(名前, 中心, 大きさ)`＝Sprite3D でめくるだけ（iPhone で確実）。星震は ev 34 で出し 38 で炸裂、天照は決めの 0.07 秒で出す。
+- 比較：`docs/sa2_ranka_img/quake_finale_before_after.jpg`（上＝前、下＝今）・`ult_finale.jpg`。
+
 ## 確認（事実）
 - Godot 4.7.2 で既存の全テスト（21本）＋新しい `tests/sa2_t7_ranka_test.gd` が通過（`sa2_world_failure_test` は出力に "FAILURE" の語を含むが結果は PASS）。
 - 新テストの内容：入口・操作の担当・3枠・ゲージ2段、連撃の順 c1→c2→c3→掌底、単発の c1 から戻り→構え、3スキルとも敵に当たり待ちが入る、天照で画面の敵すべてに当たりゲージ 100 消費・演出の後に cine とカメラが戻る、リリィ同行で自動のリリィが戦う、会話の立ち絵の切り替え、経験値が増えない。
