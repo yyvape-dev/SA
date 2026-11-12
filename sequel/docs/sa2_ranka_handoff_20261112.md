@@ -51,8 +51,10 @@
 - 実描画（xvfb・1280×720・OpenGL 互換）：`RANKA_CAPTURE=<フォルダ>` で要所を PNG に。並べた画像は `docs/sa2_ranka_img/`。
 - 本編の自動の4周（`DUNGEON_TEST=1`、3人）：全部クリア・抜け道なし。ノーマル 83.1・42.9・48.5 秒／被弾 3・2・2、ハード 63.0 秒／4。ランカの技 指弾 16・星震 7・円環 4・天照 2。リリィの技も従来どおり出る。
 
-## 配信（2026-11-12 09:30 ユーザー決定：A）
-- 実機の確認用の配信は、T6 と同じく Codex 側の配信先に出す。main の GitHub Pages は使わない。
+## 配信（2026-11-12 09:38 ユーザー決定：B に変更）
+- 試し版を main の `previews/sa2-ranka/` に置いた（本編 `sequel/web/` は触っていない）。起動シーンを `sa2_t5_training_preview.tscn` に差し替えて `export_web.py`（WEB_OUT=web_ranka）で書き出したもの。project.godot の差し替えはコミットしていない。
+- URL：https://yyvape-dev.github.io/SA/previews/sa2-ranka/?mode=ranka （?mode=lily・?mode=rana も同じ版）。Pages の反映は success。手元の gzip 配信＋chromium（844×390）でランカの入口の起動・読み込み（ranka_loaded 約36秒、swiftshader）を確認。Pages そのものはこの作業環境から開けず未確認。
+- 3人同時の本編（main.tscn）の試し版は出していない。
 
 ## 未確認・残り
 - **Web 書き出し・iPhone 実機は未実施**（この作業では書き出しテンプレートを入れていない）。配信するときは `python3 -I sequel/tools/export_web.py` で al2 が出来るか、起動時のメモリ（ランカの絵 GPU 約 2 ページ分＝4096² 2枚）を確認。T6 で iPhone Safari の起動クラッシュの原因が未特定なので、3人同時の本編は特に重さに注意（仮説：メモリ）。
