@@ -23,6 +23,10 @@ const SHARED := "res://assets/vfx/shared/"
 const CONF := {
 	"quake": {"dur": 0.95, "burst": 0.66, "gold": 0.25, "petals": 12, "streaks": 34, "sparks": 70, "frags": 16, "wave2": false, "band": "blue"},
 	"ama": {"dur": 1.25, "burst": 0.78, "gold": 0.55, "petals": 70, "streaks": 44, "sparks": 110, "frags": 12, "wave2": true, "pillar": false, "band": "gold"},
+	# 2026-11-12 ユーザー決定 A：ラナ・リリィの大技の締めも同じ型で、色と散る物だけ変える
+	"rana_ult": {"dur": 1.2, "burst": 0.78, "gold": 0.6, "petals": 0, "streaks": 40, "sparks": 100, "frags": 18, "wave2": true, "band": "gold", "streak_band": "blue", "xcut": true},
+	"lily_ult": {"dur": 1.1, "burst": 0.62, "gold": 0.0, "petals": 0, "streaks": 30, "sparks": 80, "frags": 10, "wave2": false, "band": "lily", "streak_band": "lily", "bolt_top": true, "core_tex": "plasma"},
+	"lily_storm": {"dur": 1.0, "burst": 0.55, "gold": 0.0, "petals": 0, "streaks": 26, "sparks": 70, "frags": 8, "wave2": false, "band": "lily", "streak_band": "lily", "floor_bolts": 7, "core_tex": "plasma"},
 }
 
 var rng := RandomNumberGenerator.new()
@@ -117,6 +121,7 @@ func _run() -> void:
 	var W1 := Color(1, 1, 1, 1)
 	grads["blue"] = _grad([[0.0, Color(1.0, 1.0, 1.0, 1)], [0.25, Color(0.62, 0.82, 1.0, 1)], [0.6, Color(0.2, 0.42, 1.0, 0.95)], [1.0, Color(0.05, 0.08, 0.5, 0)]])
 	grads["gold"] = _grad([[0.0, Color(1.0, 1.0, 0.96, 1)], [0.25, Color(1.0, 0.86, 0.5, 1)], [0.6, Color(1.0, 0.52, 0.16, 0.95)], [1.0, Color(0.6, 0.12, 0.08, 0)]])
+	grads["lily"] = _grad([[0.0, Color(1.0, 1.0, 1.0, 1)], [0.3, Color(0.86, 0.92, 1.0, 1)], [0.62, Color(0.36, 0.74, 1.0, 0.95)], [1.0, Color(0.32, 0.2, 0.75, 0)]])
 	grads["white"] = _grad([[0.0, W1], [0.5, Color(0.85, 0.92, 1.0, 1)], [1.0, Color(0.5, 0.6, 0.9, 0)]])
 	for name in CONF:
 		await _bake(name, CONF[name])
@@ -130,7 +135,7 @@ func _bake(name: String, cf: Dictionary) -> void:
 	var dv := _view(true)
 	var tv := _view(true)   # 上の回：花びら（光の上に重ねる。朱が光に埋もれないように）
 	var tex := {}
-	for k in ["burst", "flare", "ring", "band_blade", "pillar", "petals"]:
+	for k in ["burst", "flare", "ring", "band_blade", "band_smash", "pillar", "petals", "bolt_v", "bolt_h", "plasma"]:
 		tex[k] = load((TX if k == "petals" else SHARED) + k + ".png")
 	var smoke: Texture2D = load("res://assets/vfx/kenney/smoke_04.png")
 	var main_band: String = cf.band
@@ -138,9 +143,21 @@ func _bake(name: String, cf: Dictionary) -> void:
 	var pre := []
 	for i in 16:
 		var a := TAU * float(i) / 16.0 + rng.randf_range(-0.15, 0.15)
-		var s := _spr(lv, tex.band_blade, _mat("blue" if i % 3 else "gold", 1.6, 0.9, rng.randf() * 9.0))
+		var s := _spr(lv, tex.band_blade, _mat(str(cf.get("streak_band", "blue")) if (i % 3 or float(cf.gold) <= 0.0) else "gold", 1.6, 0.9, rng.randf() * 9.0))
 		pre.append({"n": s, "a": a, "r0": rng.randf_range(260.0, 360.0), "d": rng.randf_range(0.0, 0.08)})
-	var core := _spr(lv, tex.flare, _mat("white", 2.0, 0.5, 1.0))
+	var core := _spr(lv, tex[cf.get("core_tex", "flare")], _mat("white", 2.0, 0.5, 1.0))
+	# 追加の層：xcut＝ラナの十字の斬撃（太い帯 2 本が交差して走る）、bolt_top＝リリィの落雷（上から中心へ）、floor_bolts＝床を這う稲妻
+	var xcuts := []
+	if cf.get("xcut", false):
+		for k in 2:
+			xcuts.append({"n": _spr(lv, tex.band_smash, _mat("blue" if k == 0 else "gold", 1.8, 0.15, 7.0 + k)), "a": deg_to_rad(-28.0 if k == 0 else 28.0) + (PI if k == 1 else 0.0), "d": 0.04 * k})
+	var bolt_top: Sprite2D = null
+	if cf.get("bolt_top", false):
+		bolt_top = _spr(lv, tex.bolt_v, _mat("lily", 1.7, 0.2, 9.0))
+	var fbolts := []
+	for k in int(cf.get("floor_bolts", 0)):
+		var fa := TAU * float(k) / float(cf.floor_bolts) + rng.randf_range(-0.3, 0.3)
+		fbolts.append({"n": _spr(lv, tex.bolt_h, _mat("lily", 1.6, 0.2, rng.randf() * 9.0)), "a": fa, "d": rng.randf_range(0.0, 0.06)})
 	var close_ring := _spr(lv, tex.ring, _mat("blue", 1.2, 0.95, 2.0))
 	var burst := _spr(lv, tex.burst, _mat(main_band, 1.45, 0.04, 3.0))
 	(burst.material as ShaderMaterial).set_shader_parameter("cool", 0.75)
@@ -156,13 +173,13 @@ func _bake(name: String, cf: Dictionary) -> void:
 		var a := rng.randf() * TAU
 		a = lerp_angle(a, 0.0 if cos(a) > 0 else PI, 0.25)   # 横へ少し寄せる（画面が横長）
 		var gold := rng.randf() < float(cf.gold)
-		var s := _spr(lv, tex.band_blade, _mat("gold" if gold else "blue", 1.7, 0.1, rng.randf() * 9.0))
+		var s := _spr(lv, tex.band_blade, _mat("gold" if gold else str(cf.get("streak_band", "blue")), 1.7, 0.1, rng.randf() * 9.0))
 		streaks.append({"n": s, "a": a, "v": rng.randf_range(700.0, 1600.0), "d": rng.randf_range(0.0, 0.05), "w": rng.randf_range(0.18, 0.32), "life": rng.randf_range(0.35, 0.6)})
 	var sparks := []
 	for i in int(cf.sparks):
 		var a := rng.randf() * TAU
 		var gold := rng.randf() < float(cf.gold)
-		var s := _spr(lv, tex.flare, _mat("gold" if gold else "blue", 2.2, 0.6, rng.randf() * 9.0))
+		var s := _spr(lv, tex.flare, _mat("gold" if gold else str(cf.get("streak_band", "blue")), 2.2, 0.6, rng.randf() * 9.0))
 		sparks.append({"n": s, "a": a, "v": rng.randf_range(300.0, 1200.0), "d": rng.randf_range(0.0, 0.12), "sz": rng.randf_range(0.03, 0.075), "life": rng.randf_range(0.4, 0.75)})
 	# ---- 抜きの回 ----
 	var frags := []
@@ -230,7 +247,7 @@ func _bake(name: String, cf: Dictionary) -> void:
 		else:
 			cs = lerpf(0.8, 0.12, ease_out(u / 0.25))
 		core.position = C
-		core.scale = Vector2.ONE * cs
+		core.scale = Vector2.ONE * cs * (0.6 if cf.get("core_tex", "flare") == "plasma" else 1.0)
 		(core.material as ShaderMaterial).set_shader_parameter("life", clampf(u / 0.6, 0.0, 1.0))
 		(core.material as ShaderMaterial).set_shader_parameter("alpha", 1.0 if u < 0.45 else 1.0 - (u - 0.45) / 0.2)
 		# 床の輪：溜めの間に閉じる
@@ -262,6 +279,32 @@ func _bake(name: String, cf: Dictionary) -> void:
 			var pm := pillar.material as ShaderMaterial
 			pm.set_shader_parameter("reveal", ease_out(u / 0.12) * 1.2)
 			pm.set_shader_parameter("life", clampf(u / 0.9, 0.0, 1.0))
+		for q in xcuts:   # 十字の斬撃：炸裂の瞬間に走り、伸びながら侵食で消える
+			var sx: Sprite2D = q.n
+			var ux: float = u + 0.06 - q.d
+			sx.visible = ux >= 0.0 and ux < 0.5
+			sx.position = C
+			sx.rotation = q.a
+			sx.scale = Vector2(lerpf(0.25, 0.75, ease_out(ux / 0.12)), 0.45)
+			(sx.material as ShaderMaterial).set_shader_parameter("reveal", ease_out(ux / 0.08) * 1.2)
+			(sx.material as ShaderMaterial).set_shader_parameter("life", clampf(ux / 0.5, 0.0, 1.0))
+		if bolt_top:   # 落雷：炸裂の 1 コマ前に上から落ち、侵食で消える
+			var ub := u + 1.0 / FPS
+			bolt_top.visible = ub >= 0.0 and ub < 0.6
+			bolt_top.position = Vector2(C.x, GROUND - 768.0 * 0.62 * 0.5 + 20.0)
+			bolt_top.scale = Vector2(0.75, 0.62)
+			(bolt_top.material as ShaderMaterial).set_shader_parameter("reveal", 1.3)
+			(bolt_top.material as ShaderMaterial).set_shader_parameter("life", clampf(ub / 0.6, 0.0, 1.0))
+		for q in fbolts:   # 床を這う稲妻：中心から外へ伸びる（床なので縦に潰す）
+			var sf: Sprite2D = q.n
+			var uf: float = u - q.d
+			sf.visible = uf >= 0.0 and uf < 0.55
+			var dirf := Vector2(cos(q.a), sin(q.a) * 0.25)
+			var lenf := lerpf(0.1, 0.32, ease_out(uf / 0.15))
+			sf.position = Vector2(C.x, GROUND) + dirf * 1024.0 * lenf * 0.5
+			sf.rotation = dirf.angle()
+			sf.scale = Vector2(lenf, 0.16)
+			(sf.material as ShaderMaterial).set_shader_parameter("life", clampf(uf / 0.55, 0.0, 1.0))
 		# 床の輪：広がるほど細く、侵食で消える
 		ground_ring.visible = u >= 0.0
 		ground_ring.position = Vector2(C.x, GROUND)

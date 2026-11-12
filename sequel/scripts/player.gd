@@ -247,6 +247,7 @@ const ULT_T := {"zoom": 0.3, "cut_start": 0.3, "cut_end": 1.35, "end": 2.45}
 const ULT_HITS := [1.42, 1.52, 1.62, 1.72, 1.82, 1.92, 2.02]
 const ULT_FINAL := 2.18
 var ult_i := 0
+var ult_seq := false
 var ult_t := 0.0
 
 func can_use_ult() -> bool:
@@ -264,6 +265,7 @@ func use_ult() -> bool:
 	state = "ult"
 	ult_t = 0.0
 	ult_i = 0
+	ult_seq = false
 	root_prev = 0.0
 	queued = false
 	queued_hold = false
@@ -297,6 +299,9 @@ func _ult_process(delta: float) -> void:
 			fx.rift(position.x, position.x + 7.0 * (1 if ult_i % 4 == 0 else -1), position.z, 1)
 		world.shake = maxf(world.shake, 8.0)
 		ult_i += 1
+	if not ult_seq and ult_t >= ULT_FINAL - 0.25:   # 2026-11-12：締めは焼いた連番（炸裂の 0.25 秒前から）
+		ult_seq = true
+		fx.seq("rana_ult", position + Vector3(0, 1.2, 0), 0.6)
 	if ult_i == ULT_HITS.size() and ult_t >= ULT_FINAL:
 		ult_i += 1
 		var big: Dictionary = SL_BIG.duplicate()
@@ -304,11 +309,12 @@ func _ult_process(delta: float) -> void:
 		big.w = float(big.w) * 1.5
 		big.pal = world.GOLD_PAL
 		world._attack_from(self, {"side": 0, "shape": "both", "r": 8.0, "lane": 4.0, "dmg": 18.0 * 4.0, "strong": true, "kb": 3.0, "freeze_add": 0.2, "slash": big}, world.atk_mul)
-		fx.vortex_burst(position, 6.0)
+		if fx.seqs.is_empty():   # 焼いた連番が無いとき（読み込み前）だけ前の見た目
+			fx.vortex_burst(position, 6.0)
+			if world.fx2d and not fx.legacy:
+				world.fx2d.big(position + Vector3(0, 1.2, 0), world.fx2d.GOLD, fx, position)
 		fx.shockwave(position + Vector3(0, 1.0, 0), 2.2, 0.6, 0.9)
-		world.chroma_hit(1.0)
-		if world.fx2d and not fx.legacy:
-			world.fx2d.big(position + Vector3(0, 1.2, 0), world.fx2d.GOLD, fx, position)
+		world.chroma_hit(0.35)
 		world.shake = maxf(world.shake, 22.0)
 		if world.main and world.main.cutin:
 			world.main.cutin.flash_white()

@@ -512,6 +512,10 @@ func _skill_step(dt: float) -> bool:
 
 ## 当たり1回：見た目を出してから battle に判定させる
 func _skill_hit(spec: Dictionary) -> void:
+	if String(spec.get("fx", "")) == "seq":   # 焼いた連番を出すだけ（当たりなし）
+		var g: Vector3 = (target.position if spec.get("at") == "target" and _alive(target) else position) + Vector3(0, 1.3, 0)
+		world.fx.seq(String(spec.seq), g, {"lily_storm": 0.9, "lily_ult": 0.55}.get(String(spec.seq), 1.0))
+		return
 	var hs := spec.duplicate()
 	hs.dmg = DMG * float(spec.k)
 	hs.zap = true
@@ -550,9 +554,10 @@ func _skill_hit(spec: Dictionary) -> void:
 				fx.sky_bolt(position + Vector3(cos(a2) * randf_range(1.5, 4.0), 0, sin(a2) * 2.2), randf_range(0.0, 0.06))
 			world.shake = maxf(world.shake, 7.0)
 		"storm_end":
-			fx.storm_ring(position, float(spec.r))
-			world.chroma_hit(0.8)
-			fx.floor_bolts(position, 14, float(spec.r))
+			if fx.seqs.is_empty():   # 焼いた連番が無いとき（読み込み前）だけ前の見た目
+				fx.storm_ring(position, float(spec.r))
+				fx.floor_bolts(position, 14, float(spec.r))
+			world.chroma_hit(0.35)
 			world.shake = maxf(world.shake, 16.0)
 		"ult_hit":
 			hs.only = target if _alive(target) else null
@@ -569,10 +574,11 @@ func _skill_hit(spec: Dictionary) -> void:
 			hs.only = target if _alive(target) else null
 			var g2: Vector3 = (target.position if _alive(target) else position + Vector3(face * 1.0, 0, 0)) + Vector3(0, 0, 0.1)
 			# The damage is locked to one target: avoid the storm's broad radial language here.
-			fx.focused_strike(g2)
-			world.chroma_hit(0.55)
-			if world.fx2d and not fx.legacy:
-				world.fx2d.target_hit(g2 + Vector3(0, 1.15, 0))
+			if fx.seqs.is_empty():
+				fx.focused_strike(g2)
+				if world.fx2d and not fx.legacy:
+					world.fx2d.target_hit(g2 + Vector3(0, 1.15, 0))
+			world.chroma_hit(0.35)
 			world.shake = maxf(world.shake, 24.0)
 	var nh: int = world.ally_attack(self, hs)
 	if OS.has_environment("LSKILL_LOG"):

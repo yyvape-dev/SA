@@ -43,6 +43,8 @@ static func table() -> Dictionary:
 	for i in 5:
 		sev.append([13 + i * 2, {"shape": "circle", "side": 1, "r": 4.8, "cx": 0.0, "lane": 9.0, "k": 0.7, "strong": false, "kb": 0.15, "fx": "storm", "n": i, "shake": 6.0}])
 	sev.append([23, {"shape": "circle", "side": 1, "r": 5.0, "cx": 0.0, "lane": 9.0, "k": 1.6, "strong": true, "kb": 2.4, "fx": "storm_end", "freeze_add": 0.05, "shake": 14.0}])
+	sev.append([18, {"fx": "seq", "seq": "lily_storm", "at": "self"}])   # 2026-11-12：締めは焼いた連番（炸裂の 0.25 秒前から）
+	sev.sort_custom(func(x, y): return x[0] < y[0])
 	t["storm"] = {"clip": "atk_heeldrop", "frames": sf, "fps": 20.0, "cd": 14.0, "ev": sev}
 	# 必殺技 天雷（てんらい）：狙った1体の横へ瞬間移動 → 6 回の連打（毎回その敵に空から稲妻）→ かかと落としで巨大な雷の柱。当たるのはその1体だけ
 	var u := _barrage(6, 1.2)
@@ -52,6 +54,8 @@ static func table() -> Dictionary:
 		e[1].fx = "ult_hit"
 		e[1].erase("pull")
 	uev.append([ufr.size() + 4, {"shape": "fwd", "side": 1, "r": 3.0, "lane": 2.0, "k": 18.0, "strong": true, "kb": 2.6, "fx": "ult_end", "freeze_add": 0.22, "shake": 24.0}])
+	uev.append([ufr.size() - 4, {"fx": "seq", "seq": "lily_ult", "at": "target"}])
+	uev.sort_custom(func(x, y): return x[0] < y[0])
 	for f in [12, 13, 13, 26, 28, 29, 30, 33, 35, 37, 37, 37, 40, 44, 47, 51, 53]:
 		ufr.append(["atk_heeldrop", f])   # 別の clip のコマは [clip, 番号]
 	t["ult"] = {"clip": "atk_jabkick", "frames": ufr, "fps": 30.0, "ev": uev}

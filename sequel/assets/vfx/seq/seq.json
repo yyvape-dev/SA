@@ -16,12 +16,27 @@
   "ama": {
    "frames": 38,
    "rows": 5,
-   "file": "seq_ama.png"
+   "file": "res://assets/vfx/ranka/seq_ama.png"
+  },
+  "lily_storm": {
+   "frames": 30,
+   "rows": 4,
+   "file": "res://assets/vfx/seq/seq_lily_storm.png"
+  },
+  "lily_ult": {
+   "frames": 33,
+   "rows": 5,
+   "file": "res://assets/vfx/seq/seq_lily_ult.png"
   },
   "quake": {
    "frames": 29,
    "rows": 4,
-   "file": "seq_quake.png"
+   "file": "res://assets/vfx/ranka/seq_quake.png"
+  },
+  "rana_ult": {
+   "frames": 36,
+   "rows": 5,
+   "file": "res://assets/vfx/seq/seq_rana_ult.png"
   }
  }
 }

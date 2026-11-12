@@ -310,6 +310,7 @@ func _spark(p: Vector3, v: Vector3, life: float, w: float, c: Color, delay: floa
 	sparks.append({"p": p, "v": v, "t": -delay, "life": life, "w": w, "c": c})
 
 func _process(delta: float) -> void:
+	_update_seqs(delta)
 	for i in range(_later_q.size() - 1, -1, -1):
 		_later_q[i][0] -= delta
 		if _later_q[i][0] <= 0.0:
@@ -855,6 +856,52 @@ func sx(name: String, pos: Vector3, life: float, o: Dictionary) -> MeshInstance3
 	return tex_quad(SHARED + name + ".png", pos, life, o)
 
 ## 帯（斬撃・リボン）の中の模様に使う素材（読み終えていなければ null）
+# ---------- 焼いた連番（大技の締め。tools/bake_ranka_finale.gd → pack_ranka_finale.py。目録 assets/vfx/seq/seq.json） ----------
+## Sprite3D でめくるだけ（自前のシェーダーを使わない＝iPhone で確実）。at＝炸裂の中心。戻り値＝炸裂までの秒（hit_s）
+var seq_meta: Dictionary = {}
+var seqs := []
+func seq(name: String, at: Vector3, scale: float = 1.0) -> float:
+	if seq_meta.is_empty():
+		var m = JSON.parse_string(FileAccess.get_file_as_string("res://assets/vfx/seq/seq.json"))
+		if m is Dictionary:
+			seq_meta = m
+	if legacy or seq_meta.is_empty() or not seq_meta.seq.has(name) or not ResourceLoader.exists(str(seq_meta.seq[name].file)):
+		return 0.0
+	var info: Dictionary = seq_meta.seq[name]
+	var s := Sprite3D.new()
+	s.texture = load(str(info.file))
+	s.hframes = int(seq_meta.cols)
+	s.vframes = int(info.rows)
+	s.pixel_size = scale / float(seq_meta.px_per_m)
+	var cell: Array = seq_meta.cell
+	var ctr: Array = seq_meta.center
+	s.offset = Vector2(float(cell[0]) * 0.5 - float(ctr[0]), float(ctr[1]) - float(cell[1]) * 0.5)   # 中心を at に
+	s.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	s.shaded = false
+	s.transparent = true
+	s.no_depth_test = true
+	s.render_priority = 20
+	s.alpha_cut = SpriteBase3D.ALPHA_CUT_DISABLED
+	s.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
+	s.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	s.position = at + Vector3(0, 0, 0.3)
+	s.modulate = Color(0.8, 0.8, 0.8, 1.0)   # 3D の glow（閾値 0.78）で白く飛ばないよう少し落とす
+	add_child(s)
+	seqs.append({"node": s, "t": 0.0, "n": int(info.frames), "fps": float(seq_meta.fps)})
+	return float(seq_meta.hit_s)
+
+func _update_seqs(delta: float) -> void:
+	for i in range(seqs.size() - 1, -1, -1):
+		var q: Dictionary = seqs[i]
+		q.t += delta
+		var f := int(q.t * q.fps)
+		if f >= q.n or not is_instance_valid(q.node):
+			if is_instance_valid(q.node):
+				q.node.queue_free()
+			seqs.remove_at(i)
+			continue
+		q.node.frame = f
+
 var _later_q := []
 func _later_quad(delay: float, name: String, pos: Vector3, life: float, o: Dictionary) -> void:
 	if delay <= 0.0:

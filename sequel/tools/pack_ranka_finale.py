@@ -9,7 +9,9 @@ import numpy as np
 from PIL import Image
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, "art/vfx_bake")
-OUT = os.path.join(ROOT, "assets/vfx/ranka")
+OUT = os.path.join(ROOT, "assets/vfx/ranka")      # ランカの連番（al2）
+OUT2 = os.path.join(ROOT, "assets/vfx/seq")       # ラナ・リリィの連番（fx1。2026-11-12）
+RANKA = {"quake", "ama"}
 CELL = (512, 288)
 COLS = 8
 meta = {"note": "ランカの大技の締め（tools/bake_ranka_finale.gd → pack_ranka_finale.py）。1コマ 512×288＝16m×9m（32px＝1m）、中心（ランカの胸）＝(256,150)、地面＝中心の 1.3m 下。fps 30。炸裂は 0.25 秒（7.5 コマ目）",
@@ -43,8 +45,10 @@ for name in sorted(os.listdir(SRC)):
         im = Image.fromarray((np.dstack([np.clip(rgb, 0, 1), np.clip(a, 0, 1)]) * 255).astype(np.uint8), "RGBA").resize(CELL, Image.LANCZOS)
         atlas.paste(im, ((i % COLS) * CELL[0], (i // COLS) * CELL[1]))
         white.append(int((L.min(axis=2) > 0.92).sum()))
-    p = os.path.join(OUT, "seq_%s.png" % name)
+    od = OUT if name in RANKA else OUT2
+    os.makedirs(od, exist_ok=True)
+    p = os.path.join(od, "seq_%s.png" % name)
     atlas.save(p, optimize=True)
-    meta["seq"][name] = {"frames": n, "rows": rows, "file": "seq_%s.png" % name}
+    meta["seq"][name] = {"frames": n, "rows": rows, "file": ("res://assets/vfx/ranka/" if name in RANKA else "res://assets/vfx/seq/") + "seq_%s.png" % name}
     print(name, n, "コマ", atlas.size, os.path.getsize(p) // 1024, "KB", "白い画素（光の回、最大）", max(white))
-json.dump(meta, open(os.path.join(OUT, "seq_ranka.json"), "w"), ensure_ascii=False, indent=1)
+json.dump(meta, open(os.path.join(OUT2, "seq.json"), "w"), ensure_ascii=False, indent=1)   # 目録は本体（fx1）に置く
