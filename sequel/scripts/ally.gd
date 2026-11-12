@@ -648,7 +648,9 @@ func _ult_process(delta: float) -> void:
 		world.cam_zoom = minf(1.0, ult_t / ULT_CUT.zoom)
 		if ult_t - delta < ULT_CUT.cut_start and ult_t >= ULT_CUT.cut_start and world.main and world.main.lily_cutin:
 			world.main.lily_cutin.play()
-		_show("atk_heeldrop", 8)   # 構え（膝を上げる。2026-11-12：立ち姿のままにしない）
+		_show("atk_jabkick", 12)   # 2026-11-12 ユーザー選択（候補 2B）：寄りの間は拳を前に構える
+		if ult_t - delta <= 0.0:
+			world.fx.gather(zoom_face() + Vector3(0, -0.5, 0), "lily", Color(0.6, 0.85, 1.0), 1.0)
 		return
 	if not ult_jumped:   # 狙った敵の横へ瞬間移動（元の場所と着いた所に蒼い光）
 		ult_jumped = true

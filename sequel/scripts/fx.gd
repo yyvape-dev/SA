@@ -423,11 +423,12 @@ func _draw_sparks(delta: float) -> void:
 			continue
 		if s.t < 0.0:
 			continue
-		var dr := exp(-delta * 5.0)
-		s.v = s.v * dr + Vector3(0, -9.0 * delta, 0)
+		if not s.has("in"):   # 集まる筋（gather）は減速も重力もなし
+			var dr := exp(-delta * 5.0)
+			s.v = s.v * dr + Vector3(0, -9.0 * delta, 0)
 		s.p += s.v * delta
 		var vl: float = s.v.length()
-		var ln := minf(0.45, vl * 0.035) + 0.03
+		var ln: float = (minf(0.45, vl * 0.035) + 0.03) if not s.has("in") else minf(0.35, vl * 0.14) * (1.0 - s.t / s.life * 0.6)
 		var d: Vector3 = s.v / maxf(vl, 0.001)
 		var p0: Vector3 = s.p
 		var p1: Vector3 = s.p - d * ln
@@ -655,6 +656,18 @@ func charge(p: Vector3, size: float, life: float) -> void:
 		var a := randf() * TAU
 		var off := Vector3(cos(a), sin(a), 0) * size * 0.8
 		_spark(p + off, -off / life, life, 0.02, SILVER[0], 0.0)
+
+## 溜め（2026-11-12、必殺技の寄りの間）：外から体へ集まる光の粒＋育つ芯＋閉じる床の輪。band＝色の帯の名前
+func gather(p: Vector3, band_name: String, col: Color, life: float) -> void:
+	for i in 16:
+		var a := randf() * TAU
+		var r := randf_range(0.8, 1.4)
+		var off := Vector3(cos(a) * r, sin(a) * r * 0.75, 0.0)
+		var lf := life * randf_range(0.55, 1.0)
+		_spark(p + off, -off / lf, lf, 0.008, col, randf_range(0.0, life * 0.35))
+		sparks.back()["in"] = true
+	sx("flare", p + Vector3(0, 0, 0.12), life, {"band": band_name, "size": 0.5, "grow": 2.2, "raw": 1.15, "fade_in": life * 0.6})
+	sx("ring", Vector3(p.x, 0.0, p.z), life, {"floor": true, "band": band_name, "size": 3.6, "grow": 0.35, "raw": 1.0, "fade_in": 0.1})
 
 ## 光の柱（かかと落とし）：上から足元へ落ちる太い稲妻の束＋縦に長い柔らかい光（加算）
 func pillar(g: Vector3, h: float) -> void:

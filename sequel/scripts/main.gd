@@ -32,6 +32,8 @@ const PLAY_HALF_W := 5.7
 ## 必殺技の寄り（battle.cam_zoom＝1 の時）：ラナの胸の高さへ近づく
 const ULT_OFS := Vector3(0.0, 1.5, 2.7)
 const ULT_LOOK := Vector3(0, 1.25, 0)
+var ult_dist := 3.8    # 必殺技の寄りの距離（m）。2026-11-12 ユーザー選択「中」（2.7 では絵の粗さが目立った）
+var ult_drop := 0.3    # 画面の中心を顔からどれだけ下げるか（m）
 const Cutin := preload("res://scripts/ult_cutin.gd")
 const Fx2D := preload("res://scripts/fx2d.gd")
 var fx2d                 # 2D のエフェクトの層（fx2d.gd、specs/vfx_overhaul.md）
@@ -615,8 +617,8 @@ func _place_cam(snap: bool, delta: float = 0.0) -> void:
 		var fo: Node3D = battle.cam_focus if battle.cam_focus else player   # リリィの必殺技ではリリィへ寄る
 		# 2026-11-12：キャラごとの顔の位置へ寄る（背の高さ・向きの違いで顔が切れていた）。顔を画面のやや上に
 		var fp: Vector3 = fo.zoom_face() if fo.has_method("zoom_face") else fo.position + Vector3(0, 1.6, 0)
-		var look := Vector3(fp.x, fp.y - 0.22, fp.z)
-		var near := look + Vector3(0, 0.22, ULT_OFS.z)
+		var look := Vector3(fp.x, fp.y - ult_drop, fp.z)
+		var near := look + Vector3(0, 0.22, ult_dist)
 		cam.position = want.lerp(near, zz)
 		var far_look := Vector3(cam.position.x, 0, 0) + play_look
 		cam.look_at(far_look.lerp(look, zz), Vector3.UP)

@@ -302,7 +302,9 @@ func _ult_process(delta: float) -> void:
 		world.cam_zoom = minf(1.0, ult_t / zt)
 		if ult_t - delta < ULT_T.cut_start and ult_t >= ULT_T.cut_start and world.main and world.main.cutin:
 			world.main.cutin.play()   # 寄りきってから立ち絵が差し込む
-		_show_frame("flurry", 24)   # 2026-11-12：寄りの間は構え（剣を立てる）。立ち姿のままにしない
+		_show_frame("flurry", 21)   # 2026-11-12 ユーザー選択（候補 4B）：寄りの間は剣を振る前の構え
+		if ult_t - delta <= 0.0:
+			world.fx.gather(zoom_face() + Vector3(0, -0.5, 0), "gold", Color(1.0, 0.8, 0.35), 1.0)
 		return
 	world.cine = false
 	world.cam_zoom = maxf(0.0, 1.0 - (ult_t - ULT_T.cut_end) / 0.35)
