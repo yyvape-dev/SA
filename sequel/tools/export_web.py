@@ -26,7 +26,7 @@ DISTRICTS = {
             "files": ["assets/vfx/reeboo.json"]},
     "al1": {"res": ["assets/lily/*.webp"],                           # 仲間リリィ（起動の後に読む。読み終えてから出てくる）
             "files": []},
-    "al2": {"res": ["assets/ranka/*.webp"],                          # 仲間ランカ（2026-11-12。リリィの後に読む。json は本体）
+    "al2": {"res": ["assets/ranka/*.webp", "assets/vfx/ranka/*.png"],   # 仲間ランカ（2026-11-12。リリィの後に読む。json は本体）＋ランカのエフェクトの白黒の素材
             "files": []},
 }
 MAIN_EXCLUDE = ["captures/*", "art/ranka/*", "art/guide/*.png", "art/guide_bt/*", "art/painted_bt/*", "art/painted_bt_src/*", "tools/*", "districts/*", "art/incoming/*", "addons/*"]   # addons/＝取得した素材の元（使う絵は assets/vfx/ に写した。2026-11-07）
@@ -129,6 +129,15 @@ def main():
         print('地区 %s.pck %.1fMB（%d ファイル）、足りない物: %s' % (d, os.path.getsize(OUT + '/districts/%s.pck' % d) / 1e6, len(fs), miss or 'なし'))
         if miss:
             raise RuntimeError('district asset pack is incomplete: ' + str(miss))
+    # どの pck にも入らなかった絵が無いか（2026-11-12 の事実：本体の除外 "assets/vfx/*.png" は Godot では下のフォルダにも効き、
+    # 地区の glob は効かないため、assets/vfx/ranka/ がどこにも入らず iPhone で白い四角になった）
+    have = set(n.replace('res://', '') for n in main_files)
+    for d in DISTRICTS:
+        have |= set(n.replace('res://', '') for n, _ in pck_files(OUT + '/districts/%s.pck' % d))
+    lost = sorted(f for f in glob.glob('assets/**/*.import', recursive=True) if f not in have)
+    print('どの pck にも無い絵:', lost[:10] or 'なし')
+    if lost:
+        raise RuntimeError('assets missing from every pck: ' + str(lost[:10]))
 
 
 if __name__ == '__main__':
