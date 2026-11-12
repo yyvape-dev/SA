@@ -35,6 +35,8 @@ static func table() -> Dictionary:
 	var ev: Array = b.ev
 	var fr: Array = b.frames
 	ev.append([fr.size() + 2, {"shape": "fwd", "side": 1, "r": 2.4, "lane": 1.1, "k": 2.2, "strong": true, "kb": 1.4, "lift": 4.0, "fx": "kick_end", "freeze_add": 0.06, "shake": 10.0, "wave": true}])
+	ev.append([fr.size() + 2 - 11, {"fx": "seq", "seq": "lily_ult", "at": "self", "ofs": [1.6, 1.3], "s": 0.32}])   # 蹴り上げの締め（炸裂の 0.25 秒前から）
+	ev.sort_custom(func(x, y): return x[0] < y[0])
 	fr.append_array([17, 18, 19, 20, 21, 22, 28, 30, 32, 34, 36])
 	t["barrage"] = {"clip": "atk_jabkick", "frames": fr, "fps": 44.0, "cd": 10.0, "ev": ev}
 	# 雷陣（らいじん）：かかと落としで床を割り、自分を中心に半径 4.8m へ空から稲妻を 5 回落とす → 最後に外へ弾く
@@ -43,7 +45,7 @@ static func table() -> Dictionary:
 	for i in 5:
 		sev.append([13 + i * 2, {"shape": "circle", "side": 1, "r": 4.8, "cx": 0.0, "lane": 9.0, "k": 0.7, "strong": false, "kb": 0.15, "fx": "storm", "n": i, "shake": 6.0}])
 	sev.append([23, {"shape": "circle", "side": 1, "r": 5.0, "cx": 0.0, "lane": 9.0, "k": 1.6, "strong": true, "kb": 2.4, "fx": "storm_end", "freeze_add": 0.05, "shake": 14.0}])
-	sev.append([18, {"fx": "seq", "seq": "lily_storm", "at": "self"}])   # 2026-11-12：締めは焼いた連番（炸裂の 0.25 秒前から）
+	sev.append([18, {"fx": "seq", "seq": "lily_storm", "at": "self", "ofs": [1.0, 0.6], "s": 0.9}])   # 2026-11-12：締めは焼いた連番（炸裂の 0.25 秒前から）
 	sev.sort_custom(func(x, y): return x[0] < y[0])
 	t["storm"] = {"clip": "atk_heeldrop", "frames": sf, "fps": 20.0, "cd": 14.0, "ev": sev}
 	# 必殺技 天雷（てんらい）：狙った1体の横へ瞬間移動 → 6 回の連打（毎回その敵に空から稲妻）→ かかと落としで巨大な雷の柱。当たるのはその1体だけ
@@ -54,7 +56,7 @@ static func table() -> Dictionary:
 		e[1].fx = "ult_hit"
 		e[1].erase("pull")
 	uev.append([ufr.size() + 4, {"shape": "fwd", "side": 1, "r": 3.0, "lane": 2.0, "k": 18.0, "strong": true, "kb": 2.6, "fx": "ult_end", "freeze_add": 0.22, "shake": 24.0}])
-	uev.append([ufr.size() - 4, {"fx": "seq", "seq": "lily_ult", "at": "target"}])
+	uev.append([ufr.size() - 4, {"fx": "seq", "seq": "lily_ult", "at": "self", "ofs": [1.0, 1.0], "s": 0.55}])
 	uev.sort_custom(func(x, y): return x[0] < y[0])
 	for f in [12, 13, 13, 26, 28, 29, 30, 33, 35, 37, 37, 37, 40, 44, 47, 51, 53]:
 		ufr.append(["atk_heeldrop", f])   # 別の clip のコマは [clip, 番号]

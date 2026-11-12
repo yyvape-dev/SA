@@ -510,11 +510,26 @@ func _skill_step(dt: float) -> bool:
 		_show(sk.clip, int(f))
 	return false
 
+## 雷連打の1発の見た目（2026-11-12 ユーザー指摘「ラッシュが地味」）：拳の先から前へ伸びる気の帯＋先の閃光、蹴りは斜めの稲妻、2発に1回は残像
+func _rush_fx(tip: Vector3, k: float, n: int) -> void:
+	var fx = world.fx
+	var ang := 0.0 if face > 0 else PI
+	fx.sx("ki_band", tip + Vector3(face * 0.45 * k, 0, 0.02), 0.2, {"band": "lily", "size": 0.42 * k, "raw": 1.6, "grow_x": 1.6, "ang": ang + randf_range(-0.12, 0.12), "erode_from": 0.15})
+	fx.sx("flare", tip + Vector3(face * 0.6 * k, 0, 0.05), 0.15, {"band": "lily", "size": 0.75 * k, "raw": 1.25, "grow": 1.5})
+	if true:
+		fx.sx("bolt_h", tip + Vector3(face * 0.5, 0, 0.04), 0.2, {"band": "lily", "size": 0.4 * k, "raw": 1.3, "ang": ang + face * randf_range(0.35, 0.7), "grow_x": 1.3})
+	if n % 2 == 1:
+		_ghost()
+	if n % 4 == 3:
+		fx.sx("ring", position + Vector3(face * 1.3, 0, 0.1), 0.3, {"floor": true, "band": "lily", "size": 1.6, "raw": 1.0, "grow": 1.5})
+
 ## 当たり1回：見た目を出してから battle に判定させる
 func _skill_hit(spec: Dictionary) -> void:
 	if String(spec.get("fx", "")) == "seq":   # 焼いた連番を出すだけ（当たりなし）
-		var g: Vector3 = (target.position if spec.get("at") == "target" and _alive(target) else position) + Vector3(0, 1.3, 0)
-		world.fx.seq(String(spec.seq), g, {"lily_storm": 0.9, "lily_ult": 0.55}.get(String(spec.seq), 1.0))
+		# 2026-11-12 ユーザー指摘：締めは当たる所に出す。at＝target（狙った敵）／self、ofs＝[前へ m, 高さ m]
+		var base: Vector3 = target.position if spec.get("at") == "target" and _alive(target) else position
+		var o: Array = spec.get("ofs", [0.0, 1.3])
+		world.fx.seq(String(spec.seq), Vector3(base.x + face * float(o[0]), position.y + float(o[1]), base.z + 0.1), float(spec.get("s", 1.0)))
 		return
 	var hs := spec.duplicate()
 	hs.dmg = DMG * float(spec.k)
@@ -527,10 +542,16 @@ func _skill_hit(spec: Dictionary) -> void:
 			var a := position + Vector3(face * 0.35, y, 0.12)
 			var b := position + Vector3(face * (1.6 + randf_range(0.0, 0.3)), y + randf_range(-0.08, 0.08), 0.12)
 			fx.ribbon([a, a.lerp(b, 0.5), b], {"w": 0.3, "life": 0.22, "bolts": 0})
+			_rush_fx(b, 1.0, int(spec.get("n", 0)))
 		"kick":
 			fx.ribbon(_trail(c, 19), {"w": 0.45, "life": 0.3, "bolts": 1})
+			_rush_fx(position + Vector3(face * 1.7, 1.45, 0.12), 1.5, int(spec.get("n", 0)))
 		"kick_end":
 			fx.ribbon(_trail(c, 19), {"w": 0.75, "life": 0.5, "bolts": 3})
+			var kp := position + Vector3(face * 1.6, 1.3, 0.14)
+			fx.sx("bolt_v", kp + Vector3(0, 0.9, 0), 0.4, {"band": "lily", "size": 3.2, "raw": 1.4, "grow": 1.15, "ang": 0.0, "erode_from": 0.2})
+			fx.sx("burst", kp, 0.42, {"band": "lily", "size": 2.6, "raw": 1.2, "grow": 1.35, "erode_from": 0.1})
+			fx.sx("ring", position + Vector3(face * 1.6, 0, 0.1), 0.5, {"floor": true, "band": "lily", "size": 3.4, "raw": 1.2, "grow": 1.6})
 			fx.sky_bolt(position + Vector3(face * 1.6, 0, 0), 0.0)
 			world.shake = maxf(world.shake, 10.0)
 		"rush":

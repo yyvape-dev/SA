@@ -1563,7 +1563,7 @@ func _capture_lily_skill(dir: String) -> void:
 	a.set_physics_process(true)
 	player.visible = true
 	player.set_physics_process(true)
-	var at := {"rush": [0.12, 0.25, 0.45], "barrage": [0.6, 1.0, 1.5, 1.7], "storm": [0.47, 0.8, 1.18], "ult": [0.15, 0.75, 1.42, 2.0, 2.45, 2.7]}
+	var at := {"rush": [0.12, 0.25, 0.45], "barrage": [0.5, 0.9, 1.7, 1.85, 2.0], "storm": [0.47, 0.8, 1.18], "ult": [0.15, 0.75, 1.42, 2.0, 2.45, 2.7]}
 	var spots := {"rush": [[7.0, 0.3], [8.0, -0.4]], "barrage": [[1.3, 0.0], [1.9, 0.4]], "storm": [[2.4, 0.9], [-2.6, -0.3], [1.6, -1.4], [-1.5, 1.2], [3.6, 0.0]],
 		"ult": [[4.0, 0.2], [2.4, -1.0], [5.6, 1.0]]}
 	for id in ["rush", "barrage", "storm", "ult"]:

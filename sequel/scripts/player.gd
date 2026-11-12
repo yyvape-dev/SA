@@ -246,6 +246,22 @@ func _skill_event(spec: Dictionary) -> void:
 const ULT_T := {"zoom": 0.3, "cut_start": 0.3, "cut_end": 1.35, "end": 2.45}
 const ULT_HITS := [1.42, 1.52, 1.62, 1.72, 1.82, 1.92, 2.02]
 const ULT_FINAL := 2.18
+var ult_pt := Vector3.ZERO
+
+## 必殺技の締めの炸裂の位置：前 4.5m 以内のいちばん近い敵の胸、いなければ剣先
+func _ult_point() -> Vector3:
+	var best: Node3D = null
+	var bd := 4.5
+	for e in world.enemies:
+		if e.state == "dying":
+			continue
+		var dx: float = (e.position.x - position.x) * face
+		if dx > -0.3 and dx < bd and absf(e.position.z - position.z) < 2.0:
+			bd = dx
+			best = e
+	if best:
+		return Vector3(best.position.x, position.y + 1.1, best.position.z)
+	return position + Vector3(face * 1.9, 1.1, 0)
 var ult_i := 0
 var ult_seq := false
 var ult_t := 0.0
@@ -301,7 +317,8 @@ func _ult_process(delta: float) -> void:
 		ult_i += 1
 	if not ult_seq and ult_t >= ULT_FINAL - 0.25:   # 2026-11-12：締めは焼いた連番（炸裂の 0.25 秒前から）
 		ult_seq = true
-		fx.seq("rana_ult", position + Vector3(0, 1.2, 0), 0.6)
+		ult_pt = _ult_point()   # 2026-11-12 ユーザー指摘：締めは自分中心でなく当たる所（前の敵／剣先）
+		fx.seq("rana_ult", ult_pt, 0.6)
 	if ult_i == ULT_HITS.size() and ult_t >= ULT_FINAL:
 		ult_i += 1
 		var big: Dictionary = SL_BIG.duplicate()
@@ -313,7 +330,7 @@ func _ult_process(delta: float) -> void:
 			fx.vortex_burst(position, 6.0)
 			if world.fx2d and not fx.legacy:
 				world.fx2d.big(position + Vector3(0, 1.2, 0), world.fx2d.GOLD, fx, position)
-		fx.shockwave(position + Vector3(0, 1.0, 0), 2.2, 0.6, 0.9)
+		fx.shockwave(ult_pt if ult_seq else position + Vector3(0, 1.0, 0), 2.2, 0.6, 0.9)
 		world.chroma_hit(0.35)
 		world.shake = maxf(world.shake, 22.0)
 		if world.main and world.main.cutin:
