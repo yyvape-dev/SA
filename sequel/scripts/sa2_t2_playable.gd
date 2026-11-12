@@ -1079,6 +1079,7 @@ func _ranka_setup_room() -> void:
     ui.set_controls_enabled(true)
     hud.hide()
     t2_label.text = "ランカ戦闘テスト"
+    t2_label.add_theme_font_override("font", t2_dialogue.dialogue_font)   # 既定のフォントには日本語が無い（Web で□になる）
     t2_label.show()
     _event_idle_sprite("ranka", t7_ranka.height_m)
     var font: Font = t2_dialogue.dialogue_font
