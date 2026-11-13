@@ -21,3 +21,8 @@ CC0。音色の採否はユーザー確認済み。実装側で音質を聴覚�
 - dungeon: Slick Street Swing / MFP【Marron Fields Production】、Track1、https://opentracks.com/en/bgm/detail/23316 。配布元より取得。利用条件 https://opentracks.com/en/help/articles/license/ と制作者条件に従いゲームBGMとして使用。形式変換した音源はmusic.pck内に格納し、音源単体配布は行わない。AI学習に使わない。
 - BGMは同じエリアでは再開しない。裏町・ダンジョンで切替、全曲をリピート。シームレスな継ぎ目の聴覚確認は未実施。会話中-28dB、通常-20dB。
 - ダッシュとスキル音は原本と同一品質ではなく上記取得版。主観的な音色・エコー・音量の適合は実機試聴待ち。ダンジョン曲は暫定採用、ビバップ感不足は既知。
+
+## 2026-11-13 Ultimate cut-in SE (user adopted)
+- ult_charge: Power Up Charge [Remix of LegoLunatic's Charged laser 151243], qubodup, https://freesound.org/people/qubodup/sounds/172631/ . Distributor page CC0. Retrieved https://cdn.freesound.org/previews/172/172631_71257-hq.mp3 (HQ preview, not original FLAC). Converted 48kHz mono PCM16, 1.0s, pitch/speed unchanged. WAV SHA256 00399d71694ed87d1dbed38e6e425e8e403526d4b12506907bc33842149b7e72.
+- ult_release: Dramatic Hit, qubodup, https://freesound.org/people/qubodup/sounds/222517/ . Distributor page CC0; mixed from CC0 Cymbal Impact.wav by LloydEvans09 and Dramatic Bass Hit by snakebarney. Retrieved https://cdn.freesound.org/previews/222/222517_71257-hq.mp3 (HQ preview, not original FLAC). First 2.2s, fade out 1.6–2.2s, converted 48kHz mono PCM16, pitch/speed unchanged. WAV SHA256 3e0199498e474119238f988f726a8e4c7666dbcd751623b93d49a770d5c402f2.
+- Both use the user's SE gain/mute. Dedicated cinematic voice avoids being stolen by the regular hit pool. Charge on successful ultimate activation only; release once on cut-in end for Rana and Lily. No independent timer. Real iPhone subjective sync/volume acceptance pending.

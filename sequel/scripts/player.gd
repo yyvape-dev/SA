@@ -271,6 +271,7 @@ func use_ult() -> bool:
 	queued_hold = false
 	atk_next = "atkA"
 	world.cine = true
+	if world.combat_audio != null: world.combat_audio.play_cue("ult_charge")
 	world.big_moment(2.3)
 	return true
 
@@ -284,6 +285,8 @@ func _ult_process(delta: float) -> void:
 			world.main.cutin.play()   # 寄りきってから立ち絵が差し込む
 		_show_frame("idle", 0)
 		return
+	if ult_t - delta < ULT_T.cut_end and world.combat_audio != null:
+		world.combat_audio.play_cue("ult_release")
 	world.cine = false
 	world.cam_zoom = maxf(0.0, 1.0 - (ult_t - ULT_T.cut_end) / 0.35)
 	var tt: float = (ult_t - ULT_T.cut_end) * 1.3

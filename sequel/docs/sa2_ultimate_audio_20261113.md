@@ -1,0 +1,7 @@
+# Ultimate cut-in audio
+Branch feat/sa2-ultimate-sfx-20261113, based on audio-options branch. Main unchanged.
+User-approved existing CC0 sounds #172631 and #222517; no AI sound generation. See assets/audio/SOURCES.md for precise acquisition and edits.
+Rana: charge at successful use_ult(), release when crossing ULT_T.cut_end (1.35s). Lily: charge at _start_ult(), release in the one-shot ult_jumped boundary after ULT_CUT.cut_end. Existing animations/timing/damage unchanged.
+Dedicated AudioStreamPlayer shares SE gain/mute and keeps the release tail out of the 8-voice hit pool. No playback on rejected activation. No timers survive reset/teardown.
+Godot4.7.2 new test checks both character paths, rejected activation, once-only release, pool isolation and zero SE gain. Distributor HQ MP3 preview converted to PCM; original FLAC quality is not claimed. iPhone listening remains user acceptance.
+Validation result: new test failed before hooks, passed after. Source and final packed-data test PASS. Full suite 25/26 first pass: sa2_t6_vfx_quality_test.gd failed on single-target footprint; reverting all three production script changes reproduced the same baseline failure (exit1), restoring changes and repeating passed. This preexisting intermittent VFX result is not repaired by this sound task. Independent review found no important sound integration bugs. Existing ObjectDB exit warnings remain.

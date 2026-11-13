@@ -599,6 +599,7 @@ func _start_ult(e: Node3D) -> void:
 	ev_i = 0
 	world.cine = true
 	world.cam_focus = self
+	if world.combat_audio != null: world.combat_audio.play_cue("ult_charge")
 	world.big_moment(2.9)
 
 func _ult_process(delta: float) -> void:
@@ -613,6 +614,7 @@ func _ult_process(delta: float) -> void:
 		return
 	if not ult_jumped:   # 狙った敵の横へ瞬間移動（元の場所と着いた所に蒼い光）
 		ult_jumped = true
+		if world.combat_audio != null: world.combat_audio.play_cue("ult_release")
 		world.cine = false
 		if not _alive(target):
 			target = _ult_target()

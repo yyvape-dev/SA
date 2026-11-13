@@ -4,6 +4,7 @@ signal cue_played(cue: String)
 var streams := {}
 var voices: Array[AudioStreamPlayer] = []
 var cursor := 0
+var cinematic_voice: AudioStreamPlayer
 var music: AudioStreamPlayer
 var current_music := ""
 var music_streams := {}
@@ -21,7 +22,7 @@ func _ready() -> void:
         bgm_gain = clampf(float(config.get_value("audio", "bgm", 1.0)), 0.0, 1.0)
         se_gain = clampf(float(config.get_value("audio", "se", 1.0)), 0.0, 1.0)
         muted = bool(config.get_value("audio", "muted", false))
-    for cue in ["swing", "hit", "heavy", "guard", "guard_dry", "dash", "skill"]:
+    for cue in ["swing", "hit", "heavy", "guard", "guard_dry", "dash", "skill", "ult_charge", "ult_release"]:
         streams[cue] = AudioStreamWAV.load_from_buffer(FileAccess.get_file_as_bytes("res://assets/audio/" + cue + ".wav.dat"))
     music = AudioStreamPlayer.new()
     music.volume_db = -20.0
@@ -32,14 +33,18 @@ func _ready() -> void:
         add_child(voice)
         voice.set_meta("base_db", -12.0)
         voices.append(voice)
+    cinematic_voice = AudioStreamPlayer.new()
+    cinematic_voice.set_meta("base_db", -12.0)
+    add_child(cinematic_voice)
     _apply_options()
     options_ui = load("res://scripts/sound_options.gd").new()
     options_ui.audio = self
     add_child(options_ui)
 func play_cue(cue: String) -> void:
     if not streams.has(cue): return
-    var voice := voices[cursor]
-    cursor = (cursor + 1) % voices.size()
+    var cinematic := cue == "ult_charge" or cue == "ult_release"
+    var voice := cinematic_voice if cinematic else voices[cursor]
+    if not cinematic: cursor = (cursor + 1) % voices.size()
     voice.stream = streams[cue]
     voice.set_meta("base_db", -16.0 if cue == "swing" else -12.0)
     voice.volume_db = float(voice.get_meta("base_db")) + _gain_db(se_gain)
@@ -76,7 +81,7 @@ func _gain_db(gain: float) -> float:
 func _apply_options() -> void:
     if music != null:
         music.volume_db = (-28.0 if dialogue_duck else -20.0) + _gain_db(bgm_gain)
-    for voice in voices:
+    for voice in voices + [cinematic_voice]:
         voice.volume_db = float(voice.get_meta("base_db", -12.0)) + _gain_db(se_gain)
 
 func set_audio_options(bgm: float, se: float, mute: bool) -> void:
