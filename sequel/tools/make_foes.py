@@ -53,8 +53,8 @@ def main():
     As = [[purple_to_red(key(a)) for a in frames_of(p)] for p in apaths]
     A0 = As[0][0]
     ref_y, _ = foot_of(A0)
-    scale = height * PX_PER_M / standing_h(A0)
-    h_px = height * PX_PER_M
+    scale = min(1.0, height * PX_PER_M / standing_h(A0))   # 元の動画より大きくはしない（ゲーム側で h から倍率をかける）
+    h_px = standing_h(A0) * scale
     entry = {}
     # 歩き：1本＝1周期として 8 コマ。横は頭の位置、縦はそのコマの足裏
     n = len(W)
