@@ -7,10 +7,12 @@ extends Node
 ##  - 手元（エディタ・撮影）では絵が res:// にそのままあるので、落とさずに使う。
 
 signal progress(ratio: float)
+signal download_started()   # each attempt resets visual progress to unknown
 var status := {}       # id -> 状態の短い印（?diag=1 で画面に出す）
 var last_error := ""   # 読み込めなかったとき、画面の隅に出す短い印（地区 結果 HTTPの番号）
 
 func _download(url: String, file: String) -> Array:
+	download_started.emit()
 	# 受け取った中身を自分でファイルに書く（2026-11-06 の事実：Godot 4.7.2 の Web 版では download_file で /tmp に書くと 0 バイトになった）
 	var http := HTTPRequest.new()
 	add_child(http)

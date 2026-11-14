@@ -9,6 +9,11 @@ var slot_open := false     # スキルのスロット設定（街だけ）
 var slot_pick := ""        # 一覧で選んだ技
 const SkillIcons := preload("res://scripts/skill_icons.gd")
 const SkillTree := preload("res://scripts/skill_tree.gd")
+const SelectArt := preload("res://scripts/dungeon_select_art.gd")
+var menu_feedback_pos := Vector2.ZERO
+var menu_feedback_t := 0.0
+var _covered_world: Node3D
+var _covered_world_visible := true
 const Art := preload("res://scripts/t6_hud_art.gd")
 ## スキルツリー（specs/skill_tree.md 4.）：仮で歯車の画面に「スロット｜ツリー」の切り替えを足した（開き方は未決）
 var slot_mode := "slot"    # "slot"＝スロット設定、"tree"＝スキルツリー
@@ -45,7 +50,9 @@ func _ready() -> void:
 	add_child(view)
 
 func _process(delta: float) -> void:
+	_sync_menu_world()
 	menu_t += delta
+	menu_feedback_t = maxf(0.0, menu_feedback_t - delta)
 	if result_t >= 0.0:
 		result_t += delta
 	fade_t = maxf(0.0, fade_t - delta)
@@ -58,6 +65,18 @@ func _process(delta: float) -> void:
 	w_flash = maxf(0.0, w_flash - delta)
 	shake_hard = maxf(0.0, shake_hard - delta)
 	view.queue_redraw()
+
+## The map is opaque. Skip hidden 3D drawing, restore the exact previous visibility.
+func _sync_menu_world() -> void:
+	var covered: bool = menu_open or (main != null and "loading" in main and is_instance_valid(main.loading) and main.loading.visible)
+	var wanted: Node3D = main.level if covered and main != null and "level" in main else null
+	if is_instance_valid(_covered_world) and _covered_world != wanted:
+		_covered_world.visible = _covered_world_visible
+		_covered_world = null
+	if wanted != null and wanted != _covered_world:
+		_covered_world = wanted
+		_covered_world_visible = wanted.visible
+		wanted.visible = false
 
 func fade(d: float) -> void:
 	fade_d = d
@@ -294,8 +313,11 @@ func _input(e: InputEvent) -> void:
 	if result_t >= 0.0:
 		confirm_result()
 		return
-	if menu_t < 0.25:
+	if menu_t < 0.05:
 		return
+	if tap.x >= 0:
+		menu_feedback_pos = tap
+		menu_feedback_t = 0.14
 	var r: Dictionary = view.menu_rects()
 	if menu_stage == "party":
 		match key:
@@ -491,27 +513,8 @@ class _View extends Control:
 	## 地図（アラド戦記風）：画面いっぱいの地図に、門から奥へ続く道と 4 つのダンジョン。右に選んだダンジョンの札
 	const NODE_POS := [Vector2(250, 520), Vector2(440, 300), Vector2(640, 500), Vector2(820, 250)]
 	func menu_rects() -> Dictionary:
-		var u := _u()
-		var ox := (size.x - 1280.0 * u) * 0.5
-		var out := {"close": Rect2(Vector2(size.x - 70 * u, 14 * u), Vector2(56, 56) * u), "ox": ox}
-		for i in NODE_POS.size():
-			out["node%d" % i] = Rect2(Vector2(ox, 0) + (NODE_POS[i] - Vector2(70, 70)) * u, Vector2(140, 140) * u)
-		var panel := Rect2(Vector2(ox + 900 * u, 90 * u), Vector2(350, 590) * u)
-		out.panel = panel
-		for i in 3:
-			out["diff%d" % i] = Rect2(panel.position + Vector2(20, 120 + i * 120) * u, Vector2(310, 104) * u)
-		out.go = Rect2(panel.position + Vector2(20, 494) * u, Vector2(310, 80) * u)
-		if hud.menu_stage == "party":   # 仲間の選択：中央の札
-			var pp := Rect2(Vector2(ox + 120 * u, 110 * u), Vector2(1040, 520) * u)
-			out.ppanel = pp
-			out.rana = Rect2(pp.position + Vector2(40, 130) * u, Vector2(170, 230) * u)
-			for k in 4:
-				out["ally%d" % k] = Rect2(pp.position + Vector2(250 + k * 190, 130) * u, Vector2(170, 230) * u)
-			out.go = Rect2(pp.position + Vector2(700, 410) * u, Vector2(300, 84) * u)
-			out.close = Rect2(pp.position + Vector2(pp.size.x - 60 * u, 10 * u), Vector2(50, 50) * u)
-		return out
+		return SelectArt.rects(size, hud.menu_stage, hud.menu_t, hud.shake_i, hud.shake_hard)
 
-	## テーマの印（絵が届くまでの仮）：T1 縦の看板 3 本・T2 裂け目・T3 門の輪・T4 結晶
 	func _theme_glyph(i: int, c: Vector2, s: float, col: Color) -> void:
 		var u := _u()
 		match i:
@@ -530,114 +533,13 @@ class _View extends Control:
 				draw_colored_polygon(pts, col)
 
 	func _menu() -> void:
-		var u := _u()
-		var pr = hud.main.progress
-		var r := menu_rects()
-		var ox: float = r.ox
-		var t: float = hud.menu_t
-		# 地図の地（夜の街の地図：濃い藍、方眼、外周の金の線）
-		draw_rect(Rect2(Vector2.ZERO, size), Color(0.03, 0.035, 0.07, 0.97))
-		var grid := Color(0.35, 0.45, 0.8, 0.07)
-		for gx in range(0, int(size.x / u) + 1, 64):
-			draw_line(Vector2(gx * u, 0), Vector2(gx * u, size.y), grid, 1)
-		for gy in range(0, 721, 64):
-			draw_line(Vector2(0, gy * u), Vector2(size.x, gy * u), grid, 1)
-		draw_rect(Rect2(Vector2(10, 10) * u, size - Vector2(20, 20) * u), Color(GOLD.r, GOLD.g, GOLD.b, 0.35), false, 2 * u)
-		# 道：門（左下）→ T1 → T2 → T3 → T4。開いている所までは金、先は暗い点線
-		var gate := Vector2(ox, 0) + Vector2(90, 650) * u
-		var pts := [gate]
-		for i in NODE_POS.size():
-			pts.append(Vector2(ox, 0) + NODE_POS[i] * u)
-		for i in pts.size() - 1:
-			var open_: bool = i == 0 or pr.theme_open(i)
-			var a: Vector2 = pts[i]
-			var b: Vector2 = pts[i + 1]
-			if open_:
-				draw_line(a, b, Color(GOLD.r, GOLD.g, GOLD.b, 0.55), 7 * u)
-				draw_line(a, b, Color(1, 0.95, 0.8, 0.25), 2 * u)
-			else:
-				var n := int(a.distance_to(b) / (22 * u))
-				for k in n:
-					if k % 2 == 0:
-						draw_line(a.lerp(b, float(k) / n), a.lerp(b, float(k + 1) / n), Color(0.5, 0.5, 0.6, 0.35), 4 * u)
-		# 門（紫の門の形）
-		draw_arc(gate + Vector2(0, -6 * u), 30 * u, PI, TAU, 20, Color(0.72, 0.5, 1.0), 6 * u)
-		draw_line(gate + Vector2(-30, -6) * u, gate + Vector2(-30, 24) * u, Color(0.72, 0.5, 1.0), 6 * u)
-		draw_line(gate + Vector2(30, -6) * u, gate + Vector2(30, 24) * u, Color(0.72, 0.5, 1.0), 6 * u)
-		# ダンジョンの印
-		for i in Themes.THEMES.size():
-			var th: Dictionary = Themes.THEMES[i]
-			var c: Vector2 = pts[i + 1]
-			var locked: bool = not pr.theme_open(i)
-			if hud.shake_i == 10 + i and hud.shake_hard > 0.0:
-				c.x += sin(hud.shake_hard * 60.0) * 8 * u
-			var col: Color = th.col if not locked else Color(0.35, 0.35, 0.4)
-			var sel: bool = hud.menu_theme == i and hud.menu_stage != "theme" or (hud.menu_stage == "theme" and hud.menu_theme == i)
-			if sel:
-				draw_arc(c, (68 + 4 * sin(t * 5.0)) * u, 0, TAU, 48, GOLD, 4 * u)
-			draw_circle(c, 56 * u, Color(col.r * 0.18, col.g * 0.18, col.b * 0.18, 0.96))
-			draw_arc(c, 56 * u, 0, TAU, 48, col, (5 if sel else 3) * u)
-			_theme_glyph(i, c, 64 * u, col)
-			if locked:
-				_lock(c + Vector2(0, 6 * u), 22 * u, Color(0.85, 0.85, 0.9))
-			for k in i + 1:   # 奥への近さ（点の数）
-				draw_circle(c + Vector2((k - i * 0.5) * 14 * u, -74 * u), 4.5 * u, col)
-			for k in 3:   # クリアした難易度
-				if pr.cleared(th.id, Themes.DIFF_ORDER[k]):
-					_diamond(c + Vector2((k - 1) * 28 * u, 78 * u), 10 * u, [BLUE, RED, GOLD][k])
-		_close_x(r.close)
-		if hud.menu_stage == "diff":
-			_dg_panel(r)
-		elif hud.menu_stage == "party":
-			_party(r)
+		SelectArt.map(self, hud, size)
 
-	## 右の札：選んだダンジョンの印・難易度（ノーマル青・ハード赤・エキスパート赤＋金）・入れる人数・入場
 	func _dg_panel(r: Dictionary) -> void:
-		var u := _u()
-		var pr = hud.main.progress
-		var th: Dictionary = Themes.THEMES[hud.menu_theme]
-		var pn: Rect2 = r.panel
-		pn.position.x += (1.0 - minf(hud.menu_t / 0.18, 1.0)) * 60 * u
-		draw_rect(pn, Color(0.04, 0.04, 0.09, 0.95))
-		draw_rect(pn, th.col, false, 3 * u)
-		_theme_glyph(hud.menu_theme, pn.position + Vector2(60, 58) * u, 64 * u, th.col)
-		for k in hud.menu_theme + 1:
-			draw_circle(pn.position + Vector2(120 + k * 18, 58) * u, 6 * u, th.col)
-		for i in 3:
-			var rc: Rect2 = r["diff%d" % i]
-			rc.position.x = pn.position.x + 20 * u
-			if hud.shake_i == i and hud.shake_hard > 0.0:
-				rc.position.x += sin(hud.shake_hard * 60.0) * 8 * u
-			var col: Color = [BLUE, RED, RED][i]
-			var locked: bool = not pr.diff_open(th.id, Themes.DIFF_ORDER[i])
-			var sel: bool = hud.menu_sel == i
-			draw_rect(rc, Color(col.r * (0.28 if sel else 0.14), col.g * (0.28 if sel else 0.14), col.b * (0.28 if sel else 0.14), 0.95))
-			draw_rect(rc, col if not locked else Color(0.4, 0.4, 0.45), false, (6 if sel else 2) * u)
-			if i == 2 and not locked:
-				draw_rect(rc.grow(-8 * u), GOLD, false, 2 * u)
-			for k in i + 1:
-				_diamond(rc.position + Vector2(40 + k * 40, rc.size.y / u * 0.5) * u, 22 * u, col if not locked else Color(0.3, 0.3, 0.34))
-			if locked:
-				_lock(rc.position + Vector2(80, rc.size.y / u * 0.5) * u, 20 * u, Color(0.85, 0.85, 0.9))
-			# 入れる人数（人の印）：ノーマル 2、ハード以上 3
-			var cap := 2 if i == 0 else 3
-			for k in cap:
-				_person(rc.position + Vector2(rc.size.x / u - 30 - k * 30, 40) * u, 11 * u, Color(1, 1, 1, 0.75))
-			var key := Themes.key(th.id, Themes.DIFF_ORDER[i])
-			if pr.best.has(key):
-				_clock(rc.position + Vector2(rc.size.x / u - 150, 78) * u, 10 * u, GOLD)
-				_num(rc.position + Vector2(rc.size.x / u - 132, 88) * u, _time_str(float(pr.best[key])), 22, GOLD)
-		var g: Rect2 = r.go
-		g.position.x = pn.position.x + 20 * u
-		_go_btn(g)
+		SelectArt.panel(self, hud, r, size)
 
 	func _go_btn(g: Rect2) -> void:
-		var u := _u()
-		var pulse := 0.5 + 0.5 * sin(hud.menu_t * 4.0)
-		draw_rect(g, Color(0.35 + 0.1 * pulse, 0.25, 0.04, 0.95))
-		draw_rect(g, GOLD, false, 4 * u)
-		var c := g.get_center()
-		draw_colored_polygon(PackedVector2Array([c + Vector2(-22, -26) * u, c + Vector2(30, 0) * u, c + Vector2(-22, 26) * u]), GOLD)
+		SelectArt.go_button(self, g, _u(), hud.menu_t)
 
 	func _person(c: Vector2, s: float, col: Color) -> void:
 		draw_circle(c + Vector2(0, -s * 0.9), s * 0.55, col)
@@ -645,55 +547,10 @@ class _View extends Control:
 
 	## 仲間の選択：左にラナ（固定・金）、右に仲間の札（選ぶと青）。上に人数の点。今後の仲間は錠
 	func _party(r: Dictionary) -> void:
-		var u := _u()
-		draw_rect(Rect2(Vector2.ZERO, size), Color(0, 0, 0, 0.5))
-		var pp: Rect2 = r.ppanel
-		draw_rect(pp, Color(0.04, 0.04, 0.09, 0.96))
-		draw_rect(pp, Color(0.72, 0.5, 1.0, 0.8), false, 3 * u)
-		_close_x(r.close)
-		var th: Dictionary = Themes.THEMES[hud.menu_theme]
-		_theme_glyph(hud.menu_theme, pp.position + Vector2(56, 60) * u, 50 * u, th.col)
-		var dcol: Color = [BLUE, RED, RED][hud.menu_sel]
-		for k in hud.menu_sel + 1:
-			_diamond(pp.position + Vector2(120 + k * 34, 60) * u, 16 * u, dcol)
-		# 人数（埋まった＝金、空き＝枠）
-		var cap: int = hud.party_cap()
-		var used: int = 1 + hud.pick.size()
-		for k in cap:
-			var pc := pp.position + Vector2(pp.size.x / u * 0.5 - (cap - 1) * 26 + k * 52, 64) * u
-			if hud.shake_i == 30 and hud.shake_hard > 0.0:
-				pc.x += sin(hud.shake_hard * 60.0) * 8 * u
-			_person(pc, 16 * u, GOLD if k < used else Color(1, 1, 1, 0.25))
-		var faces := {"rana": Art.RANA, "lily": Art.LILY, "ranka": Art.RANKA}
-		_face_card(r.rana, faces.rana, GOLD, true, false)
-		for k in 4:
-			var id: String = hud.ALLY_IDS[k]
-			var rc: Rect2 = r["ally%d" % k]
-			if hud.shake_i == 20 + k and hud.shake_hard > 0.0:
-				rc.position.x += sin(hud.shake_hard * 60.0) * 8 * u
-			if id == "":
-				_face_card(rc, null, Color(0.35, 0.35, 0.4), false, true)
-				continue
-			var ready: bool = hud.main.ally_ready(id)
-			var on: bool = id in hud.pick
-			_face_card(rc, faces[id], BLUE if on else Color(0.55, 0.6, 0.75), on, not ready)
-			_num(rc.position + Vector2(10, 30) * u, str(k + 1), 22, Color(1, 1, 1, 0.5))
-		_go_btn(r.go)
+		SelectArt.party(self, hud, r, size)
 
 	func _face_card(rc: Rect2, tex: Texture2D, col: Color, on: bool, locked: bool) -> void:
-		var u := _u()
-		draw_rect(rc, Color(col.r * (0.25 if on else 0.1), col.g * (0.25 if on else 0.1), col.b * (0.25 if on else 0.1), 0.95))
-		draw_rect(rc, col, false, (6 if on else 2) * u)
-		var c := rc.get_center() + Vector2(0, -14 * u)
-		var rr := 66.0 * u
-		if tex:
-			draw_texture_rect(tex, Rect2(c - Vector2(rr, rr), Vector2(rr, rr) * 2), false, Color(1, 1, 1, 0.35 if locked else 1.0))
-		else:   # 今後の仲間：影の人
-			_person(c + Vector2(0, 10 * u), 40 * u, Color(0.25, 0.25, 0.3))
-		if locked:
-			_lock(c + Vector2(0, 8 * u), 22 * u, Color(0.85, 0.85, 0.9))
-		if on:   # 選んだ印（下に金の菱形）
-			_diamond(Vector2(rc.get_center().x, rc.end.y - 26 * u), 13 * u, GOLD)
+		SelectArt.face_card(self, rc, tex, col, on, locked, _u())
 
 	func slot_rects() -> Dictionary:
 		var u := _u()
