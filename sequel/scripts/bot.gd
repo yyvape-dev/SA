@@ -2,11 +2,14 @@ extends Node
 ## 自動の入力（確認用）：街の入口まで歩いて難易度を選び、ダンジョンを最後まで通す。
 ##   CAPTURE_DUNGEON=1 … 画面を captures/dg_*.png に撮る（xvfb＋描画あり）
 ##   DUNGEON_TEST=1    … 撮らずに通すだけ（--headless で速い）
-## 周回：ノーマル（全部の部屋を回る）→ ノーマル → ノーマル → ハード。間取りの種は固定（毎回同じ）。
-## 確かめること：詰まり（45秒進まない）・抜け道（敵が残っているのに出口から出られる）・ハードの鍵。
+## 周回（2026-11-14、specs/dungeon_themes.md）：T1 ノーマル（全部の部屋を回る）→ T1 ノーマル → T2 ノーマル → T1 ハード
+##   → 失敗の確認（わざと倒れる）→ 戻る扉の確認。間取りの種は固定（毎回同じ）。
+## 確かめること：詰まり（45秒進まない）・抜け道（敵が残っているのに出口から出られる）・テーマと難易度の鍵・失敗と戻る扉で入る前に戻ること。
 
 const Map := preload("res://scripts/dungeon_map.gd")
-const RUNS := [["normal", 101, true], ["normal", 202, false], ["normal", 303, false], ["hard", 404, false]]
+## [テーマの番号, 難易度の番号, 間取りの種, 全部の部屋を回る, 特別な確認（"" / "fail" / "home"）]
+const RUNS := [[0, 0, 101, true, ""], [0, 0, 202, false, ""], [1, 0, 303, false, ""], [0, 1, 404, false, ""], [1, 0, 505, false, "fail"], [0, 0, 606, false, "home"]]
+var before := {}        # 特別な確認の前のセーブ
 const STUCK_T := 45.0
 
 var main
@@ -124,16 +127,32 @@ func _city() -> void:
 			_shot("menu", 0.4)
 		if hud.menu_t > 0.9:
 			var run: Array = RUNS[run_i]
+			if hud.menu_stage == "theme":
+				if run_i == 0:
+					var ok_t: bool = hud.choose_theme(1)   # まだ開いていない T2 を押す → 選べないこと
+					notes.append("テーマの鍵（T1 未クリア で T2）：%s" % ("選べない＝正しい" if not ok_t else "選べてしまった＝誤り"))
+					if ok_t:
+						hud.menu_back()
+						return
+				if not hud.choose_theme(int(run[0])):
+					notes.append("run %d：テーマ %d を選べなかった" % [run_i + 1, int(run[0])])
+					_finish()
+				return
 			if run_i == 0:
 				var ok: bool = hud.choose(1)   # まだ開いていないハードを押す → 選べないこと
 				notes.append("ハードの鍵（ノーマル未クリア）：%s" % ("選べない＝正しい" if not ok else "選べてしまった＝誤り"))
 				if ok:
 					return
-			main.next_seed = int(run[1])
-			hud.menu_sel = 1 if run[0] == "hard" else 0
+				var ok3: bool = hud.choose(2)
+				notes.append("エキスパートの鍵（ハード未クリア）：%s" % ("選べない＝正しい" if not ok3 else "選べてしまった＝誤り"))
+				if ok3:
+					return
+			main.next_seed = int(run[2])
+			before = main.progress.to_dict()
+			hud.menu_sel = int(run[1])
 			var ok2: bool = hud.choose(hud.menu_sel)
 			if not ok2:
-				notes.append("run %d：%s を選べなかった" % [run_i + 1, run[0]])
+				notes.append("run %d：難易度 %d を選べなかった" % [run_i + 1, int(run[1])])
 				_finish()
 				return
 			phase = "dungeon"
@@ -156,7 +175,12 @@ func _city() -> void:
 # ---------- ダンジョン ----------
 func _dungeon(delta: float) -> void:
 	var d = main.dungeon
-	if d == null:
+	if d == null:   # 戻る扉で街へ（結果の画面なし）
+		if RUNS[run_i][4] == "home":
+			_check_restored("戻る扉")
+			summary.append("run %d 戻る扉：街へ戻った（%.1f 秒）" % [run_i + 1, t_phase])
+			phase = "back"
+			t_phase = 0.0
 		return
 	# 出来事 → 撮影・進み具合
 	while ev_seen < d.events.size():
@@ -175,12 +199,17 @@ func _dungeon(delta: float) -> void:
 			"equip": _shot("equip", 0.1)
 			"boss": _shot("boss", 1.6)
 			"boss_down": _shot("bossdown", 0.25)
+			"fail": _shot("fail", 1.2)
 			"result":
 				_shot("result", 1.4)
 				phase = "result"
 				t_phase = 0.0
 				_record(d)
+				if RUNS[run_i][4] == "fail":
+					notes.append("失敗の確認：結果の画面＝%s" % ("失敗（赤）＝正しい" if d.result.get("fail", false) else "クリア＝誤り"))
+					_check_restored("失敗")
 				return
+	max_alive = maxi(max_alive, main.battle.alive_count())
 	var hp_sum := 0.0
 	for e in main.battle.enemies:
 		hp_sum += maxf(0.0, e.hp)
@@ -204,8 +233,30 @@ func _dungeon(delta: float) -> void:
 		return
 	var p: Node3D = main.player
 	var b = main.battle
+	# 特別な確認：戻る扉＝入口の部屋の扉の上に立つ。失敗＝2 部屋目でわざと倒れる（体力 1 にして戦わない）
+	if RUNS[run_i][4] == "home":
+		if d.home != null:
+			_go(Vector2(d.home_x, main.BELT_Z.x - 0.5))
+		return
+	if RUNS[run_i][4] == "fail" and d.visited.size() >= 2:
+		if not probe.has("fail_set"):
+			probe["fail_set"] = true
+			main.progress.add_exp(500)   # 失敗で消えることを確かめるため、わざとレベルを上げる
+		b.hp = minf(b.hp, 1.0)
+		var fe = _nearest_enemy()   # 戦わずに敵へ寄って当たりに行く（仲間が倒しきると次の部屋へ）
+		if fe != null:
+			_go(Vector2(fe.position.x, fe.position.z))
+			return
+		if not d.room_open:
+			if d.group_i < d.groups.size():
+				_go(Vector2(float(d.groups[d.group_i].x), 0.3))
+			return
+		var fdir: String = Map.first_step(d.layout, d.cur, d.layout.boss)
+		if fdir != "":
+			_go_exit(d, fdir)
+		return
 	# 抜け道の確認（1周目の最初の戦う部屋）：敵がいるうちに出口へ歩き続けても出られないこと
-	if RUNS[run_i][2] and not probe.has("done") and not d.room_open and not d.is_boss_room(d.cur) and b.alive_count() > 0:
+	if RUNS[run_i][3] and not probe.has("done") and not d.room_open and not d.is_boss_room(d.cur) and b.alive_count() > 0:
 		if not probe.has("t"):
 			probe = {"t": 0.0, "room": d.cur, "dir": d.room.exits.keys()[0]}
 			_shot("probe", 1.5)
@@ -223,13 +274,15 @@ func _dungeon(delta: float) -> void:
 		_fight(tgt)
 		return
 	if not d.room_open:
-		return   # 次の波を待つ
+		if d.group_i < d.groups.size():   # 次の群れの位置へ歩く
+			_go(Vector2(float(d.groups[d.group_i].x), 0.3))
+		return
 	if not d.drops.is_empty():
 		var dr: Node3D = d.drops[0].node
 		_go(Vector2(dr.position.x, dr.position.z))
 		return
 	var goal: Vector2i = d.layout.boss
-	if RUNS[run_i][2]:
+	if RUNS[run_i][3]:
 		goal = _nearest_unvisited(d)
 	var dir: String = Map.first_step(d.layout, d.cur, goal)
 	if dir == "":
@@ -350,13 +403,20 @@ func _record(d) -> void:
 	var mx := 0.0
 	for c in room_t:
 		mx = maxf(mx, float(room_t[c]))
-	summary.append("run %d %s 種%d：クリア %s 時間 %.2f秒 被弾 %d Lv %d→%d 武器 %d→%d 行った部屋 %d/6 ボスまで %d部屋 1部屋の最長 %.1f秒" % [
-		run_i + 1, d.diff, RUNS[run_i][1], "済" if not r.is_empty() else "未", d.t_run, d.hits,
+	summary.append("run %d %s_%s 種%d：%s 時間 %.2f秒 被弾 %d 倒した %d Lv %d→%d 武器 %d→%d 行った部屋 %d/%d ボスまで %d部屋 1部屋の最長 %.1f秒 同時の最大 %d" % [
+		run_i + 1, d.theme, d.diff, RUNS[run_i][2], ("失敗" if r.get("fail", false) else "クリア") if not r.is_empty() else "未", d.t_run, d.hits, d.kills,
 		int(r.get("lv0", 0)), int(r.get("lv", 0)), int(r.get("w0", 0)), int(r.get("w", 0)),
-		d.visited.size(), int(d.layout.rooms[d.layout.boss].dist), mx])
+		d.visited.size(), d.layout.rooms.size(), int(d.layout.rooms[d.layout.boss].dist), mx, max_alive])
+
+## 失敗・戻る扉のあと、セーブが入る前と同じか
+func _check_restored(what: String) -> void:
+	var now: Dictionary = main.progress.to_dict()
+	var same: bool = int(now.lv) == int(before.lv) and int(now.xp) == int(before.xp) and int(now.weapon) == int(before.weapon) and str(now.sp) == str(before.sp)
+	notes.append("%s：入る前に戻った＝%s（Lv %d→%d 経験値 %d→%d）" % [what, "正しい" if same else "誤り", int(before.lv), int(now.lv), int(before.xp), int(now.xp)])
 
 var finished := false
 var ult_uses := 0
+var max_alive := 0
 func _finish() -> void:
 	if finished:
 		return
@@ -366,11 +426,13 @@ func _finish() -> void:
 		print(s)
 	for n in notes:
 		print("note: ", n)
-	print("ハードの鍵（保存）：", main.progress.hard_open, "  保存：Lv ", main.progress.lv, " 武器 ", main.progress.weapon, " 最速 ", main.progress.best)
+	print("保存：Lv ", main.progress.lv, " 武器 ", main.progress.weapon, " 最速 ", main.progress.best, " クリア ", main.progress.clears)
 	print("スキルを使った回数：", main.player.skill_uses, "  必殺技：", ult_uses)
 	for tl in tree_log:
 		print("ツリー ", tl)
 	print("SP（レベル＋初回クリア）：", main.progress.sp, "  期待 ", (main.progress.lv - 1) + 2 * main.progress.first_clear_paid.size(), "  初回クリア ", main.progress.first_clear_paid)
+	for a in main.battle.ally_list():
+		print("仲間 ", a.actor_id, " 倒れた回数 ", a.get("downs"))
 	print("当たった数（味方の合計） ", main.battle.stat_hits, "  ダメージ合計 ", int(main.battle.stat_dmg))
 	if main.battle.ally:
 		print("リリィの技の回数：", main.battle.ally.sk_used)

@@ -55,7 +55,12 @@ var refl: Sprite3D
 var px := 0.005
 var height_m := 1.70
 var face := 1
-var state := "move"     # move / atk / hurt
+var state := "move"     # move / atk / hurt / down
+## 体力（2026-11-14、specs/dungeon_themes.md 3.4「仲間も倒れる」）：0 で倒れ、DOWN_T 秒で半分の体力で起きる。最大はラナと同じ（仮）
+const DOWN_T := 8.0
+var hp := -1.0
+var down_t := 0.0
+var downs := 0            # 倒れた回数（確認用）
 var kb := 0.0
 var inv := 0.0
 var flash := 0.0
@@ -117,7 +122,43 @@ func zoom_face() -> Vector3:
 
 ## 敵の攻撃が当たった（enemy.gd から）
 func can_be_hit() -> bool:
-	return inv <= 0.0 and data.clips.has("hit") and state != "skill" and state != "ult"
+	return inv <= 0.0 and data.clips.has("hit") and state != "skill" and state != "ult" and state != "down"
+
+func hp_max() -> float:
+	return float(world.hp_max)
+
+func hp_ratio() -> float:
+	return 1.0 if hp < 0.0 else clampf(hp / hp_max(), 0.0, 1.0)
+
+## 敵の攻撃の傷（enemy.gd から）。0 になったら倒れる
+func take_damage(d: float, dir: int) -> void:
+	if state == "down":
+		return
+	if hp < 0.0:
+		hp = hp_max()
+	hp = maxf(0.0, hp - d)
+	world.fx.number(position + Vector3(0, height_m + 0.3, 0), int(d), "hurt")
+	if hp <= 0.0:
+		state = "down"
+		downs += 1
+		down_t = DOWN_T
+		clip = "hit"
+		mv = ""
+		t = 0.0
+		kb = dir * 2.4
+		face = -dir
+		flash = 0.22
+	else:
+		on_hurt(dir)
+
+## 全快（街へ戻った時）
+func revive_full() -> void:
+	hp = hp_max()
+	if state == "down":
+		state = "move"
+		clip = "idle"
+		t = 0.0
+		mat.set_shader_parameter("tint", Color(1, 1, 1, 1))
 
 func on_hurt(dir: int, _dead: bool = false) -> void:
 	state = "hurt"
@@ -207,11 +248,28 @@ func _physics_process(delta: float) -> void:
 	flash = maxf(0.0, flash - delta)
 	mat.set_shader_parameter("flash", Color(1.0, 0.25, 0.2, 0.6 if flash > 0.0 else 0.0))
 	var pl: Node3D = world.player
-	# ラナから離れすぎたら（部屋の移動など）すぐそばへ
+	# ラナから離れすぎたら（部屋の移動など）すぐそばへ（倒れている時は倒れたまま）
 	if absf(pl.position.x - position.x) > 9.0:
 		position = pl.position + Vector3(pl.face * follow_ofs.x, 0, follow_ofs.z - 0.1)
-		state = "move"
+		if state != "down":
+			state = "move"
 	match state:
+		"down":   # 倒れている：被弾の最後のコマのまま薄く、DOWN_T 秒で半分の体力で起きる
+			position.x += kb * dt
+			kb *= pow(0.003, dt)
+			var hc0: Dictionary = data.clips["hit"]
+			_show("hit", hc0.frames.size() - 1)
+			mat.set_shader_parameter("tint", Color(0.55, 0.55, 0.65, 0.5))
+			down_t -= dt
+			if down_t <= 0.0:
+				hp = hp_max() * 0.5
+				state = "move"
+				clip = "idle"
+				t = 0.0
+				inv = 1.5
+				flash = 0.3
+				mat.set_shader_parameter("tint", Color(1, 1, 1, 1))
+				_show("idle", 0)
 		"move":
 			cd -= dt
 			var e := _nearest()

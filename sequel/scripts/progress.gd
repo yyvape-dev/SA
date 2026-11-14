@@ -6,8 +6,9 @@ var lv := 1
 var xp := 0
 var weapon := 0          # 武器の攻撃力（0＝素手相当の初期の剣）
 var hard_open := false
-var best := {}           # diff -> 最速のクリア時間（秒）
-var clears := {}         # diff -> クリア回数
+var best := {}           # "テーマ_難易度"（例 t1_normal）-> 最速のクリア時間（秒）
+var clears := {}         # "テーマ_難易度" -> クリア回数（開く条件もここから決める。specs/dungeon_themes.md）
+const Themes := preload("res://scripts/dungeon_themes.gd")
 const SKILLS_DEFAULT := ["flurry", "rift", "vortex"]
 var skills_owned: Array = SKILLS_DEFAULT.duplicate()   # 持っている技（今は最初から3つ）
 var skill_slots: Array = SKILLS_DEFAULT.duplicate()    # 枠1〜3 の技の id
@@ -16,7 +17,7 @@ const SkillTree := preload("res://scripts/skill_tree.gd")
 var sp := {"rana": 0, "lily": 0, "ranka": 0}   # 残りの SP（キャラごと）
 var skill_lv := {}           # キャラ → 技 id → 技レベル（無ければ最初の技は 1、ほかは持っていない）
 var deriv := {}              # キャラ → 技 id → 派生 id
-var first_clear_paid := {}   # 難易度 → 初回クリアの SP を渡したか
+var first_clear_paid := {}   # "テーマ_難易度" → 初回クリアの SP を渡したか
 
 func reset() -> void:
 	lv = 1
@@ -104,13 +105,41 @@ func respec(ch: String) -> void:
 			if not skills_owned.has(skill_slots[i]):
 				skill_slots[i] = SKILLS_DEFAULT[i]
 
-## 各難易度の初回クリア：3人それぞれ +2（1回だけ）。渡したら true
-func pay_first_clear(diff: String) -> bool:
-	if bool(first_clear_paid.get(diff, false)):
+## 各テーマ×難易度の初回クリア：3人それぞれ +2（1回だけ）。渡したら true。k＝"テーマ_難易度"
+func pay_first_clear(k: String) -> bool:
+	if bool(first_clear_paid.get(k, false)):
 		return false
-	first_clear_paid[diff] = true
+	first_clear_paid[k] = true
 	_add_sp_all(2)
 	return true
+
+## ---------- テーマと難易度の開き方（specs/dungeon_themes.md 3.3） ----------
+## T(n) は T(n-1) のノーマルのクリアで開く。ハードはそのテーマのノーマル、エキスパートはハードのクリアで開く
+func theme_open(i: int) -> bool:
+	if i <= 0:
+		return true
+	return int(clears.get(Themes.key(Themes.THEMES[i - 1].id, "normal"), 0)) >= 1
+
+func diff_open(theme: String, diff: String) -> bool:
+	if not theme_open(Themes.index_of(theme)):
+		return false
+	match diff:
+		"hard": return int(clears.get(Themes.key(theme, "normal"), 0)) >= 1
+		"expert": return int(clears.get(Themes.key(theme, "hard"), 0)) >= 1
+	return true
+
+func cleared(theme: String, diff: String) -> bool:
+	return int(clears.get(Themes.key(theme, diff), 0)) >= 1
+
+## 前のセーブ（テーマが無い）の鍵 normal・hard を t1_normal・t1_hard に読み替える
+static func _rekey(d: Dictionary) -> Dictionary:
+	var out := {}
+	for k in d:
+		var nk: String = str(k)
+		if nk == "normal" or nk == "hard":
+			nk = "t1_" + nk
+		out[nk] = d[k]
+	return out
 
 ## 次のレベルまでに要る経験値
 func need() -> int:
@@ -140,24 +169,33 @@ func load_save() -> void:
 	var d = JSON.parse_string(FileAccess.get_file_as_string(path))
 	if not (d is Dictionary):
 		return
+	from_dict(d)
+
+## セーブの中身（ダンジョンに入る時の写しにも使う＝失敗・戻る扉で入る前へ戻す）
+func to_dict() -> Dictionary:
+	return {"lv": lv, "xp": xp, "weapon": weapon, "hard_open": hard_open, "best": best.duplicate(true), "clears": clears.duplicate(true),
+		"skills_owned": skills_owned.duplicate(), "skill_slots": skill_slots.duplicate(),
+		"sp": sp.duplicate(true), "skill_lv": skill_lv.duplicate(true), "deriv": deriv.duplicate(true), "first_clear_paid": first_clear_paid.duplicate(true)}
+
+func from_dict(d: Dictionary) -> void:
 	lv = int(d.get("lv", 1))
 	xp = int(d.get("xp", 0))
 	weapon = int(d.get("weapon", 0))
-	hard_open = bool(d.get("hard_open", false))
-	best = d.get("best", {})
-	clears = d.get("clears", {})
+	best = _rekey(d.get("best", {}))
+	clears = _rekey(d.get("clears", {}))
+	hard_open = bool(d.get("hard_open", false)) or diff_open("t1", "hard")
 	var so = d.get("skills_owned", null)
 	if so is Array and not so.is_empty():
-		skills_owned = so
+		skills_owned = so.duplicate()
 	var ss = d.get("skill_slots", null)
 	if ss is Array and ss.size() == 3:
-		skill_slots = ss
+		skill_slots = ss.duplicate()
 	if d.has("sp") and d.sp is Dictionary:
 		for ch in SkillTree.CHARS:
 			sp[ch] = int(d.sp.get(ch, 0))
-		skill_lv = d.get("skill_lv", {})
-		deriv = d.get("deriv", {})
-		first_clear_paid = d.get("first_clear_paid", {})
+		skill_lv = d.get("skill_lv", {}).duplicate(true)
+		deriv = d.get("deriv", {}).duplicate(true)
+		first_clear_paid = _rekey(d.get("first_clear_paid", {}))
 	else:
 		migrate_sp()
 
@@ -179,6 +217,5 @@ func save() -> void:
 	var f := FileAccess.open(path, FileAccess.WRITE)
 	if f == null:
 		return
-	f.store_string(JSON.stringify({"lv": lv, "xp": xp, "weapon": weapon, "hard_open": hard_open, "best": best, "clears": clears, "skills_owned": skills_owned, "skill_slots": skill_slots,
-		"sp": sp, "skill_lv": skill_lv, "deriv": deriv, "first_clear_paid": first_clear_paid}))
+	f.store_string(JSON.stringify(to_dict()))
 	f.close()

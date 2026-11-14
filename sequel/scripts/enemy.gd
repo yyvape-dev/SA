@@ -182,7 +182,7 @@ func _physics_process(delta: float) -> void:
 					dx = absf(pl.position.x - position.x)
 				if dx > -0.3 and dx < float(atk.reach) and dz < float(atk.lane):
 					battle.enemy_hits_player(self)
-				# 仲間（リリィ）も同じ範囲にいれば当たる（体力は無い。揺れて押し戻されるだけ。2026-11-06）
+				# 仲間（リリィ）も同じ範囲にいれば当たる（2026-11-14 から体力あり。倒れる）
 				for al in battle.ally_list():   # 2026-11-12：仲間が2人（リリィ・ランカ）
 					if not al.can_be_hit():
 						continue
@@ -192,7 +192,10 @@ func _physics_process(delta: float) -> void:
 					if adx > -0.3 and adx < float(atk.reach) and absf(al.position.z - position.z) < float(atk.lane):
 						var ad := 1 if al.position.x >= position.x else -1
 						battle.fx.hurt(al.position + Vector3(0, 1.0, 0), ad)
-						al.on_hurt(ad)
+						if al.has_method("take_damage"):   # 2026-11-14：仲間も体力を持ち、倒れる（specs/dungeon_themes.md 3.4）
+							al.take_damage(float(dmg), ad)
+						else:
+							al.on_hurt(ad)
 			if atk.t >= atk.end_t:
 				state = "walk"
 				atk_cd = 0.8 if boss else 1.0

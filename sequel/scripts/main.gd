@@ -216,6 +216,12 @@ func _ready() -> void:
 			perf_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			cl.add_child(perf_label)
 			add_child(cl)
+		# 重さの計測（specs/dungeon_themes.md 3.2）：?dgtest=N で、広い部屋に敵 N 体を出し続ける（敵は倒れない・ラナは倒れない）
+		var dgn = JavaScriptBridge.eval("new URLSearchParams(location.search).get('dgtest')")
+		if dgn != null and str(dgn).is_valid_int():
+			dg_perf_n = int(str(dgn))
+			var dgt = JavaScriptBridge.eval("new URLSearchParams(location.search).get('dgtheme')")
+			enter_dungeon.call_deferred("normal", 7, str(dgt) if dgt != null else "t1")
 		# 確認用：?at=gate で入口の前から始める
 		if str(JavaScriptBridge.eval("window.location.search")).contains("at=gate"):
 			player.position = Vector3(gate.position.x - 2.0, 0, 0.0) if gate else Vector3(GATE_X - 0.5, 0, BELT_Z.x + 1.6)
@@ -569,8 +575,15 @@ func _build_vignette() -> void:
 	r.material = m
 	cl.add_child(r)
 	add_child(cl)
+	vignette_mat = m
 	if fx:
 		fx.screen_mat = m   # 衝撃波の画面のゆがみ
+
+var vignette_mat: ShaderMaterial
+## ダンジョンのテーマの色（絵が届くまでの仮置き）。a 0 で無し
+func set_theme_tint(c: Color) -> void:
+	if vignette_mat:
+		vignette_mat.set_shader_parameter("theme_tint", c)
 
 func _apply_cam_variant() -> void:
 	cam_variant = OS.get_environment("CAMV")
@@ -657,8 +670,10 @@ func _build_env() -> void:
 	sun.shadow_enabled = true
 	add_child(sun)
 
-func _build_floor() -> void:
+func _build_floor(width: float = 0.0) -> void:
 	var street_width := 72.0 if town == "back" else 60.0
+	if width > 0.0:   # ダンジョンの広い部屋（specs/dungeon_themes.md 3.1）
+		street_width = width
 	cobble_tex = load("res://assets/ground/cobble.png")
 	slab_tex = load("res://assets/ground/slab.png")
 	# 地面はコード（前作の教訓：AIの一枚絵は継ぎ目が苦手）。外部AIの継ぎ目の無い素材を繰り返して敷く。
@@ -3111,14 +3126,22 @@ func _bt_front(dir: String) -> void:
 ## ダンジョンの部屋：歓楽街の部品を並べ替えて置く（ofs の使い回し）。spec は dungeon_map.gd の部屋。
 func build_room(spec: Dictionary) -> void:
 	_clear_level()
-	_build_floor()
+	var rw: float = spec.rw
+	_build_floor(2.0 * rw + 28.0)
 	var by_id := {}
 	for p in City.pieces():
 		by_id[p.id] = p
-	var rw: float = spec.rw
-	# 裏通りの列と遠景はそのまま（少し横へずらして毎回の見え方を変える）
+	# 裏通りの列と遠景はそのまま（少し横へずらして毎回の見え方を変える）。
+	# 部屋が広い（2〜3 画面）とカメラが ±12m より先へ動き、1 枚では端が切れる → 左右に写しを足す（2026-11-14）
+	var cam_far: float = maxf(0.0, rw - PLAY_HALF_W)
 	_build_piece(by_id["b0_backrow"], Vector3(spec.back_ofs, 0, 0), "b0_room")
+	if cam_far + 19.4 > 32.0:
+		for s in [-1, 1]:
+			_build_piece(by_id["b0_backrow"], Vector3(spec.back_ofs + s * 64.0, 0, 0), "b0_room_%d" % s)
 	_build_piece(by_id["z_skyline"])
+	if cam_far + 56.0 > FAR_W * 0.5:
+		for s in [-1, 1]:
+			_build_piece(by_id["z_skyline"], Vector3(s * FAR_W, 0, 0), "z_skyline_%d" % s)
 	glints = []
 	for i in spec.slots.size():
 		var id: String = spec.slots[i]
@@ -3267,12 +3290,13 @@ func _check_gate() -> void:
 		gate_armed = true
 
 var next_seed := -1   # 撮影の自動入力が決めた間取りの種（-1＝毎回ランダム）
+var dg_perf_n := 0    # ?dgtest=N（環境変数 DG_PERF でも）：重さの計測
 func dungeon_seed() -> int:
 	var s := next_seed
 	next_seed = -1
 	return s
 
-func enter_dungeon(diff: String, seed_val: int = -1) -> void:
+func enter_dungeon(diff: String, seed_val: int = -1, theme: String = "t1") -> void:
 	for e in battle.enemies.duplicate():
 		battle.remove_enemy(e)
 	battle.auto_spawn = false
@@ -3287,7 +3311,11 @@ func enter_dungeon(diff: String, seed_val: int = -1) -> void:
 	dungeon = DungeonRun.new()
 	dungeon.main = self
 	dungeon.diff = diff
+	dungeon.theme = theme
 	dungeon.seed_val = seed_val
+	if dg_perf_n <= 0 and OS.has_environment("DG_PERF"):
+		dg_perf_n = int(OS.get_environment("DG_PERF"))
+	dungeon.perf_n = dg_perf_n
 	add_child(dungeon)
 	dungeon.start()
 
@@ -3295,6 +3323,10 @@ func leave_dungeon() -> void:
 	if dungeon:
 		dungeon.queue_free()
 		dungeon = null
+	set_theme_tint(Color(1, 1, 1, 0))
+	for a in battle.ally_list():   # 仲間の体力も戻す（specs/dungeon_themes.md 3.4）
+		if a.has_method("revive_full"):
+			a.revive_full()
 	battle.foe_hp_mul = 1.0
 	battle.foe_dmg_mul = 1.0
 	battle.hp = battle.hp_max

@@ -563,4 +563,6 @@ func enemy_hits_player(e) -> void:
 
 ## 倒れたあと起き上がった
 func player_revived() -> void:
+	if main and main.dungeon and main.dungeon.state in ["failed", "result"]:   # ダンジョンで倒れた＝失敗（起き上がっても回復しない）
+		return
 	hp = hp_max

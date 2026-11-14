@@ -9,7 +9,8 @@ uniform float grade = 1.0;
 uniform vec4 wave[4];
 uniform float wave_w = 0.06;      // 輪の太さ（画面の高さに対する割合）
 uniform float aspect = 2.164;     // 画面の横÷縦（スクリプトが入れる）
-uniform float chroma = 0.0;       // 大技の一瞬の色収差（2026-11-07、specs/vfx_overhaul.md）。中心から外へ、端ほど大きく
+uniform float chroma = 0.0;
+uniform vec4 theme_tint = vec4(1.0, 1.0, 1.0, 0.0);   // ダンジョンのテーマの色（仮置き。specs/dungeon_themes.md）。a＝強さ。暗い所ほど強く染める       // 大技の一瞬の色収差（2026-11-07、specs/vfx_overhaul.md）。中心から外へ、端ほど大きく
 
 void fragment() {
 	vec2 uv = SCREEN_UV;
@@ -43,6 +44,10 @@ void fragment() {
 	float shadow = 1.0 - smoothstep(0.12, 0.55, lum);
 	vec3 cool = c * vec3(0.82, 0.84, 1.18) + vec3(0.012, 0.004, 0.03);
 	c = mix(c, cool, shadow * grade);
+	if (theme_tint.a > 0.001) {
+		float tl = dot(c, vec3(0.299, 0.587, 0.114));
+		c = mix(c, tl * theme_tint.rgb * 1.9, theme_tint.a * (0.45 + 0.55 * shadow));   // 色相をテーマの色へ寄せる（明るさは保つ）
+	}
 	vec2 dd = (UV - 0.5) * vec2(1.6, 1.0);
 	float v = smoothstep(0.45, 1.05, length(dd)) * strength;
 	c = mix(c, vec3(0.03, 0.02, 0.06), v);
