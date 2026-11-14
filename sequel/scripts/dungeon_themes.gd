@@ -7,7 +7,7 @@ const THEMES := [
 	{"id": "t1", "col": Color(0.95, 0.35, 0.85), "tint": Color(1, 1, 1, 0.0),
 		"hp": 1.0, "dmg": 1.0, "xp": 1.0, "foes": ["1", "3"], "boss": "g1", "pck": "dg1"},   # 歓楽街の入口（今の部品）
 	{"id": "t2", "col": Color(0.35, 0.8, 1.0), "tint": Color(0.55, 0.78, 1.0, 0.6),
-		"hp": 1.6, "dmg": 1.4, "xp": 1.5, "foes": ["1", "3"], "boss": "g1", "pck": "dg1"},   # 奥の路地（半魔界）
+		"hp": 1.6, "dmg": 1.4, "xp": 1.5, "foes": ["1", "3"], "boss": "g1", "pck": "dg_t2"},   # 奥の路地（半魔界）。部品 assets/dungeon/t2（2026-11-14）
 	{"id": "t3", "col": Color(0.72, 0.42, 1.0), "tint": Color(0.78, 0.5, 1.0, 0.65),
 		"hp": 2.4, "dmg": 1.9, "xp": 2.2, "foes": ["1", "3"], "boss": "g1", "pck": "dg1"},   # 門の手前の廃墟
 	{"id": "t4", "col": Color(0.35, 1.0, 0.75), "tint": Color(0.5, 1.0, 0.8, 0.6),
@@ -47,3 +47,7 @@ static func cfg(theme: String, diff: String) -> Dictionary:
 
 static func key(theme: String, diff: String) -> String:
 	return "%s_%s" % [theme, diff]
+
+## このテーマの部品の絵があるか（無ければ歓楽街の部品＋画面の色で仮置き）
+static func has_parts(theme: String) -> bool:
+	return theme != "t1" and ResourceLoader.exists("res://assets/dungeon/%s/%s_b1.webp" % [theme, theme])

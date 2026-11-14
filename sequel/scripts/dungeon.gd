@@ -71,7 +71,8 @@ func start() -> void:
 		cap = int(OS.get_environment("DG_CAP"))
 	snapshot = main.progress.to_dict()
 	layout = Map.generate(rng)
-	main.set_theme_tint(Themes.THEMES[Themes.index_of(theme)].tint)
+	main.set_theme_tint(Color(1, 1, 1, 0) if Themes.has_parts(theme) else Themes.THEMES[Themes.index_of(theme)].tint)
+	main.room_theme = theme
 	main.battle.foe_hp_mul = cfg().hp
 	main.battle.foe_dmg_mul = cfg().dmg
 	hits0 = main.battle.hits_taken

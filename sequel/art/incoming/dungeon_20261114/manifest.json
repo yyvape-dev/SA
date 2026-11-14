@@ -1,0 +1,275 @@
+[
+  {
+    "id": "t1_room",
+    "file": "t1_room.jpeg",
+    "source": "F5402677-31E7-42CD-A801-3F91A23CC7E8.jpeg",
+    "width": 1536,
+    "height": 699,
+    "format": "JPEG",
+    "mode": "RGB",
+    "sha256": "58da624db25e2935ed1a8ac8a6adaeef22dd9bbf2858272b6eae09aeae20eb6c",
+    "corner_rgb": [
+      38,
+      14,
+      27
+    ]
+  },
+  {
+    "id": "t2_room",
+    "file": "t2_room.jpeg",
+    "source": "6FA45C77-A43A-4169-8381-CA1CE1227DEC.jpeg",
+    "width": 1536,
+    "height": 699,
+    "format": "JPEG",
+    "mode": "RGB",
+    "sha256": "d731f8232b8e1cb09f9bcc3d166234eca5b49c68118baa41276ce73b28d23386",
+    "corner_rgb": [
+      10,
+      9,
+      14
+    ]
+  },
+  {
+    "id": "t2_room_alt",
+    "file": "t2_room_alt.jpeg",
+    "source": "119F6BF5-2FA1-4B03-8E48-1E4471E2D9B1.jpeg",
+    "width": 1536,
+    "height": 699,
+    "format": "JPEG",
+    "mode": "RGB",
+    "sha256": "ee96c06599009b318987396a0a6b8ff1e17a24010262a02dc952d8963eef2244",
+    "corner_rgb": [
+      11,
+      10,
+      16
+    ]
+  },
+  {
+    "id": "t3_room",
+    "file": "t3_room.jpeg",
+    "source": "795ECE42-B516-4120-AB53-76CB1CA528F7.jpeg",
+    "width": 1536,
+    "height": 699,
+    "format": "JPEG",
+    "mode": "RGB",
+    "sha256": "80138ec5140cf784a48ee65dba72498219b4631ad0586ef19e79385bdeca075c",
+    "corner_rgb": [
+      36,
+      24,
+      38
+    ]
+  },
+  {
+    "id": "t4_room",
+    "file": "t4_room.jpeg",
+    "source": "7265BCCB-D476-4CC1-824C-2CCC8C442589.jpeg",
+    "width": 1536,
+    "height": 699,
+    "format": "JPEG",
+    "mode": "RGB",
+    "sha256": "45023a073876c2042866e7ebc8051ebf270c798a401c5e4e8c31a5ec3ac346a2",
+    "corner_rgb": [
+      20,
+      26,
+      26
+    ]
+  },
+  {
+    "id": "t2_b1",
+    "file": "t2_b1.jpeg",
+    "source": "3EE92918-9920-48F3-AF0F-DA6D0FCD4F9B.jpeg",
+    "width": 1536,
+    "height": 800,
+    "format": "JPEG",
+    "mode": "RGB",
+    "sha256": "5126231b56fd5a2845691964fbe66476be30b4c5c2f3144adf76d38787b10d73",
+    "corner_rgb": [
+      248,
+      6,
+      250
+    ]
+  },
+  {
+    "id": "t2_b2",
+    "file": "t2_b2.jpeg",
+    "source": "3B4CCE37-0597-4C97-BD51-A88CE88023C8.jpeg",
+    "width": 1536,
+    "height": 961,
+    "format": "JPEG",
+    "mode": "RGB",
+    "sha256": "e447b2565258e2bd597cb9284960f17071e3bee3ef52d23b988a8ded62b908ab",
+    "corner_rgb": [
+      246,
+      4,
+      249
+    ]
+  },
+  {
+    "id": "t2_b3",
+    "file": "t2_b3.jpeg",
+    "source": "5DDEA326-B6B8-4989-BAE2-1E323D923BBA.jpeg",
+    "width": 1536,
+    "height": 800,
+    "format": "JPEG",
+    "mode": "RGB",
+    "sha256": "4395b93e36be266fd454e1e802c37a29a43314ac00db6d7eb84d00f73e5f72c9",
+    "corner_rgb": [
+      245,
+      6,
+      249
+    ]
+  },
+  {
+    "id": "t2_b4",
+    "file": "t2_b4.jpeg",
+    "source": "3B8D8193-186F-4248-8F7F-AED0284BEA62.jpeg",
+    "width": 1536,
+    "height": 961,
+    "format": "JPEG",
+    "mode": "RGB",
+    "sha256": "06b15328fc860b9d0c60f8ba68ec346cfbe8576f7d24966f5c2a51fd28da77c7",
+    "corner_rgb": [
+      246,
+      4,
+      248
+    ]
+  },
+  {
+    "id": "t2_f1",
+    "file": "t2_f1.jpeg",
+    "source": "570694F1-C16A-46F1-901F-61F21238DEC8.jpeg",
+    "width": 512,
+    "height": 1536,
+    "format": "JPEG",
+    "mode": "RGB",
+    "sha256": "cd0617c70e4c0387dd45efb5e888f48fdbc372f51ddc9a0b051dd98e4908af73",
+    "corner_rgb": [
+      249,
+      7,
+      252
+    ]
+  },
+  {
+    "id": "t2_f2",
+    "file": "t2_f2.jpeg",
+    "source": "CE2BC8D1-26A8-418F-A090-E8DC7D123F34.jpeg",
+    "width": 768,
+    "height": 1536,
+    "format": "JPEG",
+    "mode": "RGB",
+    "sha256": "6a54e2daa59a7b1bcc366b9592e5f9fbc13245e2b28bf0a36148dbc78b3070cb",
+    "corner_rgb": [
+      248,
+      5,
+      253
+    ]
+  },
+  {
+    "id": "t2_f3",
+    "file": "t2_f3.jpeg",
+    "source": "0A43F8E9-0414-4ACA-8FCB-C01E1C7BEB91.jpeg",
+    "width": 512,
+    "height": 1536,
+    "format": "JPEG",
+    "mode": "RGB",
+    "sha256": "e4a8e40c0e764776a8fd6aa61ab423fed0bc452cc683fbac3ec8bcb2ab9a5f70",
+    "corner_rgb": [
+      247,
+      7,
+      252
+    ]
+  },
+  {
+    "id": "t2_back1",
+    "file": "t2_back1.jpeg",
+    "source": "03C8B5ED-427D-45CC-BEA0-7C8FDEE37A59.jpeg",
+    "width": 1536,
+    "height": 512,
+    "format": "JPEG",
+    "mode": "RGB",
+    "sha256": "77fb2e58b337c6a36c1128c088852756f7df79a2d4a30f929c24f5750afddc70",
+    "corner_rgb": [
+      245,
+      3,
+      248
+    ]
+  },
+  {
+    "id": "t2_far1",
+    "file": "t2_far1.jpeg",
+    "source": "1963F5AE-C3F1-4C5C-9C3D-341B8978C173.jpeg",
+    "width": 1536,
+    "height": 512,
+    "format": "JPEG",
+    "mode": "RGB",
+    "sha256": "204167d702761e372ff5fa40a19fbe35a498ed3ba3b38056fc1cfb3ae07232f8",
+    "corner_rgb": [
+      248,
+      6,
+      251
+    ]
+  },
+  {
+    "id": "t2_g1",
+    "file": "t2_g1.jpeg",
+    "source": "B20AEEEC-EF26-410F-833B-AAA2EFB5CEA8.jpeg",
+    "width": 1254,
+    "height": 1254,
+    "format": "JPEG",
+    "mode": "RGB",
+    "sha256": "74547cb10b3ee6bd70a6d88a6319ad854c30f6965ffdd7d4b2d2d7fe289ae481",
+    "corner_rgb": [
+      15,
+      13,
+      14
+    ]
+  },
+  {
+    "id": "t1_boss",
+    "file": "t1_boss.png",
+    "source": "ImageGen exec-e5f5f9e8-1558-41e7-93f4-74a64373e6e6.png",
+    "status": "proposal_unapproved",
+    "width": 1024,
+    "height": 1536,
+    "format": "PNG",
+    "mode": "RGB",
+    "sha256": "0f5f0dbde2679b36bf48e81174ef921ca51dbae2074d358ecd055f0f2544c69b",
+    "corner_rgb": [
+      239,
+      20,
+      241
+    ]
+  },
+  {
+    "id": "t1_boss_front",
+    "file": "t1_boss_front.png",
+    "source": "ImageGen exec-7772aa76-9d8d-4246-8ad6-ec1d645b6743.png",
+    "status": "proposal_unapproved",
+    "width": 1024,
+    "height": 1536,
+    "format": "PNG",
+    "mode": "RGB",
+    "sha256": "b4df691f4944fe889bde3cad276df1b1d8136bad9490542e8388a11c654687f6",
+    "corner_rgb": [
+      240,
+      24,
+      242
+    ]
+  },
+  {
+    "id": "t2_x1",
+    "file": "t2_x1.png",
+    "source": "ImageGen exec-4c58302a-ae04-427a-ac1d-fcd399918ebb.png",
+    "status": "proposal_unapproved",
+    "width": 1586,
+    "height": 992,
+    "format": "PNG",
+    "mode": "RGB",
+    "sha256": "fed4427a4df41bdf6f5fd5a5d495cfa42fb72d2a8df71587a858106c54bab740",
+    "corner_rgb": [
+      233,
+      10,
+      236
+    ]
+  }
+]

@@ -670,10 +670,17 @@ func _build_env() -> void:
 	sun.shadow_enabled = true
 	add_child(sun)
 
-func _build_floor(width: float = 0.0) -> void:
+func _build_floor(width: float = 0.0, floor_tex: Texture2D = null) -> void:
 	var street_width := 72.0 if town == "back" else 60.0
 	if width > 0.0:   # ダンジョンの広い部屋（specs/dungeon_themes.md 3.1）
 		street_width = width
+	if floor_tex != null:   # テーマの床（1 枚の繰り返し。線路なし）
+		# 奥の帯は建物の正面より奥（−7.6）まで敷く（足元のすき間から奥の地面の紫が線に見えた）
+		# 板どうしは 0.1m 重ねる（歓楽街の床は 0.05m のすき間があり、奥の紫が横の線に見えている）
+		for st in [[Vector3(0, 0.0, -4.8), Vector2(street_width, 5.6)], [Vector3(0, -0.03, 0.15), Vector2(street_width, 7.6)], [Vector3(0, 0.0, 5.55), Vector2(street_width, 3.3)]]:
+			_ground(st[0], st[1], floor_tex, THEME_FLOOR_TILE, THEME_FLOOR_DIM)
+		_far_ground_plane()
+		return
 	cobble_tex = load("res://assets/ground/cobble.png")
 	slab_tex = load("res://assets/ground/slab.png")
 	# 地面はコード（前作の教訓：AIの一枚絵は継ぎ目が苦手）。外部AIの継ぎ目の無い素材を繰り返して敷く。
@@ -686,7 +693,10 @@ func _build_floor(width: float = 0.0) -> void:
 		var rm: StandardMaterial3D = r.material_override
 		rm.metallic = 0.6
 		rm.roughness = 0.35
-	# 奥の地面（建物の後ろ〜遠景の板）：奥ほど遠景の下端の霧の色（z_skyline の地平あたりの平均 ≈ #684c53）に溶ける
+	_far_ground_plane()
+
+## 奥の地面（建物の後ろ〜遠景の板）：奥ほど遠景の下端の霧の色（z_skyline の地平あたりの平均 ≈ #684c53）に溶ける
+func _far_ground_plane() -> void:
 	var fg_mi := MeshInstance3D.new()
 	var fpm := PlaneMesh.new()
 	fpm.size = Vector2(160, 56)
@@ -702,6 +712,8 @@ func _build_floor(width: float = 0.0) -> void:
 var cobble_tex: Texture2D
 var slab_tex: Texture2D
 const COBBLE_TILE := 2.5   # 石畳 1 枚の大きさ（m）
+const THEME_FLOOR_TILE := 3.0   # テーマの床 1 枚（t2_g1 は石 4〜5 枚分）
+const THEME_FLOOR_DIM := 0.75   # テーマの床の明るさ（t2_g1 は元から暗い。歓楽街の 0.3 だと模様が消えた）
 const SLAB_TILE := 2.0     # 敷石 1 枚（石 1 枚が約 1m×0.5m）
 const FLOOR_DIM := 0.3    # 地面の明るさ（素材の色に掛ける。夜。前は 0.5）
 const GLINT_SHADER := preload("res://scripts/glint.gdshader")
@@ -723,14 +735,14 @@ var crowd: Array = []      # 奥の歩道の人の流れ [{node, v, ph}]
 var glints: Array = []
 var fg_list: Array = []     # [{node, mat, half}]
 
-func _ground(c: Vector3, size: Vector2, tex: Texture2D, tile: float) -> void:
+func _ground(c: Vector3, size: Vector2, tex: Texture2D, tile: float, dim: float = FLOOR_DIM) -> void:
 	var mi := MeshInstance3D.new()
 	var pm := PlaneMesh.new()
 	pm.size = size
 	mi.mesh = pm
 	var m := StandardMaterial3D.new()
 	m.albedo_texture = tex
-	m.albedo_color = Color(FLOOR_DIM * 0.97, FLOOR_DIM * 0.94, FLOOR_DIM * 1.04)   # ごく弱い紫（奥行きの霧の最弱）
+	m.albedo_color = Color(dim * 0.97, dim * 0.94, dim * 1.04)   # ごく弱い紫（奥行きの霧の最弱）
 	ground_mats.append([m, m.albedo_color])
 	m.uv1_scale = Vector3(size.x / tile, size.y / tile, 1)
 	m.roughness = 0.85
@@ -3125,6 +3137,9 @@ func _bt_front(dir: String) -> void:
 
 ## ダンジョンの部屋：歓楽街の部品を並べ替えて置く（ofs の使い回し）。spec は dungeon_map.gd の部屋。
 func build_room(spec: Dictionary) -> void:
+	if DgThemes.has_parts(room_theme):
+		build_room_parts(spec, room_theme)
+		return
 	_clear_level()
 	var rw: float = spec.rw
 	_build_floor(2.0 * rw + 28.0)
@@ -3165,6 +3180,89 @@ func build_room(spec: Dictionary) -> void:
 	battle.glints = glints
 	battle.ROOM_X = Vector2(-rw, rw)
 	player.room_x = Vector2(-rw, rw)
+
+## テーマの部品（外部AIの絵を切り抜いた板。assets/dungeon/<テーマ>/）で部屋を組む（2026-11-14、仮組み）。
+## 3D の下絵（箱）への投影ではなく、画面に正対する板を並べる。間取りの slots（b1〜b4）・fg（f1〜f3）の番号をそのまま使う。
+## 板の大きさ＝絵の画素 ÷ THEME_PPM（全部品で同じ割合＝部品どうしの大きさは絵のまま）。
+const THEME_PPM := 150.0        # 正面の建物・手前の物：1m あたりの画素
+const THEME_WALL_Z := -6.6      # 建物の正面の線（歓楽街の建物の正面 −6.5 に合わせる）
+const THEME_BLD_DIM := 0.55     # 建物の板の明るさ（光る画素は残す）
+func build_room_parts(spec: Dictionary, theme: String) -> void:
+	_clear_level()
+	var rw: float = spec.rw
+	var dir := "res://assets/dungeon/%s/" % theme
+	_build_floor(2.0 * rw + 28.0, load(dir + theme + "_g1.webp"))
+	var cam_far: float = maxf(0.0, rw - PLAY_HALF_W)
+	var root := Node3D.new()
+	root.name = "theme_parts"
+	level.add_child(root)
+	# 遠景（いちばん奥・霧に沈める）と裏の列：横に繰り返して、カメラが端まで動いても切れない幅に
+	var far_tex: Texture2D = load(dir + theme + "_far1.webp")
+	var far_w := 70.0
+	var far_h := far_w * float(far_tex.get_height()) / float(far_tex.get_width())
+	var n_far := int(ceil((cam_far + 60.0) / far_w))
+	for i in range(-n_far, n_far + 1):
+		_theme_plane(root, far_tex, Vector3(i * far_w + spec.back_ofs * 2.0, -2.0, -45.0), Vector2(far_w, far_h), 0.75, Color(0.38, 0.27, 0.42, 0.55), i % 2 != 0)
+	var back_tex: Texture2D = load(dir + theme + "_back1.webp")
+	var back_w := 30.0
+	var back_h := back_w * float(back_tex.get_height()) / float(back_tex.get_width())
+	var n_back := int(ceil((cam_far + 26.0) / back_w))
+	for i in range(-n_back, n_back + 1):
+		_theme_plane(root, back_tex, Vector3(i * (back_w - 1.0) + spec.back_ofs, -0.2, -14.0), Vector2(back_w, back_h), 0.6, Color(0.38, 0.27, 0.42, 0.35), i % 2 != 0)
+	# 正面の建物：slots の順に、すき間なく（0.35m 重ねて）並べ、全体を部屋の中心にそろえる
+	var bld := []
+	var total := 0.0
+	for id in spec.slots:
+		var tid: String = theme + "_" + str(id).substr(0, 2)   # "b1_tavern" → "t2_b1"
+		var tex: Texture2D = load(dir + tid + ".webp")
+		var w := float(tex.get_width()) / THEME_PPM
+		bld.append([tex, w])
+		total += w - 0.35
+	var x: float = -total * 0.5 + float(spec.back_ofs) * 0.3
+	for i in bld.size():
+		var tex: Texture2D = bld[i][0]
+		var w: float = bld[i][1]
+		var h := float(tex.get_height()) / THEME_PPM
+		_theme_plane(root, tex, Vector3(x + w * 0.5, -0.06, THEME_WALL_Z - (0.02 * (i % 2))), Vector2(w, h), THEME_BLD_DIM, Color(1, 1, 1, 0.0), false)   # 足元を少し床へ沈める
+		x += w - 0.35
+	# 手前の物（f1〜f3）：ぼかして暗く。ラナと重なると透ける（fg_list）
+	for i in spec.fg.size():
+		var f: Array = spec.fg[i]
+		var tid: String = theme + "_" + str(f[0]).substr(0, 2)
+		var tex: Texture2D = load(dir + tid + ".webp")
+		var h := 5.0
+		var w := h * float(tex.get_width()) / float(tex.get_height())
+		var mi := _theme_plane(root, tex, Vector3(float(f[1]), 0.0, 5.6 - FG_PULL), Vector2(w, h), FG_DIM, Color(1, 1, 1, 0.0), false)
+		var m: ShaderMaterial = mi.material_override
+		m.set_shader_parameter("blur", FG_BLUR)
+		fg_list.append({"node": mi, "mat": m, "half": w * 0.5})
+	glints = []   # 映り込みの光の元はまだ無い（T2 の看板・灯りの位置を拾うのは後で）
+	_build_glints()
+	cam_x = Vector2(-cam_far, cam_far)
+	battle.glints = glints
+	battle.ROOM_X = Vector2(-rw, rw)
+	player.room_x = Vector2(-rw, rw)
+
+## 板 1 枚（足元＝pos.y、中心＝pos.x、奥行き＝pos.z）。night＝光る画素以外の明るさ、amb＝霧の色（a＝量）、flip＝左右反転（繰り返しの継ぎ目を目立たなくする）
+func _theme_plane(root: Node3D, tex: Texture2D, pos: Vector3, size: Vector2, night: float, amb: Color, flip: bool) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var qm := QuadMesh.new()
+	qm.size = size
+	mi.mesh = qm
+	mi.position = pos + Vector3(0, size.y * 0.5, 0)
+	if flip:
+		mi.scale.x = -1.0
+	var m := ShaderMaterial.new()
+	m.shader = SPRITE_SHADER
+	m.set_shader_parameter("tex", tex)
+	m.set_shader_parameter("night_dim", night)
+	m.set_shader_parameter("bg_layer", 1.0)
+	m.set_shader_parameter("tint", Color(1, 1, 1, 1))
+	m.set_shader_parameter("amb_col", amb)
+	mi.material_override = m
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(mi)
+	return mi
 
 func _piece_x_range(p: Dictionary) -> Vector2:
 	var x0 := INF
@@ -3290,6 +3388,8 @@ func _check_gate() -> void:
 		gate_armed = true
 
 var next_seed := -1   # 撮影の自動入力が決めた間取りの種（-1＝毎回ランダム）
+const DgThemes := preload("res://scripts/dungeon_themes.gd")
+var room_theme := "t1"   # 今のダンジョンのテーマ（build_room が部品を選ぶ）
 var dg_perf_n := 0    # ?dgtest=N（環境変数 DG_PERF でも）：重さの計測
 func dungeon_seed() -> int:
 	var s := next_seed
@@ -3307,6 +3407,12 @@ func enter_dungeon(diff: String, seed_val: int = -1, theme: String = "t1") -> vo
 		if not await district.ensure("dg1"):
 			loading.error_text = district.last_error
 		loading.hide_soon()
+	var tpck: String = DgThemes.THEMES[DgThemes.index_of(theme)].pck   # テーマの部品の pck（T2 dg_t2 など）
+	if tpck != "dg1" and not district.ensure_cached(tpck):
+		loading.show_now()
+		if not await district.ensure(tpck):
+			loading.error_text = district.last_error
+		loading.hide_soon()
 	player.locked = false
 	dungeon = DungeonRun.new()
 	dungeon.main = self
@@ -3320,6 +3426,7 @@ func enter_dungeon(diff: String, seed_val: int = -1, theme: String = "t1") -> vo
 	dungeon.start()
 
 func leave_dungeon() -> void:
+	room_theme = "t1"
 	if dungeon:
 		dungeon.queue_free()
 		dungeon = null

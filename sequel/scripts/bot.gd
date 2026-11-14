@@ -8,7 +8,8 @@ extends Node
 
 const Map := preload("res://scripts/dungeon_map.gd")
 ## [テーマの番号, 難易度の番号, 間取りの種, 全部の部屋を回る, 特別な確認（"" / "fail" / "home"）]
-const RUNS := [[0, 0, 101, true, ""], [0, 0, 202, false, ""], [1, 0, 303, false, ""], [0, 1, 404, false, ""], [1, 0, 505, false, "fail"], [0, 0, 606, false, "home"]]
+var RUNS: Array = RUNS_ALL.duplicate()
+const RUNS_ALL := [[0, 0, 101, true, ""], [0, 0, 202, false, ""], [1, 0, 303, false, ""], [0, 1, 404, false, ""], [1, 0, 505, false, "fail"], [0, 0, 606, false, "home"]]
 var before := {}        # 特別な確認の前のセーブ
 const STUCK_T := 45.0
 
@@ -42,6 +43,17 @@ func _ready() -> void:
 		RenderingServer.render_loop_enabled = false   # 描くのは撮る瞬間だけ（ソフト描画は遅いので）
 	main.battle.auto_spawn = false
 	main.player.position = Vector3(8.0, 0, 0.8)
+	# BOT_RUNS=2,4 … 周回を選ぶ（0 から数える）。T2 などが開いていない時は、前のテーマのクリアを足して開く（撮影の時短）
+	if OS.has_environment("BOT_RUNS"):
+		var pick := []
+		for k in OS.get_environment("BOT_RUNS").split(","):
+			pick.append(RUNS_ALL[int(k)])
+		RUNS = pick
+		for r in RUNS:
+			for ti in int(r[0]):
+				main.progress.clears["t%d_normal" % (ti + 1)] = 1
+			if int(r[1]) >= 1:
+				main.progress.clears["t%d_normal" % (int(r[0]) + 1)] = 1
 	_randomize_tree()
 
 ## スキルツリー（specs/skill_tree.md 5.）：周ごとに、3人の技レベル（3〜5）と派生（なしも含む）をランダムに付ける。TREE_RANDOM=0 で付けない
@@ -115,6 +127,8 @@ func _save_shot(tag: String) -> void:
 	var img := get_viewport().get_texture().get_image()
 	RenderingServer.render_loop_enabled = false
 	img.save_png(ProjectSettings.globalize_path("res://captures/dg_r%d_%03d_%s.png" % [run_i + 1, n, tag]))
+	if OS.has_environment("BOT_SHOTS_MAX") and n >= int(OS.get_environment("BOT_SHOTS_MAX")):   # 撮る枚数を絞って早く終える（見た目の確認用）
+		get_tree().quit()
 
 
 # ---------- 街：入口まで歩いて選ぶ ----------
@@ -128,7 +142,7 @@ func _city() -> void:
 		if hud.menu_t > 0.9:
 			var run: Array = RUNS[run_i]
 			if hud.menu_stage == "theme":
-				if run_i == 0:
+				if run_i == 0 and not OS.has_environment("BOT_RUNS"):
 					var ok_t: bool = hud.choose_theme(1)   # まだ開いていない T2 を押す → 選べないこと
 					notes.append("テーマの鍵（T1 未クリア で T2）：%s" % ("選べない＝正しい" if not ok_t else "選べてしまった＝誤り"))
 					if ok_t:
@@ -138,7 +152,7 @@ func _city() -> void:
 					notes.append("run %d：テーマ %d を選べなかった" % [run_i + 1, int(run[0])])
 					_finish()
 				return
-			if run_i == 0:
+			if run_i == 0 and not OS.has_environment("BOT_RUNS"):
 				var ok: bool = hud.choose(1)   # まだ開いていないハードを押す → 選べないこと
 				notes.append("ハードの鍵（ノーマル未クリア）：%s" % ("選べない＝正しい" if not ok else "選べてしまった＝誤り"))
 				if ok:
