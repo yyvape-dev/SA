@@ -223,5 +223,53 @@
       13,
       14
     ]
+  },
+  {
+    "id": "t1_boss",
+    "file": "t1_boss.png",
+    "source": "ImageGen exec-e5f5f9e8-1558-41e7-93f4-74a64373e6e6.png",
+    "status": "proposal_unapproved",
+    "width": 1024,
+    "height": 1536,
+    "format": "PNG",
+    "mode": "RGB",
+    "sha256": "0f5f0dbde2679b36bf48e81174ef921ca51dbae2074d358ecd055f0f2544c69b",
+    "corner_rgb": [
+      239,
+      20,
+      241
+    ]
+  },
+  {
+    "id": "t1_boss_front",
+    "file": "t1_boss_front.png",
+    "source": "ImageGen exec-7772aa76-9d8d-4246-8ad6-ec1d645b6743.png",
+    "status": "proposal_unapproved",
+    "width": 1024,
+    "height": 1536,
+    "format": "PNG",
+    "mode": "RGB",
+    "sha256": "b4df691f4944fe889bde3cad276df1b1d8136bad9490542e8388a11c654687f6",
+    "corner_rgb": [
+      240,
+      24,
+      242
+    ]
+  },
+  {
+    "id": "t2_x1",
+    "file": "t2_x1.png",
+    "source": "ImageGen exec-4c58302a-ae04-427a-ac1d-fcd399918ebb.png",
+    "status": "proposal_unapproved",
+    "width": 1586,
+    "height": 992,
+    "format": "PNG",
+    "mode": "RGB",
+    "sha256": "fed4427a4df41bdf6f5fd5a5d495cfa42fb72d2a8df71587a858106c54bab740",
+    "corner_rgb": [
+      233,
+      10,
+      236
+    ]
   }
 ]
