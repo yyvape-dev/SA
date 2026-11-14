@@ -39,6 +39,34 @@ func _ready() -> void:
 		RenderingServer.render_loop_enabled = false   # 描くのは撮る瞬間だけ（ソフト描画は遅いので）
 	main.battle.auto_spawn = false
 	main.player.position = Vector3(8.0, 0, 0.8)
+	_randomize_tree()
+
+## スキルツリー（specs/skill_tree.md 5.）：周ごとに、3人の技レベル（3〜5）と派生（なしも含む）をランダムに付ける。TREE_RANDOM=0 で付けない
+var tree_log := []
+const ST := preload("res://scripts/skill_tree.gd")
+func _randomize_tree() -> void:
+	if OS.get_environment("TREE_RANDOM") == "0":
+		return
+	var pr = main.progress
+	var keep_sp: Dictionary = pr.sp.duplicate()
+	var line := []
+	for ch in ST.CHARS:
+		pr.skill_lv[ch] = {}
+		pr.deriv[ch] = {}
+		for id in ST.order(ch):
+			pr.skill_lv[ch][id] = rng.randi_range(3, 5)
+			var dd: Dictionary = ST.rows(ch)[id].derivs
+			var ds: Array = []
+			for k in dd:
+				if not dd[k].get("todo", false):
+					ds.append(k)
+			var pick := rng.randi_range(-1, ds.size() - 1)
+			if pick >= 0:
+				pr.deriv[ch][id] = ds[pick]
+			line.append("%s.%s Lv%d %s" % [ch, id, pr.skill_lv[ch][id], pr.deriv[ch].get(id, "-")])
+	pr.sp = keep_sp   # SP の数え（レベル・初回クリア）は変えない
+	main.apply_progress()
+	tree_log.append("run %d：%s" % [run_i + 1, "、".join(line)])
 
 func _shot(tag: String, delay := 0.0) -> void:
 	if shots:
@@ -73,6 +101,7 @@ func _physics_process(delta: float) -> void:
 				else:
 					phase = "city"
 					t_phase = 0.0
+					_randomize_tree()
 
 func _save_shot(tag: String) -> void:
 	shot_n += 1
@@ -339,6 +368,10 @@ func _finish() -> void:
 		print("note: ", n)
 	print("ハードの鍵（保存）：", main.progress.hard_open, "  保存：Lv ", main.progress.lv, " 武器 ", main.progress.weapon, " 最速 ", main.progress.best)
 	print("スキルを使った回数：", main.player.skill_uses, "  必殺技：", ult_uses)
+	for tl in tree_log:
+		print("ツリー ", tl)
+	print("SP（レベル＋初回クリア）：", main.progress.sp, "  期待 ", (main.progress.lv - 1) + 2 * main.progress.first_clear_paid.size(), "  初回クリア ", main.progress.first_clear_paid)
+	print("当たった数（味方の合計） ", main.battle.stat_hits, "  ダメージ合計 ", int(main.battle.stat_dmg))
 	if main.battle.ally:
 		print("リリィの技の回数：", main.battle.ally.sk_used)
 	if main.battle.ranka:

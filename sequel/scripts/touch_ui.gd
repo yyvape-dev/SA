@@ -218,10 +218,11 @@ class _Pad extends Control:
 				"dodge":
 					Art.icon(self, Art.DODGE, center, radius * 1.25, color)
 				"ult":
-					if ui.ult_value() < ui.battle.ULT_COST:
+					var ucost: float = pl.ult_cost() if pl != null and pl.has_method("ult_cost") else ui.battle.ULT_COST   # スキルツリーの技レベルで下がる
+					if ui.ult_value() < ucost:
 						draw_colored_polygon(PackedVector2Array([center + Vector2(0, -radius), center + Vector2(radius, 0), center + Vector2(0, radius), center + Vector2(-radius, 0)]), Color(0.015, 0.015, 0.025, 0.55))
 					else:
-						for stock in int(ui.ult_value() / ui.battle.ULT_COST):
+						for stock in int(ui.ult_value() / ucost):
 							draw_circle(center + Vector2((stock - 0.5) * 15, radius * 0.65), 3 * u, Color(0.88, 0.45, 1, 0.7))
 				"gear":
 					Art.gear(self, center, radius * 0.6, 0.5)

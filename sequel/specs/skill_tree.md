@@ -68,3 +68,19 @@ Claude Code・Codex 向けの正本。ここに無いことは勝手に決めず
 - 必殺技の派生の中身（ユーザー確認後）。
 - 長押しリング・フリック派生・4枠目（`skill_ui.md` の 6.）。
 - 装備との関係。
+
+## 7. 処理に足した汎用の項目（2026-11-14、実装 Claude Code）
+派生は `scripts/skill_tree.gd` の patch（差分）で書く。patch の操作（set・mul・thin・dense・lerp・fork・append）は skill_tree.gd の先頭に説明。処理側で読む項目：
+| 項目 | どこで読む | 意味 |
+|---|---|---|
+| `z_slope` | battle._attack_from | 帯・前方の当たりを斜めに（1m 進むごとに奥行きが何 m ずれるか）。三叉・散弾 |
+| `seek_n`・`seek_r` | battle._attack_from | 半径 seek_r の中の近い敵 seek_n 体だけに当てる。追雷 |
+| `pull: "out"` | battle._attack_from | 寄せの逆。外へ pull_m 押す。反転 |
+| `linger: {n, gap, k, band}` | battle._attack_from・_update_lingers | 当たりがその場に残り、gap 秒ごとに n 回当たる（威力は k 倍、床の輪を出す）。結界 |
+| `origin` | battle._attack_from | 当たりの中心を固定（linger が使う） |
+| `band_fx`・`burst_fx` | battle._deriv_fx | 帯の気の筋／円の炸裂（光の爆ぜ・床の輪・柱・砂煙）の見た目。値は色の帯の名前 |
+| `rev` | battle.player_skill（vortex） | 渦の回る向きを逆に・外へ広がる輪 |
+| `move_ok`・`move_spd` | player.gd（skill の状態） | 使いながら動ける（走りの move_spd 倍）。歩き渦 |
+| `chain_n`・`chain_r` | ally.gd（_chain_next） | 技の終わりに chain_r m 以内のまだ当てていない敵へ跳び、同じ技をもう一度（合計 chain_n 体）。連鎖 |
+| `dash_back`・`back` | ally.gd（_skill_step・rush） | dash_back の間に走り出した所へ戻り、戻りの帯にも当てる。往復 |
+| `cost_mul`・`k_hit`・`k_end`・`k_step` | 各キャラの ult_cost()・必殺技の処理 | 必殺技の技レベル（ゲージの必要量・威力） |

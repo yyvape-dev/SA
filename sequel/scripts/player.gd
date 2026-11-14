@@ -6,6 +6,7 @@ extends Node3D
 
 const SPR := preload("res://scripts/sprite_bb.gdshader")
 const Skills := preload("res://scripts/skills.gd")
+const SkillTree := preload("res://scripts/skill_tree.gd")
 const WALK := 2.8
 const RUN := 6.2
 const DEPTH_K := 0.75        # 奥行きの移動は少し遅く（アラド型）
@@ -79,7 +80,7 @@ func _ready() -> void:
 	for pg in d.pages:   # 最初の攻撃で読み込みの引っかかりが出ないよう、先に全部読む
 		_tex(pg)
 	_build_tables()
-	skills = Skills.table()
+	refresh_skills()
 	sprite = Sprite3D.new()
 	sprite.region_enabled = true
 	sprite.centered = false
@@ -204,6 +205,15 @@ func _end_attack() -> void:
 	atk_next = "atkA"
 	_show_frame(clip, 0)
 
+## スキルツリーの技レベル・派生を掛けた表を読み直す（街でツリーを閉じた時・進み具合が変わった時。main.apply_progress）
+func refresh_skills() -> void:
+	var pr = world.main.progress if world and world.main else null
+	skills = SkillTree.table_for("rana", pr)
+
+## 必殺技のゲージの必要量（技レベル 3 で −10％、5 で −20％）
+func ult_cost() -> float:
+	return world.ULT_COST * float(skills.get("ult", {}).get("cost_mul", 1.0))
+
 ## スキル：使えたら true。move・atk（連撃の当たりの後）から。CD 中・回避・被弾・ダウン・locked は不可
 func can_use_skill(id: String) -> bool:
 	if locked or id == "" or not skills.has(id) or float(skill_cd.get(id, 0.0)) > 0.0:
@@ -273,12 +283,12 @@ var ult_t := 0.0
 func can_use_ult() -> bool:
 	if world.cine or world.ult_busy(self):   # 仲間（リリィ・ランカ）の必殺技の最中は出さない
 		return false
-	return not locked and world.ult >= world.ULT_COST and (state == "move" or (state == "atk" and tab.has(clip) and t >= float(tab[clip].cancel)))
+	return not locked and world.ult >= ult_cost() and (state == "move" or (state == "atk" and tab.has(clip) and t >= float(tab[clip].cancel)))
 
 func use_ult() -> bool:
 	if not can_use_ult():
 		return false
-	world.ult = maxf(0.0, world.ult - world.ULT_COST)
+	world.ult = maxf(0.0, world.ult - ult_cost())
 	world.ult_gain = false
 	if absf(move_in.x) > 0.3:
 		face = 1 if move_in.x > 0 else -1
@@ -316,7 +326,7 @@ func _ult_process(delta: float) -> void:
 		sl.r = float(sl.r) * 1.6
 		sl.w = float(sl.w) * 1.3
 		sl.pal = world.GOLD_PAL
-		world._attack_from(self, {"side": 0, "shape": "both", "r": 8.0, "lane": 4.0, "dmg": 18.0 * 0.8, "strong": false, "kb": 0.2, "slash": sl}, world.atk_mul)
+		world._attack_from(self, {"side": 0, "shape": "both", "r": 8.0, "lane": 4.0, "dmg": 18.0 * float(skills.get("ult", {}).get("k_hit", 0.8)), "strong": false, "kb": 0.2, "slash": sl}, world.atk_mul)
 		if ult_i % 2 == 0:
 			fx.rift(position.x, position.x + 7.0 * (1 if ult_i % 4 == 0 else -1), position.z, 1)
 		world.shake = maxf(world.shake, 8.0)
@@ -331,7 +341,7 @@ func _ult_process(delta: float) -> void:
 		big.r = float(big.r) * 1.5
 		big.w = float(big.w) * 1.5
 		big.pal = world.GOLD_PAL
-		world._attack_from(self, {"side": 0, "shape": "both", "r": 8.0, "lane": 4.0, "dmg": 18.0 * 4.0, "strong": true, "kb": 3.0, "freeze_add": 0.2, "slash": big}, world.atk_mul)
+		world._attack_from(self, {"side": 0, "shape": "both", "r": 8.0, "lane": 4.0, "dmg": 18.0 * float(skills.get("ult", {}).get("k_end", 4.0)), "strong": true, "kb": 3.0, "freeze_add": 0.2, "slash": big}, world.atk_mul)
 		if fx.seqs.is_empty():   # 焼いた連番が無いとき（読み込み前）だけ前の見た目
 			fx.vortex_burst(position, 6.0)
 			if world.fx2d and not fx.legacy:
@@ -514,6 +524,9 @@ func _physics_process(delta: float) -> void:
 			var te: float = t * float(sk.spd)
 			if absf(mv.x) > 0.3:   # 移動の入力は向きだけ
 				face = 1 if mv.x > 0 else -1
+			if sk.get("move_ok", false):   # 派生（歩き渦など）：使いながら動ける（速さは move_spd 倍）
+				position.x += mv.x * RUN * float(sk.get("move_spd", 0.5)) * dt
+				position.z += mv.y * RUN * float(sk.get("move_spd", 0.5)) * DEPTH_K * dt
 			var r := _root(clip, te)
 			position.x += face * (r - root_prev) * px_size * 0.3   # その場の技：前進は 0.3 倍
 			root_prev = r

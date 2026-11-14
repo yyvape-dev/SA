@@ -304,12 +304,13 @@ func _finish() -> void:
 	if nb:
 		pr.best[key] = t_run
 	pr.clears[key] = int(pr.clears.get(key, 0)) + 1
+	var sp_paid: bool = pr.pay_first_clear(key)   # 初回クリア：3人それぞれ SP +2（specs/skill_tree.md）
 	var unlocked := false
 	if diff == "normal" and not pr.hard_open:
 		pr.hard_open = true
 		unlocked = true
 	pr.save()
-	result = {"time": t_run, "hits": hits, "lv0": lv0, "lv": pr.lv, "w0": w0, "w": pr.weapon, "best": nb, "diff": diff, "unlocked": unlocked}
+	result = {"time": t_run, "hits": hits, "lv0": lv0, "lv": pr.lv, "w0": w0, "w": pr.weapon, "best": nb, "diff": diff, "unlocked": unlocked, "sp_paid": sp_paid}
 	log_ev("result", result)
 	main.hud.show_result(result)
 

@@ -50,7 +50,7 @@ func setup(w, d: Dictionary) -> void:
 
 func _ready() -> void:
 	super._ready()
-	sk_tab = RankaSkills.table()
+	refresh_skills()
 	rfx = RankaFx.new()
 	rfx.fx = world.fx
 	rfx.world = world
@@ -158,7 +158,7 @@ func _pick_skill(e: Node3D) -> bool:
 	if not skills_on:
 		return false
 	var foes := _screen_foes()
-	if float(world.get(ult_key)) >= world.ULT_COST and not world.cine and not world.ult_busy(self) and foes.size() > 0:
+	if float(world.get(ult_key)) >= ult_cost() and not world.cine and not world.ult_busy(self) and foes.size() > 0:
 		_start_ult(e)
 		return true
 	var boss := false
@@ -188,7 +188,7 @@ func _skill_hit(spec: Dictionary) -> void:
 		"shot", "shot_big":
 			var big: bool = spec.fx == "shot_big"
 			var a := position + Vector3(face * 1.05, 1.42, 0.12)
-			var b := a + Vector3(face * float(spec.r), -0.05, 0)
+			var b := a + Vector3(face * float(spec.r), -0.05, float(spec.get("z_slope", 0.0)) * float(spec.r))   # 散弾（z_slope）は斜めへ
 			hs.x0 = position.x
 			hs.x1 = position.x + face * float(spec.r)
 			rfx.ki_shot(a, b, big)
@@ -208,12 +208,14 @@ func _skill_hit(spec: Dictionary) -> void:
 		"star":
 			var foes := _screen_foes()
 			var n := 0
+			var star_r: float = float(spec.get("r", RankaSkills.SCREEN_R)) if spec.get("shape", "") == "circle" else RankaSkills.SCREEN_R   # 一点：範囲の中だけ
+			var spread: float = minf(8.0, star_r - 0.5)
 			for x in foes:
-				if n < 6:
+				if n < 6 and Vector2(x.position.x - cx, (x.position.z - position.z) * 1.3).length() < star_r + 0.5:
 					rfx.star(x.position + Vector3(0, 0, 0.05), randf_range(0.0, 0.05), (int(spec.n) + n) % 4 == 0)
 					n += 1
 			for k in 2:   # 敵のいない所にも降らせる（画面全体）
-				rfx.star(Vector3(cx + randf_range(-8.0, 8.0), 0, randf_range(-2.5, 2.5)), randf_range(0.0, 0.08), k == 1)
+				rfx.star(Vector3(cx + randf_range(-spread, spread), 0, position.z + randf_range(-2.5, 2.5) * minf(1.0, spread / 8.0)), randf_range(0.0, 0.08), k == 1)
 		"quake_seq":   # 2026-11-12：締めは Godot で焼いた連番（予兆→炸裂→余韻の層）。白い板を1枚出して回す方式はやめた
 			rfx.seq("quake", position + Vector3(0, 1.3, 0), 0.6)
 			return

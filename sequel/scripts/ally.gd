@@ -7,6 +7,7 @@ extends Node3D
 
 const SPR := preload("res://scripts/sprite_bb.gdshader")
 const LilySkills := preload("res://scripts/lily_skills.gd")
+const SkillTree := preload("res://scripts/skill_tree.gd")
 const STORM_R := 4.8      # 雷陣を出す判断の半径（m、奥行きは 1.3 倍で数える）
 const RUSH_MIN := 3.5     # 迅雷：いちばん近い敵がこの距離〜RUSH_MAX のとき
 const RUSH_MAX := 8.5     # 画面の外へ飛び出さない距離（遊ぶカメラの半分 ≒ 9.5m）
@@ -101,7 +102,7 @@ func _ready() -> void:
 	add_child(shadow)
 	refl = world.make_refl()
 	add_child(refl)
-	sk_tab = LilySkills.table()
+	refresh_skills()
 	_show("idle", 0)
 
 ## 背の高さを変える（撮影の並べ比べ用）
@@ -433,6 +434,43 @@ func debug_pose(c: String, i: int) -> void:
 	world.apply_light(sprite, mat, refl, position)
 
 # ---------- スキル（2026-11-07、ユーザー決定）。表は scripts/lily_skills.gd ----------
+## スキルツリーの技レベル・派生を掛けた表を読み直す（specs/skill_tree.md。オートの抽選・処理はこの表をそのまま使う）
+func refresh_skills() -> void:
+	var pr = world.main.progress if world and world.main else null
+	sk_tab = SkillTree.table_for(actor_id, pr)
+
+## 必殺技のゲージの必要量（技レベル 3 で −10％、5 で −20％）
+func ult_cost() -> float:
+	return world.ULT_COST * float(sk_tab.get("ult", {}).get("cost_mul", 1.0))
+
+var chain_left := 0       # 派生「連鎖」（chain_n）：あと何体へ跳ぶか
+var chain_done := []
+var back_from := Vector3.ZERO   # 派生「往復」（dash_back）：戻り始めの位置
+
+## 連鎖：近くのまだ当てていない敵へ跳んで、同じ技をもう一度（chain_r m 以内）
+func _chain_next() -> bool:
+	if chain_left <= 0:
+		return false
+	var best: Node3D = null
+	var bd := float(sk.get("chain_r", 7.0))
+	for x in world.enemies:
+		if x.state == "dying" or chain_done.has(x):
+			continue
+		var d := Vector2(x.position.x - position.x, (x.position.z - position.z) * 1.3).length()
+		if d < bd:
+			bd = d
+			best = x
+	if best == null:
+		return false
+	chain_left -= 1
+	chain_done.append(best)
+	target = best
+	face = 1 if best.position.x >= position.x else -1
+	dash_from = position
+	dash_to = Vector3(clampf(best.position.x - face * 1.0, world.ROOM_X.x, world.ROOM_X.y), 0, best.position.z)
+	t = float(sk.dash[0]) / float(sk.fps) if sk.has("dash") else 0.0
+	ev_i = 0
+	return true
 func _alive(e) -> bool:
 	return e != null and is_instance_valid(e) and e.state != "dying"
 
@@ -442,7 +480,7 @@ func _pick_skill(e: Node3D) -> bool:
 		return false
 	var pl: Node3D = world.player
 	# 必殺技：満タン・誰も演出中でない
-	if float(world.get(ult_key)) >= world.ULT_COST and not world.cine and not world.ult_busy(self):
+	if float(world.get(ult_key)) >= ult_cost() and not world.cine and not world.ult_busy(self):
 		var tg := _ult_target()
 		if tg:
 			_start_ult(tg)
@@ -473,6 +511,8 @@ func _start_skill(id: String, e: Node3D) -> void:
 	sk_cd[id] = float(sk.get("cd", 0.0))
 	sk_used[id] = int(sk_used.get(id, 0)) + 1
 	target = e
+	chain_left = int(sk.get("chain_n", 1)) - 1
+	chain_done = [e]
 	face = 1 if e.position.x >= position.x else -1
 	state = "skill"
 	t = 0.0
@@ -500,12 +540,28 @@ func _skill_step(dt: float) -> bool:
 			if ghost_t <= 0.0:
 				ghost_t = (d1 - d0) / 4.0
 				_ghost()
+	if sk.has("dash_back"):   # 派生「往復」：dash_back の間に、走り出した所（dash_from）へ戻る
+		var b0: float = float(sk.dash_back[0]) / fps
+		var b1: float = float(sk.dash_back[1]) / fps
+		if t >= b0 and t - dt < b0:
+			back_from = position
+			face = -face
+		if t >= b0 and t <= b1 + dt:
+			var ub := clampf((t - b0) / (b1 - b0), 0.0, 1.0)
+			ub = 1.0 - pow(1.0 - ub, 2.0)
+			position = back_from.lerp(dash_from, ub)
+			ghost_t -= dt
+			if ghost_t <= 0.0:
+				ghost_t = (b1 - b0) / 4.0
+				_ghost()
 	_update_ghosts(dt)
 	var ev: Array = sk.ev
 	while ev_i < ev.size() and i >= int(ev[ev_i][0]):
 		_skill_hit(ev[ev_i][1])
 		ev_i += 1
 	if i >= fr.size():
+		if _chain_next():
+			return false
 		return true
 	var f = fr[i]
 	if f is Array:
@@ -559,9 +615,14 @@ func _skill_hit(spec: Dictionary) -> void:
 			fx.sky_bolt(position + Vector3(face * 1.6, 0, 0), 0.0)
 			world.shake = maxf(world.shake, 10.0)
 		"rush":
-			hs.x0 = dash_from.x
-			hs.x1 = position.x + face * float(spec.r)
-			fx.dash_trail(dash_from, position + Vector3(face * 1.2, 0, 0))
+			if spec.get("back", false):   # 往復の戻り：狙った敵の向こう側（戻り始めの 2m 後ろ）〜今の位置の帯
+				hs.x0 = back_from.x - face * 2.0
+				hs.x1 = position.x + face * 0.8
+				fx.dash_trail(back_from, position + Vector3(face * 0.8, 0, 0))
+			else:
+				hs.x0 = dash_from.x
+				hs.x1 = position.x + face * float(spec.r)
+				fx.dash_trail(dash_from, position + Vector3(face * 1.2, 0, 0))
 		"storm_drop":
 			var g := position + Vector3(0, 0, 0.12)
 			fx.pillar(g, 3.6)
@@ -571,7 +632,7 @@ func _skill_hit(spec: Dictionary) -> void:
 		"storm":   # 半径の中の敵（多くて4体）と、あいた所へ空から稲妻
 			var n := 0
 			for x in world.enemies:
-				if n < 3 and x.state != "dying" and Vector2(x.position.x - position.x, (x.position.z - position.z) * 1.3).length() < float(spec.r):
+				if n < int(spec.get("seek_n", 3)) and x.state != "dying" and Vector2(x.position.x - position.x, (x.position.z - position.z) * 1.3).length() < float(spec.r):
 					fx.sky_bolt(x.position + Vector3(0, 0, 0.05), randf_range(0.0, 0.04))
 					n += 1
 			for k in 1:
@@ -624,7 +685,7 @@ func _ult_target() -> Node3D:
 	return best
 
 func _start_ult(e: Node3D) -> void:
-	world.set(ult_key, maxf(0.0, float(world.get(ult_key)) - world.ULT_COST))
+	world.set(ult_key, maxf(0.0, float(world.get(ult_key)) - ult_cost()))
 	world.set(ult_key + "_gain", false)
 	sk_id = "ult"
 	sk = sk_tab["ult"]

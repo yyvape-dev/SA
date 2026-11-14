@@ -33,4 +33,6 @@ static func table() -> Dictionary:
 			"pull": "in", "pull_m": 0.6, "fx": "vortex", "n": i, "shake": 3.0}])
 	vx.append([1.32, {"shape": "circle", "side": 1, "r": 3.4, "cx": 0.0, "lane": 9.0, "k": 1.8, "strong": true, "kb": 2.6, "fx": "vortex_end", "freeze_add": 0.06, "shake": 14.0}])
 	t["vortex"] = {"clip": "hold", "spd": 1.25, "cd": 12.0, "total": 1.45, "ev": vx}
+	# 必殺技（当たりの流れは player.gd の _ult_process）。ツリーの技レベルで k_hit・k_end と cost_mul が変わる（skill_tree.gd）
+	t["ult"] = {"k_hit": 0.8, "k_end": 4.0}
 	return t

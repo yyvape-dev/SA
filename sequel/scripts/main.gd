@@ -333,7 +333,7 @@ func _load_ally() -> void:
 func ranka_wanted() -> bool:
 	if _q("ranka=0") or OS.get_environment("RANKA") == "0":
 		return false
-	if OS.get_environment("RANKA") == "1":
+	if OS.get_environment("RANKA") == "1" or OS.get_environment("FX_ONLY") == "tree":   # スキルツリーの撮影は3人とも
 		return true
 	for k in ["CAPTURE_PLAY", "CAPTURE_FX", "CAPTURE_GUIDE", "CAPTURE_DUNGEON", "CAPTURE_LINEUP", "CAPTURE_REUSE"]:
 		if OS.has_environment(k):
@@ -1239,6 +1239,11 @@ func _capture_fx() -> void:
 		print("FX DONE")
 		get_tree().quit()
 		return
+	if OS.get_environment("FX_ONLY") == "tree":
+		await _capture_tree(dir)
+		print("FX DONE")
+		get_tree().quit()
+		return
 	if OS.get_environment("FX_ONLY") == "skill":
 		await _capture_skill_fx(dir)
 		print("FX DONE")
@@ -1554,6 +1559,168 @@ func _capture_skill_fx(dir: String) -> void:
 		await RenderingServer.frame_post_draw
 	get_viewport().get_texture().get_image().save_png(dir + "/ui_slots.png")
 	hud.close_slots()
+
+## スキルツリー（specs/skill_tree.md 5.、FX_ONLY=tree）：
+##   ツリー画面（3人のタブ）→ captures/ui_tree_<char>.png
+##   派生ごと（技レベル 3）に「最初の当たり・締めの当たり・余韻」の3枚 → captures/fx_deriv_<char>_<skill>_<deriv|base>_<1|2|3>.png
+##   数字：技レベル1・5（元の技）と派生（Lv3）の、当たった数・ダメージの合計（TREE_STAT の行）
+const TREE_SPOTS := {
+	"flurry": [[1.6, 0.0], [2.2, 0.5], [5.2, 0.0]], "rift": [[1.6, 0.0], [3.8, -0.2], [6.2, 0.2], [4.5, 1.3], [9.5, 0.0], [8.0, -1.3]],
+	"vortex": [[2.4, 0.9], [-2.8, -0.3], [1.8, -1.4], [-1.6, 1.2], [4.0, 0.0]],
+	"rush": [[7.0, 0.3], [8.0, -0.4], [10.5, 1.0]], "barrage": [[1.3, 0.0], [1.9, 0.4], [3.4, -0.6]], "storm": [[2.4, 0.9], [-2.6, -0.3], [1.6, -1.4], [-1.5, 1.2], [3.6, 0.0], [6.5, 0.4]],
+	"shot": [[4.0, 0.0], [6.5, 0.9], [7.5, -1.0]], "ring": [[2.4, 0.9], [-2.6, -0.3], [1.6, -1.4], [5.5, 0.4], [-6.0, -0.5]], "quake": [[2.4, 0.9], [-2.6, -0.3], [1.6, -1.4], [5.5, 0.4], [-6.5, 0.6]],
+}
+const TREE_CAM := {"rift": 4.5, "shot": 4.5, "rush": 4.5, "flurry": 2.0}   # 撮影のカメラの中心（技を出す位置から前へ m）
+func _tree_demo(pr) -> void:   # 画面を見せるための仮の進み具合（撮影だけ。保存しない）
+	pr.sp = {"rana": 4, "lily": 2, "ranka": 0}
+	pr.skill_lv = {"rana": {"flurry": 3, "rift": 5, "vortex": 2, "ult": 1}, "lily": {"rush": 4, "barrage": 1, "storm": 3, "ult": 2}, "ranka": {"shot": 3, "ring": 1, "quake": 5, "ult": 3}}
+	pr.deriv = {"rana": {"flurry": "iai", "rift": "enshin"}, "lily": {"rush": "rensa"}, "ranka": {"shot": "tame", "quake": "itten"}}
+
+func _capture_tree(dir: String) -> void:
+	progress.path = "user://sa2_capture_save.json"   # 撮影でセーブを変えない
+	progress.reset()
+	for w in 600:   # 仲間（al1・al2）を読み終えるまで待つ
+		if battle.ally != null and battle.ranka != null:
+			break
+		await get_tree().physics_frame
+	print("TREE 仲間 ", battle.ally != null, " ", battle.ranka != null)
+	for x in battle.enemies.duplicate():
+		battle.remove_enemy(x)
+	player.visible = true
+	player.set_physics_process(true)
+	player.position = Vector3(-1.5, 0, 0.6)
+	_place_cam(true)
+	# 1) ツリー画面
+	_tree_demo(progress)
+	hud.open_slots()
+	hud.slot_mode = "tree"
+	for ch in ["rana", "lily", "ranka"]:
+		hud.tree_ch = ch
+		for f in 8:
+			await get_tree().physics_frame
+			await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png(dir + "/ui_tree_%s.png" % ch)
+	hud.slot_mode = "slot"
+	for f in 4:
+		await get_tree().physics_frame
+		await RenderingServer.frame_post_draw
+	get_viewport().get_texture().get_image().save_png(dir + "/ui_tree_slotmode.png")
+	hud.close_slots()
+	progress.reset()
+	# 2) 派生
+	const ST := preload("res://scripts/skill_tree.gd")
+	var cam_mark := Node3D.new()
+	add_child(cam_mark)
+	var only_ch: String = OS.get_environment("TREE_CH")
+	for ch in ["rana", "lily", "ranka"]:
+		if only_ch != "" and only_ch != ch:
+			continue
+		var actor: Node3D = player if ch == "rana" else (battle.ally if ch == "lily" else battle.ranka)
+		if actor == null:
+			print("TREE ", ch, " がいない")
+			continue
+		for a in [battle.ally, battle.ranka]:
+			if a != null:
+				a.visible = a == actor
+				a.set_physics_process(a == actor)
+				a.skills_on = false
+				a.cd = 99.0
+		for id in ST.order(ch):
+			if id == "ult" or (OS.get_environment("TREE_SKILLS") != "" and not OS.get_environment("TREE_SKILLS").split(",").has(id)):
+				continue
+			var runs := [["base", 1, false], ["base", 5, false], ["base", 3, true]]
+			for did in ST.rows(ch)[id].derivs:
+				runs.append([did, 3, true])
+			for run in runs:
+				var did: String = run[0]
+				progress.reset()
+				progress.skill_lv = {ch: {id: run[1]}}
+				if did != "base":
+					progress.deriv = {ch: {id: did}}
+				apply_progress()
+				var tab: Dictionary = player.skills if ch == "rana" else actor.sk_tab
+				var sk: Dictionary = tab[id]
+				for x in battle.enemies.duplicate():
+					battle.remove_enemy(x)
+				var start := Vector3(-3.5 if id in ["rift", "rush", "shot"] else -1.0, 0, 0.5)
+				actor.position = start
+				actor.face = 1
+				actor.state = "move"
+				if ch != "rana":
+					player.position = start + Vector3(-1.4, 0, 1.3)
+					player.face = 1
+				player.state = "move"
+				# カメラ：遠くまで届く技は、当たる範囲が画面に入るよう前へずらす（撮影だけ）
+				cam_mark.position = start + Vector3(TREE_CAM.get(id, 1.2), 0, 0)
+				battle.cam_focus = cam_mark
+				_place_cam(true)
+				var first = null
+				for sp in TREE_SPOTS[id]:
+					var e = battle.spawn("3", start + Vector3(sp[0], 0, sp[1]))
+					e.atk_cd = 99.0
+					e.hp_max = 99999.0
+					e.hp = 99999.0
+					if first == null:
+						first = e
+				for f in 24:   # 出てきた時の白い光が消えるまで
+					await get_tree().physics_frame
+				battle.stat_hits = 0
+				battle.stat_dmg = 0.0
+				# 撮る時：最初の当たりを処理した直後・締め（最後の当たり）を処理した直後・その余韻（止めで技の時間が延びるので、時刻でなく当たりの番号で）
+				var ev_all: Array = sk.ev
+				var i_first := -1
+				var i_last := -1
+				for k in ev_all.size():
+					if ev_all[k][1].has("k") and float(ev_all[k][1].k) > 0.0:
+						if i_first < 0:
+							i_first = k
+						i_last = k
+				var after := 0.35
+				if did in ["kekkai", "rensa"]:
+					after = 1.6 if did == "kekkai" else 1.0
+				if ch == "rana":
+					player.skill_cd.clear()
+					player.use_skill(id)
+				else:
+					actor.sk_cd[id] = 0.0
+					actor.force_skill(id, first)
+				var n := 0
+				var shoot: bool = run[2]
+				var t_last := -1.0
+				var tt := 0.0
+				RenderingServer.render_loop_enabled = false   # 描くのは撮る瞬間だけ（ソフト描画は遅い。bot.gd と同じ）
+				for f in 600:
+					await get_tree().physics_frame
+					tt += 1.0 / 60.0
+					var done_i: int = int(player.hit_i) if ch == "rana" else int(actor.ev_i)
+					var want := false
+					if n == 0 and done_i > i_first:
+						want = true
+					elif n == 1 and done_i > i_last:
+						want = true
+					if t_last < 0.0 and done_i > i_last:
+						t_last = tt
+					if n == 2 and t_last >= 0.0 and tt >= t_last + after:
+						want = true
+					if want:
+						if shoot:
+							RenderingServer.render_loop_enabled = true
+							await RenderingServer.frame_post_draw
+							get_viewport().get_texture().get_image().save_png(dir + "/fx_deriv_%s_%s_%s_%d.png" % [ch, id, did, n + 1])
+							RenderingServer.render_loop_enabled = false
+						n += 1
+					if n >= 3:
+						break
+				RenderingServer.render_loop_enabled = false
+				for f in 90:   # 連鎖・結界の残りまで数える
+					await get_tree().physics_frame
+				RenderingServer.render_loop_enabled = true
+				print("TREE_STAT %s %s %s Lv%d 当たった数 %d ダメージ合計 %d" % [ch, id, did, run[1], battle.stat_hits, int(battle.stat_dmg)])
+				battle.lingers.clear()
+				battle.cam_focus = null
+				for f in 30:
+					await get_tree().physics_frame
+	progress.reset()
 
 ## リリィのスキル（2026-11-07）：技ごとに 3〜5 枚 → captures/fx_lskill_<id>_<n>.png
 func _capture_lily_skill(dir: String) -> void:
@@ -3152,6 +3319,9 @@ func apply_progress() -> void:
 	battle.hp_max = progress.hp_max()
 	battle.hp = battle.hp_max * r
 	battle.atk_mul = progress.atk_mul()
+	for a in [player, battle.ally, battle.ranka]:   # スキルツリーの技レベル・派生を読み直す（specs/skill_tree.md）
+		if a != null and is_instance_valid(a) and a.has_method("refresh_skills"):
+			a.refresh_skills()
 
 func _on_foe_killed(e) -> void:
 	if dungeon:
