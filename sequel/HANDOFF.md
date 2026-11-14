@@ -1,3 +1,11 @@
+# GPT背景制作 第3便：本番素材の画風参照
+
+- `art/incoming/dungeon_20261114/batch03/` に t3_f2（破損配管束）、t3_f3（壊れた魔導街灯）、t3_back1（廃墟裏列）とHANDOFF・manifest・プロンプト全文・参照記録を保存。
+- 本番 `backtown_block.gd` が使う `art/painted_bt/fg_pillar_lamp.png`・`back_alley_1.png`・`w_shady.png` を実見し、各生成の画像参照へ直接指定。暗い色面、粗い油彩筆致、黒鉄・くすんだ銅の質感を継承。
+- PNG全デコードPASS、アップロード7ファイルのGit blob SHAがローカル原本と一致。案の保管であり、本番組込・透過・実寸・接続・D2実画面確認は未実施。
+- 第1〜3便の累積9枚。T3はb1〜4/f1〜3/back1の案が揃った。次はfar1（門の遠景）・g1（真上の床）。任意g2/x1、その後T4個別部品。人物・敵・ボスは引き続き対象外。
+- 公開Webビルド・既存本番画像は変更していない。
+
 # GPT背景制作 第1・第2便のGitHub登録
 
 - `art/incoming/dungeon_20261114/batch01/`：t2_x1（破損品の新規代替案）、t3_b1（薬瓶店）、t3_b2（義肢工房）。

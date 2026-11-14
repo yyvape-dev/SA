@@ -1,0 +1,17 @@
+[
+  {
+    "path": "sequel/art/painted_bt/fg_pillar_lamp.png",
+    "sha256": "feafbc463522e7704f3d8b81e7a3630fab0a646385be3942d5e3b550fb34199a",
+    "role": "Existing production art; inspected visually and supplied to imagegen"
+  },
+  {
+    "path": "sequel/art/painted_bt/back_alley_1.png",
+    "sha256": "03b1b5bee8b8080071bccae51256c7f03f20e1fb10464fda752cccba1f4ee01a",
+    "role": "Existing production art; inspected visually and supplied to imagegen"
+  },
+  {
+    "path": "sequel/art/painted_bt/w_shady.png",
+    "sha256": "f8c90071530998364877aac26a9a9190a598529d9c7607e4b611e05c43b17391",
+    "role": "Existing production art; inspected visually and supplied to imagegen"
+  }
+]
