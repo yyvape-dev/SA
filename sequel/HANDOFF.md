@@ -12,6 +12,10 @@
   派生（Lv3、元の技 Lv3 と比べる）：旋風 320/291・居合 281（当たり 10 回）・呑込 258（32 回）／三叉 214/187・延伸 214・噴上げ 268／大渦 539/608・歩き渦 612・反転 483／往復 68/80・連鎖 128／嵐打 451/358・叩付け 361／追雷 344/418・速陣 418（待ち 0.6 倍）／散弾 251/168・溜め撃ち 231／波紋 432/416・結界 639／星群 660/623・一点 796。
 - 自動の4周（--fixed-fps 60、派生ランダム）：4周とも クリア・抜け道なし・ハードの鍵 正しい。時間 74.8／33.9／41.0／58.5 秒（派生なし TREE_RANDOM=0 は 83.2／40.0／46.8／70.2 秒。技レベルが 3〜5 になる分だけ速い）。SP は 3人とも 12＝（Lv9−1）＋2×2 で式どおり。
 - 試し版（iPhone 確認用）：`WEB_OUT=../previews/sa2-tree python3 -I sequel/tools/export_web.py`（版 20261114053448-628d139-g4.7.2、本体 54.4MB、足りない物なし）。main には `previews/sa2-tree/` だけを push（main d93348e）。本編 `sequel/web/` は触っていない。URL：https://yyvape-dev.github.io/SA/previews/sa2-tree/?at=gate （歯車 → 左上の枝の印でツリー）。手元の gzip 配信＋chromium 844×390 で、歯車→ツリー→タブの切り替えまで動き、ページのエラーなし（ranka_loaded 約25秒）。iPhone 実機は未確認。
+- **Codex へ：ツリーのアイコン（2026-11-14 ユーザー決定「元案から Codex にやらせる」）**。ユーザー評価「かなりわかりづらい」→ アイコンを付ける。Claude の発注票（プロンプト）は「ダサい」で不採用。絵の方針は仕様（specs/skill_tree.md 4.「技のアイコン（今のコードの図形）」）と今の UI（`assets/ui/t6/` の銀の単色の印）から Codex が決める。
+  - 要るもの：技9つ（ラナ flurry・rift・vortex／リリィ rush・barrage・storm＝今 `t6_*.png` あり／ランカ shot・ring・quake）＋必殺技3つ＋派生21個（id と意味は `scripts/skill_tree.gd` の表、中身は specs/skill_tree.md 2.）。必殺技の派生は中身が未決なので「?」のまま。
+  - 組み込み先：`scripts/dungeon_hud.gd` の `_tree()`（技＝`Art.ICONS` があればそれ、無ければ `SkillIcons.draw2`。派生＝`SkillIcons.glyph(dd.glyph)`）。派生の行の `glyph` を絵の名前に差し替え、`_tree()` で絵があれば絵、無ければ今の図形、にするのが最小。読み込みは `scripts/t6_hud_art.gd` の `ICONS`（preload）と同じ型。
+  - 確認：`CAPTURE_FX=1 FX_ONLY=tree`（`TREE_SKILLS=none` にすると派生の撮影を飛ばしてツリー画面3枚だけ撮れる）→ `captures/ui_tree_<char>.png`。新しい絵のフォルダは書き出しでどの pck に入るか確かめる（`export_web.py` の「どの pck にも無い絵」）。試し版は `previews/sa2-tree/`。
 - 撮影の見え方：仲間の技の撮影ではラナが後ろに立っていて、円環・星震で重なる。旋風の帯・反転の外へ広がる輪・結界の残る輪は、今の素材の組み合わせで細め（判定待ち）。
 - **未決（ユーザーに聞く）**：
   1. ツリーの開き方（仮＝歯車の画面の切り替え／歯車の隣にボタン）。
