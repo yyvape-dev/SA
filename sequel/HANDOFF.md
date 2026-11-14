@@ -5,7 +5,8 @@
 - GPT へ：依頼書 `docs/gpt_dungeon_design_brief.md`。届いた分は `art/incoming/dungeon_20261114/`（GPT 側の引き継ぎ `docs/sa2_dungeon_art_handoff_20261114.md`）。
 - **T2 は届いた部品 10 枚で仮組み済み**（仕様の 10.。板を並べる方式、地区 pck `dg_t2`）。T3・T4 は部品が未着で画面の色のまま。
 - **壊れたファイル**：`t1_boss.png`・`t1_boss_front.png`・`t2_x1.png` は 3 枚とも 786,444 バイトで途中で切れていて読めない（GitHub への上げ方の問題と推測）。上げ直しが要る。
-- 試し版：`previews/sa2-dungeon/`（https://yyvape-dev.github.io/SA/previews/sa2-dungeon/?at=gate 、重さは `?dgtest=14&perf=1`）。iPhone 実機は未確認。
+- カメラ：ダンジョンは入口に関係なく D2・帯 4m に固定（仕様の 11.。新しい街と同じ）。
+- 試し版：`previews/sa2-dungeon/`（新しい街の扉の前から https://yyvape-dev.github.io/SA/previews/sa2-dungeon/?town=back&at=gate 、T2 へ直接 `?town=back&dgtest=5&dgtheme=t2`、重さは `?dgtest=14&perf=1`）。iPhone 実機は未確認。
 - 未決（仕様の 4.）：T2〜T4 の必須要素・敵の中身・敵の数値（3 人だと被弾がほぼ無い）・仲間の体力・同時の上限（実機で測る）。
 
 ## スキルツリー（2026-11-14、specs/skill_tree.md の実装。ブランチ claude/skill-tree-implementation-fsvlcl＝feat/sa2-ranka-20261112 の上）

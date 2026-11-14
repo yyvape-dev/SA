@@ -3148,7 +3148,7 @@ func build_room(spec: Dictionary) -> void:
 		by_id[p.id] = p
 	# 裏通りの列と遠景はそのまま（少し横へずらして毎回の見え方を変える）。
 	# 部屋が広い（2〜3 画面）とカメラが ±12m より先へ動き、1 枚では端が切れる → 左右に写しを足す（2026-11-14）
-	var cam_far: float = maxf(0.0, rw - PLAY_HALF_W)
+	var cam_far: float = maxf(0.0, rw - _play_half_w())
 	_build_piece(by_id["b0_backrow"], Vector3(spec.back_ofs, 0, 0), "b0_room")
 	if cam_far + 19.4 > 32.0:
 		for s in [-1, 1]:
@@ -3176,7 +3176,7 @@ func build_room(spec: Dictionary) -> void:
 		var ext := _piece_x_range(p)
 		_build_piece(p, Vector3(float(f[1]) - (ext.x + ext.y) * 0.5, 0, 0), "%s_fg%d" % [f[0], i])
 	_build_glints()
-	cam_x = Vector2(-maxf(0.0, rw - PLAY_HALF_W), maxf(0.0, rw - PLAY_HALF_W))
+	cam_x = Vector2(-cam_far, cam_far)
 	battle.glints = glints
 	battle.ROOM_X = Vector2(-rw, rw)
 	player.room_x = Vector2(-rw, rw)
@@ -3192,7 +3192,7 @@ func build_room_parts(spec: Dictionary, theme: String) -> void:
 	var rw: float = spec.rw
 	var dir := "res://assets/dungeon/%s/" % theme
 	_build_floor(2.0 * rw + 28.0, load(dir + theme + "_g1.webp"))
-	var cam_far: float = maxf(0.0, rw - PLAY_HALF_W)
+	var cam_far: float = maxf(0.0, rw - _play_half_w())
 	var root := Node3D.new()
 	root.name = "theme_parts"
 	level.add_child(root)
@@ -3263,6 +3263,9 @@ func _theme_plane(root: Node3D, tex: Texture2D, pos: Vector3, size: Vector2, nig
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(mi)
 	return mi
+
+func _play_half_w() -> float:
+	return DG_HALF_W if cam_variant == "D2" else PLAY_HALF_W
 
 func _piece_x_range(p: Dictionary) -> Vector2:
 	var x0 := INF
@@ -3396,6 +3399,37 @@ func dungeon_seed() -> int:
 	next_seed = -1
 	return s
 
+## ダンジョンのカメラ（2026-11-14 ユーザー決定）：入口に関係なく、新しい街（裏の町）と同じ案 D2・帯 4m（z −2〜2）。
+## 出る時に元へ戻す（古い大通りから入った時のため）
+const DG_CAM := {"belt": Vector2(-2.0, 2.0), "ofs": Vector3(0, 3.2, 15.3), "look": Vector3(0, 1.50, 0), "fov": 16.8}
+const DG_HALF_W := 4.9   # D2 で帯の中心に見える横幅の半分（m）。カメラが部屋の端まで寄る量
+var cam_saved := {}
+func _set_belt(b: Vector2) -> void:
+	BELT_Z = b
+	if battle:
+		battle.BELT_Z = b
+	if player:
+		player.belt_z = b
+
+func _dungeon_cam(on: bool) -> void:
+	if on:
+		if cam_saved.is_empty():
+			cam_saved = {"belt": BELT_Z, "ofs": play_ofs, "look": play_look, "fov": play_fov, "var": cam_variant}
+		_set_belt(DG_CAM.belt)
+		play_ofs = DG_CAM.ofs
+		play_look = DG_CAM.look
+		play_fov = DG_CAM.fov
+		cam_variant = "D2"
+	elif not cam_saved.is_empty():
+		_set_belt(cam_saved.belt)
+		play_ofs = cam_saved.ofs
+		play_look = cam_saved.look
+		play_fov = cam_saved.fov
+		cam_variant = cam_saved["var"]
+		cam_saved = {}
+	if cam:
+		cam.fov = play_fov
+
 func enter_dungeon(diff: String, seed_val: int = -1, theme: String = "t1") -> void:
 	for e in battle.enemies.duplicate():
 		battle.remove_enemy(e)
@@ -3414,6 +3448,7 @@ func enter_dungeon(diff: String, seed_val: int = -1, theme: String = "t1") -> vo
 			loading.error_text = district.last_error
 		loading.hide_soon()
 	player.locked = false
+	_dungeon_cam(true)
 	dungeon = DungeonRun.new()
 	dungeon.main = self
 	dungeon.diff = diff
@@ -3427,6 +3462,7 @@ func enter_dungeon(diff: String, seed_val: int = -1, theme: String = "t1") -> vo
 
 func leave_dungeon() -> void:
 	room_theme = "t1"
+	_dungeon_cam(false)
 	if dungeon:
 		dungeon.queue_free()
 		dungeon = null
