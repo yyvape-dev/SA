@@ -1,0 +1,26 @@
+[
+  {
+    "id": "t3_far1",
+    "file": "t3_far1.png",
+    "width": 2172,
+    "height": 724,
+    "bytes": 1979897,
+    "sha256": "52b611d95ae7d215a5d716eefa3da69f481f8b500911b38ea63a8f47d8bc8eba",
+    "decode": "PASS",
+    "status": "proposal_unapproved",
+    "tool": "OpenAI image_gen.imagegen",
+    "source": "exec-6e3ef4fa-94d8-46f7-8ddd-cc5198a7dc7d.png"
+  },
+  {
+    "id": "t3_g1",
+    "file": "t3_g1.png",
+    "width": 1254,
+    "height": 1254,
+    "bytes": 2784606,
+    "sha256": "36a9404bf7e880fe46750ce04b0843dd5e55e83df54c5032f116f594f1c048ad",
+    "decode": "PASS",
+    "status": "proposal_unapproved",
+    "tool": "OpenAI image_gen.imagegen",
+    "source": "exec-0806211d-fa6c-4c42-999a-8ad563c4c365.png"
+  }
+]

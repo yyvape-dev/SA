@@ -1,0 +1,8 @@
+{
+  "edge_mae_lr": 6.4362041467304625,
+  "edge_mae_tb": 6.850877192982456,
+  "interior_mae_x": 4.112558567571799,
+  "interior_mae_y": 4.994418711413713,
+  "range": "RGB 0-255",
+  "visual": "3x3 repetition preview inspected; no large brightness seam; motif repetition and horizontal mortar seam visible; not certified seamless"
+}
