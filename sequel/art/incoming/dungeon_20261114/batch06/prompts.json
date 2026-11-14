@@ -1,0 +1,31 @@
+[
+  {
+    "id": "t4_b4",
+    "refs": [
+      "/workspace/production_refs/t4_room.jpeg",
+      "/workspace/production_refs/w_shady.png"
+    ],
+    "prompt": "Create ONE isolated modular game environment asset for T4 underground resource mine in a fantasy magitech city. Image 1 supplies T4 composition/material/color: charcoal slate rock, chunky iron mine supports, luminous yellow-green/lime mineral crystals, very sparse violet corruption. Image 2 is ACTUAL APPROVED PRODUCTION ART: match its oil painted irregular angular brush strokes, deep shadow grouping, tarnished black iron and copper material. NOT smooth 3D render. No people, text, letters, UI, modern industrial labels, Japanese motifs. Orthographic front elevation. Whole silhouette fully contained with generous margins, solid perfectly flat #FF00FF surrounding background and empty holes. Avoid excessive bright glow or golden metal. Wide landscape 1.92:1. Frontal wall MODULE width 9.6m, height 5m. Flat horizontal footing, side ends terminate in thick iron uprights for adjacent modules, shared horizontal support beam at 4m. No gameplay floor in front; no long scene or perspective tunnel. SUBJECT mine loading bay: two small empty mine carts and one half-filled ore cart behind a low loading barrier, short horizontal track entirely within module at rear, winch and spare chains stored in recess. No rails projecting into foreground. Sparse lime crystal chips, avoid busy equal-contrast clutter.",
+    "source": "/workspace/generated_images/exec-d28af86d-58b5-49d2-a797-42af5570b491.png"
+  },
+  {
+    "id": "t4_f1",
+    "refs": [
+      "/workspace/production_refs/fg_pillar_lamp.png",
+      "/workspace/production_refs/t4_room.jpeg",
+      "/workspace/production_refs/w_shady.png"
+    ],
+    "prompt": "Create ONE isolated modular game environment asset for T4 underground resource mine in a fantasy magitech city. Image 1 supplies T4 composition/material/color: charcoal slate rock, chunky iron mine supports, luminous yellow-green/lime mineral crystals, very sparse violet corruption. Image 2 is ACTUAL APPROVED PRODUCTION ART: match its oil painted irregular angular brush strokes, deep shadow grouping, tarnished black iron and copper material. NOT smooth 3D render. No people, text, letters, UI, modern industrial labels, Japanese motifs. Orthographic front elevation. Whole silhouette fully contained with generous margins, solid perfectly flat #FF00FF surrounding background and empty holes. Avoid excessive bright glow or golden metal. Tall portrait 1:3. ONE narrow foreground mine support post, height 5m width 0.65m, bulky riveted black iron shaft with stone dust at foot and battered diagonal bracket close to shaft. A small lime crystalline mineral encrustation at one collar, dim reflected green only. No wall, rock slab, arch, whole room or floor.",
+    "source": "/workspace/generated_images/exec-6d36aea8-c123-4576-98f2-a0c9fa408539.png"
+  },
+  {
+    "id": "t4_f2",
+    "refs": [
+      "/workspace/production_refs/fg_pillar_lamp.png",
+      "/workspace/production_refs/t4_room.jpeg",
+      "/workspace/production_refs/w_shady.png"
+    ],
+    "prompt": "Create ONE isolated modular game environment asset for T4 underground resource mine in a fantasy magitech city. Image 1 supplies T4 composition/material/color: charcoal slate rock, chunky iron mine supports, luminous yellow-green/lime mineral crystals, very sparse violet corruption. Image 2 is ACTUAL APPROVED PRODUCTION ART: match its oil painted irregular angular brush strokes, deep shadow grouping, tarnished black iron and copper material. NOT smooth 3D render. No people, text, letters, UI, modern industrial labels, Japanese motifs. Orthographic front elevation. Whole silhouette fully contained with generous margins, solid perfectly flat #FF00FF surrounding background and empty holes. Avoid excessive bright glow or golden metal. Tall portrait 1:3. ONE narrow foreground bundle of two thick dark vertical extraction pipes with one copper elbow and tight clamps, a small cracked green glass pressure tube in protective cage. Height 5m width 0.8m. Broken cable hanging close to pipe, heavy flat foot. Dim light; no wall, whole machine, floor or scene.",
+    "source": "/workspace/generated_images/exec-ea5b238d-fca9-44c6-9605-4b47a5177925.png"
+  }
+]
