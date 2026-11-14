@@ -64,3 +64,12 @@
 - 3枚ともPNG原本、マゼンタ背景、未採用のデザイン案。実寸・ゲーム適合・動画化は未検証。最初の斜め向き初稿は納品対象外。
 - T2背景の11部品はコンセプト画像が揃った。残り＝T3/T4部品22枚、敵設定画22枚（T1ボス2枚は今回作成）。
 - 次の制作：設計書のT2雑魚2種とボスの右向き真横→同一性を保つ正面。採用済みとは扱わない。
+
+## 背景制作再開・回収（2026-11-14）
+- 今回は背景のみ。人物・敵・ボスはユーザーが別途用意するため制作対象外。
+- mainに未登録の既存ZIPを回収し、全PNGをPillowで最後まで読めることを確認。
+- [sa2_dungeon_production_batch02.zip](https://chatgpt.com/library?file_id=libfile_0aa5d8372f008191a10226d005a8072f&account_id=personal)：t3_b1.png／t3_b1_magenta.png（1920×1000）、README、manifest。酒場完成候補。再生成不要。
+- [sa2_dungeon_background_batch01.zip](https://chatgpt.com/library?file_id=libfile_c3658d34193c81918578dbb8d9eb10f3&account_id=personal)：t3_b1候補A/B、t3_b2候補A、探索シート。候補は完成部品へ重複計上しない。
+- 残り：破損t2_x1修復、T3のb2〜b4・f1〜f3・back1・far1・g1・x1（10）、T4全11部品。
+- Git直接pushは認証不足で失敗。上のZIPはChatGPT内の永続ファイルとして回収可能。GitHub内に格納済みとは扱わない。
+- 下絵適合・左右接続・Godot実画面は未検証。
