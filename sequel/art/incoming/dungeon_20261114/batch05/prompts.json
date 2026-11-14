@@ -1,0 +1,29 @@
+[
+  {
+    "id": "t4_b1",
+    "refs": [
+      "/workspace/production_refs/t4_room.jpeg",
+      "/workspace/production_refs/w_shady.png"
+    ],
+    "prompt": "Create ONE isolated modular game environment asset for T4 underground resource mine in a fantasy magitech city. Image 1 supplies T4 composition/material/color: charcoal slate rock, chunky iron mine supports, luminous yellow-green/lime mineral crystals, very sparse violet corruption. Image 2 is ACTUAL APPROVED PRODUCTION ART: match its oil painted irregular angular brush strokes, deep shadow grouping, tarnished black iron and copper material. NOT smooth 3D render. No people, text, letters, UI, modern industrial labels, Japanese motifs. Orthographic front elevation. Whole silhouette fully contained with generous margins, solid perfectly flat #FF00FF surrounding background and empty holes. Avoid excessive bright glow or golden metal. Wide landscape 1.92:1. Frontal wall MODULE width 9.6m, height 5m. Flat horizontal footing, side ends terminate in thick iron uprights for adjacent modules, shared horizontal support beam at 4m. No gameplay floor in front; no long scene or perspective tunnel. SUBJECT crystal seam extraction wall: fractured charcoal rock with one diagonal lime mineral vein, three crystal clusters bound by iron retaining collars, small inactive extraction pipes and bolted braces. No huge drill, no sorting machine. Leave most surface dark rock; crystals bright only locally.",
+    "source": "/workspace/generated_images/exec-8b049caf-01ae-4c7e-9b77-bd9812c662d8.png"
+  },
+  {
+    "id": "t4_b2",
+    "refs": [
+      "/workspace/production_refs/t4_room.jpeg",
+      "/workspace/production_refs/w_shady.png"
+    ],
+    "prompt": "Create ONE isolated modular game environment asset for T4 underground resource mine in a fantasy magitech city. Image 1 supplies T4 composition/material/color: charcoal slate rock, chunky iron mine supports, luminous yellow-green/lime mineral crystals, very sparse violet corruption. Image 2 is ACTUAL APPROVED PRODUCTION ART: match its oil painted irregular angular brush strokes, deep shadow grouping, tarnished black iron and copper material. NOT smooth 3D render. No people, text, letters, UI, modern industrial labels, Japanese motifs. Orthographic front elevation. Whole silhouette fully contained with generous margins, solid perfectly flat #FF00FF surrounding background and empty holes. Avoid excessive bright glow or golden metal. Wide landscape 1.92:1. Frontal wall MODULE width 9.6m, height 5m. Flat horizontal footing, side ends terminate in thick iron uprights for adjacent modules, shared horizontal support beam at 4m. No gameplay floor in front; no long scene or perspective tunnel. SUBJECT small fixed ore boring station, horizontal short drill projecting sideways within wall silhouette, chunky crank transmission and conduit, rail for boring head in rear, lime mineral seam behind drill. This is a routine wall bay, not the giant hero machine x1. Keep dark steel strong broad silhouette.",
+    "source": "/workspace/generated_images/exec-78087ddb-9298-4cbc-a88d-074a0cebff29.png"
+  },
+  {
+    "id": "t4_b3",
+    "refs": [
+      "/workspace/production_refs/t4_room.jpeg",
+      "/workspace/production_refs/w_shady.png"
+    ],
+    "prompt": "Create ONE isolated modular game environment asset for T4 underground resource mine in a fantasy magitech city. Image 1 supplies T4 composition/material/color: charcoal slate rock, chunky iron mine supports, luminous yellow-green/lime mineral crystals, very sparse violet corruption. Image 2 is ACTUAL APPROVED PRODUCTION ART: match its oil painted irregular angular brush strokes, deep shadow grouping, tarnished black iron and copper material. NOT smooth 3D render. No people, text, letters, UI, modern industrial labels, Japanese motifs. Orthographic front elevation. Whole silhouette fully contained with generous margins, solid perfectly flat #FF00FF surrounding background and empty holes. Avoid excessive bright glow or golden metal. Wide landscape 1.92:1. Frontal wall MODULE width 9.6m, height 5m. Flat horizontal footing, side ends terminate in thick iron uprights for adjacent modules, shared horizontal support beam at 4m. No gameplay floor in front; no long scene or perspective tunnel. SUBJECT ore sorting and crushing bay: compact toothed crusher under shallow hopper of lime mineral fragments, sloped chute contained inside facade, dark maintenance recess and three pressure pipes. Limited crystal brightness, heavy black iron, no dramatic drill.",
+    "source": "/workspace/generated_images/exec-0d2c157f-80cc-4adb-824c-d663e0c052fe.png"
+  }
+]

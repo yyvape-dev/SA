@@ -1,3 +1,10 @@
+# GPT T4制作 batch05
+
+- 保存先：art/incoming/dungeon_20261114/batch05/。今回：t4_b1、t4_b2、t4_b3。
+- T4今回指示分の進捗：3/12。残り：t4_b4、t4_f1、t4_f2、t4_f3、t4_back1、t4_far1、t4_g1、t4_x1、t4_x2。
+- 本番採用済みpainted_btの素材を実見し、各生成に直接画像参照として指定。T4既存roomの黄緑結晶・黒岩・鉄骨を継承。roomの配色方向と本番採用済み画像は区別する。
+- PNG全デコード・原本Git blob SHA一致確認。採用前のデザイン案。接続・透過・実寸・Godot/D2実画面は未検証。人物・敵なし。公開ビルド変更なし。詳細は各便HANDOFF/manifest/prompts。
+
 # GPT背景制作 第4便：T3基本10部品の案が揃った
 
 - `art/incoming/dungeon_20261114/batch04/` に t3_far1（紫の門の遠景）、t3_g1（石床）、プロンプト・manifest・床QA・3×3確認プレビュー・HANDOFFを追加。

@@ -1,0 +1,53 @@
+[
+  {
+    "id": "t4_b1",
+    "file": "t4_b1.png",
+    "width": 1738,
+    "height": 905,
+    "bytes": 2350740,
+    "sha256": "981e9b057e5ad1070609ae6bbd647d5a495a6794706000cd8e0605946b0acf6f",
+    "corner_rgb": [
+      239,
+      10,
+      240
+    ],
+    "decode": "PASS",
+    "status": "proposal_unapproved",
+    "tool": "OpenAI image_gen.imagegen",
+    "source": "/workspace/generated_images/exec-8b049caf-01ae-4c7e-9b77-bd9812c662d8.png"
+  },
+  {
+    "id": "t4_b2",
+    "file": "t4_b2.png",
+    "width": 1737,
+    "height": 905,
+    "bytes": 2204961,
+    "sha256": "713167420cb9f6b46a74d41356db6f1028bddd8d7f32c0e68ad53722698ae12e",
+    "corner_rgb": [
+      228,
+      11,
+      235
+    ],
+    "decode": "PASS",
+    "status": "proposal_unapproved",
+    "tool": "OpenAI image_gen.imagegen",
+    "source": "/workspace/generated_images/exec-78087ddb-9298-4cbc-a88d-074a0cebff29.png"
+  },
+  {
+    "id": "t4_b3",
+    "file": "t4_b3.png",
+    "width": 1738,
+    "height": 905,
+    "bytes": 2403828,
+    "sha256": "507565c60388f7d4487f76d2098a05ed11b82fdbecd715a1139f7b4abe7ae6d5",
+    "corner_rgb": [
+      239,
+      11,
+      241
+    ],
+    "decode": "PASS",
+    "status": "proposal_unapproved",
+    "tool": "OpenAI image_gen.imagegen",
+    "source": "/workspace/generated_images/exec-0d2c157f-80cc-4adb-824c-d663e0c052fe.png"
+  }
+]
