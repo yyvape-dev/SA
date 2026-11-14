@@ -4,7 +4,7 @@ extends Node3D
 ## 数値は前作 battle/ の値を、ラナの背（205px＝1.85m）で m に直したもの。
 
 const SPR := preload("res://scripts/sprite_bb.gdshader")
-const HEIGHT := {"1": 2.10, "3": 2.03, "g1": 2.7}   # 前作の HEIGHT（f1 233・f3 225 px）÷205×1.85。g1＝ボス（前作の敵将。大きめに）
+const HEIGHT := {"1": 2.10, "3": 2.03, "g1": 2.7, "ef": 1.90, "em": 2.00}   # ef/em＝帝国兵 女・男（2026-11-14、仮。tools/make_imperial_foes.py）   # 前作の HEIGHT（f1 233・f3 225 px）÷205×1.85。g1＝ボス（前作の敵将。大きめに）
 const FOE_SPD := 2.4       # 攻撃の連番の速さ（一騎打ちの何倍か。前作は3.3。予兆を読めるよう少し遅く）
 const ATK_START := 1.15    # この左右の距離で攻撃を始める
 const ATK_REACH := 1.45    # 当たりの瞬間に、この距離までなら当たる
@@ -47,6 +47,7 @@ var atk_start := ATK_START
 var stop_d := STOP
 var atk_n := 0
 var spd := FOE_SPD
+var force_atk := ""     # 撮影用：攻撃の種類を固定（CAPTURE_FOE）
 
 func setup(b, k: String, c: Dictionary, level: int) -> void:
 	battle = b
@@ -173,9 +174,21 @@ func _physics_process(delta: float) -> void:
 			while fi + 1 < st.size() and st[fi + 1] <= atk.t:
 				fi += 1
 			_show(atk.clip, fi)
+			# 溜めの型（atk1 の "charge"＝止めるコマ）：そのコマに入ったら赤い溜めの光（2026-11-14 帝国兵）
+			var acl: Dictionary = clips[atk.clip]
+			if acl.has("charge") and not atk.get("charged", false) and fi >= int(acl.charge):
+				atk.charged = true
+				var ch_life: float = (float(st[mini(int(acl.charge) + 1, st.size() - 1)]) - float(st[int(acl.charge)])) * 1.1
+				battle.fx.charge(position + Vector3(face * 0.35 * size, float(acl.get("charge_y", 1.4)) * size, 0.1), 0.9, maxf(ch_life, 0.25), battle.fx.RED)
 			if not atk.done and atk.t >= atk.hit_t:
 				atk.done = true
 				atk.warn = null
+				if acl.has("slash"):   # 溜めの型の当たり：ラナと同じ弧を赤で
+					var sp_: Dictionary = (acl.slash as Dictionary).duplicate()
+					sp_["pal"] = battle.fx.RED
+					sp_["r"] = float(sp_.r) * size
+					battle.fx.slash(position, face, sp_)
+					battle.shake = maxf(battle.shake, 4.0)
 				var dx: float = (pl.position.x - position.x) * face
 				var dz: float = absf(pl.position.z - position.z)
 				if atk.wide:
@@ -226,7 +239,7 @@ func _start_atk() -> void:
 	for k in clips:
 		if str(k).begins_with("atk"):
 			names.append(k)
-	var c: String = names[randi() % names.size()]
+	var c: String = force_atk if force_atk != "" and clips.has(force_atk) else names[randi() % names.size()]
 	var cl: Dictionary = clips[c]
 	atk_n += 1
 	var wide := boss and atk_n % 3 == 0

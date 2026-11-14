@@ -648,14 +648,14 @@ func zap(p: Vector3, n: int, r: float) -> void:
 	_quad(p + Vector3(0, 0, 0.2), Vector2(1.6, 1.6), _mat(1, SILVER), "flash", 0.12, 0.0)
 
 ## 溜め：つま先に蒼い光が集まる（0.1〜0.15 秒）
-func charge(p: Vector3, size: float, life: float) -> void:
-	var m := _mat(1, SILVER)
+func charge(p: Vector3, size: float, life: float, pal: Array = SILVER) -> void:
+	var m := _mat(1, pal)
 	m.set_shader_parameter("core_gain", 0.9)
 	_quad(p + Vector3(0, 0, 0.15), Vector2(size, size), m, "charge", life, 0.0)
 	for i in 6:
 		var a := randf() * TAU
 		var off := Vector3(cos(a), sin(a), 0) * size * 0.8
-		_spark(p + off, -off / life, life, 0.02, SILVER[0], 0.0)
+		_spark(p + off, -off / life, life, 0.02, pal[0], 0.0)
 
 ## 溜め（2026-11-12、必殺技の寄りの間）：外から体へ集まる光の粒＋育つ芯＋閉じる床の輪。band＝色の帯の名前
 func gather(p: Vector3, band_name: String, col: Color, life: float) -> void:

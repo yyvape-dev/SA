@@ -104,7 +104,7 @@ func _startup_town() -> String:
 func _ready() -> void:
 	_boot("main_ready")
 	# 撮影・確認では乱数の種を固定する（版どうしで同じ場面・同じコマを比べるため）
-	for k in ["CAPTURE_FX", "CAPTURE_LINEUP", "CAPTURE_PLAY", "CAPTURE_DUNGEON", "DUNGEON_TEST", "CAPTURE_GUIDE", "CAPTURE_REUSE"]:
+	for k in ["CAPTURE_FOE", "CAPTURE_FX", "CAPTURE_LINEUP", "CAPTURE_PLAY", "CAPTURE_DUNGEON", "DUNGEON_TEST", "CAPTURE_GUIDE", "CAPTURE_REUSE"]:
 		if OS.has_environment(k):
 			seed(20261106)
 	loading = Loading.new()
@@ -241,6 +241,8 @@ func _ready() -> void:
 		_capture_reuse.call_deferred()
 	elif OS.has_environment("CAPTURE_FX"):
 		_capture_fx.call_deferred()
+	elif OS.has_environment("CAPTURE_FOE"):
+		_capture_foe.call_deferred()
 	elif OS.has_environment("CAPTURE_LINEUP"):
 		_capture_lineup.call_deferred()
 	elif OS.has_environment("CAPTURE_DUNGEON") or OS.has_environment("DUNGEON_TEST"):
@@ -251,6 +253,39 @@ func _ready() -> void:
 	if OS.has_environment("DUNGEON_LAYOUT_TEST"):
 		load("res://scripts/dungeon_map.gd").self_test()
 		get_tree().quit()
+
+## 撮影：新しい敵（FOE_KINDS、既定 ef,em）を T1 のダンジョンで歩かせて攻撃させる（2026-11-14 帝国兵）。
+## TOWN=back で起動（カメラ D2）。左右から1体ずつ寄せ、1巡目＝左 atk0・右 atk1、2巡目＝入れ替え。captures/foe_<巡>_<コマ>.png
+func _capture_foe() -> void:
+	var dir := ProjectSettings.globalize_path("res://captures")
+	DirAccess.make_dir_recursive_absolute(dir)
+	for i in 30:
+		await get_tree().process_frame
+	await enter_dungeon("normal", 7, OS.get_environment("FOE_THEME") if OS.has_environment("FOE_THEME") else "t1")
+	for i in 90:
+		await get_tree().process_frame
+	var kinds: PackedStringArray = (OS.get_environment("FOE_KINDS") if OS.has_environment("FOE_KINDS") else "ef,em").split(",")
+	for rnd in 2:
+		for e in battle.enemies.duplicate():
+			battle.remove_enemy(e)
+		battle.hp_max = 99999.0
+		battle.hp = 99999.0
+		var px: float = player.position.x
+		var pz: float = player.position.z
+		var made := []
+		for j in 2:
+			var e: Node3D = battle.spawn(kinds[j % kinds.size()], Vector3(px + (-5.0 if j == 0 else 5.0), 0, pz))
+			e.hp = 99999.0
+			e.hp_max = 99999.0
+			e.yo = 0.0
+			e.force_atk = "atk0" if (j + rnd) % 2 == 0 else "atk1"
+			made.append(e)
+		for f in 380:
+			await get_tree().process_frame
+			player.position.x = px
+			if f % 10 == 0 or (f >= 250 and f % 4 == 0):
+				get_viewport().get_texture().get_image().save_png(dir + "/foe_%d_%03d.png" % [rnd, f])
+	get_tree().quit()
 
 ## 仲間リリィ：絵（地区 pck「al1」）を読み終えたら出す。起動を待たせないよう、本体の起動の後に読む。
 func _perf(delta: float) -> void:
@@ -341,7 +376,7 @@ func ranka_wanted() -> bool:
 		return false
 	if OS.get_environment("RANKA") == "1" or OS.get_environment("FX_ONLY") == "tree":   # スキルツリーの撮影は3人とも
 		return true
-	for k in ["CAPTURE_PLAY", "CAPTURE_FX", "CAPTURE_GUIDE", "CAPTURE_DUNGEON", "CAPTURE_LINEUP", "CAPTURE_REUSE"]:
+	for k in ["CAPTURE_FOE", "CAPTURE_PLAY", "CAPTURE_FX", "CAPTURE_GUIDE", "CAPTURE_DUNGEON", "CAPTURE_LINEUP", "CAPTURE_REUSE"]:
 		if OS.has_environment(k):
 			return false
 	return true
