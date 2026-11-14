@@ -8,10 +8,18 @@
   1. 設定画が届いたら：足元（下から7％）と右・上の余白を測る → 動画AIの発注票（設計書 `docs/sa2_dungeon_design_T1-T4.md` の IDLE/WALK/ATTACK/HIT/FALL を1本ずつ全文、Skill art-order-sheet の Grok の書き方）。
   2. 動画が届いたら：video-to-sprite-pipeline で連番 → `enemy.gd` に新しい敵の種類（今は前作の "1"・"3"・g1 だけ）→ テーマ表 `dungeon_themes.gd` の foes・boss を差し替え。
   3. 上げ直し待ち：`t2_x1.png`（大物）・`t1_boss.png`（待機の構えで描き直し）は途中で切れて開けない。
-  4. T3・T4 の部品（各11枚）は未着。届いたら `tools/cut_dungeon_parts.py <受け取り> t3` → 地区 pck を `export_web.py` に足す（T2 の dg_t2 と同じ）。
+  4. T3・T4 の部品は組み込み済み（下の節）。T3 の大物 t3_x1 だけ発注中。
   5. 敵は全テーマで入れ替え済み（帝国兵 T1・T2、盗賊 T1〜T3、深層 T4＋ボス馬型）。背の高さ・数値は仮で、最後にまとめて決める（ユーザー）。
   6. 未決：敵の数値（3人だと被弾がほぼ無い）、同時に出る敵の上限（実機で `?dgtest=14&perf=1`）、仲間の体力、T2 の床の映り込み。
 - 学び（今回の会話）：古い大通りのカメラで撮って判定を頼み、新しい街（D2）と違う画面を見せてしまった → 画面の判定は `town=back`（新しい街）から入った状態で撮る。外部AIへの依頼は「使う絵だけ」頼む（使わない正面図を頼んで上限を無駄にした）。
+
+## T3・T4 の背景の部品を組み込み（2026-11-15 1:20、branch 0d50d17、試し版 main）
+- 受け取り：`art/incoming/dungeon_20261114/batch01〜10`（GPT の背景制作）。採用：T3＝b1〜b4・f1 は改訂 `_r2`（batch09・10。紫の色かぶりを抑え材質を分けた版。比較 `before_after.jpg` で r2 の方が本番の画風に近い）、f2・f3・back1・far1・g1 はそのまま。T4＝b1〜b4・f1〜f3・back1・far1・g1・x1・x2（batch05〜08）。T2＝大物 `t2_x1_r2` を追加（前の t2_x1 は壊れたファイル）。
+- 切り抜き：`tools/cut_dungeon_parts.py <並べたフォルダ> t3|t4|t2`（受け取りの名前を t3_b1.png などにそろえたフォルダを作ってから）。`assets/dungeon/t3`（11MB）・`t4`（14MB）・`t2`（12MB）。地区 pck `dg_t3`・`dg_t4` を `export_web.py` に追加、テーマ表の pck も差し替え。
+- コード：大物（x1・x2）は部屋の3つに1つ、まん中の建物と入れ替え（`build_room_parts`）。床の明るさを絵の平均輝度でそろえる（`FLOOR_LUM`、T2 42.8 基準。T3 の床は 81 で明るく浮いていた→0.53 倍）。
+- 撮影：`TOWN=back CAPTURE_FOE=1 FOE_THEME=t3|t4` で部屋の見え方を確認。Web の T4 でエラーなし。
+- 追加発注（main）：`docs/gpt_dungeon_order_20261115.md`＝T3 の大物 `t3_x1`（設計書にあって未着の1枚）。
+- まだ：映り込み（看板・灯りの光の筋）は T2〜T4 とも無い。正面の建物の上半分はカメラで切れる（T2 と同じ）。T3・T4 の床は縮小で周期が見える（QA の FAIL。画面では目立たない）。
 
 ## 門→地図→仲間の選択（2026-11-15 0:40、branch b478f0a、試し版 main）
 - **見た目は Codex に任せる（2026-11-15 ユーザー決定）**。仕様と引き継ぎは [specs/dungeon_select_ui.md](specs/dungeon_select_ui.md)（作る物 A〜H・変えない関数・確かめ方）。
