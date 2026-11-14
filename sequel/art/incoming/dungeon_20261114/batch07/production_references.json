@@ -1,0 +1,20 @@
+[
+  {
+    "local": "/workspace/production_refs/fg_pillar_lamp.png",
+    "repository_path": "sequel/art/painted_bt/fg_pillar_lamp.png",
+    "sha256": "feafbc463522e7704f3d8b81e7a3630fab0a646385be3942d5e3b550fb34199a",
+    "status": "production_reference"
+  },
+  {
+    "local": "/workspace/production_refs/t4_room.jpeg",
+    "repository_path": "sequel/art/incoming/dungeon_20261114/t4_room.jpeg",
+    "sha256": "45023a073876c2042866e7ebc8051ebf270c798a401c5e4e8c31a5ec3ac346a2",
+    "status": "existing_T4_concept_not_assumed_approved"
+  },
+  {
+    "local": "/workspace/production_refs/w_shady.png",
+    "repository_path": "sequel/art/painted_bt/w_shady.png",
+    "sha256": "f8c90071530998364877aac26a9a9190a598529d9c7607e4b611e05c43b17391",
+    "status": "production_reference"
+  }
+]

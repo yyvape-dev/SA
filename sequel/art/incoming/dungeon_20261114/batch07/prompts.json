@@ -1,0 +1,30 @@
+[
+  {
+    "id": "t4_f3",
+    "refs": [
+      "/workspace/production_refs/fg_pillar_lamp.png",
+      "/workspace/production_refs/t4_room.jpeg",
+      "/workspace/production_refs/w_shady.png"
+    ],
+    "prompt": "Create ONE isolated modular game environment asset for T4 underground resource mine in a fantasy magitech city. Image 1 supplies T4 composition/material/color: charcoal slate rock, chunky iron mine supports, luminous yellow-green/lime mineral crystals, very sparse violet corruption. Image 2 is ACTUAL APPROVED PRODUCTION ART: match its oil painted irregular angular brush strokes, deep shadow grouping, tarnished black iron and copper material. NOT smooth 3D render. No people, text, letters, UI, modern industrial labels, Japanese motifs. Orthographic front elevation. Whole silhouette fully contained with generous margins, solid perfectly flat #FF00FF surrounding background and empty holes. Avoid excessive bright glow or golden metal. Tall portrait 1:3. ONE narrow iron mine lamp post, height 5m width 0.8m. Battered black iron column with short bracket suspending a closed cage lamp containing a small lime ore shard; very dim green light and rough paint like production pillar reference. Chain falls close to shaft. Complete post and foot visible, no wall, floor, large crossbar or scene.",
+    "source": "/workspace/generated_images/exec-95324232-1ded-48e3-b519-426198ca3455.png"
+  },
+  {
+    "id": "t4_back1",
+    "refs": [
+      "/workspace/production_refs/t4_room.jpeg",
+      "/workspace/production_refs/w_shady.png"
+    ],
+    "prompt": "Create ONE isolated modular game environment asset for T4 underground resource mine in a fantasy magitech city. Image 1 supplies T4 composition/material/color: charcoal slate rock, chunky iron mine supports, luminous yellow-green/lime mineral crystals, very sparse violet corruption. Image 2 is ACTUAL APPROVED PRODUCTION ART: match its oil painted irregular angular brush strokes, deep shadow grouping, tarnished black iron and copper material. NOT smooth 3D render. No people, text, letters, UI, modern industrial labels, Japanese motifs. Orthographic front elevation. Whole silhouette fully contained with generous margins, solid perfectly flat #FF00FF surrounding background and empty holes. Avoid excessive bright glow or golden metal. Ultra-wide landscape 3:1. ONE rear row elevation: sequence of dark iron mine support arches, elevated cart rails, small dormant equipment silhouettes, cables and low ore bins, dark rock behind some bays. Width concept 64m height 8–12m. Low contrast dark grey green shadows, tiny distant lime crystal glints. No perspective tunnel, no foreground floor, no giant landmark. Quiet side ends for overlap; isolated full silhouette.",
+    "source": "/workspace/generated_images/exec-37428741-e2b1-4c13-ae06-f2066b8d6cab.png"
+  },
+  {
+    "id": "t4_far1",
+    "refs": [
+      "/workspace/production_refs/t4_room.jpeg",
+      "/workspace/production_refs/w_shady.png"
+    ],
+    "prompt": "Create ONE isolated modular game environment asset for T4 underground resource mine in a fantasy magitech city. Image 1 supplies T4 composition/material/color: charcoal slate rock, chunky iron mine supports, luminous yellow-green/lime mineral crystals, very sparse violet corruption. Image 2 is ACTUAL APPROVED PRODUCTION ART: match its oil painted irregular angular brush strokes, deep shadow grouping, tarnished black iron and copper material. NOT smooth 3D render. No people, text, letters, UI, modern industrial labels, Japanese motifs. Orthographic front elevation. Whole silhouette fully contained with generous margins, solid perfectly flat #FF00FF surrounding background and empty holes. Avoid excessive bright glow or golden metal. Ultra-wide landscape 3:1. ONE distant cavern layer: low contrast deep charcoal vast rock cavern silhouette, three distant dim lime mineral seams across jagged rock, one faint violet contaminated crevice far right, a few tiny mine scaffold silhouettes convey scale. No foreground floor, no giant drill, no circular demon gate. Frontal distant cavern wall elevation, NOT perspective corridor. Keep subtle, readable rock masses with a few light accents; solid magenta outside silhouette.",
+    "source": "/workspace/generated_images/exec-0cb0570f-3ed1-4890-bfa9-7e187a1ca8d1.png"
+  }
+]
