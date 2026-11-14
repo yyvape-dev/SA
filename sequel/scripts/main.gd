@@ -802,6 +802,10 @@ func _build_env() -> void:
 	sun.shadow_enabled = true
 	add_child(sun)
 
+## テーマの床の明るさをそろえる（床の絵の平均輝度。T2 の 42.8 を基準。T3 の床は明るい石で、そのままだと建物より明るく浮いた。設計書「床は暗く」）
+const FLOOR_LUM := {"t2": 42.8, "t3": 81.3, "t4": 40.1}
+var floor_lum_k := 1.0
+
 func _build_floor(width: float = 0.0, floor_tex: Texture2D = null) -> void:
 	var street_width := 72.0 if town == "back" else 60.0
 	if width > 0.0:   # ダンジョンの広い部屋（specs/dungeon_themes.md 3.1）
@@ -810,7 +814,7 @@ func _build_floor(width: float = 0.0, floor_tex: Texture2D = null) -> void:
 		# 奥の帯は建物の正面より奥（−7.6）まで敷く（足元のすき間から奥の地面の紫が線に見えた）
 		# 板どうしは 0.1m 重ねる（歓楽街の床は 0.05m のすき間があり、奥の紫が横の線に見えている）
 		for st in [[Vector3(0, 0.0, -4.8), Vector2(street_width, 5.6)], [Vector3(0, -0.03, 0.15), Vector2(street_width, 7.6)], [Vector3(0, 0.0, 5.55), Vector2(street_width, 3.3)]]:
-			_ground(st[0], st[1], floor_tex, THEME_FLOOR_TILE, THEME_FLOOR_DIM)
+			_ground(st[0], st[1], floor_tex, THEME_FLOOR_TILE, THEME_FLOOR_DIM * floor_lum_k)
 		_far_ground_plane()
 		return
 	cobble_tex = load("res://assets/ground/cobble.png")
@@ -3323,6 +3327,7 @@ func build_room_parts(spec: Dictionary, theme: String) -> void:
 	_clear_level()
 	var rw: float = spec.rw
 	var dir := "res://assets/dungeon/%s/" % theme
+	floor_lum_k = clampf(42.8 / float(FLOOR_LUM.get(theme, 42.8)), 0.4, 1.3)
 	_build_floor(2.0 * rw + 28.0, load(dir + theme + "_g1.webp"))
 	var cam_far: float = maxf(0.0, rw - _play_half_w())
 	var root := Node3D.new()
@@ -3344,8 +3349,20 @@ func build_room_parts(spec: Dictionary, theme: String) -> void:
 	# 正面の建物：slots の順に、すき間なく（0.35m 重ねて）並べ、全体を部屋の中心にそろえる
 	var bld := []
 	var total := 0.0
-	for id in spec.slots:
+	# 大物（x1・x2：一部屋に一個）：部屋の 3 つに 1 つ、まん中の建物を大物に替える（届いたテーマだけ。2026-11-15）
+	var xs := []
+	for xi in ["x1", "x2"]:
+		if ResourceLoader.exists(dir + theme + "_" + xi + ".webp"):
+			xs.append(xi)
+	var x_at := -1
+	var seed_i := int(absf(float(spec.back_ofs)) * 1000.0)
+	if xs.size() > 0 and seed_i % 3 == 0:
+		x_at = spec.slots.size() / 2
+	for si in spec.slots.size():
+		var id = spec.slots[si]
 		var tid: String = theme + "_" + str(id).substr(0, 2)   # "b1_tavern" → "t2_b1"
+		if si == x_at:
+			tid = theme + "_" + str(xs[(seed_i / 3) % xs.size()])
 		var tex: Texture2D = load(dir + tid + ".webp")
 		var w := float(tex.get_width()) / THEME_PPM
 		bld.append([tex, w])
