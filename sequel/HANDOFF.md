@@ -1,5 +1,10 @@
 # 続編（SA2・融合都市）引き継ぎ
 
+## 次：ダンジョンを増やす（2026-11-14 ユーザー決定。仕様書はまだ無い）
+- 形：**テーマ違いのダンジョンを並べ、門で選ぶ**（路地・廃墟・地下など、背景と敵の組み合わせが違う）。絵（背景・新しい敵・ボス）は**外部AIに頼む前提で、発注の準備から同時に進める**。
+- 進め方：新しい会話で、まず仕様書 `specs/dungeon_themes.md` を決めてから実装（skill_tree.md と同じ流れ）。土台はブランチ `claude/skill-tree-implementation-fsvlcl`（スキルツリー入り）。
+- 決めること（案）：テーマの数と中身・門での選び方・テーマごとに変わるもの（背景・敵の組み合わせ・ボス・部屋の数）・開く条件・難易度との関係・絵の発注の範囲と順番・pck の分け方（テーマごとの地区 pck）。今の残り（倒れた時の失敗・戻る扉・敵2種だけ）を一緒に直すか。
+
 ## スキルツリー（2026-11-14、specs/skill_tree.md の実装。ブランチ claude/skill-tree-implementation-fsvlcl＝feat/sa2-ranka-20261112 の上）
 - 表は `scripts/skill_tree.gd` の1か所（キャラ→技→派生）。派生は元の技の辞書への差分（patch）。技レベルと派生を掛けた表を `SkillTree.table_for(キャラ, progress)` が返し、`player.gd`・`ally.gd`・`ranka_ally.gd` は `refresh_skills()` でそれを読む（`main.apply_progress` のたびに読み直す）。仲間のオートも同じ表で抽選・処理。
 - セーブ：`progress.gd` に `sp`・`skill_lv`・`deriv`・`first_clear_paid`。前のセーブは 1. の式で移行（初回クリア済みの難易度は「渡した」にして二重に渡さない＝仕様の式からの解釈）。SP はレベルアップで3人とも +1（`add_exp`）、初回クリアで +2（`dungeon._finish`）。
