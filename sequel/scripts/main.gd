@@ -255,7 +255,7 @@ func _ready() -> void:
 		get_tree().quit()
 
 ## 撮影：新しい敵（FOE_KINDS、既定 ef,em）を T1 のダンジョンで歩かせて攻撃させる（2026-11-14 帝国兵）。
-## TOWN=back で起動（カメラ D2）。左右から1体ずつ寄せ、1巡目＝左 atk0・右 atk1、2巡目＝入れ替え。captures/foe_<巡>_<コマ>.png
+## TOWN=back で起動（カメラ D2）。左右から1体ずつ寄せ（FOE_KINDS を順に4体分）、1巡目＝左 atk0・右 atk1、2巡目＝入れ替え。captures/foe_<巡>_<コマ>.png
 func _capture_foe() -> void:
 	var dir := ProjectSettings.globalize_path("res://captures")
 	DirAccess.make_dir_recursive_absolute(dir)
@@ -274,7 +274,7 @@ func _capture_foe() -> void:
 		var pz: float = player.position.z
 		var made := []
 		for j in 2:
-			var e: Node3D = battle.spawn(kinds[j % kinds.size()], Vector3(px + (-5.0 if j == 0 else 5.0), 0, pz))
+			var e: Node3D = battle.spawn(kinds[(rnd * 2 + j) % kinds.size()], Vector3(px + (-5.0 if j == 0 else 5.0), 0, pz))
 			e.hp = 99999.0
 			e.hp_max = 99999.0
 			e.yo = 0.0

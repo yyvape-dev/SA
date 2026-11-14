@@ -4,7 +4,7 @@ extends Node3D
 ## 数値は前作 battle/ の値を、ラナの背（205px＝1.85m）で m に直したもの。
 
 const SPR := preload("res://scripts/sprite_bb.gdshader")
-const HEIGHT := {"1": 2.10, "3": 2.03, "g1": 2.7, "ef": 1.90, "em": 2.00}   # ef/em＝帝国兵 女・男（2026-11-14、仮。tools/make_imperial_foes.py）   # 前作の HEIGHT（f1 233・f3 225 px）÷205×1.85。g1＝ボス（前作の敵将。大きめに）
+const HEIGHT := {"1": 2.10, "3": 2.03, "g1": 2.7, "ef": 1.90, "em": 2.00, "bf": 1.85, "bc": 2.00, "bm": 1.95}   # ef/em＝帝国兵 女・男（tools/make_imperial_foes.py）、bf/bc/bm＝盗賊 女・爪・男（tools/make_foes.py）。背は仮（2026-11-14）   # 前作の HEIGHT（f1 233・f3 225 px）÷205×1.85。g1＝ボス（前作の敵将。大きめに）
 const FOE_SPD := 2.4       # 攻撃の連番の速さ（一騎打ちの何倍か。前作は3.3。予兆を読めるよう少し遅く）
 const ATK_START := 1.15    # この左右の距離で攻撃を始める
 const ATK_REACH := 1.45    # 当たりの瞬間に、この距離までなら当たる
