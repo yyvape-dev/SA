@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "id": "P0-03",
+  "source": "claude/sa2_story_bible_20261106.md section 5; quotations plus implementation bridges, not recovered full manuscript",
+  "lines": [
+    {
+      "line_id": "P0-03-001",
+      "speaker_id": "rana",
+      "speaker": "ラナ",
+      "text": "リリィ。ランカは、まだ戻らないの？",
+      "provenance": "implementation_bridge"
+    },
+    {
+      "line_id": "P0-03-002",
+      "speaker_id": "lily",
+      "speaker": "リリィ",
+      "text": "はい。川にも寄りましたが、姿がありません。",
+      "provenance": "implementation_bridge"
+    },
+    {
+      "line_id": "P0-03-003",
+      "speaker_id": "rana",
+      "speaker": "ラナ",
+      "text": "遠くまで釣りに出たのかしら。",
+      "provenance": "implementation_bridge"
+    },
+    {
+      "line_id": "P0-03-004",
+      "speaker_id": "lily",
+      "speaker": "リリィ",
+      "text": "私も、初めはそう思いました。客室を、一緒に見ていただけますか。",
+      "provenance": "implementation_bridge"
+    },
+    {
+      "line_id": "P0-03-005",
+      "speaker_id": "rana",
+      "speaker": "ラナ",
+      "text": "ええ。行きましょう。",
+      "provenance": "implementation_bridge"
+    }
+  ]
+}

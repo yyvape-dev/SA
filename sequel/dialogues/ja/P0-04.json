@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "id": "P0-04",
+  "source": "claude/sa2_story_bible_20261106.md section 5; quoted note",
+  "lines": [
+    {
+      "line_id": "P0-04-001",
+      "speaker_id": "ranka_note",
+      "speaker": "書き置き",
+      "text": "勤めを果たしてくる。",
+      "provenance": "quoted"
+    }
+  ]
+}

@@ -1,0 +1,139 @@
+{
+  "engine": "4.6.3.stable.official.7d41c59c4",
+  "renderer": "OpenGL Compatibility / Mesa llvmpipe",
+  "kind": "room blockout capture, not final art",
+  "images": [
+    {
+      "file": "audience_1280x720.png",
+      "width": 1280,
+      "height": 720,
+      "sha256": "9e918a129684aa24133c9d89a72f6ef987bbd460519ea2dcebd18d4ee7bca158"
+    },
+    {
+      "file": "audience_1560x720.png",
+      "width": 1560,
+      "height": 720,
+      "sha256": "83066f1f3ff4df2c74e32e2923b18617440949b3cc1c4fa9e99e23b6bae20abb"
+    },
+    {
+      "file": "breakfast_1280x720.png",
+      "width": 1280,
+      "height": 720,
+      "sha256": "6943b356717db056146b42e9817b49ff10da7bf04889aac7a5b7542d8785481c"
+    },
+    {
+      "file": "breakfast_1560x720.png",
+      "width": 1560,
+      "height": 720,
+      "sha256": "af094cb2f12c8ed1d5596cde6bf8b6cde08a8497d613812b76bc928d2da79b80"
+    },
+    {
+      "file": "departure_1280x720.png",
+      "width": 1280,
+      "height": 720,
+      "sha256": "31e40518367f7d5f5cec86a064245ab9b5fac691a061908e59c4927ce4266305"
+    },
+    {
+      "file": "departure_1560x720.png",
+      "width": 1560,
+      "height": 720,
+      "sha256": "7af3a21cdc832c525b2da2686a3c87570167b23b64c841b4342a07346642729e"
+    },
+    {
+      "file": "ending_1280x720.png",
+      "width": 1280,
+      "height": 720,
+      "sha256": "77bbfc3735d33002bca9419df249d9776af099af130e392b5db07c69dde8ec48"
+    },
+    {
+      "file": "ending_1560x720.png",
+      "width": 1560,
+      "height": 720,
+      "sha256": "1607b213f5cf583e0e1b27d9a8eede8fb8189f22b3ad2bb78e3eacb32c552936"
+    },
+    {
+      "file": "find_note_1280x720.png",
+      "width": 1280,
+      "height": 720,
+      "sha256": "0ae04c360b71ba61b6b70bf88379f2fc12e577e7f4f79df8e89a24b9c20500a6"
+    },
+    {
+      "file": "find_note_1560x720.png",
+      "width": 1560,
+      "height": 720,
+      "sha256": "7fd49c3b3441dd9c3e24c944894946e3654cabb14ff9c975b714c3d61830e7a3"
+    },
+    {
+      "file": "lamp_1280x720.png",
+      "width": 1280,
+      "height": 720,
+      "sha256": "d122b9caf40d0780e17ab969d1fd93e9ac5efee714245d1084ba4bad4bef9297"
+    },
+    {
+      "file": "lamp_1560x720.png",
+      "width": 1560,
+      "height": 720,
+      "sha256": "7a2980ff169ec44bd571bb56bf4c5ca30c98cd9feb05cf11a73cf21b6c791d29"
+    },
+    {
+      "file": "morning_1280x720.png",
+      "width": 1280,
+      "height": 720,
+      "sha256": "f14d156423edb7de388ca8688b422cb97dc45bbf03f6fe660af313ffe8466866"
+    },
+    {
+      "file": "morning_1560x720.png",
+      "width": 1560,
+      "height": 720,
+      "sha256": "de57cde6449b85ad8a74eb69cac3601206bc034eb54ca550d34ab508b4cbee28"
+    },
+    {
+      "file": "note_1280x720.png",
+      "width": 1280,
+      "height": 720,
+      "sha256": "eaf2c952f73c8338f1b22be799960f43dffa03ce43fbf9a96e753d5882baa883"
+    },
+    {
+      "file": "note_1560x720.png",
+      "width": 1560,
+      "height": 720,
+      "sha256": "587c5a1df4d81bac51b7b188e0411b7e636c230485da15817231ef1bfa4226dd"
+    },
+    {
+      "file": "promise_1280x720.png",
+      "width": 1280,
+      "height": 720,
+      "sha256": "171ea6040b26dd700a6e9df274e60e8435983f9023e70f1318d9e685caf77086"
+    },
+    {
+      "file": "promise_1560x720.png",
+      "width": 1560,
+      "height": 720,
+      "sha256": "d119e93db3bbb2e0938a78c33eba88f7df80ad68c910534a63105e85f3f57937"
+    },
+    {
+      "file": "talk_lily_1280x720.png",
+      "width": 1280,
+      "height": 720,
+      "sha256": "fa7f4c2beb67f7869b3447e48f3fb4ca46401209e4b363b43c82287cbb42b0f0"
+    },
+    {
+      "file": "talk_lily_1560x720.png",
+      "width": 1560,
+      "height": 720,
+      "sha256": "45850f8b51040dedb7657cb745435c6159c021318780dcf03e2303314c333d67"
+    },
+    {
+      "file": "three_days_1280x720.png",
+      "width": 1280,
+      "height": 720,
+      "sha256": "0f9c27307468c00ac6840c89db5bdfdbcab890c7106ddb4c8e662f7f28211c78"
+    },
+    {
+      "file": "three_days_1560x720.png",
+      "width": 1560,
+      "height": 720,
+      "sha256": "476e90e946e0c4f165751f62df534faf640b6aa83f9bf59b11f18511970f4679"
+    }
+  ]
+}

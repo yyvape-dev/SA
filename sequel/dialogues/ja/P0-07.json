@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "id": "P0-07",
+  "source": "claude/sa2_story_bible_20261106.md section 5; quotations plus implementation bridges, not recovered full manuscript",
+  "lines": [
+    {
+      "line_id": "P0-07-001",
+      "speaker_id": "rana",
+      "speaker": "ラナ",
+      "text": "さっきの明かり。何か気になったの？",
+      "provenance": "implementation_bridge"
+    },
+    {
+      "line_id": "P0-07-002",
+      "speaker_id": "lily",
+      "speaker": "リリィ",
+      "text": "アルデバランで使われているものと、仕組みが似ています。",
+      "provenance": "implementation_bridge"
+    },
+    {
+      "line_id": "P0-07-003",
+      "speaker_id": "rana",
+      "speaker": "ラナ",
+      "text": "技術が伝わったのかしら",
+      "provenance": "quoted"
+    },
+    {
+      "line_id": "P0-07-004",
+      "speaker_id": "lily",
+      "speaker": "リリィ",
+      "text": "それならいいのですが",
+      "provenance": "quoted"
+    },
+    {
+      "line_id": "P0-07-005",
+      "speaker_id": "lily",
+      "speaker": "リリィ",
+      "text": "気になるのは、動力源です",
+      "provenance": "quoted"
+    },
+    {
+      "line_id": "P0-07-006",
+      "speaker_id": "rana",
+      "speaker": "ラナ",
+      "text": "ジスパニアに行けば、分かる？",
+      "provenance": "quoted"
+    },
+    {
+      "line_id": "P0-07-007",
+      "speaker_id": "lily",
+      "speaker": "リリィ",
+      "text": "おそらく",
+      "provenance": "quoted"
+    },
+    {
+      "line_id": "P0-07-008",
+      "speaker_id": "rana",
+      "speaker": "ラナ",
+      "text": "こちらも、復興に必要なものをいつまでも内側だけで賄うわけにはいかないわ。",
+      "provenance": "implementation_bridge"
+    },
+    {
+      "line_id": "P0-07-009",
+      "speaker_id": "rana",
+      "speaker": "ラナ",
+      "text": "セラを呼んで。貿易の話を進めたいわ",
+      "provenance": "quoted"
+    },
+    {
+      "line_id": "P0-07-010",
+      "speaker_id": "rana",
+      "speaker": "ラナ",
+      "text": "ジスパニアへ行きましょう",
+      "provenance": "quoted"
+    },
+    {
+      "line_id": "P0-07-011",
+      "speaker_id": "rana",
+      "speaker": "ラナ",
+      "text": "ランカのことも、放っておきたくないもの",
+      "provenance": "quoted"
+    },
+    {
+      "line_id": "P0-07-012",
+      "speaker_id": "lily",
+      "speaker": "リリィ",
+      "text": "……はい。私も、お供します。",
+      "provenance": "implementation_bridge"
+    },
+    {
+      "line_id": "P0-07-013",
+      "speaker_id": "rana",
+      "speaker": "ラナ",
+      "text": "留守のことを、みんなと相談しなくてはね。",
+      "provenance": "implementation_bridge"
+    }
+  ]
+}

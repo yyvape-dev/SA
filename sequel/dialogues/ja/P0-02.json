@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "id": "P0-02",
+  "source": "claude/sa2_story_bible_20261106.md section 5; quotations plus implementation bridges, not recovered full manuscript",
+  "lines": [
+    {
+      "line_id": "P0-02-001",
+      "speaker_id": "mina",
+      "speaker": "ミナ",
+      "text": "ラナ、パンを持ってきたよ。まだ朝ごはん、食べてないでしょ。",
+      "provenance": "implementation_bridge"
+    },
+    {
+      "line_id": "P0-02-002",
+      "speaker_id": "rana",
+      "speaker": "ラナ",
+      "text": "ありがとう。これを読み終えたら――",
+      "provenance": "implementation_bridge"
+    },
+    {
+      "line_id": "P0-02-003",
+      "speaker_id": "mina",
+      "speaker": "ミナ",
+      "text": "冷めちゃう。その一枚だけにしてね。",
+      "provenance": "implementation_bridge"
+    },
+    {
+      "line_id": "P0-02-004",
+      "speaker_id": "rana",
+      "speaker": "ラナ",
+      "text": "……分かったわ。その一枚だけ。",
+      "provenance": "implementation_bridge"
+    },
+    {
+      "line_id": "P0-02-005",
+      "speaker_id": "sera",
+      "speaker": "セラ",
+      "text": "私も、職人のところへ行く前にいただきます。",
+      "provenance": "implementation_bridge"
+    },
+    {
+      "line_id": "P0-02-006",
+      "speaker_id": "mina",
+      "speaker": "ミナ",
+      "text": "うん。二人の分、あるから。",
+      "provenance": "implementation_bridge"
+    },
+    {
+      "line_id": "P0-02-007",
+      "speaker_id": "mina",
+      "speaker": "ミナ",
+      "text": "そうだ。リリィが、ランカを見なかったかって。こっちにも来ると思う。",
+      "provenance": "implementation_bridge"
+    },
+    {
+      "line_id": "P0-02-008",
+      "speaker_id": "rana",
+      "speaker": "ラナ",
+      "text": "川へ釣りに行ったのではなかった？",
+      "provenance": "implementation_bridge"
+    },
+    {
+      "line_id": "P0-02-009",
+      "speaker_id": "mina",
+      "speaker": "ミナ",
+      "text": "私もそう思ってたんだけど。昨日の夕食にも来なかったから。",
+      "provenance": "implementation_bridge"
+    }
+  ]
+}
