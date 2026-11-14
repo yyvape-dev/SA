@@ -1,3 +1,10 @@
+# GPT T4制作 batch08
+
+- 保存先：art/incoming/dungeon_20261114/batch08/。今回：t4_g1、t4_x1、t4_x2。
+- T4今回指示分の進捗：12/12。残り：。
+- 本番採用済みpainted_btの素材を実見し、各生成に直接画像参照として指定。T4既存roomの黄緑結晶・黒岩・鉄骨を継承。roomの配色方向と本番採用済み画像は区別する。
+- PNG全デコード・原本Git blob SHA一致確認。採用前のデザイン案。接続・透過・実寸・Godot/D2実画面は未検証。人物・敵なし。公開ビルド変更なし。詳細は各便HANDOFF/manifest/prompts。
+
 # GPT T4制作 batch07
 
 - 保存先：art/incoming/dungeon_20261114/batch07/。今回：t4_f3、t4_back1、t4_far1。

@@ -1,0 +1,29 @@
+[
+  {
+    "id": "t4_g1",
+    "refs": [
+      "/workspace/production_refs/slab.png",
+      "/workspace/production_refs/t4_room.jpeg"
+    ],
+    "prompt": "Create ONE square seamless tileable TOP DOWN floor material filling entire canvas. Reference 1 is APPROVED PRODUCTION stone texture: keep painterly worn stone detail. Reference 2 sets T4 charcoal slate and muted green-black palette. Flat diffuse lighting, no perspective, cast shadow, reflection, glow, vignette or spotlight. Mine floor of broad irregular dark slate pieces compacted in dusty soil, shallow chipped cracks, tiny non-glowing mineral specks very sparse. Smooth traversable plane, no obstacle rocks, rails, pits, crystals, labels or magenta. No single focal feature. Seamless on all four edges horizontally and vertically, consistent brightness. Intended 2.5m square. Not photorealistic gravel or highly glossy stone.",
+    "source": "/workspace/generated_images/exec-f5577385-5971-400c-833f-3dc3e8081ee0.png"
+  },
+  {
+    "id": "t4_x1",
+    "refs": [
+      "/workspace/production_refs/t4_room.jpeg",
+      "/workspace/production_refs/w_shady.png"
+    ],
+    "prompt": "Create ONE isolated modular game environment asset for T4 underground resource mine in a fantasy magitech city. Image 1 supplies T4 composition/material/color: charcoal slate rock, chunky iron mine supports, luminous yellow-green/lime mineral crystals, very sparse violet corruption. Image 2 is ACTUAL APPROVED PRODUCTION ART: match its oil painted irregular angular brush strokes, deep shadow grouping, tarnished black iron and copper material. NOT smooth 3D render. No people, text, letters, UI, modern industrial labels, Japanese motifs. Orthographic front elevation. Whole silhouette fully contained with generous margins, solid perfectly flat #FF00FF surrounding background and empty holes. Avoid excessive bright glow or golden metal. Wide landscape 1.92:1. ONE hero set piece: enormous stationary horizontal magitech mining drill rig, stepped conical dark iron boring head pointed RIGHT, heavy treadless bolted base, chunky gears and restrained lime mineral power chamber. Entire machine isolated, no rock wall or floor. Height 4.6m width 8m. No smoke, no beam effect, no animated blur. Readable massive silhouette, sparse brighter green inside power chamber only. Not an enemy or character.",
+    "source": "/workspace/generated_images/exec-26666956-f828-4556-bd21-efe4e94a7e5f.png"
+  },
+  {
+    "id": "t4_x2",
+    "refs": [
+      "/workspace/production_refs/t4_room.jpeg",
+      "/workspace/production_refs/w_shady.png"
+    ],
+    "prompt": "Create ONE isolated modular game environment asset for T4 underground resource mine in a fantasy magitech city. Image 1 supplies T4 composition/material/color: charcoal slate rock, chunky iron mine supports, luminous yellow-green/lime mineral crystals, very sparse violet corruption. Image 2 is ACTUAL APPROVED PRODUCTION ART: match its oil painted irregular angular brush strokes, deep shadow grouping, tarnished black iron and copper material. NOT smooth 3D render. No people, text, letters, UI, modern industrial labels, Japanese motifs. Orthographic front elevation. Whole silhouette fully contained with generous margins, solid perfectly flat #FF00FF surrounding background and empty holes. Avoid excessive bright glow or golden metal. Wide landscape 1.92:1. ONE hero set piece: huge extracted lime crystal monolith held in a black iron resource extraction cage with heavy stone and metal base, three restraint bands, side siphon conduits and small inactive collection tanks. Height 4.8m width 6m. Asymmetric bold mineral silhouette, selectively luminous green crystal facets, most iron dark. No ring gate, no levitating magic effect, no wall or floor. Industrial resource centerpiece, not altar or enemy.",
+    "source": "/workspace/generated_images/exec-43884c8c-7314-445c-a48b-964934d48780.png"
+  }
+]

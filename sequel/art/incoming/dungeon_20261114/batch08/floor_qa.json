@@ -1,0 +1,9 @@
+{
+  "edge_mae_lr": 3.5552897395002656,
+  "edge_mae_tb": 3.958532695374801,
+  "interior_mae_x": 2.0755305819992675,
+  "interior_mae_y": 2.477804889742555,
+  "range": "RGB 0-255",
+  "status": "repeat preview inspection, not engine verified",
+  "visual_result": "FAIL for strict seamless: repeat boundaries and periodic rock pattern visible in 3x3 preview; no bright glow or reflection; engine test pending"
+}
