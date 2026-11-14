@@ -37,6 +37,12 @@ def main():
     prev = None
     if "--preview" in argv:
         i = argv.index("--preview"); prev = argv[i + 1]; del argv[i:i + 2]
+    meta = {}
+    if "--meta" in argv:   # 例 '{"atk0":{"start":6,"reach":6}}'：clip に足す項目（JSON）
+        i = argv.index("--meta"); meta = json.loads(argv[i + 1]); del argv[i:i + 2]
+    fixed = {}
+    while "--frames" in argv:   # 例 atk0=0,4,8,...：使うコマを直接指定（数は自由。当たりは meta の hit）
+        i = argv.index("--frames"); k, v = argv[i + 1].split("="); fixed[k] = [int(x) for x in v.split(",")]; del argv[i:i + 2]
     charge = "--charge" in argv
     argv = [a for a in argv if a != "--charge"]
     kind, height, facing, wpath, apaths = argv[0], float(argv[1]), argv[2], argv[3], argv[4:]
@@ -72,6 +78,8 @@ def main():
         hf = int(np.argmax(front))
         hf = max(8, min(hf, n - 10))
         idx = [round(k * (hf - 1) / 6) for k in range(7)] + [hf] + [round(hf + 2 + k * (n - 1 - hf - 2) / 7) for k in range(8)]
+        if f"atk{ai}" in fixed:
+            idx = fixed[f"atk{ai}"]
         atl = Atlas(f"foe_{kind}_atk{ai}.webp")
         for i in idx:
             img, ft = crop_scaled(A[i], scale, (hx_ref, ref_y))
@@ -79,8 +87,9 @@ def main():
         af, asz = atl.build(out)
         hit = 7
         real = []
-        for j in range(16):
-            gap = ((idx[j + 1] if j + 1 < 16 else n) - idx[j]) / 24.0
+        m = len(idx)
+        for j in range(m):
+            gap = ((idx[j + 1] if j + 1 < m else n) - idx[j]) / 24.0
             real.append(gap * (0.6 if j < hit else (0.35 if j < 11 else 0.5)))
         d = [round(r * 1000 * SPD) for r in real]
         entry[f"atk{ai}"] = {"frames": af, "h": h_px, "face": face, "durs": d, "hit": hit}
@@ -91,6 +100,8 @@ def main():
             entry["atk1"] = {"frames": af, "h": h_px, "face": face, "durs": [round(r * 1000 * SPD) for r in r1], "hit": hit,
                              "charge": 5, "charge_y": 1.4,
                              "slash": {"plane": "v", "r": 2.1, "w": 0.6, "a0": 60.0, "a1": -20.0, "y": 1.15, "life": 0.3, "draw": 0.06}}
+    for c, v in meta.items():
+        entry.setdefault(c, {}).update(v)
     print(kind, "scale %.3f" % scale, sizes)
     fj = os.path.join(out, "foe.json")
     dj = json.load(open(fj))

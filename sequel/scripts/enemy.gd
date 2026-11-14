@@ -4,7 +4,7 @@ extends Node3D
 ## 数値は前作 battle/ の値を、ラナの背（205px＝1.85m）で m に直したもの。
 
 const SPR := preload("res://scripts/sprite_bb.gdshader")
-const HEIGHT := {"1": 2.10, "3": 2.03, "g1": 2.7, "ef": 1.90, "em": 2.00, "bf": 1.85, "bc": 2.00, "bm": 1.95}   # ef/em＝帝国兵 女・男（tools/make_imperial_foes.py）、bf/bc/bm＝盗賊 女・爪・男（tools/make_foes.py）。背は仮（2026-11-14）   # 前作の HEIGHT（f1 233・f3 225 px）÷205×1.85。g1＝ボス（前作の敵将。大きめに）
+const HEIGHT := {"1": 2.10, "3": 2.03, "g1": 2.7, "ef": 1.90, "em": 2.00, "bf": 1.85, "bc": 2.00, "bm": 1.95, "mo": 2.4, "gm": 2.5, "hr": 2.8}   # ef/em＝帝国兵 女・男（tools/make_imperial_foes.py）、bf/bc/bm＝盗賊 女・爪・男、mo＝爪の怪物・gm＝ガトリングの機兵・hr＝馬型の機兵（深層のボス）（tools/make_foes.py）。背は仮（2026-11-14）   # 前作の HEIGHT（f1 233・f3 225 px）÷205×1.85。g1＝ボス（前作の敵将。大きめに）
 const FOE_SPD := 2.4       # 攻撃の連番の速さ（一騎打ちの何倍か。前作は3.3。予兆を読めるよう少し遅く）
 const ATK_START := 1.15    # この左右の距離で攻撃を始める
 const ATK_REACH := 1.45    # 当たりの瞬間に、この距離までなら当たる
@@ -160,6 +160,9 @@ func _physics_process(delta: float) -> void:
 			if k >= (3.0 if boss else 1.0):
 				battle.remove_enemy(self)
 			return
+		"rush":
+			_rush_step(dt, pl)
+			return
 		"stun":
 			stun -= dt
 			position.x += kx * dt
@@ -183,6 +186,13 @@ func _physics_process(delta: float) -> void:
 			if not atk.done and atk.t >= atk.hit_t:
 				atk.done = true
 				atk.warn = null
+				if acl.has("shot"):   # 撃つ型：銃口から届く所まで赤い弾の筋（n 本、gap 秒おき）
+					var sh: Dictionary = acl.shot
+					var y_: float = float(sh.get("y", 1.4)) * size
+					for k in int(sh.get("n", 1)):
+						var p0 := position + Vector3(face * float(sh.get("x", 0.8)) * size, y_ + randf_range(-0.06, 0.06), 0.05)
+						var p1 := position + Vector3(face * float(atk.reach), float(sh.get("y1", float(sh.get("y", 1.4)))) * size + randf_range(-0.12, 0.12), 0.05)
+						battle.fx.bolt([p0, p1], float(sh.get("w", 0.07)), battle.fx.RED[1], 0.12, k * float(sh.get("gap", 0.07)), 0.0, false, 0)
 				if acl.has("slash"):   # 溜めの型の当たり：ラナと同じ弧を赤で
 					var sp_: Dictionary = (acl.slash as Dictionary).duplicate()
 					sp_["pal"] = battle.fx.RED
@@ -224,8 +234,8 @@ func _physics_process(delta: float) -> void:
 			if absf(dz) > 0.05:
 				position.z += signf(dz) * minf(absf(dz), sp * 0.6 * dt)
 			atk_cd -= dt
-			if absf(dx) < atk_start * size and absf(pl.position.z - position.z) < lane * 0.8 and atk_cd <= 0.0 and battle.player_alive():
-				_start_atk()
+			if absf(dx) < _max_start() * size and absf(pl.position.z - position.z) < lane * 0.8 and atk_cd <= 0.0 and battle.player_alive():
+				_start_atk(absf(dx))
 			else:
 				var wc: Dictionary = clips.walk
 				var moving: bool = absf(dx) > stop_d * size or absf(dz) > 0.05
@@ -234,15 +244,31 @@ func _physics_process(delta: float) -> void:
 	position.z = clampf(position.z, battle.BELT_Z.x - 0.1, battle.BELT_Z.y + 0.1)
 	position.x = clampf(position.x, battle.ROOM_X.x - 0.6, battle.ROOM_X.y + 0.6)
 
-func _start_atk() -> void:
-	var names := []
+## 攻撃を始める距離（clip の "start"＝m。無ければ atk_start）。遠くから撃つ・突進する型のため（2026-11-14）
+func _clip_start(cl: Dictionary) -> float:
+	return float(cl.get("start", atk_start / size))
+
+func _max_start() -> float:
+	var m := 0.0
 	for k in clips:
 		if str(k).begins_with("atk"):
+			m = maxf(m, _clip_start(clips[k]))
+	return m
+
+func _start_atk(dist: float = 0.0) -> void:
+	var names := []
+	for k in clips:
+		if str(k).begins_with("atk") and _clip_start(clips[k]) * size >= dist:
 			names.append(k)
+	if names.is_empty():
+		return
 	var c: String = force_atk if force_atk != "" and clips.has(force_atk) else names[randi() % names.size()]
 	var cl: Dictionary = clips[c]
 	atk_n += 1
-	var wide := boss and atk_n % 3 == 0
+	if cl.has("rush"):
+		_start_rush(c, cl)
+		return
+	var wide := boss and atk_n % 3 == 0 and not cl.has("reach")
 	var s_: float = spd * (0.7 if wide else 1.0)   # 大振りは遅い（予兆が長い）
 	var acc := 0.0
 	var starts := []
@@ -253,8 +279,8 @@ func _start_atk() -> void:
 			hit_t = acc / 1000.0 / s_
 		acc += float(cl.durs[i])
 	state = "atk"
-	var r: float = (3.4 if wide else reach) * size
-	var ln: float = 1.25 if wide else lane
+	var r: float = (3.4 if wide else float(cl.get("reach", reach / size))) * size
+	var ln: float = 1.25 if wide else float(cl.get("lane", lane))
 	atk = {"clip": c, "t": 0.0, "starts": starts, "hit_t": hit_t, "end_t": acc / 1000.0 / s_, "done": false,
 		"wide": wide, "reach": r, "lane": ln}
 	# 床の予兆：当たる範囲（前へ reach、奥行き ±lane。大振りは左右両側）
@@ -306,3 +332,69 @@ func take_hit(d: float, dir: int, strong: bool) -> void:
 		if battle.fx2d and not battle.fx.legacy:
 			battle.fx2d.kill(position + Vector3(0, height() * 0.5, 0), battle.fx, position)
 		battle.on_kill(self)
+
+
+## 突進（clip の "rush"）：構え（wind のコマ、床に進む帯の予兆）→ 走る（loop のコマを回しながら dist m を spd m/秒で進む。通り道で1回当たる）→ 止まる（end のコマ）。
+## 馬型のロボット（2026-11-14、ユーザー「走り体当たりが攻撃」）
+var rush := {}
+
+func _start_rush(c: String, cl: Dictionary) -> void:
+	var r: Dictionary = cl.rush
+	state = "rush"
+	var dist: float = float(r.get("dist", 8.0))
+	var x1: float = clampf(position.x + face * dist, battle.ROOM_X.x - 0.4, battle.ROOM_X.y + 0.4)
+	var ln: float = float(cl.get("lane", lane))
+	rush = {"clip": c, "ph": 0, "t": 0.0, "x1": x1, "hit": false, "hit_al": [], "ln": ln}
+	var w: float = absf(x1 - position.x) + 1.6 * size
+	var cx: float = (position.x + x1) * 0.5
+	rush.warn = battle.fx.warn(Vector3(cx, 0, position.z), Vector2(w, ln * 2.0), float(r.get("wind_t", 0.8)))
+
+func _rush_step(dt: float, pl: Node3D) -> void:
+	var cl: Dictionary = clips[rush.clip]
+	var r: Dictionary = cl.rush
+	rush.t += dt
+	var wind: Array = r.wind
+	var loop: Array = r.loop
+	var endf: Array = r.end
+	match int(rush.ph):
+		0:   # 構え
+			var wt: float = float(r.get("wind_t", 0.8))
+			_show(rush.clip, int(wind[mini(int(rush.t / wt * wind.size()), wind.size() - 1)]))
+			if rush.t >= wt:
+				rush.ph = 1
+				rush.t = 0.0
+				rush.warn = null
+				battle.fx.dust(position, 1.2 * size)
+		1:   # 走る
+			var spd_: float = float(r.get("spd", 10.0))
+			var fi: int = int(rush.t * float(r.get("fps", 18.0))) % loop.size()
+			_show(rush.clip, int(loop[fi]))
+			var step: float = spd_ * dt
+			var left: float = absf(float(rush.x1) - position.x)
+			position.x += face * minf(step, left)
+			var half: float = float(r.get("half", 1.1)) * size
+			if not rush.hit and pl.can_be_hit() and absf(pl.position.x - position.x) < half and absf(pl.position.z - position.z) < float(rush.ln):
+				rush.hit = true
+				battle.enemy_hits_player(self)
+				battle.shake = maxf(battle.shake, 9.0)
+			for al in battle.ally_list():
+				if al in rush.hit_al or not al.can_be_hit():
+					continue
+				if absf(al.position.x - position.x) < half and absf(al.position.z - position.z) < float(rush.ln):
+					rush.hit_al.append(al)
+					var ad := 1 if al.position.x >= position.x else -1
+					battle.fx.hurt(al.position + Vector3(0, 1.0, 0), ad)
+					if al.has_method("take_damage"):
+						al.take_damage(float(dmg), ad)
+					else:
+						al.on_hurt(ad)
+			if left <= step:
+				rush.ph = 2
+				rush.t = 0.0
+				battle.fx.dust(position + Vector3(face * 0.8, 0, 0), 1.4 * size)
+		2:   # 止まる
+			var et: float = float(r.get("end_t", 0.5))
+			_show(rush.clip, int(endf[mini(int(rush.t / et * endf.size()), endf.size() - 1)]))
+			if rush.t >= et:
+				state = "walk"
+				atk_cd = 1.4 if boss else 1.6

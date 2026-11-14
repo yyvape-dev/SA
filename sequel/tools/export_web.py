@@ -20,7 +20,7 @@ DISTRICTS = {
     "bt1": {"res": ["art/painted_bt/*.png"], "exclude": ["art/painted_bt/gamehall*.png"], "files": []},  # 裏町：入場時だけ読む。原寸のまま。
     "d1": {"res": ["art/painted/*.png", "assets/ground/*.png"],   # 歓楽街：塗った部品・遠景・地面
            "files": ["assets/ground/glints.json"]},                # 映り込みの元（json は include_filter で入れる）
-    "dg1": {"res": ["assets/foe/gen_g1.webp", "assets/foe/foeduel_g1_*.webp"],   # ダンジョンのボス（仮置きの敵将 g1）。入るときに読む
+    "dg1": {"res": ["assets/foe/gen_g1.webp", "assets/foe/foeduel_g1_*.webp", "assets/foe/imp_*.webp", "assets/foe/foe_*.webp"],   # ダンジョンのボス（仮置きの敵将 g1）＋新しい敵（帝国兵・盗賊・深層、2026-11-14）。入るときに読む
             "files": []},
     "dg_t2": {"res": ["assets/dungeon/t2/*.webp"],   # ダンジョン T2（奥の路地）の部品（2026-11-14、外部AIの絵を切り抜いた物）。入るときに読む
             "files": ["assets/dungeon/t2/parts.json"]},
