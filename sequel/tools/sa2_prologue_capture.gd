@@ -31,6 +31,21 @@ func _run() -> void:
 			var foot: Vector2 = view.room.camera.unproject_position(view.room.actors.rana.position)
 			var panel_y: float = view.dialogue.get_node("Panel").get_global_rect().position.y
 			print("PROLOGUE_CAPTURE ", output, " foot=", foot, " panel_y=", panel_y)
+	if OS.get_environment("PROLOGUE_CAPTURE_OCCLUSION") == "1":
+		for dimensions in [Vector2i(1280, 720), Vector2i(1560, 720)]:
+			root.size = dimensions
+			for z in [-0.4, 0.4]:
+				view._replace_dialogue()
+				view.state.beat_id = "talk_lily"
+				view.state.line_id = ""
+				view.state.player = Vector2(-0.5, z)
+				view.present()
+				for i in range(8): await process_frame
+				await RenderingServer.frame_post_draw
+				var label := "desk_behind" if z < 0 else "desk_front"
+				var path := "%s/%s_%dx%d.png" % [folder, label, dimensions.x, dimensions.y]
+				root.get_texture().get_image().save_png(path)
+				print("ART_OCCLUSION ", path)
 	view.queue_free()
 	await process_frame
 	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://sa2_prologue_capture.json"))

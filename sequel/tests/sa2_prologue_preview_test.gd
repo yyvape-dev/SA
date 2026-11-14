@@ -15,6 +15,10 @@ func _run() -> void:
 	root.add_child(view)
 	await process_frame
 	check(view.dialogue.active, "opening dialogue starts")
+	check(view.room.actors.sera is Sprite3D, "supplied Sera art replaces dummy")
+	check(view.room.actors.mina is Sprite3D, "supplied Mina art replaces dummy")
+	check(view.room.actors.envoy is Sprite3D, "supplied envoy art replaces dummy")
+	check(view.room.scenery.get_node_or_null("PaintedBackground") != null, "painted room is connected")
 	var pos: Vector2 = view.state.player
 	view.move_player(Vector2(1, 0), 1.0)
 	check(view.state.player == pos, "movement locked during dialogue")

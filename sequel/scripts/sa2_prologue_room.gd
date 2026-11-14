@@ -1,5 +1,5 @@
 extends Node3D
-## Rebuildable room blockout: no baked characters/text and no city/dungeon packs.
+## Supplied paintings and separate foreground props. No city/dungeon packs.
 var room_id := ""
 var scenery: Node3D
 var actors := {}
@@ -8,9 +8,6 @@ var lamp: Node3D
 var marker: Label3D
 var elapsed := 0.0
 var font: Font
-const STONE := Color("66615c")
-const WOOD := Color("594332")
-const GOLD := Color("b79a63")
 
 func _ready() -> void:
 	camera = Camera3D.new()
@@ -44,39 +41,24 @@ func _ready() -> void:
 		sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
 		add_child(sprite)
 		actors[id] = sprite
-	for id in ["mina", "sera", "envoy"]:
-		var standin := Node3D.new()
-		add_child(standin)
-		actors[id] = standin
-		# Deliberately neutral, labelled stand-ins, never passed off as new character art.
-		var color := Color("738b87") if id == "sera" else (Color("ba9278") if id == "mina" else Color("454958"))
-		_box(standin, Vector3(0, 0.75, 0), Vector3(0.48, 1.3, 0.26), color)
-		var head := MeshInstance3D.new()
-		head.mesh = SphereMesh.new()
-		head.mesh.radius = 0.18
-		head.mesh.height = 0.36
-		head.position.y = 1.55
-		head.material_override = _material(Color("c9bca8"))
-		standin.add_child(head)
-		_label(standin, {"mina": "ミナ", "sera": "セラ", "envoy": "使節"}[id] + "（仮）", Vector3(0, 1.95, 0), 22)
+	for entry in [["mina", "mina_bread", 1.70], ["sera", "sera_book", 1.75], ["envoy", "imperial_envoy", 1.90]]:
+		var sprite := _art_sprite(str(entry[1]), float(entry[2]))
+		add_child(sprite)
+		actors[entry[0]] = sprite
 	marker = _label(self, "", Vector3(0, 1.5, 0), 25)
 
-func _material(color: Color, glow := false) -> StandardMaterial3D:
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = color
-	mat.roughness = 0.88
-	if glow:
-		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	return mat
-
-func _box(parent: Node3D, at: Vector3, size: Vector3, color: Color, glow := false) -> MeshInstance3D:
-	var mesh := MeshInstance3D.new()
-	mesh.mesh = BoxMesh.new()
-	mesh.mesh.size = size
-	mesh.material_override = _material(color, glow)
-	mesh.position = at
-	parent.add_child(mesh)
-	return mesh
+func _art_sprite(asset: String, height: float) -> Sprite3D:
+	var sprite := Sprite3D.new()
+	sprite.texture = load("res://assets/prologue/%s.png" % asset)
+	var image := sprite.texture.get_image()
+	var rect := image.get_used_rect()
+	# Keep received canvas, place the measured silhouette's foot at local y=0.
+	var pivot := Vector2(rect.position.x + rect.size.x * 0.5, rect.end.y)
+	sprite.offset = Vector2(image.get_width() * 0.5 - pivot.x, pivot.y - image.get_height() * 0.5)
+	sprite.pixel_size = height / float(rect.size.y)
+	sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	return sprite
 
 func _label(parent: Node3D, text: String, at: Vector3, font_size: int) -> Label3D:
 	var label := Label3D.new()
@@ -98,50 +80,36 @@ func rebuild(id: String) -> void:
 		scenery.queue_free()
 	scenery = Node3D.new()
 	add_child(scenery)
-	_box(scenery, Vector3(0, -0.12, -0.2), Vector3(12, 0.24, 5), Color("7b7568"))
-	_box(scenery, Vector3(0, 2.1, -2.3), Vector3(12, 4.2, 0.3), STONE)
-	for x in [-5.1, -2.8, 0.0, 2.8, 5.1]:
-		_box(scenery, Vector3(x, 2, -2.02), Vector3(0.17, 4, 0.3), Color("8d877a"))
-	_box(scenery, Vector3(0, 0.2, -1.95), Vector3(12, 0.3, 0.35), Color("494745"))
-	for x in [-3.9, 0.0, 3.9]:
-		_box(scenery, Vector3(x, 2.5, -2.06), Vector3(1.5, 2.25, 0.12), Color("c5c9bd"), true)
-		_box(scenery, Vector3(x, 2.5, -1.96), Vector3(0.06, 2.3, 0.1), GOLD)
-		_box(scenery, Vector3(x, 2.4, -1.95), Vector3(1.55, 0.06, 0.1), GOLD)
-	for x in range(-6, 7):
-		_box(scenery, Vector3(x, 0.005, 0), Vector3(0.02, 0.01, 4), Color("59574e"))
-	for z in [-1.5, -0.5, 0.5, 1.5]:
-		_box(scenery, Vector3(0, 0.006, z), Vector3(12, 0.01, 0.02), Color("59574e"))
-	if id == "office":
-		_desk(Vector3(-1.9, 0, -0.9))
-		for x in [-2.5, -1.9]:
-			_box(scenery, Vector3(x, 0.94, -0.8), Vector3(0.4, 0.025, 0.3), Color("ded2b2"))
-		_box(scenery, Vector3(-1.05, 0.96, -0.8), Vector3(0.42, 0.08, 0.32), Color("d0a15a"))
-		_box(scenery, Vector3(-4.7, 1.1, -1.6), Vector3(1.1, 2.2, 0.6), WOOD)
-	elif id == "guest":
-		_box(scenery, Vector3(-3.2, 0.35, -1.1), Vector3(2.5, 0.7, 1.2), WOOD)
-		_box(scenery, Vector3(-3.2, 0.75, -1.1), Vector3(2.45, 0.12, 1.15), Color("b4af9d"))
-		_box(scenery, Vector3(-4.05, 0.86, -1.1), Vector3(0.5, 0.15, 0.9), Color("e6dfc5"))
-		_desk(Vector3(2.2, 0, -0.8))
-		_box(scenery, Vector3(2.2, 0.94, -0.7), Vector3(0.4, 0.02, 0.3), Color("f1dfad"), true)
-		# Empty pegs: no fishing rod or new clue about Ranka's destination.
-		for x in [-0.5, 0, 0.5]:
-			_box(scenery, Vector3(x, 1.5, -1.95), Vector3(0.08, 0.08, 0.3), WOOD)
-	else:
-		_box(scenery, Vector3(0, 0.015, -0.2), Vector3(2.8, 0.02, 4), Color("624153"))
-		_desk(Vector3(1.4, 0, -0.9))
-		_box(scenery, Vector3(0.9, 0.94, -0.8), Vector3(0.4, 0.03, 0.3), Color("ded2b2"))
-	lamp = Node3D.new()
-	lamp.position = Vector3(1.8, 0.94, -0.8)
+	var background := Sprite3D.new()
+	background.name = "PaintedBackground"
+	var asset: String = {"office": "office", "guest": "guest_room", "audience": "audience_room"}[id]
+	background.texture = load("res://assets/prologue/%s.png" % asset)
+	background.pixel_size = 16.0 / 1536.0
+	# Source wall/floor join (~row 660) meets y=0 at the back of the walking strip.
+	background.offset = Vector2(0, 660 - 432)
+	background.position = Vector3(0, 0, -2.4)
+	background.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
+	scenery.add_child(background)
+	var desk := _art_sprite("desk", 1.05)
+	desk.name = "PaintedDesk"
+	desk.position = {"office": Vector3(-0.5, 0, 0.15), "guest": Vector3(2.2, 0, -0.65), "audience": Vector3(1.45, 0, -0.65)}[id]
+	scenery.add_child(desk)
+	if id == "guest":
+		var paper := MeshInstance3D.new()
+		paper.mesh = BoxMesh.new()
+		paper.mesh.size = Vector3(0.30, 0.015, 0.22)
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = Color("f1dfad")
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		paper.material_override = mat
+		paper.position = Vector3(2.2, 0.95, -0.65)
+		scenery.add_child(paper)
+	lamp = _art_sprite("portable_lamp", 0.65)
+	lamp.name = "PaintedLamp"
+	lamp.position = Vector3(1.8, 0.95, -0.60)
 	scenery.add_child(lamp)
-	_box(lamp, Vector3(0, 0.04, 0), Vector3(0.25, 0.08, 0.25), GOLD)
-	_box(lamp, Vector3(0, 0.25, 0), Vector3(0.16, 0.34, 0.16), Color("ffedba"), true)
-	_box(lamp, Vector3(0, 0.44, 0), Vector3(0.23, 0.05, 0.23), GOLD)
 	lamp.hide()
 
-func _desk(at: Vector3) -> void:
-	_box(scenery, at + Vector3(0, 0.87, 0), Vector3(2.4, 0.12, 0.85), WOOD)
-	for x in [-1, 1]:
-		_box(scenery, at + Vector3(x, 0.42, 0), Vector3(0.16, 0.84, 0.65), WOOD)
 
 func apply(state) -> void:
 	if room_id != state.scene_id(): rebuild(state.scene_id())

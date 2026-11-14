@@ -59,7 +59,7 @@ func _build_ui() -> void:
 	status.position = Vector2(32, 64)
 	status.add_theme_font_override("font", FONT)
 	status.add_theme_font_size_override("font_size", 17)
-	status.text = "進行プレビュー・背景／一部人物は仮素材"
+	status.text = "プロローグ・提供原画を使用"
 	ui.add_child(status)
 	action = _button("", Vector2(-240, -112), Vector2(208, 72))
 	action.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)

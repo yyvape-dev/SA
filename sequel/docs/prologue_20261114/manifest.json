@@ -1,139 +1,163 @@
 {
   "engine": "4.6.3.stable.official.7d41c59c4",
   "renderer": "OpenGL Compatibility / Mesa llvmpipe",
-  "kind": "room blockout capture, not final art",
+  "kind": "supplied prologue art integration, original source commit8ab61e8",
   "images": [
     {
       "file": "audience_1280x720.png",
       "width": 1280,
       "height": 720,
-      "sha256": "9e918a129684aa24133c9d89a72f6ef987bbd460519ea2dcebd18d4ee7bca158"
+      "sha256": "ed2582dc7f59e0cf0eb010e101a4568cd609b654a1f4ff291d2e290533abc462"
     },
     {
       "file": "audience_1560x720.png",
       "width": 1560,
       "height": 720,
-      "sha256": "83066f1f3ff4df2c74e32e2923b18617440949b3cc1c4fa9e99e23b6bae20abb"
+      "sha256": "5338e2f3b447594ef5280ecb2aa2b227339f2221796db6ca44645b600fcabcd1"
     },
     {
       "file": "breakfast_1280x720.png",
       "width": 1280,
       "height": 720,
-      "sha256": "6943b356717db056146b42e9817b49ff10da7bf04889aac7a5b7542d8785481c"
+      "sha256": "14b82f7024db31b886cda9ec41ed5844c144c9357a50aecfd9c515d84a85219d"
     },
     {
       "file": "breakfast_1560x720.png",
       "width": 1560,
       "height": 720,
-      "sha256": "af094cb2f12c8ed1d5596cde6bf8b6cde08a8497d613812b76bc928d2da79b80"
+      "sha256": "1b3d8fc21a949b941cfc86c419b035f0e73c9cb0424d455bc4a2f4fa084e1b02"
     },
     {
       "file": "departure_1280x720.png",
       "width": 1280,
       "height": 720,
-      "sha256": "31e40518367f7d5f5cec86a064245ab9b5fac691a061908e59c4927ce4266305"
+      "sha256": "0b4350b4976a6e57dfd291c807d9965ae341df66e43fd00d6550c716aa3f43dc"
     },
     {
       "file": "departure_1560x720.png",
       "width": 1560,
       "height": 720,
-      "sha256": "7af3a21cdc832c525b2da2686a3c87570167b23b64c841b4342a07346642729e"
+      "sha256": "e940bdc256dfec233205795971e8bb134b318536c17bf0ec5d716da7349751a3"
+    },
+    {
+      "file": "desk_behind_1280x720.png",
+      "width": 1280,
+      "height": 720,
+      "sha256": "274dc8ab2c2b168eb51361a282a2ff00b56bef2c32ffd4d7758fa13aa7bfa207"
+    },
+    {
+      "file": "desk_behind_1560x720.png",
+      "width": 1560,
+      "height": 720,
+      "sha256": "e3355c81effcbc8858fc9835b07f66131ce2f9f3dbc5940fa7810de16368284a"
+    },
+    {
+      "file": "desk_front_1280x720.png",
+      "width": 1280,
+      "height": 720,
+      "sha256": "2adea8aab14c1ecdd27d7a9baf93c84fc4a71c43b7488f0e82ef0b40a4bd156d"
+    },
+    {
+      "file": "desk_front_1560x720.png",
+      "width": 1560,
+      "height": 720,
+      "sha256": "b7aeacabe979f4453d02862b7bb9c2f9904cdb3b595081133a4fccf2ae93f4c3"
     },
     {
       "file": "ending_1280x720.png",
       "width": 1280,
       "height": 720,
-      "sha256": "77bbfc3735d33002bca9419df249d9776af099af130e392b5db07c69dde8ec48"
+      "sha256": "9c556a31190497bb935f7fb093c5316c54d65f32449ccc0d7e34e711c9523157"
     },
     {
       "file": "ending_1560x720.png",
       "width": 1560,
       "height": 720,
-      "sha256": "1607b213f5cf583e0e1b27d9a8eede8fb8189f22b3ad2bb78e3eacb32c552936"
+      "sha256": "66099ae0a15a4a7c515531c632f436ba71956becb5e740ebb8ca6c2504ed79a9"
     },
     {
       "file": "find_note_1280x720.png",
       "width": 1280,
       "height": 720,
-      "sha256": "0ae04c360b71ba61b6b70bf88379f2fc12e577e7f4f79df8e89a24b9c20500a6"
+      "sha256": "0fdc5ddcedde647e3d725886704d2ddb4a2cb414c9d3f457c7d487d986947552"
     },
     {
       "file": "find_note_1560x720.png",
       "width": 1560,
       "height": 720,
-      "sha256": "7fd49c3b3441dd9c3e24c944894946e3654cabb14ff9c975b714c3d61830e7a3"
+      "sha256": "9fed3ac2496c1ac65f6efa61b8b1ffcf599cabb007f7386f177d27ac4d2329e4"
     },
     {
       "file": "lamp_1280x720.png",
       "width": 1280,
       "height": 720,
-      "sha256": "d122b9caf40d0780e17ab969d1fd93e9ac5efee714245d1084ba4bad4bef9297"
+      "sha256": "ee2c8f8f3d3bf55f0601321517adf16caf89e0f0537d786fa899a542ceb1c3fe"
     },
     {
       "file": "lamp_1560x720.png",
       "width": 1560,
       "height": 720,
-      "sha256": "7a2980ff169ec44bd571bb56bf4c5ca30c98cd9feb05cf11a73cf21b6c791d29"
+      "sha256": "71d98e466cbe26ddc3fbd22f6e9ebd2fab4461544bbe648224c42136e907ff5c"
     },
     {
       "file": "morning_1280x720.png",
       "width": 1280,
       "height": 720,
-      "sha256": "f14d156423edb7de388ca8688b422cb97dc45bbf03f6fe660af313ffe8466866"
+      "sha256": "c606c3fbca607ed7192fe2a876ff31ce7dbc9690ac339fbea5b8c9e687ca3d97"
     },
     {
       "file": "morning_1560x720.png",
       "width": 1560,
       "height": 720,
-      "sha256": "de57cde6449b85ad8a74eb69cac3601206bc034eb54ca550d34ab508b4cbee28"
+      "sha256": "5d9b7d367f980f15961bd719773a95808cdce25d73ee35571202cecc00c8287c"
     },
     {
       "file": "note_1280x720.png",
       "width": 1280,
       "height": 720,
-      "sha256": "eaf2c952f73c8338f1b22be799960f43dffa03ce43fbf9a96e753d5882baa883"
+      "sha256": "77e3405a5bf75e10fd40850264baecb3d790e6fc0fb5208865a122574cfc638e"
     },
     {
       "file": "note_1560x720.png",
       "width": 1560,
       "height": 720,
-      "sha256": "587c5a1df4d81bac51b7b188e0411b7e636c230485da15817231ef1bfa4226dd"
+      "sha256": "4e369a7bd29ce24439fd6fc4fa6ee517b34e65531116e961c890ec1f24f81d40"
     },
     {
       "file": "promise_1280x720.png",
       "width": 1280,
       "height": 720,
-      "sha256": "171ea6040b26dd700a6e9df274e60e8435983f9023e70f1318d9e685caf77086"
+      "sha256": "e88316548558c65673702b4bdb5670f5fdb3ac163d0a04784fea05cc51361120"
     },
     {
       "file": "promise_1560x720.png",
       "width": 1560,
       "height": 720,
-      "sha256": "d119e93db3bbb2e0938a78c33eba88f7df80ad68c910534a63105e85f3f57937"
+      "sha256": "055295c80dcf5fe992c6eaa52f78c3e26b83735dbe5571f74395a3629e51c590"
     },
     {
       "file": "talk_lily_1280x720.png",
       "width": 1280,
       "height": 720,
-      "sha256": "fa7f4c2beb67f7869b3447e48f3fb4ca46401209e4b363b43c82287cbb42b0f0"
+      "sha256": "a38fbcef54397489d1c100afd1d4668333934dc02686019ab755c2e46851f4fe"
     },
     {
       "file": "talk_lily_1560x720.png",
       "width": 1560,
       "height": 720,
-      "sha256": "45850f8b51040dedb7657cb745435c6159c021318780dcf03e2303314c333d67"
+      "sha256": "a6d6e85e3f76a09e08bb68f4d637ac46aea36dba222cf90057d343e1caec244b"
     },
     {
       "file": "three_days_1280x720.png",
       "width": 1280,
       "height": 720,
-      "sha256": "0f9c27307468c00ac6840c89db5bdfdbcab890c7106ddb4c8e662f7f28211c78"
+      "sha256": "900ffd559ecc956f99735cb72eac60a39322826e8ab57b241e9965d8b7683a4b"
     },
     {
       "file": "three_days_1560x720.png",
       "width": 1560,
       "height": 720,
-      "sha256": "476e90e946e0c4f165751f62df534faf640b6aa83f9bf59b11f18511970f4679"
+      "sha256": "8fe1ab6afd70bac2ed93d62297789bec13f85d0e8f44a3411fe2238508bd8101"
     }
   ]
 }

@@ -1,0 +1,147 @@
+{
+  "method": "original-size PNG; exterior-connected near-white alpha only; no generated art or resize",
+  "source_commit": "8ab61e8551950ce466df9b5b01db9c719072df93",
+  "images": [
+    {
+      "name": "office",
+      "source": "art/prologue_src/office.jpeg",
+      "source_sha256": "ca007698bdb5094f8bfac3c9e1b323e9e5665397f40a018f4219b01cb17965a6",
+      "output": "assets/prologue/office.png",
+      "width": 1536,
+      "height": 864,
+      "mode": "RGB",
+      "bounds": [
+        0,
+        0,
+        1536,
+        864
+      ],
+      "hole_seeds": [],
+      "output_sha256": "f7de61ea678d4774c0944eb6d9d4cbedc76b85e68f453f6ce6e4de1e85b011a2"
+    },
+    {
+      "name": "guest_room",
+      "source": "art/prologue_src/guest_room.jpeg",
+      "source_sha256": "2937341ab8b3b71d894131484afae6203d991bea62717f183c8bea9704bb44d1",
+      "output": "assets/prologue/guest_room.png",
+      "width": 1536,
+      "height": 864,
+      "mode": "RGB",
+      "bounds": [
+        0,
+        0,
+        1536,
+        864
+      ],
+      "hole_seeds": [],
+      "output_sha256": "d6ff6331e2c44e34efa773e1706af66db2accd1a09de5ff5a921a4bdaa768667"
+    },
+    {
+      "name": "audience_room",
+      "source": "art/prologue_src/audience_room.jpeg",
+      "source_sha256": "db4d2b28ebf601772fa23a376d866fa556a323bf57de78ce14987a06ecf35109",
+      "output": "assets/prologue/audience_room.png",
+      "width": 1536,
+      "height": 864,
+      "mode": "RGB",
+      "bounds": [
+        0,
+        0,
+        1536,
+        864
+      ],
+      "hole_seeds": [],
+      "output_sha256": "20c05ebe00e57912307a874471e4812421e3dcc84c87685067e5306b08b0e640"
+    },
+    {
+      "name": "desk",
+      "source": "art/prologue_src/desk.jpeg",
+      "source_sha256": "a0a7d7dfe686d893495b184ee46791adf7945de6b9be0d546fa1e7c3788b38cf",
+      "output": "assets/prologue/desk.png",
+      "width": 1536,
+      "height": 1024,
+      "mode": "RGBA",
+      "bounds": [
+        28,
+        91,
+        1506,
+        994
+      ],
+      "hole_seeds": [],
+      "output_sha256": "08a7c7cce9889b1f315af0e017f854ff49ba502133c30d091d4d7896315db221"
+    },
+    {
+      "name": "portable_lamp",
+      "source": "art/prologue_src/portable_lamp.jpeg",
+      "source_sha256": "4c15f23c6dd994a0e48247a32010a6d820503e98eff5e9d14535fa578912b8fc",
+      "output": "assets/prologue/portable_lamp.png",
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGBA",
+      "bounds": [
+        395,
+        14,
+        848,
+        1208
+      ],
+      "hole_seeds": [
+        [
+          620,
+          160
+        ]
+      ],
+      "output_sha256": "cb7171034d1af920a78ab4a0a301b00bf4c57b8dc84c90ca1f5b1376592bc9d3"
+    },
+    {
+      "name": "sera_book",
+      "source": "art/prologue_src/sera_book.jpeg",
+      "source_sha256": "896ada7ffcdd0b5c09373a973fe6f15819e3cf1450d8bf044959afaaf35d799d",
+      "output": "assets/prologue/sera_book.png",
+      "width": 702,
+      "height": 1536,
+      "mode": "RGBA",
+      "bounds": [
+        5,
+        2,
+        700,
+        1534
+      ],
+      "hole_seeds": [],
+      "output_sha256": "0f72226defdd72ae55b8a5471ea814102d85cd84d10f31b9303f36bd15efe0f4"
+    },
+    {
+      "name": "mina_bread",
+      "source": "art/prologue_src/mina_bread.jpeg",
+      "source_sha256": "cedb61165707e3486c7bc0de355ac11cbbdd84eb2b8e18f7182e39d975200298",
+      "output": "assets/prologue/mina_bread.png",
+      "width": 672,
+      "height": 1536,
+      "mode": "RGBA",
+      "bounds": [
+        113,
+        5,
+        598,
+        1501
+      ],
+      "hole_seeds": [],
+      "output_sha256": "ce5dc607496246cd6827fe8d6f08cfffa66e243f1018b56fd520343f4af5ef35"
+    },
+    {
+      "name": "imperial_envoy",
+      "source": "art/prologue_src/imperial_envoy.jpeg",
+      "source_sha256": "82ac0e9c400b438a19ab9a36593099c0e5d4e6e852cba470f3dca6b2c98ac25c",
+      "output": "assets/prologue/imperial_envoy.png",
+      "width": 1024,
+      "height": 1536,
+      "mode": "RGBA",
+      "bounds": [
+        258,
+        11,
+        769,
+        1526
+      ],
+      "hole_seeds": [],
+      "output_sha256": "27ac844c6a21ca0b0b00749f76a6f5cad353ce3c78736ef36a1391fde0059dcc"
+    }
+  ]
+}
