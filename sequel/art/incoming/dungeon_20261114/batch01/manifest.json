@@ -1,0 +1,59 @@
+[
+  {
+    "id": "t2_x1",
+    "file": "t2_x1.png",
+    "status": "proposal_unapproved",
+    "width": 1738,
+    "height": 905,
+    "mode": "RGB",
+    "format": "PNG",
+    "corner_rgb": [
+      239,
+      14,
+      239
+    ],
+    "sha256": "96c116b497ca267e27f0d1abf2c8923a6a7e293aa99225cb2ca446f9ced98d18",
+    "bytes": 2699674,
+    "decode": "PASS",
+    "tool": "OpenAI image_gen.imagegen",
+    "date": "2026-11-14"
+  },
+  {
+    "id": "t3_b1",
+    "file": "t3_b1.png",
+    "status": "proposal_unapproved",
+    "width": 1737,
+    "height": 905,
+    "mode": "RGB",
+    "format": "PNG",
+    "corner_rgb": [
+      237,
+      11,
+      241
+    ],
+    "sha256": "25e3b3339a11c413813c81378ab6bd5ff63a3b4015175ead85e3cf8d61738a70",
+    "bytes": 2141831,
+    "decode": "PASS",
+    "tool": "OpenAI image_gen.imagegen",
+    "date": "2026-11-14"
+  },
+  {
+    "id": "t3_b2",
+    "file": "t3_b2.png",
+    "status": "proposal_unapproved",
+    "width": 1736,
+    "height": 906,
+    "mode": "RGB",
+    "format": "PNG",
+    "corner_rgb": [
+      237,
+      13,
+      239
+    ],
+    "sha256": "281e93b84473cd9e7c508a78c14e45b1f4c84446d6ec823829794fef5be93374",
+    "bytes": 2183554,
+    "decode": "PASS",
+    "tool": "OpenAI image_gen.imagegen",
+    "date": "2026-11-14"
+  }
+]

@@ -1,0 +1,59 @@
+[
+  {
+    "id": "t3_b3",
+    "file": "t3_b3.png",
+    "width": 1738,
+    "height": 905,
+    "mode": "RGB",
+    "bytes": 2242164,
+    "sha256": "45022ccaa87935514bc9ae03fdea55f28e9c022bc6bdffaab323b899da1becea",
+    "corner_rgb": [
+      236,
+      13,
+      238
+    ],
+    "decode": "PASS",
+    "status": "proposal_unapproved",
+    "tool": "OpenAI image_gen.imagegen",
+    "reference": "dungeon_20261114_batch01/t3_b1.png",
+    "generation_source": "exec-3c2a55fc-9e16-4043-8dab-361efead7a93.png"
+  },
+  {
+    "id": "t3_b4",
+    "file": "t3_b4.png",
+    "width": 1738,
+    "height": 905,
+    "mode": "RGB",
+    "bytes": 2333843,
+    "sha256": "3b430743f79bee40cebc3b41f764825c6f53ec5875ea6ea2e98066a621bcc2c8",
+    "corner_rgb": [
+      232,
+      15,
+      237
+    ],
+    "decode": "PASS",
+    "status": "proposal_unapproved",
+    "tool": "OpenAI image_gen.imagegen",
+    "reference": "dungeon_20261114_batch01/t3_b1.png",
+    "generation_source": "exec-93efc4af-2c91-4d50-95e4-515bb96e98d0.png"
+  },
+  {
+    "id": "t3_f1",
+    "file": "t3_f1.png",
+    "width": 724,
+    "height": 2172,
+    "mode": "RGB",
+    "bytes": 1516200,
+    "sha256": "3e858395cd024cb297c957b8982eaed6945a78ce8074a3194bd2ed9b48a72c67",
+    "corner_rgb": [
+      238,
+      15,
+      241
+    ],
+    "decode": "PASS",
+    "status": "proposal_unapproved",
+    "tool": "OpenAI image_gen.imagegen",
+    "reference": "dungeon_20261114_batch01/t3_b1.png",
+    "generation_source": "exec-3d5815b9-8809-45c2-acff-4e988344df5c.png"
+  }
+]
