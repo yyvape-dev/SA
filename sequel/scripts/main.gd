@@ -102,9 +102,11 @@ func _startup_town() -> String:
 	return OS.get_environment("TOWN")
 
 func _ready() -> void:
+	if _q("unlock=1") or OS.has_environment("UNLOCK_ALL"):
+		progress_unlock_all = true
 	_boot("main_ready")
 	# 撮影・確認では乱数の種を固定する（版どうしで同じ場面・同じコマを比べるため）
-	for k in ["CAPTURE_FOE", "CAPTURE_FX", "CAPTURE_LINEUP", "CAPTURE_PLAY", "CAPTURE_DUNGEON", "DUNGEON_TEST", "CAPTURE_GUIDE", "CAPTURE_REUSE"]:
+	for k in ["CAPTURE_MENU", "CAPTURE_FOE", "CAPTURE_FX", "CAPTURE_LINEUP", "CAPTURE_PLAY", "CAPTURE_DUNGEON", "DUNGEON_TEST", "CAPTURE_GUIDE", "CAPTURE_REUSE"]:
 		if OS.has_environment(k):
 			seed(20261106)
 	loading = Loading.new()
@@ -121,11 +123,12 @@ func _ready() -> void:
 		loading.error_text = district.last_error
 	_load_glints()
 	progress = Progress.new()
-	if OS.has_environment("CAPTURE_DUNGEON") or OS.has_environment("DUNGEON_TEST") or OS.has_environment("CAPTURE_PLAY"):
+	if OS.has_environment("CAPTURE_DUNGEON") or OS.has_environment("DUNGEON_TEST") or OS.has_environment("CAPTURE_PLAY") or OS.has_environment("CAPTURE_MENU"):
 		progress.path = "user://sa2_capture_save.json"   # 撮影・確認は毎回まっさらなセーブ（前の回のレベルが残ると場面がずれる）
 		progress.reset()
 	else:
 		progress.load_save()
+	progress.unlock_all = progress_unlock_all
 	town = _startup_town()
 	if town == "back":
 		if not await district.ensure("bt1"):
@@ -243,6 +246,8 @@ func _ready() -> void:
 		_capture_fx.call_deferred()
 	elif OS.has_environment("CAPTURE_FOE"):
 		_capture_foe.call_deferred()
+	elif OS.has_environment("CAPTURE_MENU"):
+		_capture_menu.call_deferred()
 	elif OS.has_environment("CAPTURE_LINEUP"):
 		_capture_lineup.call_deferred()
 	elif OS.has_environment("CAPTURE_DUNGEON") or OS.has_environment("DUNGEON_TEST"):
@@ -253,6 +258,34 @@ func _ready() -> void:
 	if OS.has_environment("DUNGEON_LAYOUT_TEST"):
 		load("res://scripts/dungeon_map.gd").self_test()
 		get_tree().quit()
+
+## 撮影：門の地図→右の札→仲間の選択→入場（2026-11-15）。TOWN=back。captures/menu_<n>.png。UNLOCK_ALL=1 で全部開いた地図
+func _capture_menu() -> void:
+	var dir := ProjectSettings.globalize_path("res://captures")
+	DirAccess.make_dir_recursive_absolute(dir)
+	for i in 900:   # 仲間の読み込みを待つ
+		await get_tree().process_frame
+		if ally_ready("lily") and ally_ready("ranka") and i > 120:
+			break
+	var shot := func(n: String) -> void:
+		for i in 30:
+			await get_tree().process_frame
+		get_viewport().get_texture().get_image().save_png(dir + "/menu_%s.png" % n)
+	await shot.call("0_town")
+	hud.open_menu()
+	await shot.call("1_map")
+	hud.choose_theme(hud.menu_theme)
+	await shot.call("2_panel")
+	hud.choose(1 if progress.unlock_all else 0)
+	await shot.call("3_party")
+	hud.toggle_ally(1)
+	await shot.call("4_party_pick")
+	hud.go()
+	for i in 200:
+		await get_tree().process_frame
+	await shot.call("5_dungeon")
+	print("MENU_PARTY ", party, " ally=", battle.ally != null, " ranka=", battle.ranka != null)
+	get_tree().quit()
 
 ## 撮影：新しい敵（FOE_KINDS、既定 ef,em）を T1 のダンジョンで歩かせて攻撃させる（2026-11-14 帝国兵）。
 ## TOWN=back で起動（カメラ D2）。左右から1体ずつ寄せ（FOE_KINDS を順に4体分）、1巡目＝左 atk0・右 atk1、2巡目＝入れ替え。captures/foe_<巡>_<コマ>.png
@@ -360,6 +393,8 @@ func _load_ally() -> void:
 	battle.add_child(a)
 	_boot("ally_loaded")
 	battle.ally = a
+	if party_flow() and not ("lily" in party):   # 街ではラナ1人（パーティの流れ）
+		_bench("lily")
 	lily_cutin = Cutin.new()   # 立ち絵 assets/lily/cutin.webp（al1 に入っている）、蒼の帯
 	lily_cutin.tex_path = "res://assets/lily/cutin.webp"
 	lily_cutin.band_col = Color(0.02, 0.07, 0.16, 0.85)
@@ -400,6 +435,8 @@ func _load_ranka() -> void:
 	battle.add_child(a)
 	_boot("ranka_loaded")
 	battle.ranka = a
+	if party_flow() and not ("ranka" in party):
+		_bench("ranka")
 	ranka_cutin = Cutin.new()   # 立ち絵 assets/ranka/cutin.webp（al2）、藍の帯・朱の線
 	ranka_cutin.tex_path = "res://assets/ranka/cutin.webp"
 	ranka_cutin.band_col = Color(0.03, 0.04, 0.14, 0.86)
@@ -408,6 +445,66 @@ func _load_ranka() -> void:
 	ranka_cutin.flash_col = Color(1.0, 0.98, 0.94)
 	add_child(ranka_cutin)
 	ranka_loaded.emit(true)
+
+
+# ---------- パーティ（2026-11-15、ユーザー「ラナ1人で街から。門→地図→ダンジョン→仲間の選択→入場」） ----------
+## 街ではラナ1人。選ばなかった仲間は戦闘の木から外して控え（bench）に置く。仲間の参照はもともと「読み込み中は null」を前提にしているので、外す＝ null にする。
+var progress_unlock_all := false
+var bench := {}            # "lily"/"ranka" → 控えの仲間のノード
+var party: Array = []      # 今いっしょにいる仲間の id
+var party_last: Array = ["lily"]   # 前に選んだ組み合わせ（次の選択画面の初期値）
+
+## パーティの流れを使うか：撮影・自動テスト・重さの計測・手動の仲間の入口では、今までどおり仲間を全員出す
+func party_flow() -> bool:
+	for k in ["CAPTURE_FOE", "CAPTURE_PLAY", "CAPTURE_FX", "CAPTURE_GUIDE", "CAPTURE_DUNGEON", "CAPTURE_LINEUP", "CAPTURE_REUSE", "DUNGEON_TEST", "DG_PERF"]:
+		if OS.has_environment(k):
+			return false
+	if _q("dgtest=") or _q("mode=ranka") or _q("party=all"):
+		return false
+	return true
+
+## 読み込めている仲間の id（選択画面で選べる）
+func ally_ready(id: String) -> bool:
+	if bench.has(id):
+		return true
+	return (id == "lily" and battle.ally != null) or (id == "ranka" and battle.ranka != null)
+
+func _bench(id: String) -> void:
+	var a: Node3D = battle.ally if id == "lily" else battle.ranka
+	if a == null or not is_instance_valid(a):
+		return
+	if a.get_parent():
+		a.get_parent().remove_child(a)
+	bench[id] = a
+	if id == "lily":
+		battle.ally = null
+	else:
+		battle.ranka = null
+
+func _unbench(id: String, i: int) -> void:
+	if not bench.has(id):
+		return
+	var a: Node3D = bench[id]
+	bench.erase(id)
+	a.position = player.position + Vector3(-player.face * (1.4 + i * 0.9), 0, 0.7 - i * 1.4)
+	battle.add_child(a)
+	if id == "lily":
+		battle.ally = a
+	else:
+		battle.ranka = a
+	if a.has_method("revive_full"):
+		a.revive_full()
+
+## 仲間をそろえる（ids にある仲間だけを出す）
+func set_party(ids: Array) -> void:
+	party = ids.duplicate()
+	for id in ["lily", "ranka"]:
+		if not (id in ids):
+			_bench(id)
+	var i := 0
+	for id in ids:
+		_unbench(id, i)
+		i += 1
 
 func _check_town_edge() -> void:
 	if town != "back" or player == null or town_floor_busy or player.locked or dungeon != null:
@@ -3465,7 +3562,9 @@ func _dungeon_cam(on: bool) -> void:
 	if cam:
 		cam.fov = play_fov
 
-func enter_dungeon(diff: String, seed_val: int = -1, theme: String = "t1") -> void:
+func enter_dungeon(diff: String, seed_val: int = -1, theme: String = "t1", ids = null) -> void:
+	if ids != null and party_flow():
+		set_party(ids)
 	for e in battle.enemies.duplicate():
 		battle.remove_enemy(e)
 	battle.auto_spawn = false
@@ -3505,6 +3604,8 @@ func leave_dungeon() -> void:
 	for a in battle.ally_list():   # 仲間の体力も戻す（specs/dungeon_themes.md 3.4）
 		if a.has_method("revive_full"):
 			a.revive_full()
+	if party_flow():   # 街へ戻ったらラナ1人（体力を戻してから控えへ）
+		set_party([])
 	battle.foe_hp_mul = 1.0
 	battle.foe_dmg_mul = 1.0
 	battle.hp = battle.hp_max

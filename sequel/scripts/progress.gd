@@ -115,12 +115,16 @@ func pay_first_clear(k: String) -> bool:
 
 ## ---------- テーマと難易度の開き方（specs/dungeon_themes.md 3.3） ----------
 ## T(n) は T(n-1) のノーマルのクリアで開く。ハードはそのテーマのノーマル、エキスパートはハードのクリアで開く
+var unlock_all := false   # 確認用：?unlock=1（環境変数 UNLOCK_ALL）で全テーマ・全難易度を開く（セーブには残らない）
+
 func theme_open(i: int) -> bool:
-	if i <= 0:
+	if i <= 0 or unlock_all:
 		return true
 	return int(clears.get(Themes.key(Themes.THEMES[i - 1].id, "normal"), 0)) >= 1
 
 func diff_open(theme: String, diff: String) -> bool:
+	if unlock_all:
+		return true
 	if not theme_open(Themes.index_of(theme)):
 		return false
 	match diff:
