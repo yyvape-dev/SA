@@ -1,0 +1,18 @@
+{
+  "source_library_file_id": "libfile_603dfb03c3c48191992c295e13f4ebe6",
+  "source_sha256": "9e40a69d6e5a7b911933fc3f34da290850366fcbeaa053f6158276e15a6ccec3",
+  "method": "Deterministic crops from the approved mock. Frame uses radial alpha; interchangeable silver pictograms use luminance and saturation masks. Runtime applies the same dim opacity as the joystick.",
+  "assets": [
+    "t6_barrage.png",
+    "t6_dodge.png",
+    "t6_fist.png",
+    "t6_header_frame.png",
+    "t6_portrait.png",
+    "t6_rana_portrait.png",
+    "t6_ring.png",
+    "t6_rush.png",
+    "t6_storm.png",
+    "t6_tube_frame.png"
+  ],
+  "rana_portrait_source": "assets/rana2/rana2_0.webp, idle frame head crop"
+}

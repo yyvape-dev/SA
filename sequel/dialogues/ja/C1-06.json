@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "id": "C1-06",
+  "lines": [
+    {
+      "line_id": "c1-06-001",
+      "speaker_id": "guide",
+      "speaker": "案内係",
+      "text": "こちらは演習区画です。\n準備ができたら、先へ進んでください。",
+      "portrait_id": ""
+    },
+    {
+      "line_id": "c1-06-002",
+      "speaker_id": "lily",
+      "speaker": "リリィ",
+      "text": "わかりました。周囲を確認してから向かいます。",
+      "portrait_id": ""
+    },
+    {
+      "line_id": "c1-06-003",
+      "speaker_id": "guide",
+      "speaker": "案内係",
+      "text": "お気をつけて。",
+      "portrait_id": ""
+    }
+  ]
+}

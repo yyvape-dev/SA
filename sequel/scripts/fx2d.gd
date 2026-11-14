@@ -305,10 +305,26 @@ func _pal(strong: bool, pal: String) -> String:
 ## 当たり：芯の閃光（侵食で消える）＋飛ぶ向きに伸びる火花。輪は強い当たりだけ（広がるほど細く＝侵食で外から食う）
 func hit(wp: Vector3, dir: int, strong: bool, pal: String = "blue") -> void:
 	var b := _pal(strong, pal)
-	sprite("light_01", wp, 1.2 if strong else 0.9, 0.18, b, {"raw": CORE_RAW, "erode_from": 0.4, "cool": 0.5}, 0.0, false, 1.4)
-	burst(["spark_05", "trace_01"], wp, 14 if strong else 8, b, Vector2(4.0, 9.0), 0.35, Vector2(0.18, 0.4), 14.0, 0.0, true, 0.0, 0.5, 2.2)
+	# Local sharp contact, then a colored directional tail. Broad particle halos stack into white discs in crowds.
+	sprite("light_01", wp, 0.50 if strong else 0.38, 0.11 if strong else 0.08, b, {"raw": CORE_RAW, "erode_from": 0.2, "cool": 0.65}, 0.0, false, 1.1)
+	sprite("trace_01", wp, 0.85 if strong else 0.65, 0.20, b, {"raw": 1.2, "alpha": 0.55, "erode_from": 0.3, "cool": 0.65}, 90.0 * dir, false, 1.3)
+	burst(["spark_05", "trace_01"], wp, 14 if strong else 8, b, Vector2(4.0, 9.0), 0.28, Vector2(0.10, 0.23), 14.0, 0.0, true, 0.0, 0.5, 2.2, false)
 	if strong:
 		sprite("circle_03", wp, 0.7, 0.32, b, {"raw": 1.6, "erode_from": 0.0, "erode_soft": 0.1, "noise_amt": 0.3, "cool": 0.6}, 0.0, false, 3.2)
+
+## Single-target finisher: a vertical silver needle plus local contact, without an area-sized flare.
+func target_hit(wp: Vector3) -> void:
+	sprite("trace_01", wp, 1.15, 0.20, "silver", {"raw": 1.6, "alpha": 0.85, "erode_from": 0.2, "cool": 0.6})
+	sprite("light_01", wp, 0.55, 0.11, "silver", {"raw": 1.8, "erode_from": 0.15, "cool": 0.65}, 0.0, false, 1.1)
+	sprite("circle_03", wp, 0.6, 0.32, "silver", {"raw": 1.3, "erode_from": 0.0, "cool": 0.6}, 0.0, false, 1.6)
+	burst(["spark_05", "trace_01"], wp, 12, "silver", Vector2(3.0, 7.0), 0.32, Vector2(0.10, 0.22), 14.0, 0.0, true, 0.0, 0.5, 2.0, false)
+
+## Defense contact: compact gold ring and sparks, distinct from offensive blue/silver.
+## 0-45ms ignition, 45-100ms peak, 100-280ms erosion/decay. No full-screen flash.
+func guard(wp: Vector3) -> void:
+	sprite("light_01", wp, 0.7, 0.10, "gold", {"raw": 1.6, "alpha": 0.7, "erode_from": 0.25}, 0.0, false, 1.1)
+	sprite("circle_03", wp, 0.55, 0.26, "gold", {"raw": 1.3, "erode_from": 0.0, "erode_soft": 0.12, "cool": 0.5}, 0.0, false, 2.1)
+	burst(["spark_05", "trace_01"], wp, 8, "gold", Vector2(2.5, 5.0), 0.28, Vector2(0.10, 0.22), 14.0, 0.0, true, 0.0, 0.5, 1.8)
 
 ## 振りの弧：Kenney の三日月（slash_02）を、弧に沿って先端が走り、尾から消えるように。angle は画面での向き（0＝右を上から下へ）
 func slash(wp: Vector3, face: int, size_m: float, angle: float, col: Color = BLUE) -> void:
@@ -343,3 +359,10 @@ func big(wp: Vector3, col: Color, fx3d = null, foot: Vector3 = Vector3.ZERO) -> 
 	if fx3d:
 		fx3d.tex_quad("light_01", foot, 0.6, {"floor": true, "add": true, "col": col, "raw": 1.3, "size": 3.5, "grow": 1.6})
 		fx3d.tex_quad("scorch_02", foot, 2.0, {"floor": true, "add": false, "col": Color(0.05, 0.03, 0.04, 0.6), "size": 2.4, "fade_in": 0.05})
+
+## Flowing Rana skill edge: broad colored silhouette, brief white core, crossing motion.
+func flurry_edge(wp: Vector3, face: int, reach: float, angle: float, final: bool) -> void:
+	sprite("slash_02", wp, reach * (1.65 if final else 1.35), 0.30 if final else 0.17, "gold", {"raw": 1.55, "arc": 1.0, "erode_from": 0.35, "noise_amt": 0.25, "cool": 0.45}, (-90.0 + angle) * face, face < 0, 1.08)
+	if final:
+		sprite("trace_01", wp, 2.4, 0.18, "gold", {"raw": 1.45, "alpha": 0.7, "erode_from": 0.25, "cool": 0.6}, -25.0 * face, face < 0, 1.2)
+		burst(["trace_01", "spark_05"], wp, 16, "gold", Vector2(5.0, 10.0), 0.32, Vector2(0.08, 0.18), 12.0, 0.0, true, 0.0, 0.5, 2.5, false)

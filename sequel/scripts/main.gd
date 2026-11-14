@@ -91,6 +91,11 @@ func _boot(stage: String) -> void:
 func _q(key: String) -> bool:
 	return OS.has_feature("web") and str(JavaScriptBridge.eval("window.location.search")).contains(key)
 
+func _startup_town() -> String:
+	if _q("town=back") or _q("at=gamehall"):
+		return "back"
+	return OS.get_environment("TOWN")
+
 func _ready() -> void:
 	_boot("main_ready")
 	# 撮影・確認では乱数の種を固定する（版どうしで同じ場面・同じコマを比べるため）
@@ -116,9 +121,7 @@ func _ready() -> void:
 		progress.reset()
 	else:
 		progress.load_save()
-	town = OS.get_environment("TOWN")
-	if _q("town=back") or _q("at=gamehall"):
-		town = "back"
+	town = _startup_town()
 	if town == "back":
 		if not await district.ensure("bt1"):
 			loading.error_text = district.last_error
@@ -388,6 +391,8 @@ func change_town_floor(enter_hall: bool) -> void:
 func _process(delta: float) -> void:
 	if player == null:
 		return   # 地区の読み込み中
+	if battle != null and battle.combat_audio != null:
+		battle.combat_audio.set_region(town, dungeon != null)
 	_place_cam(false, delta)
 	_check_town_edge()
 	_check_gate()

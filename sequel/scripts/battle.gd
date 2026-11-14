@@ -2,6 +2,9 @@ extends Node3D
 ## 戦闘のまとめ役：敵の群れの出現、当たりの判定、ヒットストップ（止め）、画面の揺れ、ラナの体力。
 ## 敵は小さな群れで左右から来る。倒しきると少しして次の群れ（だんだん増える）。
 
+const CombatAudio := preload("res://scripts/combat_audio.gd")
+var combat_audio: Node
+
 const Enemy := preload("res://scripts/enemy.gd")
 const HPBAR := preload("res://scripts/hpbar.gdshader")
 
@@ -10,7 +13,8 @@ var ROOM_X := Vector2(-19, 19)
 var player: Node3D
 var main                  # main.gd（スキルの枠・進み具合を読む）
 ## 必殺技（2026-11-07）：ゲージ 0〜ULT_MAX。当てると 1 体 1.5、被弾で 5。cine＝演出の間（敵と仲間は止まる）、cam_zoom＝カメラの寄り 0〜1
-const ULT_MAX := 100.0
+const ULT_COST := 100.0
+const ULT_MAX := ULT_COST * 2.0
 var ult := 0.0
 var ult_gain := true
 var cine := false
@@ -18,6 +22,7 @@ var cam_zoom := 0.0
 var ally: Node3D = null   # 仲間（ally.gd）。絵を読み終えるまで null
 ## リリィの必殺技のゲージ（2026-11-07）：リリィの当たり 1 体 ALLY_ULT_GAIN。満タンで自動。cam_focus＝寄る相手（null ならラナ）
 const ALLY_ULT_GAIN := 1.2
+var manual_ally: Node3D
 var ally_ult := 0.0
 var ally_ult_gain := true
 var cam_focus: Node3D = null
@@ -59,6 +64,8 @@ var RIM_MODE: String = OS.get_environment("RIM_MODE") if OS.has_environment("RIM
 const BODY_DIM := 0.8   # 2026-11-06：縁取りを柔らかくしたので少し明るく（前 0.7）。   # キャラの体の明るさ（夜。縁取りは暗くしない）
 
 func _ready() -> void:
+	combat_audio = CombatAudio.new()
+	add_child(combat_audio)
 	var d = JSON.parse_string(FileAccess.get_file_as_string("res://assets/foe/foe.json"))
 	foe_clips = d
 	shadow_mat = StandardMaterial3D.new()
@@ -302,6 +309,12 @@ func _attack_from(p: Node3D, spec: Dictionary, mul: float) -> int:
 				fx.zap(hp_pos, 6 if spec.strong else 4, 0.9 if spec.strong else 0.6)
 			fx.number(e.position + Vector3(0, e.height() + 0.5, 0), int(round(d)), "strong" if spec.strong else "")
 			hits += 1
+	# One cue per resolved strike, regardless of how many enemies were hit.
+	if combat_audio != null:
+		if p == player and p != manual_ally and spec.has("slash"):
+			combat_audio.play_cue("swing")
+		if hits > 0:
+			combat_audio.play_cue("heavy" if spec.strong or p == ally or p == manual_ally else "hit")
 	if spec.has("slash"):
 		fx.slash(p.position, dir, spec.slash)
 		if fx2d and fx2d.enabled and not fx.legacy and p == player:   # 振りの弧に REEBO の三日月を重ねる（光る縁）
@@ -309,12 +322,16 @@ func _attack_from(p: Node3D, spec: Dictionary, mul: float) -> int:
 			var big: bool = spec.strong
 			var ang: float = 0.0 if sl.get("plane", "h") == "h" else 25.0   # 三日月の向き（0＝前を上から下へ。縦振りは少し前へ倒す）
 			var col: Color = fx2d.GOLD if sl.has("pal") else fx2d.BLUE
-			fx2d.slash(p.position + Vector3(dir * float(sl.get("r", 2.0)) * 0.35, float(sl.get("y", 1.0)) + 0.1, 0.2), dir, float(sl.get("r", 2.0)) * (0.8 if big else 0.6), ang + randf_range(-12.0, 12.0), col)
+			var edge_at: Vector3 = p.position + Vector3(dir * float(sl.get("r", 2.0)) * 0.35, float(sl.get("y", 1.0)) + 0.1, 0.2)
+			if sl.has("edge_angle"):
+				fx2d.flurry_edge(edge_at, dir, float(sl.r), float(sl.edge_angle), big)
+			else:
+				fx2d.slash(edge_at, dir, float(sl.get("r", 2.0)) * (0.8 if big else 0.6), ang + randf_range(-12.0, 12.0), col)
 	if hits > 0 and spec.strong and (fx.legacy or spec.get("wave", false)):   # 画面のゆがみは大技の一瞬だけ（2026-11-07。iPhone で重い）。前は強い当たりすべて
 		fx.shockwave(p.position + Vector3(dir * minf(spec.r, 2.0) * 0.5, 0.9, 0), 0.9 + mini(hits, 5) * 0.12)
 	if hits > 0 and p == player and ult_gain:
 		ult = minf(ULT_MAX, ult + hits * 1.5)
-	if hits > 0 and p == ally and ally_ult_gain:
+	if hits > 0 and (p == ally or p == manual_ally) and ally_ult_gain:
 		ally_ult = minf(ULT_MAX, ally_ult + hits * ALLY_ULT_GAIN)
 	if hits > 0:
 		if fx.legacy:   # 前の値（比較用）
@@ -334,19 +351,28 @@ const GOLD_PAL := [Color8(255, 150, 40), Color8(255, 210, 110), Color8(255, 250,
 func player_skill(spec: Dictionary, p: Node3D) -> void:
 	var f: int = p.face
 	match spec.get("fx", ""):
-		"flurry":   # 金の弧を毎回、大きさと角度をずらして重ねる
-			var base: Dictionary = [p.SL_SWEEP, p.SL_DOWN, p.SL_BACK, p.SL_THRUST][randi() % 4].duplicate()
-			base.r = float(base.r) * randf_range(0.85, 1.15) * 0.9
-			var rot := randf_range(-35.0, 35.0)
-			base.a0 = float(base.a0) + rot
-			base.a1 = float(base.a1) + rot
+		"flurry":
+			# Authored crossing cuts: the tail of one swing leads into the next.
+			var index := clampi(hit_count_in_skill(p), 0, 9)
+			var progress := float(index) / 9.0
+			var base: Dictionary = [p.SL_DOWN, p.SL_BACK, p.SL_SWEEP, p.SL_DOWN][index % 4].duplicate()
+			base.r = lerpf(1.9, 2.3, progress)
+			base.w = lerpf(0.32, 0.72, progress)
+			base.a0 = [125.0, -55.0, 105.0, 135.0][index % 4]
+			base.a1 = [-45.0, 120.0, -50.0, -55.0][index % 4]
+			base.y = [1.05, 0.95, 1.0, 1.15][index % 4]
 			base.pal = GOLD_PAL
-			base.life = 0.22
+			base.life = lerpf(0.14, 0.23, progress)
+			base.draw = lerpf(0.045, 0.025, progress)
+			base.edge_angle = -35.0 if index % 2 == 0 else 40.0
 			spec.slash = base
-			if hit_count_in_skill(p) >= 9:
-				shake = maxf(shake, 3.0)   # 10 回目以降はわずかに揺れ続ける
 		"flurry_end":
 			var big: Dictionary = p.SL_BIG.duplicate()
+			big.r = 2.5
+			big.w = 1.15
+			big.life = 0.36
+			big.draw = 0.045
+			big.edge_angle = -30.0
 			big.pal = GOLD_PAL
 			spec.slash = big
 			chroma_hit(0.8)
@@ -378,6 +404,30 @@ func player_skill(spec: Dictionary, p: Node3D) -> void:
 
 func hit_count_in_skill(p: Node3D) -> int:
 	return int(p.hit_i)
+
+# Successful defense: cancel exactly one strike, leaving a manual counter opportunity.
+func just_guard(p: Node3D, e) -> void:
+	if combat_audio != null:
+		combat_audio.play_cue("guard")
+	if e.atk.get("warn") != null:
+		fx.drop(e.atk.warn)
+		e.atk.warn = null
+	e.atk.done = true
+	e.state = "stun"
+	e.stun = maxf(e.stun, 0.8)
+	e.kx = (-1 if e.position.x < p.position.x else 1) * 1.2
+	e.flash = maxf(e.flash, 0.1)
+	p.inv = maxf(p.inv, 0.6)
+	var direction := 1 if e.position.x >= p.position.x else -1
+	p.face = direction
+	var contact: Vector3 = p.position + Vector3(direction * minf(absf(e.position.x - p.position.x) * 0.5, 0.75), 1.05, (e.position.z - p.position.z) * 0.5 + 0.05)
+	freeze = maxf(freeze, 0.07)
+	shake = maxf(shake, 4.0)
+	if fx2d and fx2d.enabled and not fx.legacy:
+		fx2d.guard(contact)
+	else:
+		fx.tex_quad("circle_03", contact, 0.26, {"add": true, "col": Color(1.0, 0.78, 0.32), "raw": 1.3, "size": 0.55, "grow": 2.1})
+		fx.hit(contact, -direction, false, true)
 
 # ---------- 敵の攻撃 ----------
 func player_alive() -> bool:

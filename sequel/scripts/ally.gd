@@ -36,6 +36,7 @@ const HIP := Vector2(0.05, 0.95)   # 腰（足元から m）。軌跡を外へ�
 const TRAIL_K := 1.3               # 軌跡の長さ（通り道の 1.3 倍）
 const CHARGE_T := 0.12             # 溜め（つま先に蒼い光が集まる）
 
+var normal_attack_scale := 1.0 # Manual control may accelerate normals; AI and skills retain their timing.
 var world               # battle.gd
 var data := {}
 var pages := {}
@@ -106,7 +107,7 @@ func set_height(h: float) -> void:
 func can_be_hit() -> bool:
 	return inv <= 0.0 and data.clips.has("hit") and state != "skill" and state != "ult"
 
-func on_hurt(dir: int) -> void:
+func on_hurt(dir: int, _dead: bool = false) -> void:
 	state = "hurt"
 	clip = "hit"
 	mv = ""
@@ -152,6 +153,7 @@ func _nearest() -> Node3D:
 	return best
 
 func _start_atk(e: Node3D) -> void:
+	normal_attack_scale = 1.0
 	var opts := []
 	for p in PATTERNS:
 		if p != last and data.clips.has(p):
@@ -166,7 +168,8 @@ func _start_atk(e: Node3D) -> void:
 	dash_x0 = position.x
 
 ## 撮影用：決まった技を出させる
-func force_attack(c: String, e: Node3D) -> void:
+func force_attack(c: String, e: Node3D, speed_scale: float = 1.0) -> void:
+	normal_attack_scale = speed_scale
 	last = ""
 	clip = c
 	face = 1 if e.position.x >= position.x else -1
@@ -256,7 +259,7 @@ func _physics_process(delta: float) -> void:
 				_show("hit", hi)
 		"atk":
 			var c: Dictionary = data.clips[clip]
-			var fps: float = float(c.fps) * SPD
+			var fps: float = float(c.fps) * SPD * normal_attack_scale
 			var i := int(t * fps)
 			var hits: Array = c.hits
 			var legacy: bool = world.fx.legacy or not c.has("tip")
@@ -320,7 +323,7 @@ func _trail(c: Dictionary, h: int) -> Array:
 ## 溜め・突進・残像（当たりの前）
 func _atk_extras(c: Dictionary, i: int, dt: float) -> void:
 	var hits: Array = c.hits
-	var fps: float = float(c.fps) * SPD
+	var fps: float = float(c.fps) * SPD * normal_attack_scale
 	if hit_i < hits.size():
 		var h: int = int(hits[hit_i])
 		if charged < hit_i and i >= h - int(ceil(CHARGE_T * fps)):
@@ -427,7 +430,7 @@ func _pick_skill(e: Node3D) -> bool:
 		return false
 	var pl: Node3D = world.player
 	# 必殺技：満タン・誰も演出中でない
-	if world.ally_ult >= world.ULT_MAX and not world.cine and pl.state != "ult":
+	if world.ally_ult >= world.ULT_COST and not world.cine and pl.state != "ult":
 		var tg := _ult_target()
 		if tg:
 			_start_ult(tg)
@@ -557,19 +560,12 @@ func _skill_hit(spec: Dictionary) -> void:
 		"ult_end":   # 天雷：狙った敵へ巨大な雷の柱
 			hs.only = target if _alive(target) else null
 			var g2: Vector3 = (target.position if _alive(target) else position + Vector3(face * 1.0, 0, 0)) + Vector3(0, 0, 0.1)
-			fx.sky_bolt(g2, 0.0, true)
-			fx.sky_bolt(g2 + Vector3(0.25, 0, 0), 0.05, true)
-			fx.pillar(g2, 7.0)
-			fx.floor_bolts(g2, 16, 3.6)
-			fx.storm_ring(g2, 3.6)
-			fx.shockwave(g2 + Vector3(0, 1.0, 0), 2.2, 0.6, 0.9)
-			world.chroma_hit(1.0)
+			# The damage is locked to one target: avoid the storm's broad radial language here.
+			fx.focused_strike(g2)
+			world.chroma_hit(0.55)
 			if world.fx2d and not fx.legacy:
-				world.fx2d.big(g2 + Vector3(0, 1.2, 0), world.fx2d.SILVER, fx, g2)
-			fx.dust(g2, 2.4)
+				world.fx2d.target_hit(g2 + Vector3(0, 1.15, 0))
 			world.shake = maxf(world.shake, 24.0)
-			if world.main and world.main.lily_cutin:
-				world.main.lily_cutin.flash_white()
 	var nh: int = world.ally_attack(self, hs)
 	if OS.has_environment("LSKILL_LOG"):
 		print("  hit ", spec.get("fx", ""), " dmg ", hs.dmg, " 当たった ", nh)
@@ -589,7 +585,7 @@ func _ult_target() -> Node3D:
 	return best
 
 func _start_ult(e: Node3D) -> void:
-	world.ally_ult = 0.0
+	world.ally_ult = maxf(0.0, world.ally_ult - world.ULT_COST)
 	world.ally_ult_gain = false
 	sk_id = "ult"
 	sk = sk_tab["ult"]
@@ -603,6 +599,7 @@ func _start_ult(e: Node3D) -> void:
 	ev_i = 0
 	world.cine = true
 	world.cam_focus = self
+	if world.combat_audio != null: world.combat_audio.play_cue("ult_charge")
 	world.big_moment(2.9)
 
 func _ult_process(delta: float) -> void:
@@ -617,6 +614,7 @@ func _ult_process(delta: float) -> void:
 		return
 	if not ult_jumped:   # 狙った敵の横へ瞬間移動（元の場所と着いた所に蒼い光）
 		ult_jumped = true
+		if world.combat_audio != null: world.combat_audio.play_cue("ult_release")
 		world.cine = false
 		if not _alive(target):
 			target = _ult_target()
@@ -648,6 +646,8 @@ func _end_ult() -> void:
 
 ## 撮影用：決まった技を出させる（id＝rush・barrage・storm・ult）
 func force_skill(id: String, e: Node3D) -> void:
+	if world.combat_audio != null:
+		world.combat_audio.play_cue("skill")
 	if id == "ult":
 		_start_ult(e)
 	else:

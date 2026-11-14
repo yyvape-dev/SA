@@ -12,6 +12,9 @@ const DEPTH_K := 0.75        # 奥行きの移動は少し遅く（アラド型�
 const HEIGHT_M := 1.85       # 画面での背の高さ（構えの絵の背＝この高さ。前作の基準 205 に合わせるかは未決）
 const DODGE_T := 0.24
 const DODGE_D := 4.0
+# Same input as dodge; a readable incoming strike can be deflected instead.
+const GUARD_MIN := 0.15
+const GUARD_MAX := 0.32
 const HURT_T := 0.42
 const HOLD_T := 0.35         # この長さ押し続けると長押しの技（回転斬り）
 ## 攻撃の速さ（2026-11-06、ユーザー「つながりが遅くて爽快感がない」）：連撃 1.5 倍・回転斬り 1.25 倍。次の技は当たりの 0.04 秒後から受け付ける
@@ -228,6 +231,8 @@ func use_skill(id: String) -> bool:
 	atk_next = "atkA"
 	skill_cd[id] = float(sk.cd)
 	skill_uses[id] = int(skill_uses.get(id, 0)) + 1
+	if world.combat_audio != null:
+		world.combat_audio.play_cue("skill")
 	world.big_moment(float(sk.total) * 0.85)   # 大技の暗転（specs/vfx_overhaul.md）
 	return true
 
@@ -249,12 +254,12 @@ var ult_t := 0.0
 func can_use_ult() -> bool:
 	if world.cine or (world.ally and world.ally.state == "ult"):   # リリィの必殺技の最中は出さない
 		return false
-	return not locked and world.ult >= world.ULT_MAX and (state == "move" or (state == "atk" and tab.has(clip) and t >= float(tab[clip].cancel)))
+	return not locked and world.ult >= world.ULT_COST and (state == "move" or (state == "atk" and tab.has(clip) and t >= float(tab[clip].cancel)))
 
 func use_ult() -> bool:
 	if not can_use_ult():
 		return false
-	world.ult = 0.0
+	world.ult = maxf(0.0, world.ult - world.ULT_COST)
 	world.ult_gain = false
 	if absf(move_in.x) > 0.3:
 		face = 1 if move_in.x > 0 else -1
@@ -266,6 +271,7 @@ func use_ult() -> bool:
 	queued_hold = false
 	atk_next = "atkA"
 	world.cine = true
+	if world.combat_audio != null: world.combat_audio.play_cue("ult_charge")
 	world.big_moment(2.3)
 	return true
 
@@ -279,6 +285,8 @@ func _ult_process(delta: float) -> void:
 			world.main.cutin.play()   # 寄りきってから立ち絵が差し込む
 		_show_frame("idle", 0)
 		return
+	if ult_t - delta < ULT_T.cut_end and world.combat_audio != null:
+		world.combat_audio.play_cue("ult_release")
 	world.cine = false
 	world.cam_zoom = maxf(0.0, 1.0 - (ult_t - ULT_T.cut_end) / 0.35)
 	var tt: float = (ult_t - ULT_T.cut_end) * 1.3
@@ -314,12 +322,34 @@ func _ult_process(delta: float) -> void:
 		world.cam_zoom = 0.0
 		_end_attack()
 
+func guard_candidate(e) -> bool:
+	if e.state != "atk" or bool(e.atk.get("done", false)):
+		return false
+	var remaining: float = float(e.atk.hit_t) - float(e.atk.t)
+	if remaining < GUARD_MIN or remaining > GUARD_MAX:
+		return false
+	# Match the enemy's actual directional hit geometry, including wide boss swings.
+	var dx: float = (position.x - e.position.x) * e.face
+	if e.atk.get("wide", false):
+		dx = absf(position.x - e.position.x)
+	return dx > -0.3 and dx < float(e.atk.reach) and absf(position.z - e.position.z) < float(e.atk.lane)
+
 func dodge() -> void:
 	if locked:
 		return
 	if state == "dodge" or state == "down" or state == "hurt":
 		return
+	if state == "move" and world != null:
+		for foe in world.enemies:
+			if is_instance_valid(foe) and guard_candidate(foe):
+				world.just_guard(self, foe)
+				attack_release()
+				queued = false
+				queued_hold = false
+				return
 	state = "dodge"
+	if world != null and world.combat_audio != null:
+		world.combat_audio.play_cue("dash")
 	dodge_t = 0.0
 	ghost_t = 0.0
 	queued = false

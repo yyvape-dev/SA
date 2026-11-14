@@ -561,8 +561,9 @@ func _strip(pts: Array, w: float, taper: float) -> ArrayMesh:
 const BOLT_SH := preload("res://scripts/bolt.gdshader")
 const STROKES := [[0.0, 1.0], [0.045, 0.35], [0.075, 1.25], [0.13, 0.5], [0.17, 0.9]]   # 再放電：[秒, 明るさ]
 
-func bolt(path: Array, w: float, col: Color, life: float, delay: float, jitter: float, on_floor: bool = false, branches: int = -1) -> void:
+func bolt(path: Array, w: float, col: Color, life: float, delay: float, jitter: float, on_floor: bool = false, branches: int = -1, x_radius: float = 0.0) -> void:
 	var pts := _bolt_points(path, jitter, on_floor)
+	_constrain_bolt_x(pts, (path.back() as Vector3).x, x_radius)
 	_bolt_mesh(pts, w * 4.0, col, life, delay)
 	var nb: int = branches if branches >= 0 else (randi_range(0, 2) if pts.size() > 8 else 0)
 	for b in nb:
@@ -572,7 +573,15 @@ func bolt(path: Array, w: float, col: Color, life: float, delay: float, jitter: 
 		var sidev := Vector3(-dirv.y, dirv.x, 0) if not on_floor else Vector3(-dirv.z, 0, dirv.x)
 		var len := from.distance_to(pts[pts.size() - 1]) * randf_range(0.3, 0.55)
 		var to := from + (dirv * 0.6 + sidev * randf_range(-0.9, 0.9)).normalized() * len
-		_bolt_mesh(_bolt_points([from, to], jitter * 0.7, on_floor), w * 2.2, col, life * 0.8, delay + 0.02)
+		var branch := _bolt_points([from, to], jitter * 0.7, on_floor)
+		_constrain_bolt_x(branch, (path.back() as Vector3).x, x_radius)
+		_bolt_mesh(branch, w * 2.2, col, life * 0.8, delay + 0.02)
+
+# Optional bounds for single-target lightning only; area effects remain unchanged.
+func _constrain_bolt_x(pts: Array, center: float, radius: float) -> void:
+	if radius <= 0.0: return
+	for i in pts.size():
+		pts[i].x = clampf(pts[i].x, center - radius, center + radius)
 
 func _bolt_points(path: Array, jitter: float, on_floor: bool) -> Array:
 	var pts := []
@@ -737,6 +746,17 @@ func sky_bolt(g: Vector3, delay: float = 0.0, big: bool = false) -> void:
 	for i in (10 if not big else 22):
 		var a := randf() * TAU
 		_spark(g + Vector3(0, 0.1, 0), Vector3(cos(a) * randf_range(2, 6), randf_range(2.0, 6.0), sin(a) * randf_range(1, 3)), randf_range(0.25, 0.45), 0.026, SILVER[0] if i % 2 else SILVER[2], delay)
+
+## 天雷の単体着弾：細い芯・青紫の尾・標的の足元だけの印。雷陣の範囲輪とは区別する。
+func focused_strike(g: Vector3) -> void:
+	var path := [g + Vector3(-0.12, 7.0, 0.1), g + Vector3(0.18, 3.5, 0.1), g + Vector3(0, 0.05, 0.1)]
+	bolt(path, 0.09, BOLT_BLUE, 0.30, 0.0, 0.22, false, 1, 0.65)
+	bolt(path, 0.032, SILVER[0], 0.16, 0.0, 0.10, false, 1, 0.65)
+	bolt([g + Vector3(0.3, 5.5, 0.1), g + Vector3(0, 0.05, 0.1)], 0.025, BOLT_VIOLET, 0.24, 0.035, 0.18, false, 1, 0.65)
+	tex_quad("circle_03", g + Vector3(0, 0.035, 0), 0.34, {"floor": true, "add": true, "col": BOLT_BLUE, "raw": 1.2, "size": 1.1, "grow": 1.2, "erode_from": 0.15})
+	for i in 10:
+		var angle := randf() * TAU
+		_spark(g + Vector3(0, 0.3, 0), Vector3(cos(angle) * 1.6, randf_range(2.0, 4.5), sin(angle) * 0.8), 0.28, 0.02, SILVER[1] if i % 2 else BOLT_VIOLET, 0.0)
 
 ## 雷陣の締め：蒼い輪が外へ弾けて、白銀の粒が外へ飛ぶ（金の渦の締めの蒼い版）
 func storm_ring(p: Vector3, r: float) -> void:
