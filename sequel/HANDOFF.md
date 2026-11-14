@@ -4,6 +4,7 @@
 - できた：テーマ 4 つ×難易度 3 段、扉→テーマの札→難易度の札、5×5 に 12〜14 部屋、部屋 2〜3 画面、1 部屋 3 群れ（進む先から）、失敗と戻る扉（何も残さない）、仲間の体力と倒れ。テーマの違いは画面の色で仮置き（キャラ・エフェクトも染まる）。数値は全部仮。
 - GPT へ：依頼書 `docs/gpt_dungeon_design_brief.md`。届いた分は `art/incoming/dungeon_20261114/`（GPT 側の引き継ぎ `docs/sa2_dungeon_art_handoff_20261114.md`）。
 - **T2 は届いた部品 10 枚で仮組み済み**（仕様の 10.。板を並べる方式、地区 pck `dg_t2`）。T3・T4 は部品が未着で画面の色のまま。
+- 敵 12 体の設定画の発注票（右向き真横・攻撃前の待機の構え、添付＝ラナの待機の構え）：https://claude.ai/artifact/N1oWcyoLWGi57yJaEEvfYQ （ユーザーが手元で生成。作り直しは `python3 -I sequel/tools/make_enemy_order.py <設計書> <ラナの待機の切り抜き.png> <出力.html>`）。
 - **壊れたファイル**：`t1_boss.png`・`t1_boss_front.png`・`t2_x1.png` は 3 枚とも 786,444 バイトで途中で切れていて読めない（GitHub への上げ方の問題と推測）。上げ直しが要る。
 - カメラ：ダンジョンは入口に関係なく D2・帯 4m に固定（仕様の 11.。新しい街と同じ）。
 - 試し版：`previews/sa2-dungeon/`（新しい街の扉の前から https://yyvape-dev.github.io/SA/previews/sa2-dungeon/?town=back&at=gate 、T2 へ直接 `?town=back&dgtest=5&dgtheme=t2`、重さは `?dgtest=14&perf=1`）。iPhone 実機は未確認。
