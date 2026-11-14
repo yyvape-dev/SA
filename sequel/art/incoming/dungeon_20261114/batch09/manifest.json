@@ -1,0 +1,44 @@
+[
+  {
+    "id": "t2_x1",
+    "revision": "r2",
+    "file": "t2_x1_r2.png",
+    "previous_local": "/workspace/dungeon_batch_01/sequel/art/incoming/dungeon_20261114_batch01/t2_x1.png",
+    "previous_repo": "sequel/art/incoming/dungeon_20261114/batch01/t2_x1.png",
+    "width": 1738,
+    "height": 905,
+    "sha256": "57ce0661572a0011516ca1bce8104bf840ca80d579aa8b9e2ed24923e9e2b84d",
+    "old_sha256": "96c116b497ca267e27f0d1abf2c8923a6a7e293aa99225cb2ca446f9ced98d18",
+    "decode": "PASS",
+    "status": "proposal_unapproved",
+    "tool": "OpenAI image_gen.imagegen"
+  },
+  {
+    "id": "t3_b1",
+    "revision": "r2",
+    "file": "t3_b1_r2.png",
+    "previous_local": "/workspace/dungeon_batch_01/sequel/art/incoming/dungeon_20261114_batch01/t3_b1.png",
+    "previous_repo": "sequel/art/incoming/dungeon_20261114/batch01/t3_b1.png",
+    "width": 1737,
+    "height": 905,
+    "sha256": "2a79b1ce1d196d551878dbb6c11f0e2502b71c9d5f108b9993f203576f0bc6b9",
+    "old_sha256": "25e3b3339a11c413813c81378ab6bd5ff63a3b4015175ead85e3cf8d61738a70",
+    "decode": "PASS",
+    "status": "proposal_unapproved",
+    "tool": "OpenAI image_gen.imagegen"
+  },
+  {
+    "id": "t3_b2",
+    "revision": "r2",
+    "file": "t3_b2_r2.png",
+    "previous_local": "/workspace/dungeon_batch_01/sequel/art/incoming/dungeon_20261114_batch01/t3_b2.png",
+    "previous_repo": "sequel/art/incoming/dungeon_20261114/batch01/t3_b2.png",
+    "width": 1736,
+    "height": 906,
+    "sha256": "eae2f9fcabd1b021833ed5a0d7b4688439f21ac07c7742355e1e25eaf0a4e33b",
+    "old_sha256": "281e93b84473cd9e7c508a78c14e45b1f4c84446d6ec823829794fef5be93374",
+    "decode": "PASS",
+    "status": "proposal_unapproved",
+    "tool": "OpenAI image_gen.imagegen"
+  }
+]

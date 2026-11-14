@@ -1,0 +1,35 @@
+[
+  {
+    "id": "t2_x1",
+    "old": "/workspace/dungeon_batch_01/sequel/art/incoming/dungeon_20261114_batch01/t2_x1.png",
+    "refs": [
+      "/workspace/dungeon_batch_01/sequel/art/incoming/dungeon_20261114_batch01/t2_x1.png",
+      "/workspace/production_refs/w_shady.png",
+      "/workspace/production_refs/back_alley_1.png"
+    ],
+    "prompt": "Revise ONLY the first image's painting/material treatment using actual approved production art in images 2 and 3. Preserve the first image's exact subject, overall silhouette, frontal elevation, object placement, side pillars, base line and upper beam heights, openings and proportions. This is a style/material edit not a redesign. Match production references' oil-painted irregular angular brush strokes, deep occlusion shadow masses, black iron with sparse rusty copper wear, brown timber distinct from stone. Remove uniform pale lavender wash. Stone may stay pale grey where lit, but recesses deep charcoal, wood weathered brown, metal near black. Purple only locally from corruption, no orange overall lighting. Keep magenta #FF00FF background, full isolated object and margins. No people, text, UI, new room floor, Japanese motifs. Preserve original aspect and resolution as closely as tool permits; do not crop. T2 special fissure wall: keep vertical purple rift, braces and cyan conduit, but reduce large purple bloom and excessive bright rim lighting; let dark wall and black iron surround the fissure, few strongest light accents only. Cyan technical glow distinct from violet invading energy. No added shop or alley.",
+    "source": "/workspace/generated_images/exec-00fde92b-60a3-4c01-974c-d8bac9df051b.png"
+  },
+  {
+    "id": "t3_b1",
+    "old": "/workspace/dungeon_batch_01/sequel/art/incoming/dungeon_20261114_batch01/t3_b1.png",
+    "refs": [
+      "/workspace/dungeon_batch_01/sequel/art/incoming/dungeon_20261114_batch01/t3_b1.png",
+      "/workspace/production_refs/w_shady.png",
+      "/workspace/production_refs/back_alley_1.png"
+    ],
+    "prompt": "Revise ONLY the first image's painting/material treatment using actual approved production art in images 2 and 3. Preserve the first image's exact subject, overall silhouette, frontal elevation, object placement, side pillars, base line and upper beam heights, openings and proportions. This is a style/material edit not a redesign. Match production references' oil-painted irregular angular brush strokes, deep occlusion shadow masses, black iron with sparse rusty copper wear, brown timber distinct from stone. Remove uniform pale lavender wash. Stone may stay pale grey where lit, but recesses deep charcoal, wood weathered brown, metal near black. Purple only locally from corruption, no orange overall lighting. Keep magenta #FF00FF background, full isolated object and margins. No people, text, UI, new room floor, Japanese motifs. Preserve original aspect and resolution as closely as tool permits; do not crop. T3 ruined apothecary: keep broken stone, bottle shelves, counter, arch and walkway. Keep abandoned dark unlit interior, do not turn into active warmly lit shop. Strong weathered brown shelves with subtle bottle glints, pale cool-grey broken masonry contrasting black metal, small localized violet cracks.",
+    "source": "/workspace/generated_images/exec-dd05cff6-ef1e-4243-b3d1-36d1d827e0fb.png"
+  },
+  {
+    "id": "t3_b2",
+    "old": "/workspace/dungeon_batch_01/sequel/art/incoming/dungeon_20261114_batch01/t3_b2.png",
+    "refs": [
+      "/workspace/dungeon_batch_01/sequel/art/incoming/dungeon_20261114_batch01/t3_b2.png",
+      "/workspace/production_refs/w_shady.png",
+      "/workspace/production_refs/back_alley_1.png"
+    ],
+    "prompt": "Revise ONLY the first image's painting/material treatment using actual approved production art in images 2 and 3. Preserve the first image's exact subject, overall silhouette, frontal elevation, object placement, side pillars, base line and upper beam heights, openings and proportions. This is a style/material edit not a redesign. Match production references' oil-painted irregular angular brush strokes, deep occlusion shadow masses, black iron with sparse rusty copper wear, brown timber distinct from stone. Remove uniform pale lavender wash. Stone may stay pale grey where lit, but recesses deep charcoal, wood weathered brown, metal near black. Purple only locally from corruption, no orange overall lighting. Keep magenta #FF00FF background, full isolated object and margins. No people, text, UI, new room floor, Japanese motifs. Preserve original aspect and resolution as closely as tool permits; do not crop. T3 abandoned prosthetic workshop: preserve inert brass mechanical arms on bench, left broken arch, right tank, top damaged walkway. Arms are merchandise, no people. Dark bronze/copper arms with restrained highlights, weathered brown workbench, clearly distinct black iron brackets and grey fractured stone. Purple cracks sparse.",
+    "source": "/workspace/generated_images/exec-1eba663a-1d9b-4ced-b1b5-08451f39b3c6.png"
+  }
+]
