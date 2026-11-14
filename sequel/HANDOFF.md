@@ -1,5 +1,17 @@
 # 続編（SA2・融合都市）引き継ぎ
 
+## 次の会話へ（2026-11-14 22:00 時点。ブランチ claude/skill-tree-implementation-fsvlcl＝作業の土台、main は未マージ）
+- できている：スキルツリー／ダンジョンの仕組み（テーマ4×難易度3、5×5に12〜14部屋、3群れ、失敗と戻る扉、仲間の体力）／T2 の部品の仮組み（板を並べる方式）／ダンジョンのカメラは D2・帯4m に固定。仕様の正本は `specs/dungeon_themes.md`（0.決定〜11.カメラ）。
+- 試し版：https://yyvape-dev.github.io/SA/previews/sa2-dungeon/?town=back&at=gate （T2 直行 `?town=back&dgtest=5&dgtheme=t2`）。iPhone 実機は未確認。
+- ユーザーが手元で作業中：敵12体の設定画（右向き真横・攻撃前の待機の構え・1440×1080・1体ずつの配置）。発注票 https://claude.ai/artifact/N1oWcyoLWGi57yJaEEvfYQ （作り直し `tools/make_enemy_order.py`）。
+- 次にやること：
+  1. 設定画が届いたら：足元（下から7％）と右・上の余白を測る → 動画AIの発注票（設計書 `docs/sa2_dungeon_design_T1-T4.md` の IDLE/WALK/ATTACK/HIT/FALL を1本ずつ全文、Skill art-order-sheet の Grok の書き方）。
+  2. 動画が届いたら：video-to-sprite-pipeline で連番 → `enemy.gd` に新しい敵の種類（今は前作の "1"・"3"・g1 だけ）→ テーマ表 `dungeon_themes.gd` の foes・boss を差し替え。
+  3. 上げ直し待ち：`t2_x1.png`（大物）・`t1_boss.png`（待機の構えで描き直し）は途中で切れて開けない。
+  4. T3・T4 の部品（各11枚）は未着。届いたら `tools/cut_dungeon_parts.py <受け取り> t3` → 地区 pck を `export_web.py` に足す（T2 の dg_t2 と同じ）。
+  5. 未決：敵の数値（3人だと被弾がほぼ無い）、同時に出る敵の上限（実機で `?dgtest=14&perf=1`）、仲間の体力、T2 の床の映り込み。
+- 学び（今回の会話）：古い大通りのカメラで撮って判定を頼み、新しい街（D2）と違う画面を見せてしまった → 画面の判定は `town=back`（新しい街）から入った状態で撮る。外部AIへの依頼は「使う絵だけ」頼む（使わない正面図を頼んで上限を無駄にした）。
+
 ## ダンジョンを増やす（2026-11-14。仕様 `specs/dungeon_themes.md`、仕組みは実装済み＝仕様の 9.）
 - できた：テーマ 4 つ×難易度 3 段、扉→テーマの札→難易度の札、5×5 に 12〜14 部屋、部屋 2〜3 画面、1 部屋 3 群れ（進む先から）、失敗と戻る扉（何も残さない）、仲間の体力と倒れ。テーマの違いは画面の色で仮置き（キャラ・エフェクトも染まる）。数値は全部仮。
 - GPT へ：依頼書 `docs/gpt_dungeon_design_brief.md`。届いた分は `art/incoming/dungeon_20261114/`（GPT 側の引き継ぎ `docs/sa2_dungeon_art_handoff_20261114.md`）。
