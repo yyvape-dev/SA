@@ -1,5 +1,7 @@
 # SA2 ダンジョン・敵デザイン提案（T1〜T4）
 
+> （2026-11-14 ユーザー決定：敵・ボスの設定画は「右向きの真横・全身・攻撃前の待機の構え」1 枚だけ。正面は作らない。ゲームは横からしか映らず、動画AIに渡すのはこの絵＝動画の最初のコマ。構えの姿勢にしておくと、待機のループ・攻撃の起点・攻撃後に戻る姿勢をこの 1 枚にそろえられる）
+
 2026-11-14。依頼書7章への回答。**【決定】は原文を保持。以下の新しい名称・色の細分・部品内容・敵の形と攻撃数値はすべて【案】で、採用済み設定ではない。**
 
 参照：`yyvape-dev/SA` main `d9c9f87e8ce9c435324173e66207b13d53a56a63`。依頼書・world_concept・dungeon_themesの全文、および指定参考画像4点を確認。参考画像の構図は複製しない。
@@ -20,7 +22,7 @@
 
 部品は**各IDごと1枚の単独絵**。地面g1だけ真上、他は歪みの少ない正面。背景は単色#FF00FF。地面は正方形の素材面が全体を埋めるため、マゼンタは外側だけ（余白を付ける場合）とし、模様内部へ混ぜない。平らな照明、映り込みなし。厳密な継ぎ目とピクセル寸法は下絵確定後に検証する。
 
-完成画の仮名は`tN_room.png`。部品は`tN_b1.png`等。敵真横は`tN_e1.png`・`tN_boss.png`、正面は重複回避のため`_front.png`を付ける**命名案**。最終接尾辞は末尾の質問参照。
+完成画の仮名は`tN_room.png`。部品は`tN_b1.png`等。敵は右向き真横・攻撃前の待機の構えの`tN_e1.png`・`tN_boss.png`だけ（正面`_front`は作らない＝2026-11-14 ユーザー決定）。最終接尾辞は末尾の質問参照。
 
 ## 3. テーマごとの必須要素・部品
 
@@ -157,7 +159,7 @@ Use the approved RIGHT-FACING SIDE-VIEW full-body character reference. Locked or
 
 形の固定【案】：Lean adult male racketeer, cropped dark hair, plum waistcoat over rolled sleeves, charcoal trousers, heavy boots, one chunky iron sap in right hand, tiny red magitech cuff; human anatomy, no horns, no gold or blue glow.
 
-設定画：`t1_e1.png`（右向き真横・全身・#FF00FF）／`t1_e1_front.png`（正面・同じ形・同じ衣装・#FF00FF）。
+設定画：`t1_e1.png`（右向き真横・全身・攻撃前の待機の構え・#FF00FF）。正面は作らない（2026-11-14 ユーザー決定）。
 
 | 攻撃 | 動き | 前方／奥行き | 予兆【案】 |
 |---|---|---|---|
@@ -178,7 +180,7 @@ FALL: Buckle at both knees, drop the sap hand, fall onto the right side and rema
 
 形の固定【案】：Slender adult female tout, short dark bob, cropped burgundy jacket, opaque dark split skirt over fitted trousers, ankle boots, compact thick-barrel magitech pistol in right hand; one dull red glass sight, no floating decorations.
 
-設定画：`t1_e2.png`（右向き真横・全身・#FF00FF）／`t1_e2_front.png`（正面・同じ形・同じ衣装・#FF00FF）。
+設定画：`t1_e2.png`（右向き真横・全身・攻撃前の待機の構え・#FF00FF）。正面は作らない（2026-11-14 ユーザー決定）。
 
 | 攻撃 | 動き | 前方／奥行き | 予兆【案】 |
 |---|---|---|---|
@@ -199,7 +201,7 @@ FALL: Stagger one step backward, lower the pistol, sink to one knee, then fall s
 
 形の固定【案】：Massive broad adult human male bouncer, shaved head, dark burgundy sleeveless formal coat, charcoal trousers, heavy boots, oversized opaque iron RIGHT prosthetic forearm with three blunt knuckle plates and red inset core; left arm muscular human, broad simple silhouette, no crown no gold no blue.
 
-設定画：`t1_boss.png`（右向き真横・全身・#FF00FF）／`t1_boss_front.png`（正面・同じ形・同じ衣装・#FF00FF）。
+設定画：`t1_boss.png`（右向き真横・全身・攻撃前の待機の構え・#FF00FF）。正面は作らない（2026-11-14 ユーザー決定）。
 
 | 攻撃 | 動き | 前方／奥行き | 予兆【案】 |
 |---|---|---|---|
@@ -224,7 +226,7 @@ FALL: The iron arm goes limp, both knees hit the ground, the torso tips forward 
 
 形の固定【案】：Adult humanoid with wrapped head, short dark teal work apron over charcoal trousers, one large elbowed RIGHT iron prosthetic arm, thick violet organic seam at shoulder, tiny red slit eye, two normal legs, no dangling tubes.
 
-設定画：`t2_e1.png`（右向き真横・全身・#FF00FF）／`t2_e1_front.png`（正面・同じ形・同じ衣装・#FF00FF）。
+設定画：`t2_e1.png`（右向き真横・全身・攻撃前の待機の構え・#FF00FF）。正面は作らない（2026-11-14 ユーザー決定）。
 
 | 攻撃 | 動き | 前方／奥行き | 予兆【案】 |
 |---|---|---|---|
@@ -245,7 +247,7 @@ FALL: Both legs buckle; the heavy prosthetic hand touches the ground first, foll
 
 形の固定【案】：Hunched humanoid porter with thick charcoal hood, opaque dark apron, compact broad cluster of THREE dull violet crystal plates fused to upper back, two bare sturdy arms, two legs, red fissures in crystal, solid silhouette no particles.
 
-設定画：`t2_e2.png`（右向き真横・全身・#FF00FF）／`t2_e2_front.png`（正面・同じ形・同じ衣装・#FF00FF）。
+設定画：`t2_e2.png`（右向き真横・全身・攻撃前の待機の構え・#FF00FF）。正面は作らない（2026-11-14 ユーザー決定）。
 
 | 攻撃 | 動き | 前方／奥行き | 予兆【案】 |
 |---|---|---|---|
@@ -266,7 +268,7 @@ FALL: The porter drops to both knees, curls forward and rolls sideways with the 
 
 形の固定【案】：Tall hunched former prosthetic surgeon, opaque charcoal leather apron, thick violet stitched organic shoulder mantle, bald masked human head with one red lens, EXACTLY TWO arms: right arm ends in broad iron clamp and left arm in short blunt surgical hammer, two thick booted legs. No tentacles no cables no smoke body.
 
-設定画：`t2_boss.png`（右向き真横・全身・#FF00FF）／`t2_boss_front.png`（正面・同じ形・同じ衣装・#FF00FF）。
+設定画：`t2_boss.png`（右向き真横・全身・攻撃前の待機の構え・#FF00FF）。正面は作らない（2026-11-14 ユーザー決定）。
 
 | 攻撃 | 動き | 前方／奥行き | 予兆【案】 |
 |---|---|---|---|
@@ -291,7 +293,7 @@ FALL: The knees collapse, clamp and hammer rest on the ground, then the upper bo
 
 形の固定【案】：Former human transformed into a heavy crouched biped with dark gray masonry-like organic shoulder shell, small recessed head with red eyes, oversized blunt right forearm, two thick short legs, scraps of charcoal work clothes at waist; opaque broad silhouette.
 
-設定画：`t3_e1.png`（右向き真横・全身・#FF00FF）／`t3_e1_front.png`（正面・同じ形・同じ衣装・#FF00FF）。
+設定画：`t3_e1.png`（右向き真横・全身・攻撃前の待機の構え・#FF00FF）。正面は作らない（2026-11-14 ユーザー決定）。
 
 | 攻撃 | 動き | 前方／奥行き | 予兆【案】 |
 |---|---|---|---|
@@ -312,7 +314,7 @@ FALL: The thick legs fold, both shell arms touch down, and the creature rolls on
 
 形の固定【案】：Opaque stocky FOUR-legged demon hound, shoulder height 1.8m, charcoal hide with broad dull violet bony plates, wedge-shaped blunt head, short rigid tail, red eyes and mouth seams, FOUR short powerful legs, no wings no fur strands no extra limbs.
 
-設定画：`t3_e2.png`（右向き真横・全身・#FF00FF）／`t3_e2_front.png`（正面・同じ形・同じ衣装・#FF00FF）。
+設定画：`t3_e2.png`（右向き真横・全身・攻撃前の待機の構え・#FF00FF）。正面は作らない（2026-11-14 ユーザー決定）。
 
 | 攻撃 | 動き | 前方／奥行き | 予兆【案】 |
 |---|---|---|---|
@@ -333,7 +335,7 @@ FALL: The front legs buckle, the hindquarters sink, and the hound rolls onto its
 
 形の固定【案】：Huge former human biped 3.8m tall, nearly headless hunched silhouette, broad crescent of opaque black-violet shell across upper back, small human face embedded at front of chest with red eyes, TWO massive blunt arms and TWO pillar legs, a single torn charcoal waistcoat remnant across chest, red-violet cracks confined to shell. No floating parts no smoke no tentacles.
 
-設定画：`t3_boss.png`（右向き真横・全身・#FF00FF）／`t3_boss_front.png`（正面・同じ形・同じ衣装・#FF00FF）。
+設定画：`t3_boss.png`（右向き真横・全身・攻撃前の待機の構え・#FF00FF）。正面は作らない（2026-11-14 ユーザー決定）。
 
 | 攻撃 | 動き | 前方／奥行き | 予兆【案】 |
 |---|---|---|---|
@@ -358,7 +360,7 @@ FALL: The pillar legs give way one after the other, the huge torso falls slowly 
 
 形の固定【案】：Squat mining automaton 2.1m tall, heavy dark iron chassis, EXACTLY TWO broad tracked tread units, front-facing short conical drill angled forward, simple opaque armor, red-violet enclosed power core, no human face, no yellow or cyan emission.
 
-設定画：`t4_e1.png`（右向き真横・全身・#FF00FF）／`t4_e1_front.png`（正面・同じ形・同じ衣装・#FF00FF）。
+設定画：`t4_e1.png`（右向き真横・全身・攻撃前の待機の構え・#FF00FF）。正面は作らない（2026-11-14 ユーザー決定）。
 
 | 攻撃 | 動き | 前方／奥行き | 予兆【案】 |
 |---|---|---|---|
@@ -379,7 +381,7 @@ FALL: The chassis jolts, the drill lowers, one tread unit stalls, the machine ti
 
 形の固定【案】：Four-legged squat subterranean beast, shoulder height 2m, dark gray thick hide, THREE broad opaque violet crystal dorsal plates, short broad jaw, red eyes and throat slit, FOUR thick legs, no thin spikes no floating particles no lime emission.
 
-設定画：`t4_e2.png`（右向き真横・全身・#FF00FF）／`t4_e2_front.png`（正面・同じ形・同じ衣装・#FF00FF）。
+設定画：`t4_e2.png`（右向き真横・全身・攻撃前の待機の構え・#FF00FF）。正面は作らない（2026-11-14 ユーザー決定）。
 
 | 攻撃 | 動き | 前方／奥行き | 予兆【案】 |
 |---|---|---|---|
@@ -400,7 +402,7 @@ FALL: The front legs fold, the jaw settles toward the ground, then the body roll
 
 形の固定【案】：Massive squat mining machine 3.9m high, TWO broad dark iron tread units, low armored central chassis, EXACTLY TWO industrial tool arms: right broad conical drill and left square crusher hammer, THREE opaque dark violet crystal plates fused to upper engine casing, red-violet enclosed core, broad clear joints. No pilot no human face no gold lime or blue emission.
 
-設定画：`t4_boss.png`（右向き真横・全身・#FF00FF）／`t4_boss_front.png`（正面・同じ形・同じ衣装・#FF00FF）。
+設定画：`t4_boss.png`（右向き真横・全身・攻撃前の待機の構え・#FF00FF）。正面は作らない（2026-11-14 ユーザー決定）。
 
 | 攻撃 | 動き | 前方／奥行き | 予兆【案】 |
 |---|---|---|---|
@@ -424,7 +426,7 @@ FALL: Both tool heads drop, the tread units lock, the suspension collapses and t
 1. 文章：このマークダウン1点。
 2. 完成イメージ：T2 → T1 → T3 → T4、4枚（T2優先）。
 3. 部品：T2 → T3 → T4、各11枚、計33枚。T1は既存再利用。各IDを単独で生成。
-4. 敵設定画：T1ボス優先、その後T2、T1雑魚、T3、T4。12体×真横・正面＝24枚。
+4. 敵設定画：T1ボス優先、その後T2、T1雑魚、T3、T4。12体×真横（攻撃前の待機の構え）＝12枚（正面は作らない。2026-11-14 ユーザー決定）。
 
 合計61枚の画像案。これは仕上げの3D下絵への投影用素材の完了を意味しない。下絵に合わせた最終形・実寸・継ぎ目・切り抜き・Godotでの確認は次工程。GitHubやゲーム本体は今回変更しない。
 
@@ -433,13 +435,13 @@ FALL: Both tool heads drop, the tread units lock, the suspension collapses and t
 - 札縮小時：4テーマを色と大形だけで区別できるか。
 - 完成画：床下1/3が空き、水平スクロールの構図で、開口内だけに奥行きがあるか。
 - 部品：1枚1部品、マゼンタ、共通足元・軒、切れない外形。床は真上・無反射。
-- 敵：真横右向きと正面で同一の手足数・装備位置・身長比か。赤〜紫発光のみ、輪郭で役割が読めるか。
+- 敵：真横右向き・攻撃前の待機の構えか（動画の最初のコマにそのまま使える姿勢か）。手足数・装備位置・身長比が設計どおりか。赤〜紫発光のみ、輪郭で役割が読めるか。
 - 未検証：厳密なタイル接続、動画AIでの維持、実機視認性、当たり判定・負荷。
 
 ## 7. 最後に確認したい点（未決のまま）
 
 1. T2〜T4の必須要素表と12体の形・名称・攻撃を、この案で採用するか。改変したい対象はどれか。
-2. 正面図の`_front`、完成画の`_room`、裏列・遠景の`back1`・`far1`という接尾辞でよいか。依頼書は種類を指定しているが、これらの厳密な表記は未指定。
+2. （正面図`_front`は作らないと決定）完成画の`_room`、裏列・遠景の`back1`・`far1`という接尾辞でよいか。依頼書は種類を指定しているが、これらの厳密な表記は未指定。
 3. 最終PNGのピクセル寸法、共通キャンバスと画素/m、マゼンタ外周余白はどうするか。3D下絵が出るまではコンセプトとして扱う。
 4. T4は「地下」のどの位置にあるか。門の真下か、門へ向かう途中の坑道か。本案では地理を確定せず、影響の強い地下坑としてだけ描く。
 5. 変容表現の上限：本案の太い組織・縫合・殻は許容か。露出臓器や切断表現は入れていない。
