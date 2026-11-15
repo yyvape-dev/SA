@@ -37,5 +37,7 @@ func run():
   h.menu_stage=stage;v.queue_redraw()
   for i in 3:await process_frame
   await RenderingServer.frame_post_draw
-  root.get_texture().get_image().save_png("/workspace/ui-evidence/apparatus/skin_"+stage+".png")
+  var output=ProjectSettings.globalize_path("res://captures")
+  DirAccess.make_dir_recursive_absolute(output)
+  assert(root.get_texture().get_image().save_png(output+"/apparatus_"+stage+".png")==OK)
  quit()

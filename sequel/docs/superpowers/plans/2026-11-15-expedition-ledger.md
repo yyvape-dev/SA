@@ -11,3 +11,6 @@
 
 - Web acceptance first pass: T2/hard/party/dg1/dg_t2 entered, pageerror0. SwiftShader map RAF intervals about300ms. Disabling covered3D lowered observed intervals to about200ms (not a100ms claim). Added RED→GREEN coverage for covered combat HUD visibility and prior-state restoration; hide controls/input while opaque expedition UI is open, skip underlying HUD drawing and batch path polylines. Final Web measurement pending.
 - Best-time display uses whole M:SS for readable small dial; unsupported em dash replaced with ASCII hyphen after checking actual font cmap.
+
+- Final optimization: underlying town vignette uses a screen-reading full-screen shader even when3D is disabled. RED covered-postprocess visibility assertion → GREEN, preserve original hidden state and restore on close/exit. Final Web map RAF median50ms, min16.7/max116.7 (19positive samples); not an all-frames<100ms or real-device guarantee.
+- Final exported7c22d21 PCK manifest:23 runtime assets, no art/ui_source. Protected flow bodies and main.gd unchanged againsta62f698.

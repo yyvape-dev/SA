@@ -12,7 +12,7 @@ Constraints: no words; blue friendly/normal, red hard, red+gold expert; >=44px a
 - [x] Generate instrument backing and component sheet from adopted board; preserve originals, record slices/provenance, verify lossless pixels and art bounds. Crop existing first-frame enemies without resizing into small UI resources.
 - [x] Change layout/state tests first for separate map enemy slips, full window difficulty, 3 portraits+2 future mounts, distinct next/activation buttons. Observe old layout fail. Implement shared layout and textured drawing without touching protected flow methods.
 - [x] Reproduce loading instrument with same entrance/enemy/risk/party; actual progress or indeterminate light, reset on retry, no false completion.
-- [ ] Import and run layout/state tests, native captures locked/unlocked, bot regression, Web export and844x390 touch flow. Compare actual844x390 captures to adopted mock. Review tap alignment, locked/unavailable/selected states, progress/party preservation.
+- [x] Import and run layout/state tests, native captures locked/unlocked, bot regression, Web export and844x390 touch flow. Compare actual844x390 captures to adopted mock. Review tap alignment, locked/unavailable/selected states, progress/party preservation.
 - [ ] Update HANDOFF/spec/results and source branch, publish only preview subtree against latestmain using fast-forward push, verify Pages+publicURL.
 
 Review focus: thumbnails must not add district enemy atlases to main; dialogue stage no hidden map-node taps; future mounts remain44px; current/desired party count no silent changes; loading initiation/progress/end synchronize exact mission context; image crop pixels unchanged.

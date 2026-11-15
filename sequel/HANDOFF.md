@@ -1,5 +1,13 @@
 # 続編（SA2・融合都市）引き継ぎ
 
+## 次の会話へ（魔導式遠征盤の実装、2026-11-15）
+- ユーザー採用: [世界観から再設計した生成モック](docs/dungeon_select_mock_v2/mock_board_world_design.png)。地図の調査札／現場絵の難易度／仲間の台座／金の起動装置／光る管の待機を実装。ソース codex/dungeon-select-ui-20261115、実装7c22d21。
+- [実装結果と比較](docs/expedition_apparatus_result.md)。仕様の正本 [specs/dungeon_select_ui.md](specs/dungeon_select_ui.md) の流れも更新。
+- 推奨レベルの実数値だけ回答待ち（4/10/18/26は仮値としてモックへ記載）。RECOMMENDEDは未設定0＝非表示、入場条件には使わない。現在レベルは実値。回答が来たら描画ヘルパーの定数を更新して再書き出し。
+- mainには試し版previews/sa2-dungeon/のみ。本編sequel/web/とmain.gdは未変更。URL: https://yyvape-dev.github.io/SA/previews/sa2-dungeon/?town=back&at=gate&unlock=1
+- iPhone実機未確認。終了時の既存解放警告と、ソフトウェアWebGLでの描画間隔は結果に記録する。
+
+
 ## 選択UI v2のモック（未採用・2026-11-15）
 - ユーザー指摘: 選択後UI/UXを見直す。地図に敵の小枠＋レベルが欲しい。確認済み: レベルは推奨で、入場制限には使わない。
 - [モックと設計の説明](docs/dungeon_select_mock_v2/README.md)、[4画面一覧](docs/dungeon_select_mock_v2/mock_board.png)。index.htmlは画像埋め込みで単体操作可。
