@@ -8,8 +8,8 @@ extends Node
 
 const Map := preload("res://scripts/dungeon_map.gd")
 ## [テーマの番号, 難易度の番号, 間取りの種, 全部の部屋を回る, 特別な確認（"" / "fail" / "home"）]
-var RUNS: Array = RUNS_ALL.duplicate()
-const RUNS_ALL := [[0, 0, 101, true, ""], [0, 0, 202, false, ""], [1, 0, 303, false, ""], [0, 1, 404, false, ""], [1, 0, 505, false, "fail"], [0, 0, 606, false, "home"]]
+var RUNS: Array = RUNS_ALL.slice(0, 6)   # 6・7（T3・T4 ノーマル）は BOT_RUNS=6,7 で選んだ時だけ
+const RUNS_ALL := [[0, 0, 101, true, ""], [0, 0, 202, false, ""], [1, 0, 303, false, ""], [0, 1, 404, false, ""], [1, 0, 505, false, "fail"], [0, 0, 606, false, "home"], [2, 0, 707, false, ""], [3, 0, 808, false, ""]]
 var before := {}        # 特別な確認の前のセーブ
 const STUCK_T := 45.0
 
@@ -54,6 +54,9 @@ func _ready() -> void:
 				main.progress.clears["t%d_normal" % (ti + 1)] = 1
 			if int(r[1]) >= 1:
 				main.progress.clears["t%d_normal" % (int(r[0]) + 1)] = 1
+	if OS.has_environment("BOT_LV"):   # 深いテーマを測るときのレベル（例：推奨の仮値 T3 18・T4 26）
+		main.progress.lv = int(OS.get_environment("BOT_LV"))
+		main.apply_progress()
 	_randomize_tree()
 
 ## スキルツリー（specs/skill_tree.md 5.）：周ごとに、3人の技レベル（3〜5）と派生（なしも含む）をランダムに付ける。TREE_RANDOM=0 で付けない
@@ -421,6 +424,27 @@ func _record(d) -> void:
 		run_i + 1, d.theme, d.diff, RUNS[run_i][2], ("失敗" if r.get("fail", false) else "クリア") if not r.is_empty() else "未", d.t_run, d.hits, d.kills,
 		int(r.get("lv0", 0)), int(r.get("lv", 0)), int(r.get("w0", 0)), int(r.get("w", 0)),
 		d.visited.size(), d.layout.rooms.size(), int(d.layout.rooms[d.layout.boss].dist), mx, max_alive])
+	# 部屋の時間（入ってから開くまで）の平均・ボス戦の時間・ブレイクの回数（2026-11-15）
+	var t_in := -1.0
+	var room_ts := []
+	var tb := -1.0
+	var tbd := -1.0
+	var nbrk := 0
+	for ev in d.events:
+		match str(ev[1]):
+			"enter": t_in = float(ev[0])
+			"clear":
+				if t_in >= 0.0:
+					room_ts.append(float(ev[0]) - t_in)
+			"boss": tb = float(ev[0])
+			"boss_down": tbd = float(ev[0])
+			"break": nbrk += 1
+	var avg := 0.0
+	for x in room_ts:
+		avg += x
+	if not room_ts.is_empty():
+		avg /= room_ts.size()
+	summary.append("    部屋 %d 回の平均 %.1f秒  ボス戦 %.1f秒  ブレイク %d 回" % [room_ts.size(), avg, (tbd - tb) if tbd > 0.0 and tb > 0.0 else -1.0, nbrk])
 
 ## 失敗・戻る扉のあと、セーブが入る前と同じか
 func _check_restored(what: String) -> void:

@@ -15,6 +15,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from make_imperial_foes import frames_of, key, foot_of, head_x, Atlas, crop_scaled, standing_h, PX_PER_M
 
 SPD = 2.4
+FOE_RES = 0.5   # 敵の絵の解像度（ラナの画面の密度に対して。2026-11-15 ユーザー決定 B）
 
 
 def purple_to_red(rgba):
@@ -53,7 +54,7 @@ def main():
     As = [[purple_to_red(key(a)) for a in frames_of(p)] for p in apaths]
     A0 = As[0][0]
     ref_y, _ = foot_of(A0)
-    scale = min(1.0, height * PX_PER_M / standing_h(A0))   # 元の動画より大きくはしない（ゲーム側で h から倍率をかける）
+    scale = min(1.0, height * PX_PER_M / standing_h(A0)) * FOE_RES   # 元の動画より大きくはしない（ゲーム側で h から倍率をかける）。FOE_RES＝0.5（2026-11-15 スマホの熱・メモリ）
     h_px = standing_h(A0) * scale
     entry = {}
     # 歩き：1本＝1周期として 8 コマ。横は頭の位置、縦はそのコマの足裏
@@ -64,7 +65,7 @@ def main():
         img, ft = crop_scaled(W[i], scale, (head_x(W[i]), y1))
         atl.add(img, ft)
     wf, wsz = atl.build(out)
-    entry["walk"] = {"frames": wf, "h": h_px, "face": face, "fps": 11}
+    entry["walk"] = {"frames": wf, "h": h_px, "face": face, "fps": 11, "res": FOE_RES}
     sizes = [("walk", wsz)]
     previews = [("walk", atl)]
     for ai, A in enumerate(As):
@@ -92,7 +93,7 @@ def main():
             gap = ((idx[j + 1] if j + 1 < m else n) - idx[j]) / 24.0
             real.append(gap * (0.6 if j < hit else (0.35 if j < 11 else 0.5)))
         d = [round(r * 1000 * SPD) for r in real]
-        entry[f"atk{ai}"] = {"frames": af, "h": h_px, "face": face, "durs": d, "hit": hit}
+        entry[f"atk{ai}"] = {"frames": af, "h": h_px, "face": face, "durs": d, "hit": hit, "res": FOE_RES}
         sizes.append((f"atk{ai}", asz, "hit@%.2fs/%.2fs" % (sum(real[:hit]), sum(real)), "src hit f%d" % hf))
         previews.append((f"atk{ai}", atl))
         if charge and len(As) == 1:

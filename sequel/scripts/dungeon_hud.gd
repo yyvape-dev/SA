@@ -68,6 +68,7 @@ func _process(delta: float) -> void:
 	if result_t >= 0.0:
 		result_t += delta
 	fade_t = maxf(0.0, fade_t - delta)
+	warn_t = maxf(0.0, warn_t - delta)
 	respec_arm = maxf(0.0, respec_arm - delta)
 	for k in tree_flash.keys():
 		tree_flash[k] = float(tree_flash[k]) - delta
@@ -77,6 +78,13 @@ func _process(delta: float) -> void:
 	w_flash = maxf(0.0, w_flash - delta)
 	shake_hard = maxf(0.0, shake_hard - delta)
 	view.queue_redraw()
+
+## 増援の予告：進む先の画面の端に赤い山形（敵＝赤）。dir＝+1 右・-1 左（2026-11-15 ユーザー）
+var warn_t := 0.0
+var warn_dir := 1
+func edge_warn(dir: int, d: float) -> void:
+	warn_dir = dir
+	warn_t = d
 
 ## The map is opaque. Skip hidden 3D drawing, restore the exact previous visibility.
 func _sync_menu_world() -> void:
@@ -512,7 +520,17 @@ class _View extends Control:
 			_map(d)
 			_num(Vector2(0, 52 * u), _time_str(d.t_run), 34, Color(1, 1, 1, 0.92), HORIZONTAL_ALIGNMENT_CENTER, size.x)
 			if d.boss != null and is_instance_valid(d.boss):
-				CombatArt.boss(self,CombatArt.boss_rect(size),maxf(0.0,d.boss.hp/d.boss.hp_max))
+				var brc: Rect2 = CombatArt.boss_rect(size)
+				CombatArt.boss(self,brc,maxf(0.0,d.boss.hp/d.boss.hp_max))
+				# ブレイクの帯（金＝決着）：Codex の真鍮の帯の下。傷がたまると満ち、満ちると倒れる。倒れている間は点滅しながら減る（2026-11-15）
+				if d.boss.has_method("break_ratio"):
+					var br: float = d.boss.break_ratio()
+					var bw: float = brc.size.x - 24 * u
+					var bp := Vector2(brc.position.x + 12 * u, brc.end.y + 4 * u)
+					var brk_on: bool = d.boss.state == "broken"
+					draw_rect(Rect2(bp - Vector2(3, 3) * u, Vector2(bw, 8 * u) + Vector2(6, 6) * u), DIM)
+					var ga: float = 1.0 if not brk_on else 0.6 + 0.4 * sin(Time.get_ticks_msec() * 0.02)
+					draw_rect(Rect2(bp, Vector2(bw * br, 8 * u)), Color(GOLD.r, GOLD.g, GOLD.b, ga))
 		if hud.menu_open:
 			_menu()
 		if hud.slot_open:
@@ -522,6 +540,15 @@ class _View extends Control:
 				_slots()
 		if hud.result_t >= 0.0:
 			_result()
+		if hud.warn_t > 0.0 and m.dungeon != null:   # 増援の予告：画面の端に赤い山形が3つ、外へ向かって点滅
+			var a: float = clampf(hud.warn_t / 0.3, 0.0, 1.0) * (0.55 + 0.45 * sin(hud.warn_t * 14.0))
+			var ex: float = size.x - 46 * u if hud.warn_dir > 0 else 46 * u
+			var cy := size.y * 0.52
+			draw_rect(Rect2(Vector2(size.x - 14 * u if hud.warn_dir > 0 else 0.0, 0), Vector2(14 * u, size.y)), Color(RED.r, RED.g, RED.b, 0.35 * a))
+			for k in 3:
+				var cx: float = ex - hud.warn_dir * k * 24 * u
+				var s_: float = 20 * u
+				draw_polyline(PackedVector2Array([Vector2(cx - hud.warn_dir * s_ * 0.6, cy - s_), Vector2(cx + hud.warn_dir * s_ * 0.6, cy), Vector2(cx - hud.warn_dir * s_ * 0.6, cy + s_)]), Color(RED.r, RED.g, RED.b, a * (1.0 - k * 0.25)), 7 * u)
 		if hud.fade_t > 0.0 and hud.fade_d > 0.0:
 			var k: float = 1.0 - hud.fade_t / hud.fade_d
 			var a: float = 1.0 - absf(2.0 * k - 1.0)

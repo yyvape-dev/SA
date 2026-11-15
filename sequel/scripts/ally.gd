@@ -773,7 +773,7 @@ func _ult_process(delta: float) -> void:
 		return
 	if not ult_jumped:   # 狙った敵の横へ瞬間移動（元の場所と着いた所に蒼い光）
 		ult_jumped = true
-		world.cine = false
+		# 2026-11-15 ユーザー：必殺技の演出中は止める（敵・ラナは _end_ult まで止まったまま）
 		if not _alive(target):
 			target = _ult_target()
 		if target == null:

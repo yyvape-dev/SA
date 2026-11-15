@@ -106,7 +106,7 @@ func _ready() -> void:
 		progress_unlock_all = true
 	_boot("main_ready")
 	# 撮影・確認では乱数の種を固定する（版どうしで同じ場面・同じコマを比べるため）
-	for k in ["CAPTURE_MENU", "CAPTURE_FOE", "CAPTURE_FX", "CAPTURE_LINEUP", "CAPTURE_PLAY", "CAPTURE_DUNGEON", "DUNGEON_TEST", "CAPTURE_GUIDE", "CAPTURE_REUSE"]:
+	for k in ["CAPTURE_PARTY", "CAPTURE_ROOM", "CAPTURE_MENU", "CAPTURE_FOE", "CAPTURE_FX", "CAPTURE_LINEUP", "CAPTURE_PLAY", "CAPTURE_DUNGEON", "DUNGEON_TEST", "CAPTURE_GUIDE", "CAPTURE_REUSE"]:
 		if OS.has_environment(k):
 			seed(20261106)
 	loading = Loading.new()
@@ -246,6 +246,10 @@ func _ready() -> void:
 		_capture_fx.call_deferred()
 	elif OS.has_environment("CAPTURE_FOE"):
 		_capture_foe.call_deferred()
+	elif OS.has_environment("CAPTURE_PARTY"):
+		_capture_party.call_deferred()
+	elif OS.has_environment("CAPTURE_ROOM"):
+		_capture_room.call_deferred()
 	elif OS.has_environment("CAPTURE_MENU"):
 		_capture_menu.call_deferred()
 	elif OS.has_environment("CAPTURE_LINEUP"):
@@ -258,6 +262,79 @@ func _ready() -> void:
 	if OS.has_environment("DUNGEON_LAYOUT_TEST"):
 		load("res://scripts/dungeon_map.gd").self_test()
 		get_tree().quit()
+
+## 撮影・再現：実機と同じ道（街で控え→選択画面で仲間を選ぶ→入場→となりの部屋で戦う）。PARTY=ranka 等、FOE_THEME。captures/party_<n>.png
+func _capture_party() -> void:
+	var dir := ProjectSettings.globalize_path("res://captures")
+	DirAccess.make_dir_recursive_absolute(dir)
+	progress.unlock_all = true
+	for i in 900:
+		await get_tree().process_frame
+		if ally_ready("lily") and ally_ready("ranka") and i > 120:
+			break
+	print("PARTY bench=", bench.keys(), " ally=", battle.ally != null, " ranka=", battle.ranka != null)
+	var th: String = OS.get_environment("FOE_THEME") if OS.has_environment("FOE_THEME") else "t3"
+	hud.open_menu()
+	hud.choose_theme(["t1", "t2", "t3", "t4"].find(th))
+	hud.choose(0)
+	hud.pick = (OS.get_environment("PARTY") if OS.has_environment("PARTY") else "ranka").split(",")
+	hud.go()
+	for i in 240:
+		await get_tree().process_frame
+	print("PARTY in dungeon party=", party, " ally=", battle.ally != null, " ranka=", battle.ranka != null)
+	var L: Dictionary = dungeon.layout
+	var d0: String = L.rooms[L.entrance].exits.keys()[0]
+	if OS.has_environment("PARTY_BOSS"):   # ボス部屋へ（2026-11-15：ブレイクの帯と倒れる姿の確認）。ボスの手前まで寄り、殴ってブレイクさせる
+		var bd: String = L.rooms[L.boss].exits.keys()[0]
+		dungeon._enter(L.boss, str(dungeon.Map.OPP[bd]))
+		for i in 120:
+			await get_tree().process_frame
+		for n in 8:
+			for i in 30:
+				await get_tree().process_frame
+				if dungeon.boss != null and is_instance_valid(dungeon.boss):
+					var bx: float = dungeon.boss.position.x
+					player.position.x = move_toward(player.position.x, bx - signf(bx - player.position.x) * 1.6, 0.15)
+					if n < 4 and i % 6 == 0 and dungeon.boss.state != "broken":
+						dungeon.boss.take_hit(dungeon.boss.brk_max * 0.06, 1, i % 12 == 0)
+			get_viewport().get_texture().get_image().save_png(dir + "/party_%d.png" % n)
+			print("PARTY boss t=", n, " state=", dungeon.boss.state if dungeon.boss else "-", " brk=", dungeon.boss.break_ratio() if dungeon.boss else -1.0)
+		get_tree().quit()
+		return
+	dungeon._enter(L.rooms[L.entrance].exits[d0], d0)
+	for n in 8:
+		for i in 60:
+			await get_tree().process_frame
+			player.position.x += dungeon.travel * 0.04
+		get_viewport().get_texture().get_image().save_png(dir + "/party_%d.png" % n)
+		print("PARTY t=", n, " foes=", battle.enemies.size(), " cine=", battle.cine, " ranka_state=", battle.ranka.state if battle.ranka else "-", " hp=", battle.hp)
+	get_tree().quit()
+
+## 撮影：入口のとなりの部屋へ入った直後（敵が最初から立っているか）→ 4m・8m 進んだ所（2026-11-15）。captures/room_<n>.png
+func _capture_room() -> void:
+	var dir := ProjectSettings.globalize_path("res://captures")
+	DirAccess.make_dir_recursive_absolute(dir)
+	for i in 30:
+		await get_tree().process_frame
+	await enter_dungeon("normal", 7, OS.get_environment("FOE_THEME") if OS.has_environment("FOE_THEME") else "t1")
+	for i in 60:
+		await get_tree().process_frame
+	var L: Dictionary = dungeon.layout
+	var d0: String = L.rooms[L.entrance].exits.keys()[0]
+	dungeon._enter(L.rooms[L.entrance].exits[d0], d0)
+	battle.hp_max = 99999.0
+	battle.hp = 99999.0
+	for n in 4:
+		if n == 3:   # 増援の予告の見え方
+			hud.edge_warn(dungeon.travel, 1.6)
+		for i in 40:
+			await get_tree().process_frame
+		get_viewport().get_texture().get_image().save_png(dir + "/room_%d.png" % n)
+		print("ROOM ", n, " travel=", dungeon.travel, " px=", snappedf(player.position.x, 0.1), " foes=", battle.enemies.map(func(e): return "%s:%.1f" % [e.state, e.position.x]))
+		for i in 30:
+			await get_tree().process_frame
+			player.position.x += dungeon.travel * 4.0 / 30.0
+	get_tree().quit()
 
 ## 撮影：門の地図→右の札→仲間の選択→入場（2026-11-15）。TOWN=back。captures/menu_<n>.png。UNLOCK_ALL=1 で全部開いた地図
 func _capture_menu() -> void:
@@ -313,9 +390,23 @@ func _capture_foe() -> void:
 			e.yo = 0.0
 			e.force_atk = "atk0" if (j + rnd) % 2 == 0 else "atk1"
 			made.append(e)
+		var jg_f := -1
 		for f in 380:
 			await get_tree().process_frame
 			player.position.x = px
+			if OS.has_environment("FOE_JG"):   # ジャストガードでアーマーが外れる所（2026-11-15）：アーマー中の敵に1回だけ当てて前後を撮る
+				if jg_f < 0:
+					for e in made:
+						if is_instance_valid(e) and e.armored() and not e.atk.is_empty() and not e.atk.get("done", true):
+							battle.just_guard(player, e)
+							jg_f = f
+							print("FOE_JG f=", f, " kind=", e.kind)
+							break
+					if jg_f < 0 and f % 2 == 0:
+						get_viewport().get_texture().get_image().save_png(dir + "/jgpre.png")
+				elif f - jg_f in [1, 6, 30, 100, 190]:
+					get_viewport().get_texture().get_image().save_png(dir + "/jg_%d_%03d.png" % [rnd, f - jg_f])
+				continue
 			if f % 10 == 0 or (f >= 250 and f % 4 == 0):
 				get_viewport().get_texture().get_image().save_png(dir + "/foe_%d_%03d.png" % [rnd, f])
 	get_tree().quit()
@@ -473,6 +564,8 @@ func _bench(id: String) -> void:
 	var a: Node3D = battle.ally if id == "lily" else battle.ranka
 	if a == null or not is_instance_valid(a):
 		return
+	if str(a.get("state")) == "ult" and a.has_method("_end_ult"):   # 必殺技の途中で外すと止め（cine）が残る→先に終わらせる
+		a._end_ult()
 	if a.get_parent():
 		a.get_parent().remove_child(a)
 	bench[id] = a
@@ -802,6 +895,10 @@ func _build_env() -> void:
 	sun.shadow_enabled = true
 	add_child(sun)
 
+## テーマの床の明るさをそろえる（床の絵の平均輝度。T2 の 42.8 を基準。T3 の床は明るい石で、そのままだと建物より明るく浮いた。設計書「床は暗く」）
+const FLOOR_LUM := {"t2": 42.8, "t3": 81.3, "t4": 40.1}
+var floor_lum_k := 1.0
+
 func _build_floor(width: float = 0.0, floor_tex: Texture2D = null) -> void:
 	var street_width := 72.0 if town == "back" else 60.0
 	if width > 0.0:   # ダンジョンの広い部屋（specs/dungeon_themes.md 3.1）
@@ -810,7 +907,7 @@ func _build_floor(width: float = 0.0, floor_tex: Texture2D = null) -> void:
 		# 奥の帯は建物の正面より奥（−7.6）まで敷く（足元のすき間から奥の地面の紫が線に見えた）
 		# 板どうしは 0.1m 重ねる（歓楽街の床は 0.05m のすき間があり、奥の紫が横の線に見えている）
 		for st in [[Vector3(0, 0.0, -4.8), Vector2(street_width, 5.6)], [Vector3(0, -0.03, 0.15), Vector2(street_width, 7.6)], [Vector3(0, 0.0, 5.55), Vector2(street_width, 3.3)]]:
-			_ground(st[0], st[1], floor_tex, THEME_FLOOR_TILE, THEME_FLOOR_DIM)
+			_ground(st[0], st[1], floor_tex, THEME_FLOOR_TILE, THEME_FLOOR_DIM * floor_lum_k)
 		_far_ground_plane()
 		return
 	cobble_tex = load("res://assets/ground/cobble.png")
@@ -3323,6 +3420,7 @@ func build_room_parts(spec: Dictionary, theme: String) -> void:
 	_clear_level()
 	var rw: float = spec.rw
 	var dir := "res://assets/dungeon/%s/" % theme
+	floor_lum_k = clampf(42.8 / float(FLOOR_LUM.get(theme, 42.8)), 0.4, 1.3)
 	_build_floor(2.0 * rw + 28.0, load(dir + theme + "_g1.webp"))
 	var cam_far: float = maxf(0.0, rw - _play_half_w())
 	var root := Node3D.new()
@@ -3344,8 +3442,20 @@ func build_room_parts(spec: Dictionary, theme: String) -> void:
 	# 正面の建物：slots の順に、すき間なく（0.35m 重ねて）並べ、全体を部屋の中心にそろえる
 	var bld := []
 	var total := 0.0
-	for id in spec.slots:
+	# 大物（x1・x2：一部屋に一個）：部屋の 3 つに 1 つ、まん中の建物を大物に替える（届いたテーマだけ。2026-11-15）
+	var xs := []
+	for xi in ["x1", "x2"]:
+		if ResourceLoader.exists(dir + theme + "_" + xi + ".webp"):
+			xs.append(xi)
+	var x_at := -1
+	var seed_i := int(absf(float(spec.back_ofs)) * 1000.0)
+	if xs.size() > 0 and seed_i % 3 == 0:
+		x_at = spec.slots.size() / 2
+	for si in spec.slots.size():
+		var id = spec.slots[si]
 		var tid: String = theme + "_" + str(id).substr(0, 2)   # "b1_tavern" → "t2_b1"
+		if si == x_at:
+			tid = theme + "_" + str(xs[(seed_i / 3) % xs.size()])
 		var tex: Texture2D = load(dir + tid + ".webp")
 		var w := float(tex.get_width()) / THEME_PPM
 		bld.append([tex, w])

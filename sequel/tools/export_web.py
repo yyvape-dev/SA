@@ -24,6 +24,10 @@ DISTRICTS = {
             "files": []},
     "dg_t2": {"res": ["assets/dungeon/t2/*.webp"],   # ダンジョン T2（奥の路地）の部品（2026-11-14、外部AIの絵を切り抜いた物）。入るときに読む
             "files": ["assets/dungeon/t2/parts.json"]},
+    "dg_t3": {"res": ["assets/dungeon/t3/*.webp"],   # ダンジョン T3（門の手前の廃墟）の部品（2026-11-14、外部AIの絵を切り抜いた物）。入るときに読む
+            "files": ["assets/dungeon/t3/parts.json"]},
+    "dg_t4": {"res": ["assets/dungeon/t4/*.webp"],   # ダンジョン T4（地下の採掘坑）の部品（2026-11-14、外部AIの絵を切り抜いた物）。入るときに読む
+            "files": ["assets/dungeon/t4/parts.json"]},
     "fx1": {"res": ["assets/vfx/*.png", "assets/vfx/kenney/*.png", "assets/vfx/shared/*.png", "assets/vfx/seq/*.png"],    # エフェクトの絵（焼いた REEBO・Kenney の粒。起動の後に読む。2026-11-07）
             "files": ["assets/vfx/reeboo.json"]},
     "al1": {"res": ["assets/lily/*.webp"],                           # 仲間リリィ（起動の後に読む。読み終えてから出てくる）

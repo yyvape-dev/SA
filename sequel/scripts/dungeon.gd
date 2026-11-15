@@ -10,8 +10,7 @@ const COL_SHUT := Color(1.0, 0.2, 0.2)
 const COL_GOLD := Color(1.0, 0.78, 0.3)
 const COL_HOME := Color(0.72, 0.5, 1.0)   # 戻る扉（街の入口の扉と同じ紫）
 const Themes := preload("res://scripts/dungeon_themes.gd")
-const TRIGGER_D := 8.0     # 群れの位置にこの距離まで近づくと出てくる
-const LATE_T := 3.0        # 前の群れを倒してからこの秒数たっても近づかなければ、次の群れから寄ってくる
+const FoeStats := preload("res://scripts/foe_stats.gd")
 const HOME_HOLD := 1.2     # 戻る扉の上にこの秒数立つと街へ（うっかり出ないように）
 
 var main          # main.gd
@@ -25,7 +24,7 @@ var group_i := 0         # 次に出す群れ
 var pending := []        # 同時に出せる数を超えた分（位置）。空きができたら出す
 var late_t := 0.0
 var travel := 1          # 進む向き（+1＝右）
-var cap := 10            # 同時に出ている敵の上限（仮。重さを測って決める。環境変数 DG_CAP）
+var cap := 6             # 同時に出ている敵の上限（2026-11-15 ユーザー決定 A 案。前は 10。環境変数 DG_CAP）
 var kills := 0
 var home = null          # 戻る扉
 var home_x := 0.0
@@ -88,8 +87,10 @@ func start() -> void:
 		main.battle.foe_dmg_mul = 0.0
 		var d0: String = layout.rooms[layout.entrance].exits.keys()[0]
 		_enter(layout.rooms[layout.entrance].exits[d0], d0)
-		groups = [{"x": main.player.position.x + travel * 9.0, "n": perf_n}]
-		group_i = 0
+		groups = [{"x": main.player.position.x + travel * 9.0, "n": perf_n, "m": [], "rein": 0}]
+		_place_groups()
+		for e in groups[0].m:
+			e.state = "walk"
 		wave_t = 0.5
 		print("DGTEST n=%d" % perf_n)
 
@@ -163,7 +164,36 @@ func _plan_groups(x0: float) -> void:
 	var x1: float = travel * (rw - 2.5)
 	var fr := [0.3, 0.62, 0.95]
 	for i in room.groups.size():
-		groups.append({"x": lerpf(x0, x1, fr[i]), "n": int(room.groups[i]) + int(cfg().add)})
+		var gx: float = lerpf(x0, x1, fr[i])
+		if i == 0:   # 最初の群れは入った時に画面の中に見える所（5.5〜10m 先。入口の端ではカメラが壁で止まり、見えるのは約 8m 先まで）
+			gx = x0 + travel * minf(5.5, absf(x1 - x0) * 0.5)
+		var n: int = int(room.groups[i]) + int(cfg().add)
+		groups.append({"x": gx, "n": n, "m": [], "rein": 0, "kinds": _group_kinds(n)})
+	_place_groups()
+
+## 群れは部屋に入った時点で進む先に立たせる（2026-11-15 ユーザー「大半は最初からいる」「来た側から湧くのは NG」「片付けるたびに進む先から増援は可」）。
+## 各群れの 8 割を立たせ（待ち＝idle）、残り 2 割と上限を超えた分はその群れの増援。群れを片付けたら、増援が進む先の画面の外から来る。
+const PRE_K := 0.8
+const REIN_WARN := 1.0   # 増援の予告の秒数
+var rein_wait := 0.0
+func _place_groups() -> void:
+	var rw: float = room.rw
+	var placed := 0
+	for g in groups:
+		var n: int = int(g.n)
+		var pre := int(round(n * PRE_K))
+		if n >= 2:
+			pre = clampi(pre, 1, n - 1)
+		for k in pre:
+			if placed >= cap:
+				break
+			var x: float = clampf(float(g.x) + travel * rng.randf_range(0.0, 4.5), -rw + 0.6, rw - 0.6)
+			var e = _spawn_one(x, g.kinds.pop_front())
+			if e:
+				e.state = "idle"
+				g.m.append(e)
+				placed += 1
+		g.rein = n - g.m.size()   # 残り（g.kinds に種類が残っている）
 
 ## 戻る扉：入口の部屋の奥の縁、奥・手前の出口から離れた所
 func _build_home() -> void:
@@ -251,52 +281,64 @@ func _physics_process(delta: float) -> void:
 		_check_exits()
 	_home_step(delta)
 
-## 群れ：次の群れに近づいたら出す。前の群れを倒して LATE_T 秒たっても近づかなければ、次の群れから寄ってくる。
+## 群れ：最初から立っている（_place_groups）。1 体が動けば群れごと動く。群れを片付けたら増援が進む先の画面の外から来る。全部倒すと部屋が開く。
 ## 同時に出ている数が cap を超える分は pending に積み、空きができたら進む先の画面の外から出す。
 func _groups_step(delta: float) -> void:
 	var b = main.battle
 	var p: Node3D = main.player
 	var rw: float = room.rw
-	while not pending.is_empty() and b.alive_count() < cap:
+	# 増援：予告（画面の端に赤い印 REIN_WARN 秒）のあと、進む先の画面の外から（来た側からは出さない）
+	if rein_wait > 0.0:
+		rein_wait -= delta
+	while not pending.is_empty() and b.alive_count() < cap and rein_wait <= 0.0:
 		var x: float = clampf(p.position.x + travel * rng.randf_range(10.0, 11.5), -rw + 0.6, rw - 0.6)
-		_spawn_one(x)
-		pending.pop_front()
-	if group_i < groups.size():
-		var g: Dictionary = groups[group_i]
-		var near: bool = (float(g.x) - p.position.x) * travel < TRIGGER_D
-		if b.alive_count() == 0 and pending.is_empty() and group_i > 0:
-			late_t += delta
-		if near or late_t >= LATE_T or (group_i == 0 and wave_t <= 0.0):
-			_spawn_group(g)
-			group_i += 1
-			late_t = 0.0
-		wave_t -= delta
-	elif b.alive_count() == 0 and pending.is_empty():
+		_spawn_one(x, str(pending.pop_front()))
+	var left := false
+	for g in groups:
+		var alive := []
+		var awake := false
+		for e in g.m:
+			if is_instance_valid(e) and e.state != "dying":
+				alive.append(e)
+				awake = awake or e.state != "idle"
+		g.m = alive
+		if awake:   # 1 体が動き出したら群れごと動く
+			for e in alive:
+				if e.state == "idle":
+					e.state = "walk"
+		if alive.is_empty() and int(g.rein) > 0:   # 群れを片付けた→増援（先に予告）
+			for k in int(g.rein):
+				pending.append(g.kinds.pop_front() if not g.kinds.is_empty() else "")
+			rein_wait = REIN_WARN
+			if main.hud and main.hud.has_method("edge_warn"):
+				main.hud.edge_warn(travel, REIN_WARN + 0.6)
+			log_ev("wave", int(g.rein))
+			g.rein = 0
+		left = left or not alive.is_empty() or int(g.rein) > 0
+	if not left and b.alive_count() == 0 and pending.is_empty():
 		_open_room()
 
-func _spawn_group(g: Dictionary) -> void:
-	var p: Node3D = main.player
-	var rw: float = room.rw
-	var n: int = int(g.n)
-	var back_n := 1 if n <= 5 else 2   # 後ろから来るのは 1〜2 体（大半は進む先から）
-	for i in n:
-		var x: float
-		if i < back_n:
-			x = p.position.x - travel * rng.randf_range(9.5, 11.0)
-			if absf(x) > rw - 0.6:   # 後ろが壁なら進む先へ
-				x = float(g.x) + travel * rng.randf_range(0.0, 3.0)
-		else:
-			x = maxf(float(g.x) * travel, p.position.x * travel + 7.5) * travel + travel * rng.randf_range(0.0, 3.0)
-		x = clampf(x, -rw + 0.6, rw - 0.6)
-		if main.battle.alive_count() >= cap:
-			pending.append(x)
-		else:
-			_spawn_one(x)
-	log_ev("wave", n)
-
-func _spawn_one(x: float) -> void:
+func _spawn_one(x: float, kind = ""):
 	var foes: Array = cfg().foes
-	main.battle.spawn(foes[rng.randi() % foes.size()], Vector3(x, 0, rng.randf_range(main.BELT_Z.x, main.BELT_Z.y)))
+	var k: String = str(kind) if kind != null and str(kind) != "" else str(foes[rng.randi() % foes.size()])
+	return main.battle.spawn(k, Vector3(x, 0, rng.randf_range(main.BELT_Z.x, main.BELT_Z.y)))
+
+## 1 群れの種類：出る種類から選ぶ。重い敵は 1 群れに最大 1 体（2026-11-15 ユーザー決定。アーマー持ちが並んで殴れない状態を防ぐ）
+func _group_kinds(n: int) -> Array:
+	var foes: Array = cfg().foes
+	var light := []
+	for f in foes:
+		if not FoeStats.heavy(str(f)):
+			light.append(f)
+	var out := []
+	var has_heavy := false
+	for i in n:
+		var k: String = str(foes[rng.randi() % foes.size()])
+		if FoeStats.heavy(k) and has_heavy and not light.is_empty():
+			k = str(light[rng.randi() % light.size()])
+		has_heavy = has_heavy or FoeStats.heavy(k)
+		out.append(k)
+	return out
 
 ## 戻る扉：上に HOME_HOLD 秒立つと街へ（何も残さない）
 func _home_step(delta: float) -> void:
@@ -335,6 +377,11 @@ func _spawn_boss() -> void:
 	boss = b.spawn(str(cfg().boss), Vector3(x, 0, 0.2))
 	boss.make_boss(cfg().boss_hp, int(cfg().boss_dmg))
 	log_ev("boss", null)
+	if not b.boss_break.is_connected(_on_boss_break):
+		b.boss_break.connect(_on_boss_break)
+
+func _on_boss_break(_e) -> void:
+	log_ev("break", t_run)
 
 func _check_exits() -> void:
 	var p: Node3D = main.player

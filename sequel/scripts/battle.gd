@@ -6,6 +6,7 @@ const CombatAudio := preload("res://scripts/combat_audio.gd")
 var combat_audio: Node
 
 const Enemy := preload("res://scripts/enemy.gd")
+const FoeStats := preload("res://scripts/foe_stats.gd")
 const HPBAR := preload("res://scripts/hpbar.gdshader")
 
 var BELT_Z := Vector2(-3.2, 3.5)
@@ -77,6 +78,7 @@ var stat_hits := 0        # 確認用：味方の当たった数・与えたダ�
 var stat_dmg := 0.0
 var hits_taken := 0       # ラナが攻撃を受けた回数（数え続ける。ダンジョンは入った時との差）
 signal foe_killed(e)
+signal boss_break(e)   # ボスのブレイク（2026-11-15。撮影・自動の周回の記録用）
 var shadow_mat: StandardMaterial3D
 var glints: Array = []   # 看板・灯りの位置と色（assets/ground/glints.json）。キャラの縁取り・染めに使う
 const REFL := preload("res://scripts/sprite_refl.gdshader")
@@ -155,9 +157,25 @@ func apply_light(spr: Sprite3D, mat: ShaderMaterial, refl: Sprite3D, p: Vector3)
 		refl.offset = spr.offset
 		refl.material_override.set_shader_parameter("tint", mat.get_shader_parameter("tint"))
 
+## 敵が画面に映っているか（体の中ほどがカメラの視野に入っているか）
+func on_screen(e: Node3D) -> bool:
+	if main == null or main.cam == null:
+		return true
+	return main.cam.is_position_in_frustum(e.global_position + Vector3(0, 1.0, 0))
+
 ## ラナと敵が使う時間（止めている間は 0）
 func dt(delta: float) -> float:
 	return 0.0 if (freeze > 0.0 or cine) else delta
+
+## 止め（cine）の安全装置：必殺技の演出が途中で切れて cine が残っても、CINE_MAX 秒で解く（2026-11-15 実機でフリーズの報告）
+const CINE_MAX := 6.0
+var cine_t := 0.0
+func _process(delta: float) -> void:
+	cine_t = cine_t + delta if cine else 0.0
+	if cine_t > CINE_MAX:
+		push_warning("cine stuck %.1fs -> released" % cine_t)
+		cine = false
+		cine_t = 0.0
 
 ## 大技の始まり：背景を暗くし、hold 秒そのまま
 func big_moment(hold: float) -> void:
@@ -339,8 +357,12 @@ func _attack_from(p: Node3D, spec: Dictionary, mul: float) -> int:
 		for i in mini(int(spec.seek_n), cand.size()):
 			seek.append(cand[i][1])
 		shape = "seek"
+	var ally_hit: bool = p != player
+	var staggered := 0   # のけぞった数（全員アーマーで受けたら止めを短く）
 	for e in enemies:
 		if e.state == "dying":
+			continue
+		if ally_hit and not on_screen(e):   # 仲間の技は画面の外の敵に当てない（2026-11-15 ユーザー。外の群れが走り込んでくるのを防ぐ）
 			continue
 		var dx: float = (e.position.x - pp.x) * dir
 		var dz: float = absf(e.position.z - (pp.z + zs * maxf(0.0, dx)))
@@ -367,10 +389,11 @@ func _attack_from(p: Node3D, spec: Dictionary, mul: float) -> int:
 			var d: float = spec.dmg * mul * randf_range(0.9, 1.1)
 			stat_dmg += d
 			var edir := 1 if e.position.x >= pp.x else -1
-			e.take_hit(d, edir, spec.strong)
+			if e.take_hit(d, edir, spec.strong, ally_hit) or e.boss:   # のけぞった（ボスは今どおりの止め）
+				staggered += 1
 			if spec.has("kb"):   # 吹き飛ばしの強さ（倍）
 				e.kx *= float(spec.kb)
-			if spec.has("pull") and not e.boss:   # 寄せる（スキル）：front＝ラナの前 1.5m へ、in＝ラナへ、out＝外へ押す（派生 反転）
+			if spec.has("pull") and not e.boss and e.last_st:   # アーマーで受けた敵は寄せない（2026-11-15）。寄せる（スキル）：front＝ラナの前 1.5m へ、in＝ラナへ、out＝外へ押す（派生 反転）
 				var m: float = float(spec.get("pull_m", 0.3))
 				if spec.pull == "out":
 					e.position.x = clampf(e.position.x + edir * m, ROOM_X.x, ROOM_X.y)
@@ -443,7 +466,10 @@ func _attack_from(p: Node3D, spec: Dictionary, mul: float) -> int:
 			freeze = maxf(freeze, 0.045 + mini(hits, 10) * 0.006 + (0.03 if spec.strong else 0.0) + float(spec.get("freeze_add", 0.0)))
 			shake = maxf(shake, 5.0 + mini(hits, 12) * 1.1 + (4.0 if spec.strong else 0.0))
 		else:   # 2026-11-07：通常 50ms・大技 90ms（＋必殺技などの freeze_add）、揺れは技ごと
-			freeze = maxf(freeze, (HS_BIG if spec.strong else HS_NORMAL) + float(spec.get("freeze_add", 0.0)))
+			if staggered > 0 or spec.has("freeze_add"):
+				freeze = maxf(freeze, (HS_BIG if spec.strong else HS_NORMAL) + float(spec.get("freeze_add", 0.0)))
+			else:   # 全員アーマーで受けた：止めは短く（2026-11-15、手応えは残し硬い敵だけ軽く）
+				freeze = maxf(freeze, FoeStats.HS_ARMOR)
 			shake = maxf(shake, float(spec.get("shake", SHAKE_BIG if spec.strong else SHAKE_NORMAL)))
 		combo += hits
 		combo_t = 2.4
@@ -527,7 +553,9 @@ func just_guard(p: Node3D, e) -> void:
 		e.atk.warn = null
 	e.atk.done = true
 	e.state = "stun"
-	e.stun = maxf(e.stun, 0.8)
+	e.stun = maxf(e.stun, FoeStats.JG_STUN)   # 2026-11-15：0.8→1.2 秒、アーマーを 3 秒外す（ユーザー決定）
+	if e.has_method("armor_break"):
+		e.armor_break()
 	e.kx = (-1 if e.position.x < p.position.x else 1) * 1.2
 	e.flash = maxf(e.flash, 0.1)
 	p.inv = maxf(p.inv, 0.6)

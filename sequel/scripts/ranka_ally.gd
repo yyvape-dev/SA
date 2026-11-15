@@ -51,13 +51,26 @@ func setup(w, d: Dictionary) -> void:
 func _ready() -> void:
 	super._ready()
 	refresh_skills()
+	_make_rfx()
+
+func _make_rfx() -> void:
 	rfx = RankaFx.new()
 	rfx.fx = world.fx
 	rfx.world = world
 	world.add_child(rfx)
 
+## 控え（パーティの選択で戦闘の木から外す）から戻った時：エフェクトの係が無ければ作り直す（2026-11-15。外した時に消していたので、戻ると消えた物を使って落ちた）
+func _enter_tree() -> void:
+	if rfx != null and not is_instance_valid(rfx) and world != null:
+		_make_rfx()
+
+## 消すのはランカ自身が消える時だけ（控えに外す＝木から外すだけ、では消さない）
 func _exit_tree() -> void:
-	if is_instance_valid(rfx):
+	if is_queued_for_deletion() and is_instance_valid(rfx):
+		rfx.queue_free()
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_PREDELETE and is_instance_valid(rfx):
 		rfx.queue_free()
 
 func slot_ids() -> Array:
@@ -258,7 +271,7 @@ func _ult_process(delta: float) -> void:
 		if ult_t - delta < 0.05:
 			rfx.petals_burst(position + Vector3(0, 1.2, 0), 18, {"spd": Vector2(1.0, 3.0), "up": 0.8, "size": 0.16})
 		return
-	world.cine = false
+	# 2026-11-15 ユーザー：必殺技の演出中は止める（_end_ult まで cine のまま）
 	world.cam_zoom = maxf(0.0, 1.0 - (ult_t - ULT_CUT.cut_end) / 0.35)
 	var t2 := ult_t - ULT_CUT.cut_end
 	var steps: int = int(sk_tab.ult.steps)
