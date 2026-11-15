@@ -1,6 +1,6 @@
 extends CanvasLayer
-## ダンジョンまわりの画面：レベル・経験値・武器（いつも）、右上の小さな地図・時間・ボスの体力（ダンジョンの中）、
-## 難易度を選ぶ画面、結果の画面、暗転。文字は使わず、数字と色と記号だけ。
+## ダンジョン選択・戦闘情報・結果・暗転、および街でのスキル育成。
+## 遠征盤・戦闘は数字と絵、育成・技セットは日本語の説明を使用。
 ## 色：青＝味方・ノーマル、赤＝敵・ハード、金＝物資・決着。
 
 var main
@@ -10,6 +10,7 @@ var slot_pick := ""        # 一覧で選んだ技
 const SkillIcons := preload("res://scripts/skill_icons.gd")
 const CombatArt := preload("res://scripts/combat_hud_art.gd")
 const SkillTree := preload("res://scripts/skill_tree.gd")
+const TreeArt := preload("res://scripts/skill_tree_art.gd")
 const SelectArt := preload("res://scripts/dungeon_select_art.gd")
 var menu_feedback_pos := Vector2.ZERO
 var menu_feedback_t := 0.0
@@ -24,9 +25,11 @@ var _pad_was_processing_input := true
 var _covered_postprocess: CanvasItem
 var _postprocess_was_visible := true
 const Art := preload("res://scripts/t6_hud_art.gd")
-## スキルツリー（specs/skill_tree.md 4.）：仮で歯車の画面に「スロット｜ツリー」の切り替えを足した（開き方は未決）
-var slot_mode := "slot"    # "slot"＝スロット設定、"tree"＝スキルツリー
+## スキル育成（specs/skill_tree.md）：街の歯車から。技セットと切り替え。
+var slot_mode := "tree"    # "slot"＝スロット設定、"tree"＝スキルツリー
 var tree_ch := "rana"      # 選んでいるキャラのタブ
+var tree_skill := "flurry"  # 説明を表示する技（選択ではSPを使わない）
+var tree_deriv := ""        # 効果を確認する派生候補
 var respec_arm := 0.0      # 振り直しの確認（1回目を押してから 3 秒の間に、もう1回で実行）
 var tree_flash := {}       # 押した所の光（キー → 残り秒）
 var menu_sel := 0          # 難易度の画面：0＝ノーマル 1＝ハード 2＝エキスパート／テーマの画面：0〜3＝T1〜T4
@@ -77,7 +80,7 @@ func _process(delta: float) -> void:
 
 ## The map is opaque. Skip hidden 3D drawing, restore the exact previous visibility.
 func _sync_menu_world() -> void:
-	var covered: bool = menu_open or (main != null and "loading" in main and is_instance_valid(main.loading) and main.loading.visible)
+	var covered: bool = menu_open or slot_open or (main != null and "loading" in main and is_instance_valid(main.loading) and main.loading.visible)
 	if covered and not is_instance_valid(_covered_viewport):
 		_covered_viewport = get_viewport()
 		_viewport_3d_was_disabled = _covered_viewport.disable_3d
@@ -270,43 +273,58 @@ func close_slots() -> void:
 
 ## ツリーの画面を押した
 func tree_tap(pos: Vector2) -> void:
+	if main.dungeon != null:
+		return
 	var r: Dictionary = view.tree_rects()
 	if r.close.has_point(pos) or not r.panel.has_point(pos):
 		close_slots()
 		return
 	if r.tab_slot.has_point(pos):
 		slot_mode = "slot"
+		respec_arm = 0.0
 		return
 	var pr = main.progress
 	for i in SkillTree.CHARS.size():
 		if r["ch%d" % i].has_point(pos):
 			tree_ch = SkillTree.CHARS[i]
+			tree_skill = SkillTree.order(tree_ch)[0]
+			tree_deriv = pr.deriv_of(tree_ch, tree_skill)
 			respec_arm = 0.0
 			return
 	if r.respec.has_point(pos):
+		if TreeArt.Info.refund(pr, tree_ch) <= 0:
+			return
 		if respec_arm > 0.0:
 			pr.respec(tree_ch)
 			respec_arm = 0.0
+			tree_deriv = ""
 			tree_flash["respec"] = 0.4
 		else:
 			respec_arm = 3.0
 		return
+	respec_arm = 0.0
+	if r.upgrade.has_point(pos):
+		if pr.level_up(tree_ch, tree_skill):
+			tree_flash["lv_" + tree_skill] = 0.35
+		else:
+			tree_flash["no_" + tree_skill] = 0.3
+		return
+	if r.apply_deriv.has_point(pos):
+		if pr.set_deriv(tree_ch, tree_skill, tree_deriv):
+			tree_flash["deriv"] = 0.35
+		return
 	var rows: Dictionary = SkillTree.rows(tree_ch)
 	for id in SkillTree.order(tree_ch):
-		if r.has("lv_" + id) and r["lv_" + id].has_point(pos):
-			if pr.level_up(tree_ch, id):
-				tree_flash["lv_" + id] = 0.35
-			else:
-				tree_flash["no_" + id] = 0.3
-			return
 		for did in rows[id].get("derivs", {}):
 			var k: String = "d_%s_%s" % [id, did]
 			if r.has(k) and r[k].has_point(pos):
-				if pr.set_deriv(tree_ch, id, did):
-					tree_flash[k] = 0.35
-				else:
-					tree_flash["no_" + k] = 0.3
+				tree_skill = id
+				tree_deriv = did
 				return
+		if r["row_" + id].has_point(pos):
+			tree_skill = id
+			tree_deriv = pr.deriv_of(tree_ch, id)
+			return
 
 ## 一覧の技を選ぶ → 枠を押すと入れる（同じ技が他の枠にあれば入れ替え）
 func slot_tap(pos: Vector2) -> void:
@@ -361,6 +379,7 @@ func _input(e: InputEvent) -> void:
 		elif e is InputEventKey and e.pressed and not e.echo and e.keycode == KEY_T:   # T＝スロット／ツリーの切り替え（キーボード）
 			get_viewport().set_input_as_handled()
 			slot_mode = "slot" if slot_mode == "tree" else "tree"
+			respec_arm = 0.0
 		return
 	if not menu_open and result_t < 0.0:
 		return
@@ -589,43 +608,10 @@ class _View extends Control:
 		SelectArt.face_card(self, rc, tex, col, on, locked, _u())
 
 	func slot_rects() -> Dictionary:
-		var u := _u()
-		var c := size * 0.5
-		var panel := Rect2(c - Vector2(330, 230) * u, Vector2(660, 460) * u)
-		var out := {"panel": panel, "close": Rect2(panel.position + Vector2(panel.size.x - 52 * u, 8 * u), Vector2(44, 44) * u)}
-		out.tab_slot = Rect2(panel.position + Vector2(12, 10) * u, Vector2(84, 40) * u)   # 切り替え（スロット｜ツリー）
-		out.tab_tree = Rect2(panel.position + Vector2(100, 10) * u, Vector2(84, 40) * u)
-		for i in 3:   # 上に3枠
-			out["slot%d" % i] = Rect2(c + Vector2((i - 1) * 170 - 65, -170) * u, Vector2(130, 130) * u)
-		var own: Array = hud.main.progress.skills_owned
-		for i in own.size():   # 下に持っている技
-			out["own%d" % i] = Rect2(c + Vector2((i - (own.size() - 1) * 0.5) * 130 - 50, 50) * u, Vector2(100, 100) * u)
-		return out
+		return TreeArt.slot_rects(size, hud.main.progress.skills_owned)
 
 	func _slots() -> void:
-		var u := _u()
-		var pr = hud.main.progress
-		draw_rect(Rect2(Vector2.ZERO, size), Color(0, 0, 0, 0.55))
-		var r := slot_rects()
-		draw_rect(r.panel, Color(0.04, 0.04, 0.09, 0.92))
-		draw_rect(r.panel, Color(0.72, 0.5, 1.0, 0.8), false, 3 * u)
-		_close_x(r.close)
-		_mode_tabs(r)
-		for i in 3:
-			var rc: Rect2 = r["slot%d" % i]
-			draw_rect(rc, Color(0.1, 0.12, 0.2, 0.9))
-			draw_rect(rc, GOLD if hud.slot_pick != "" else Color(1, 1, 1, 0.5), false, 3 * u)
-			_num(rc.position + Vector2(8, 28) * u, str(i + 1), 24, Color(1, 1, 1, 0.6))
-			SkillIcons.draw(self, str(pr.skill_slots[i]), rc.get_center(), rc.size.x * 0.5, Color.WHITE, u)
-		# 枠と一覧の境目に下向きの山形
-		var mid := size * 0.5 + Vector2(0, 5 * u)
-		draw_polyline(PackedVector2Array([mid + Vector2(-16, -8) * u, mid + Vector2(0, 6) * u, mid + Vector2(16, -8) * u]), Color(1, 1, 1, 0.5), 3 * u)
-		for i in pr.skills_owned.size():
-			var rc2: Rect2 = r["own%d" % i]
-			var sel: bool = hud.slot_pick == str(pr.skills_owned[i])
-			draw_rect(rc2, Color(0.08, 0.09, 0.15, 0.9))
-			draw_rect(rc2, GOLD if sel else Color(1, 1, 1, 0.35), false, (5 if sel else 2) * u)
-			SkillIcons.draw(self, str(pr.skills_owned[i]), rc2.get_center(), rc2.size.x * 0.5, Color.WHITE, u)
+		TreeArt.slots(self, hud)
 
 	func _close_x(rc: Rect2) -> void:
 		var u := _u()
@@ -633,158 +619,12 @@ class _View extends Control:
 		draw_line(cc + Vector2(-12, -12) * u, cc + Vector2(12, 12) * u, Color(1, 1, 1, 0.8), 4 * u)
 		draw_line(cc + Vector2(12, -12) * u, cc + Vector2(-12, 12) * u, Color(1, 1, 1, 0.8), 4 * u)
 
-	## 切り替えのタブ：左＝スロット（3つの枠）、右＝ツリー（枝）。選んでいる方は金の縁
-	func _mode_tabs(r: Dictionary) -> void:
-		var u := _u()
-		for k in ["tab_slot", "tab_tree"]:
-			var rc: Rect2 = r[k]
-			var on: bool = (k == "tab_tree") == (hud.slot_mode == "tree")
-			draw_rect(rc, Color(0.1, 0.12, 0.2, 0.95 if on else 0.6))
-			draw_rect(rc, GOLD if on else Color(1, 1, 1, 0.3), false, (3 if on else 2) * u)
-			var c := rc.get_center()
-			var col := Color(1, 1, 1, 1.0 if on else 0.55)
-			if k == "tab_slot":
-				for i in 3:
-					draw_rect(Rect2(c + Vector2(-25 + i * 18, -7) * u, Vector2(14, 14) * u), col, false, 2 * u)
-			else:
-				draw_line(c + Vector2(-26, 0) * u, c + Vector2(-6, 0) * u, col, 2 * u)
-				draw_circle(c + Vector2(-26, 0) * u, 5 * u, col)
-				for dy in [-10, 10]:
-					draw_line(c + Vector2(-6, 0) * u, c + Vector2(14, dy) * u, col, 2 * u)
-					draw_circle(c + Vector2(18, dy) * u, 5 * u, col)
-
-	## ---------- スキルツリー（A 案「技ごとの枝」） ----------
+	## スキル育成：描画とタッチ矩形を同じモジュールで管理。
 	func tree_rects() -> Dictionary:
-		var u := _u()
-		var c := size * 0.5
-		var panel := Rect2(c - Vector2(540, 330) * u, Vector2(1080, 660) * u)
-		var out := {"panel": panel, "close": Rect2(panel.position + Vector2(panel.size.x - 52 * u, 8 * u), Vector2(44, 44) * u)}
-		out.tab_slot = Rect2(panel.position + Vector2(12, 10) * u, Vector2(84, 40) * u)
-		out.tab_tree = Rect2(panel.position + Vector2(100, 10) * u, Vector2(84, 40) * u)
-		for i in 3:   # 左：キャラのタブ
-			out["ch%d" % i] = Rect2(panel.position + Vector2(16, 70 + i * 150) * u, Vector2(120, 136) * u)
-		var ids: Array = SkillTree.order(hud.tree_ch)
-		var rows: Dictionary = SkillTree.rows(hud.tree_ch)
-		var x0: float = panel.position.x + 160 * u
-		for j in ids.size():   # 各行：アイコン・技レベルの丸5つ（押すと +1）・派生の枝
-			var y: float = panel.position.y + (70 + j * 122) * u
-			out["row_" + str(ids[j])] = Rect2(Vector2(x0, y), Vector2(900, 110) * u)
-			out["lv_" + str(ids[j])] = Rect2(Vector2(x0 + 110 * u, y + 20 * u), Vector2(230, 70) * u)
-			var ds: Array = rows[ids[j]].get("derivs", {}).keys()
-			for k in ds.size():
-				out["d_%s_%s" % [ids[j], ds[k]]] = Rect2(Vector2(x0 + (450 + k * 150) * u, y + 10 * u), Vector2(110, 90) * u)
-		out.respec = Rect2(Vector2(panel.get_center().x - 70 * u, panel.end.y - 64 * u), Vector2(140, 52) * u)
-		return out
+		return TreeArt.rects(size, hud.tree_ch)
 
 	func _tree() -> void:
-		var u := _u()
-		var pr = hud.main.progress
-		var ch: String = hud.tree_ch
-		draw_rect(Rect2(Vector2.ZERO, size), Color(0, 0, 0, 0.55))
-		var r := tree_rects()
-		draw_rect(r.panel, Color(0.04, 0.04, 0.09, 0.94))
-		draw_rect(r.panel, Color(0.72, 0.5, 1.0, 0.8), false, 3 * u)
-		_close_x(r.close)
-		_mode_tabs(r)
-		# 右上：残りの SP（金のひし形＋数字）
-		var spc := Vector2(r.panel.end.x - 150 * u, r.panel.position.y + 32 * u)
-		_diamond(spc, 14 * u, GOLD)
-		_num(spc + Vector2(24, 13) * u, str(pr.sp_of(ch)), 34, GOLD)
-		# 左：キャラのタブ（丸い顔の絵）。選んでいるタブは金の縁。右下に残り SP
-		var faces := {"rana": Art.RANA, "lily": Art.LILY, "ranka": Art.RANKA}
-		for i in SkillTree.CHARS.size():
-			var rc: Rect2 = r["ch%d" % i]
-			var cid: String = SkillTree.CHARS[i]
-			var on: bool = cid == ch
-			draw_rect(rc, Color(0.1, 0.12, 0.2, 0.95 if on else 0.55))
-			draw_rect(rc, GOLD if on else Color(1, 1, 1, 0.25), false, (4 if on else 2) * u)
-			var tex: Texture2D = faces[cid]
-			var fr := Rect2(rc.get_center() - Vector2(46, 52) * u, Vector2(92, 92) * u)
-			draw_texture_rect(tex, fr, false, Color(1, 1, 1, 1.0 if on else 0.55))
-			if pr.sp_of(cid) > 0:
-				_num(Vector2(rc.end.x - 30 * u, rc.end.y - 8 * u), str(pr.sp_of(cid)), 24, GOLD)
-		var ids: Array = SkillTree.order(ch)
-		var rows: Dictionary = SkillTree.rows(ch)
-		for id in ids:
-			var row: Rect2 = r["row_" + str(id)]
-			var lv: int = pr.skill_level(ch, id)
-			var ult: bool = id == "ult"
-			draw_rect(row, Color(0.06, 0.07, 0.12, 0.8 if not ult else 0.95))
-			if ult:   # 必殺技の行は一番下（金の細い縁）
-				draw_rect(row, Color(GOLD, 0.5), false, 2 * u)
-			# 技のアイコン（今のコードの図形）
-			var ic := row.position + Vector2(55, 55) * u
-			draw_circle(ic, 44 * u, Color(0.1, 0.12, 0.2, 1.0))
-			draw_arc(ic, 44 * u, 0, TAU, 36, GOLD if ult else Color(1, 1, 1, 0.5), 2 * u)
-			if Art.ICONS.has(id):
-				Art.icon(self, Art.ICONS[id], ic, 70 * u, Color.WHITE)
-			else:
-				SkillIcons.draw2(self, str(id), ic, 44 * u, Color.WHITE, u)
-			# 技レベルの丸5つ（埋まった数＝Lv）＋押すと +1 の印
-			var lr: Rect2 = r["lv_" + str(id)]
-			var can: bool = pr.can_level(ch, id)
-			var fl: float = float(hud.tree_flash.get("lv_" + str(id), 0.0))
-			var nofl: float = float(hud.tree_flash.get("no_" + str(id), 0.0))
-			for k in SkillTree.MAX_LV:
-				var pc := lr.position + Vector2(18 + k * 36, 35) * u
-				if nofl > 0.0:
-					pc.x += sin(nofl * 70.0) * 3 * u
-				if k < lv:
-					draw_circle(pc, 12 * u, GOLD.lerp(Color.WHITE, fl * 2.0) if k == lv - 1 else GOLD)
-				else:
-					draw_arc(pc, 12 * u, 0, TAU, 20, Color(1, 1, 1, 0.45), 2 * u)
-				if k + 1 == SkillTree.DERIV_LV:   # 派生が開く Lv の印（小さな山形）
-					draw_polyline(PackedVector2Array([pc + Vector2(-6, -20) * u, pc + Vector2(0, -26) * u, pc + Vector2(6, -20) * u]), Color(GOLD, 0.7), 2 * u)
-			var plc := lr.position + Vector2(205, 35) * u
-			draw_circle(plc, 18 * u, Color(GOLD, 0.9) if can else Color(1, 1, 1, 0.12))
-			var pcol := Color(0.05, 0.04, 0.02) if can else Color(1, 1, 1, 0.35)
-			draw_line(plc + Vector2(-9, 0) * u, plc + Vector2(9, 0) * u, pcol, 4 * u)
-			draw_line(plc + Vector2(0, -9) * u, plc + Vector2(0, 9) * u, pcol, 4 * u)
-			# 派生の枝：線を右へ引いて、ノード 2〜3 個（Lv3 未満は薄い）。選んだ派生は金の縁
-			var open: bool = lv >= SkillTree.DERIV_LV
-			var ds: Array = rows[id].get("derivs", {}).keys()
-			var start := Vector2(lr.end.x + 12 * u, row.get_center().y)
-			if ds.size() > 0:
-				var first: Rect2 = r["d_%s_%s" % [id, ds[0]]]
-				var lastr: Rect2 = r["d_%s_%s" % [id, ds[-1]]]
-				var bx: float = first.position.x - 30 * u
-				var lc := Color(GOLD, 0.6) if open else Color(1, 1, 1, 0.18)
-				draw_line(start, Vector2(bx, start.y), lc, 3 * u)
-				draw_line(Vector2(bx, start.y), Vector2(lastr.position.x, start.y), lc, 3 * u)
-			for k in ds.size():
-				var did: String = ds[k]
-				var dr: Rect2 = r["d_%s_%s" % [id, did]]
-				var dd: Dictionary = rows[id].derivs[did]
-				var todo: bool = dd.get("todo", false)
-				var sel: bool = pr.deriv_of(ch, id) == did
-				var a := 1.0 if open and not todo else 0.3
-				var key: String = "d_%s_%s" % [id, did]
-				var dc := dr.get_center()
-				if float(hud.tree_flash.get("no_" + key, 0.0)) > 0.0:
-					dc.x += sin(float(hud.tree_flash["no_" + key]) * 70.0) * 3 * u
-				var hex := PackedVector2Array()
-				for q in 6:
-					var ang := q * TAU / 6.0
-					hex.append(dc + Vector2(cos(ang) * 52, sin(ang) * 44) * u)
-				draw_colored_polygon(hex, Color(0.12, 0.1, 0.06, 0.95) if sel else Color(0.08, 0.09, 0.15, 0.9 * a + 0.1))
-				hex.append(hex[0])
-				var bc := GOLD if sel else Color(1, 1, 1, 0.5 * a)
-				if float(hud.tree_flash.get(key, 0.0)) > 0.0:
-					bc = Color.WHITE
-				draw_polyline(hex, bc, (5 if sel else 2) * u)
-				SkillIcons.glyph(self, String(dd.get("glyph", "")), dc, 40 * u, Color(GOLD if sel else Color.WHITE, a), u)
-				_num(dr.position + Vector2(-2, 18) * u, str(k + 1), 18, Color(1, 1, 1, 0.55 * a))
-		# 下：振り直し（全部の SP を戻す。確認は1回：1回目で赤く光り、3 秒以内にもう1回で実行）
-		var rr: Rect2 = r.respec
-		var arm: bool = hud.respec_arm > 0.0
-		draw_rect(rr, Color(0.35, 0.05, 0.05, 0.9) if arm else Color(0.1, 0.12, 0.2, 0.9))
-		draw_rect(rr, RED if arm else Color(1, 1, 1, 0.45), false, (3 if arm else 2) * u)
-		var rc2 := rr.get_center()
-		draw_arc(rc2 + Vector2(-20, 0) * u, 14 * u, -PI * 0.2, PI * 1.5, 18, Color.WHITE, 3 * u)
-		draw_colored_polygon(PackedVector2Array([rc2 + Vector2(-20 + 14, -4) * u, rc2 + Vector2(-20 + 6, -14) * u, rc2 + Vector2(-20 + 22, -14) * u]), Color.WHITE)
-		_diamond(rc2 + Vector2(20, 0) * u, 10 * u, GOLD)
-		if arm:
-			_num(rc2 + Vector2(36, 12) * u, "?", 30, RED)
+		TreeArt.draw(self, hud)
 
 	func _result() -> void:
 		var u := _u()
