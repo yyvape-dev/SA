@@ -82,12 +82,13 @@ static func close(v,rc:Rect2,u:float,back:bool)->void:
   for side in [-1,1]:v.draw_line(c+Vector2(-10,-10*side)*u,c+Vector2(10,10*side)*u,GOLD,2*u,true)
 
 static func path(v,a:Vector2,b:Vector2,opened:bool,u:float)->void:
- for i in 24:
-  if not opened and i%3!=0:continue
-  var p=a.lerp(b,float(i)/24)+Vector2(0,sin(float(i)/24*PI)*12*u)
-  var q=a.lerp(b,float(i+1)/24)+Vector2(0,sin(float(i+1)/24*PI)*12*u)
-  if opened:v.draw_line(p,q,Color(GOLD,0.1),9*u,true)
-  v.draw_line(p,q,Color(GOLD,0.9) if opened else Color(0.5,0.5,0.6,0.3),2*u,true)
+ var points=PackedVector2Array()
+ for i in 25:points.append(a.lerp(b,float(i)/24)+Vector2(0,sin(float(i)/24*PI)*12*u))
+ if opened:
+  v.draw_polyline(points,Color(GOLD,0.10),9*u,true)
+  v.draw_polyline(points,Color(GOLD,0.90),2*u,true)
+ else:
+  for i in range(0,24,3):v.draw_line(points[i],points[i+1],Color(0.5,0.5,0.6,0.3),2*u,true)
 
 static func chained(v,rc:Rect2)->void:
  fit(v,M.SHUT_MOUNT,rc)
@@ -188,11 +189,11 @@ static func panel(v,h,r:Dictionary,sz:Vector2)->void:
   for j in count:
    var face:Texture2D=[HUD_ART.RANA,HUD_ART.LILY,HUD_ART.RANKA][j]
    medallion(v,face,Rect2(rc.position+Vector2(rc.size.x*(0.60+j*0.075),rc.size.y*0.20),Vector2(25,25)*u),BRASS)
-  number(v,Rect2(rc.position+rc.size*Vector2(0.83,0.12),rc.size*Vector2(0.10,0.42)),str(count),INK,30*u)
+  number(v,Rect2(rc.position+rc.size*Vector2(0.65,0.50),rc.size*Vector2(0.12,0.42)),str(count),INK,30*u)
   var key=THEMES.key(THEMES.THEMES[h.menu_theme].id,THEMES.DIFF_ORDER[i])
   var best=float(h.main.progress.best.get(key,0))
   var text=("%d:%02d"%[int(best/60),int(best)%60]) if h.main.progress.best.has(key) else "-"
-  var clock_rc=Rect2(rc.position+rc.size*Vector2(0.66,0.46),rc.size*Vector2(0.25,0.50))
+  var clock_rc=Rect2(rc.position+rc.size*Vector2(0.80,0.05),rc.size*Vector2(0.16,0.90))
   fit(v,M.CLOCK,clock_rc,Color(0.7,0.65,0.55))
   number(v,clock_rc,text,GOLD,19*u)
   if not opened:chained(v,Rect2(scene.get_center()-Vector2(20,28)*u,Vector2(40,56)*u))

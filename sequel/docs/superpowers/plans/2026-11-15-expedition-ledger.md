@@ -8,3 +8,6 @@
 - Review important2: reviewer suspected raw PNG export. Existing .gdignore does exclude them: previous exported PCK contains no art/ui_source paths. Final export will independently verify new sheets too; no startup payload claim until manifest inspected.
 - Unresolved user data: recommendation4/10/18/26 was explicitly described as mock data; async question sent. RECOMMENDED remains0 (hidden) until reply, never a progression gate.
 - Full original bot: DUNGEON DONE, final run log in /workspace/ui-evidence/apparatus/dungeon-test.log. Native unlockedmenu0–5 completed, party lily+ranka. Locked capture running.
+
+- Web acceptance first pass: T2/hard/party/dg1/dg_t2 entered, pageerror0. SwiftShader map RAF intervals about300ms. Disabling covered3D lowered observed intervals to about200ms (not a100ms claim). Added RED→GREEN coverage for covered combat HUD visibility and prior-state restoration; hide controls/input while opaque expedition UI is open, skip underlying HUD drawing and batch path polylines. Final Web measurement pending.
+- Best-time display uses whole M:SS for readable small dial; unsupported em dash replaced with ASCII hyphen after checking actual font cmap.

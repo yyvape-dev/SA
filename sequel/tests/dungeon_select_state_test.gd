@@ -15,6 +15,7 @@ class Model extends Node:
  var battle=BattleStub.new()
  var dungeon=null
  var level=Node3D.new()
+ var ui=CanvasLayer.new()
  var party_last=[]
  var hud
  var loading
@@ -26,10 +27,10 @@ class Model extends Node:
 func _initialize():call_deferred("run")
 func run():
  var old_3d=root.disable_3d
- var m=Model.new();root.add_child(m);m.add_child(m.player);m.add_child(m.battle);m.add_child(m.district);m.add_child(m.level)
+ var m=Model.new();root.add_child(m);m.add_child(m.player);m.add_child(m.battle);m.add_child(m.district);m.add_child(m.level);m.add_child(m.ui)
  m.progress=Progress.new();m.progress.reset()
  var h=HUD.new();m.hud=h;h.main=m;m.add_child(h)
- h.open_menu();await process_frame;await process_frame;assert(not m.level.visible,"covered world should not render");assert(root.disable_3d,"covered viewport must skip all 3D rendering");assert(h.menu_stage=="theme");assert(not h.choose_theme(1));assert(h.shake_i==11)
+ h.open_menu();await process_frame;await process_frame;assert(not m.level.visible,"covered world should not render");assert(root.disable_3d,"covered viewport must skip all 3D rendering");assert(not m.ui.visible,"covered combat controls must not render");assert(h.menu_stage=="theme");assert(not h.choose_theme(1));assert(h.shake_i==11)
  h.menu_t=1.0
  var touch=InputEventScreenTouch.new();touch.pressed=true;touch.position=h.view.menu_rects().badge0.get_center()
  var input_start=Time.get_ticks_usec();h._input(touch)
@@ -58,10 +59,11 @@ func run():
  assert(not loading._err.text.contains("dg"));assert(loading._err.text.contains("200"))
  h.menu_back();h.menu_back();h.menu_back();await process_frame;await process_frame;assert(not m.level.visible and root.disable_3d,"loading must keep 3D disabled after menu closes")
  loading.hide_soon();await create_timer(0.4).timeout;await process_frame
- assert(m.level.visible,"world visibility must restore");assert(root.disable_3d==old_3d,"restore previous viewport setting")
+ assert(m.level.visible,"world visibility must restore");assert(m.ui.visible,"combat controls must restore");assert(root.disable_3d==old_3d,"restore previous viewport setting")
  print("SELECT_STATE PASS locks, party cap, unavailable/future allies, back navigation, real loading progress")
+ m.ui.visible=false
  root.disable_3d=true;h.open_menu();await process_frame;h.close_menu();await process_frame
- assert(root.disable_3d,"preserve an already disabled viewport")
+ assert(root.disable_3d,"preserve an already disabled viewport");assert(not m.ui.visible,"preserve already hidden controls")
  root.disable_3d=false;h.open_menu();await process_frame
  m.free();assert(not root.disable_3d,"HUD removal must release viewport override")
  root.disable_3d=old_3d;quit(0)

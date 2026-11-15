@@ -16,6 +16,10 @@ var _covered_world: Node3D
 var _covered_world_visible := true
 var _covered_viewport: Viewport
 var _viewport_3d_was_disabled := false
+var _covered_controls: CanvasLayer
+var _controls_were_visible := true
+var _controls_pad: Node
+var _pad_was_processing_input := true
 const Art := preload("res://scripts/t6_hud_art.gd")
 ## スキルツリー（specs/skill_tree.md 4.）：仮で歯車の画面に「スロット｜ツリー」の切り替えを足した（開き方は未決）
 var slot_mode := "slot"    # "slot"＝スロット設定、"tree"＝スキルツリー
@@ -77,6 +81,19 @@ func _sync_menu_world() -> void:
 		_covered_viewport.disable_3d = true
 	elif not covered and is_instance_valid(_covered_viewport):
 		_release_viewport()
+	var controls: CanvasLayer = main.ui if covered and main != null and "ui" in main else null
+	if is_instance_valid(_covered_controls) and _covered_controls != controls:
+		_release_controls()
+	if controls != null and controls != _covered_controls:
+		_covered_controls = controls
+		_controls_were_visible = controls.visible
+		_controls_pad = controls.get("pad") if "pad" in controls else null
+		if is_instance_valid(_controls_pad):
+			_pad_was_processing_input = _controls_pad.is_processing_input()
+		if controls.has_method("set_controls_enabled"):
+			controls.set_controls_enabled(false)
+		else:
+			controls.visible = false
 	var wanted: Node3D = main.level if covered and main != null and "level" in main else null
 	if is_instance_valid(_covered_world) and _covered_world != wanted:
 		_covered_world.visible = _covered_world_visible
@@ -86,12 +103,21 @@ func _sync_menu_world() -> void:
 		_covered_world_visible = wanted.visible
 		wanted.visible = false
 
+func _release_controls() -> void:
+	if is_instance_valid(_covered_controls):
+		_covered_controls.visible = _controls_were_visible
+	if is_instance_valid(_controls_pad):
+		_controls_pad.set_process_input(_pad_was_processing_input)
+	_covered_controls = null
+	_controls_pad = null
+
 func _release_viewport() -> void:
 	if is_instance_valid(_covered_viewport):
 		_covered_viewport.disable_3d = _viewport_3d_was_disabled
 	_covered_viewport = null
 
 func _exit_tree() -> void:
+	_release_controls()
 	_release_viewport()
 	if is_instance_valid(_covered_world):
 		_covered_world.visible = _covered_world_visible
@@ -439,6 +465,9 @@ class _View extends Control:
 		var u := _u()
 		var m = hud.main
 		if m == null or m.progress == null:
+			return
+		if hud.menu_open:
+			_menu()
 			return
 		var pr = m.progress
 		# レベル（金の山形＋数字）・経験値の細い帯（金）・武器（剣＋数字）。体力の帯（touch_ui）の下
