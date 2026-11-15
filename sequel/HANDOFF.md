@@ -1,6 +1,7 @@
 # 続編（SA2・融合都市）引き継ぎ
 
 ## 次の会話へ（戦闘HUD、2026-11-15）
+- [次のチャット用プロンプト](docs/combat_hud_polish/NEXT_CHAT_PROMPT.md)。ソースは下記ブランチの最新から継続し、mainをソースの土台にしない。
 - ユーザー確認: 体力・必殺などゲージ全体。戦闘の描画を真鍮・青いHP・紫の必殺・実技の絵へ更新。3人分のスキル、仲間復帰、ボスを含む。
 - ソース `codex/combat-hud-polish-20261115`、実装2f1feb4、Web版20261115130227-2f1feb4-g4.7.2。[結果・比較・未確認](docs/combat_hud_polish/README.md)。
 - 操作位置、戦闘ルール、main.gd、選択画面の進行関数は維持。mainへはpreviews/sa2-dungeon/のみ公開する。
