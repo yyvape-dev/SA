@@ -69,3 +69,10 @@
 - 今回のデザインに関する未決質問はなし。ゲーム全体の敵数値等は従来のHANDOFFのまま。
 
 公開は main の previews/sa2-dungeon/ だけ。ソースは作業ブランチに置き、main の sequel/web/ は変更しない。
+
+## 公開確認（事実）
+
+- main公開コミット: `3f923a7559f07837505d520760050a8457cdfcef`。開始時main `34ff552` との差分はpreviews/sa2-dungeon/の10ファイルのみ。既存の追加T3/T4パックは保持（今回の土台からは未使用）。
+- [GitHub Pages配信成功](https://github.com/yyvape-dev/SA/actions/runs/43660450661)。
+- 公開URLでChromium 844×390を起動し、門→地図→T2難易度をタップ。HTTP200、index.pckのv=`20261114161846-108702a-g4.7.2`、pageerrorなし。起動readyはこの環境で約18.1秒（iPhone実測ではない）。
+- 公開版の[地図](dungeon_select_ui_img/public_map.png)／[難易度](dungeon_select_ui_img/public_diff.png)。ローカルの全入場検証とは別に、実配信の版と画面を確認した。

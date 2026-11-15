@@ -5,6 +5,7 @@
 - 地図は門＋T1〜T4、将来の仲間2枠でユーザー了承済み。以前の「枠数未決」は解決。
 - 結果・比較・検証・事実と仮説: [制作結果](docs/dungeon_select_ui_result_20261115.md)。画面仕様の正本は [specs/dungeon_select_ui.md](specs/dungeon_select_ui.md)。
 - 試し版のみmainのpreviews/sa2-dungeon/へ公開。URL: https://yyvape-dev.github.io/SA/previews/sa2-dungeon/?town=back&at=gate&unlock=1
+- 公開確認済み: main `3f923a7`、Pages成功、Chromium844×390で公開URLの地図・T2難易度、pageerrorなし。
 - 次に確かめること: iPhone実機の描画・入力遅延。ネイティブ終了時の解放警告（bench起因は仮説）。進行関数・main.gdのパーティは未変更。
 
 ## 次の会話へ（2026-11-14 22:00 時点。ブランチ claude/skill-tree-implementation-fsvlcl＝作業の土台、main は未マージ）
