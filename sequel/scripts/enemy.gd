@@ -47,7 +47,7 @@ var atk_start := ATK_START
 var stop_d := STOP
 var atk_n := 0
 var spd := FOE_SPD
-const WAKE_D := 8.0   # 待っている敵が動き出す距離（画面の中）
+const WAKE_D := 4.5   # 待っている敵が動き出す距離（画面の中。立っている姿が先に見える。仲間の攻撃が当たっても動き出す）
 var force_atk := ""     # 撮影用：攻撃の種類を固定（CAPTURE_FOE）
 
 func setup(b, k: String, c: Dictionary, level: int) -> void:

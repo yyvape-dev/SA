@@ -163,7 +163,10 @@ func _plan_groups(x0: float) -> void:
 	var x1: float = travel * (rw - 2.5)
 	var fr := [0.3, 0.62, 0.95]
 	for i in room.groups.size():
-		groups.append({"x": lerpf(x0, x1, fr[i]), "n": int(room.groups[i]) + int(cfg().add), "m": [], "rein": 0})
+		var gx: float = lerpf(x0, x1, fr[i])
+		if i == 0:   # 最初の群れは入った時に画面の中に見える所（5.5〜10m 先。入口の端ではカメラが壁で止まり、見えるのは約 8m 先まで）
+			gx = x0 + travel * minf(5.5, absf(x1 - x0) * 0.5)
+		groups.append({"x": gx, "n": int(room.groups[i]) + int(cfg().add), "m": [], "rein": 0})
 	_place_groups()
 
 ## 群れは部屋に入った時点で進む先に立たせる（2026-11-15 ユーザー「大半は最初からいる」「来た側から湧くのは NG」「片付けるたびに進む先から増援は可」）。
@@ -180,7 +183,7 @@ func _place_groups() -> void:
 		for k in pre:
 			if placed >= cap:
 				break
-			var x: float = clampf(float(g.x) + travel * rng.randf_range(-1.2, 2.4), -rw + 0.6, rw - 0.6)
+			var x: float = clampf(float(g.x) + travel * rng.randf_range(0.0, 4.5), -rw + 0.6, rw - 0.6)
 			var e = _spawn_one(x)
 			if e:
 				e.state = "idle"
