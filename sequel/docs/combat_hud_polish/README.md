@@ -29,6 +29,10 @@
 - Chromium844×390のWebで地図→難易度→仲間→実際の読み込み→戦闘へ移動。スキルをタッチしてCD7.3秒の表示を撮影。pageerror/ScriptErrorなし（evidence/web-console.json）。
 - export_web.py成功。本体67.8MB、地区パック分離と必要ファイルの存在をexporterで確認。
 
+## 公開確認
+
+main `d4e78be`、変更はpreviews/sa2-dungeon/の10ファイルのみ。Pages run43718113056成功。公開URLをChromium844×390で開き、今回の版のindex.pckを取得したこと・地図/T2難易度・pageerror0を確認（evidence/public-test.log）。公開環境での戦闘までの再撮影は未実施、同一ビルドのローカルWebで実施済み。ソースは作業ブランチへpush済み。
+
 ## 未確認・仮説
 
 iPhone実機の見え方・速度は未確認。装飾とアイコンで判別しやすくなるという点はデザイン上の仮説で、実機のユーザーテストで確認する。長押し・フリック・4枠目や新しい技は今回追加していない。
