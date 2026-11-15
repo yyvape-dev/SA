@@ -12,7 +12,7 @@ const path = require('path');
  page.on('pageerror',e=>errors.push(String(e)));
  page.on('console',m=>{logs.push(m.text());if(/SCRIPT ERROR|Parse Error|unsupported format/.test(m.text()))errors.push(m.text());});
  page.on('response',r=>{if(r.url().includes('.pck'))packs.push({url:r.url(),status:r.status()});});
- await page.goto((process.env.TREE_WEB_URL||'http://127.0.0.1:8765/')+'?town=back', {waitUntil:'domcontentloaded'});
+ await page.goto((process.env.TREE_WEB_URL||'http://127.0.0.1:8765/')+'?town=back'+(process.env.TREE_EXPECT_VERSION?'&build='+process.env.TREE_EXPECT_VERSION:''), {waitUntil:'domcontentloaded'});
  await page.waitForFunction(()=>document.querySelector('canvas') && !document.querySelector('#status'),null,{timeout:120000});
  await page.waitForTimeout(12000);
  await page.screenshot({path:path.join(out,'web_town.png')});

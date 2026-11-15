@@ -51,4 +51,5 @@ iPhone実機の読みやすさ・入力遅延・速度、初見ユーザーの�
 - 統合後の8テストと実main.tscnのタッチ強化・CD反映・保存・入力復元がPASS。テスト終了時に控えノードを明示解放した最終live-integrated.logは解放警告なし。これはテストの片付けであり、本編の既存解放問題を修正した意味ではない。
 - 最終ローカルWeb844×390：街→育成→リリィ→技セット→閉じる、pageerror／ScriptError／その他ERRORとも0。取得した本体PCKの版も上記に一致（evidence/web-console.json）。
 - main `b1dd26f` へ公開用12ファイルだけをpush。本編ソースはmainへ入れていない。旧main14f7cf4とのPCKエントリー比較で、10地区すべての素材ペイロードが同一、差分は各地区の版番号JSONだけ（evidence/district-preservation.log）。
-- Pages run43725826589の反映と公開URLの確認結果は追記する。
+- Pages [run43725826589](https://github.com/yyvape-dev/SA/actions/runs/43725826589) はbuild／deployともsuccess。公開URLでも上記版のindex.pckをHTTP200で取得、育成→リリィ→技セット→閉じるを実タッチで確認。pageerror／ScriptError／その他ERRORとも0（evidence/public/web-console.json）。公開街の初回撮影はまだ地区読み込み中だが、その後の育成／閉じた後の街は表示完了を確認。
+- 試すURL：https://yyvape-dev.github.io/SA/previews/sa2-dungeon/?town=back （街の歯車から育成）。iPhone実機での確認は引き続き未実施。
