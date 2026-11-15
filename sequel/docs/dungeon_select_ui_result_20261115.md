@@ -59,6 +59,8 @@
 - serve_gzip.py + Chromium 844×390: 門→T2→ハード→ランカ選択→入場、dg1/dg_t2 load_resource_pack成功、pageerrorなし。実リクエストを18秒保留して待機画面を撮影。通信を模した進捗値は使っていない。
 - レビュー指摘2件（揺れとタップ判定／再試行の古い進捗）を回帰テストとともに修正。
 
+検証ログ: [自動周回](dungeon_select_validation/dungeon-test-monitored.log)、[Web](dungeon_select_validation/web-check-final.log)、[書き出し](dungeon_select_validation/export-published.log)、[鍵あり撮影](dungeon_select_validation/capture-locked.log)。
+
 ## 未確認・仮説
 
 - iPhone実機の見え方・入力遅延・メモリは未確認。Chromiumの結果から実機性能は断定しない。
