@@ -1,6 +1,6 @@
 # スキル育成と技セットの改善（2026-11-15）
 
-ソースは `codex/skill-tree-polish-20261115`。`codex/combat-hud-polish-20261115` の最新 `46d2741` から継続。完成済みの遠征盤と戦闘HUDは作り直していない。
+ソースは `codex/skill-tree-polish-20261115`。`codex/combat-hud-polish-20261115` の最新 `46d2741` から継続。完成済みの遠征盤と戦闘HUDは作り直していない。公開mainが14f7cf4へ進んでいたため、その公開物のソースc04e8b6を後から統合し、T3/T4・既存の戦闘修正を保持。main.gd／battle.gd／player.gd等は公開済みソースと同一で、今回独自の調整を加えていない。
 
 ## 使い方
 
