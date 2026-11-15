@@ -10,7 +10,7 @@ const ROOMS_MAX := 14
 const BOSS_D := 5
 const ENTRANCE := Vector2i(2, 4)
 const GROUPS := 3            # 1 部屋の敵の群れの数（ボス部屋は無し）
-const GROUP_N := Vector2i(4, 6)   # 1 群れの体数（難易度で +add）
+const GROUP_N := Vector2i(2, 3)   # 1 群れの体数（難易度で +add）。2026-11-15 ユーザー決定 A 案（前は 4〜6。アーマー・重い敵で 1 体が硬くなるので減らした）
 const DIRS := {"L": Vector2i(-1, 0), "R": Vector2i(1, 0), "B": Vector2i(0, -1), "F": Vector2i(0, 1)}
 const OPP := {"L": "R", "R": "L", "B": "F", "F": "B"}
 const BLD := ["b1_tavern", "b2_workshop", "b3_shop", "b4_bridge"]
@@ -101,8 +101,13 @@ static func _room(rng: RandomNumberGenerator, c: Vector2i, ex: Dictionary, dist:
 	while absf(fx - bx) < 6.0:
 		fx = rng.randf_range(-rw + 3.5, rw - 3.5)
 	var groups := []
-	for i in GROUPS:
-		groups.append(rng.randi_range(GROUP_N.x, GROUP_N.y))
+	var gc := GROUPS
+	var gn := GROUP_N
+	if OS.has_environment("DG_GROUP"):   # 試験用：群れの数,最少,最多
+		var a := OS.get_environment("DG_GROUP").split(",")
+		gc = int(a[0]); gn = Vector2i(int(a[1]), int(a[2]))
+	for i in gc:
+		groups.append(rng.randi_range(gn.x, gn.y))
 	return {"cell": c, "exits": ex, "dist": dist, "rw": rw, "slots": slots, "slot_x": slot_x, "fg": fg,
 		"back_ofs": rng.randf_range(-5.0, 5.0), "bx": bx, "fx": fx, "groups": groups}
 

@@ -284,6 +284,23 @@ func _capture_party() -> void:
 	print("PARTY in dungeon party=", party, " ally=", battle.ally != null, " ranka=", battle.ranka != null)
 	var L: Dictionary = dungeon.layout
 	var d0: String = L.rooms[L.entrance].exits.keys()[0]
+	if OS.has_environment("PARTY_BOSS"):   # ボス部屋へ（2026-11-15：ブレイクの帯と倒れる姿の確認）。ボスの手前まで寄り、殴ってブレイクさせる
+		var bd: String = L.rooms[L.boss].exits.keys()[0]
+		dungeon._enter(L.boss, str(dungeon.Map.OPP[bd]))
+		for i in 120:
+			await get_tree().process_frame
+		for n in 8:
+			for i in 30:
+				await get_tree().process_frame
+				if dungeon.boss != null and is_instance_valid(dungeon.boss):
+					var bx: float = dungeon.boss.position.x
+					player.position.x = move_toward(player.position.x, bx - signf(bx - player.position.x) * 1.6, 0.15)
+					if n < 4 and i % 6 == 0 and dungeon.boss.state != "broken":
+						dungeon.boss.take_hit(dungeon.boss.brk_max * 0.06, 1, i % 12 == 0)
+			get_viewport().get_texture().get_image().save_png(dir + "/party_%d.png" % n)
+			print("PARTY boss t=", n, " state=", dungeon.boss.state if dungeon.boss else "-", " brk=", dungeon.boss.break_ratio() if dungeon.boss else -1.0)
+		get_tree().quit()
+		return
 	dungeon._enter(L.rooms[L.entrance].exits[d0], d0)
 	for n in 8:
 		for i in 60:

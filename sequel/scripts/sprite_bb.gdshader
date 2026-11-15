@@ -26,6 +26,8 @@ uniform float edge_soft = 0.0;                    // 輪郭の不透明の境目
 uniform vec4 flash_mix = vec4(1.0, 1.0, 1.0, 0.0);
 uniform float bg_layer = 0.0;
 global uniform float bg_dim;
+// 2026-11-15：敵のアーマー（攻撃の間はのけぞらない）を知らせる白い縁取り（輪郭の内側を一周。a＝強さ）
+uniform vec4 armor_col = vec4(1.0, 1.0, 1.0, 0.0);
 
 void vertex() {
 	float c = cos(rot);
@@ -94,6 +96,13 @@ void fragment() {
 		float burn = keep * (1.0 - smoothstep(th + 0.04, th + 0.28, n));
 		col = mix(col, burn_col.rgb * 3.0, burn);
 		a_out *= keep;
+	}
+	if (armor_col.a > 0.0) {
+		float apx = 3.0;
+		float mn = min(min(texture(tex, UV + vec2(apx * ts.x, 0.0)).a, texture(tex, UV - vec2(apx * ts.x, 0.0)).a),
+			min(texture(tex, UV + vec2(0.0, apx * ts.y)).a, texture(tex, UV - vec2(0.0, apx * ts.y)).a));
+		float e = step(0.5, c.a) * (1.0 - smoothstep(0.15, 0.6, mn));
+		col = mix(col, armor_col.rgb * 1.3, e * armor_col.a);
 	}
 	col = mix(col, flash_mix.rgb, flash_mix.a * c.a);
 	col *= mix(1.0, bg_dim, bg_layer);

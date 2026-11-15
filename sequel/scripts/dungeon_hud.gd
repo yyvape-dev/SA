@@ -531,6 +531,14 @@ class _View extends Control:
 				draw_rect(Rect2(p - Vector2(4, 4) * u, Vector2(w, 18 * u) + Vector2(8, 8) * u), DIM)
 				draw_rect(Rect2(p, Vector2(w * r, 18 * u)), RED)
 				draw_rect(Rect2(p, Vector2(w * r, 6 * u)), Color(1, 1, 1, 0.25))
+				# ブレイクの帯（金＝決着）：傷がたまると満ち、満ちると倒れる。倒れている間は点滅しながら減る（2026-11-15）
+				if d.boss.has_method("break_ratio"):
+					var br: float = d.boss.break_ratio()
+					var bp := p + Vector2(0, 24 * u)
+					var brk_on: bool = d.boss.state == "broken"
+					draw_rect(Rect2(bp - Vector2(4, 3) * u, Vector2(w, 8 * u) + Vector2(8, 6) * u), DIM)
+					var ga: float = 1.0 if not brk_on else 0.6 + 0.4 * sin(Time.get_ticks_msec() * 0.02)
+					draw_rect(Rect2(bp, Vector2(w * br, 8 * u)), Color(GOLD.r, GOLD.g, GOLD.b, ga))
 		if hud.menu_open:
 			_menu()
 		if hud.slot_open:

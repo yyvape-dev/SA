@@ -4,6 +4,7 @@ extends Node3D
 ## 数値は前作 battle/ の値を、ラナの背（205px＝1.85m）で m に直したもの。
 
 const SPR := preload("res://scripts/sprite_bb.gdshader")
+const FS := preload("res://scripts/foe_stats.gd")   # 種類ごとの体力・攻撃・アーマー・ダウン値（2026-11-15）
 const HEIGHT := {"1": 2.10, "3": 2.03, "g1": 2.7, "ef": 1.90, "em": 2.00, "bf": 1.85, "bc": 2.00, "bm": 1.95, "mo": 2.4, "gm": 2.5, "hr": 2.8, "t1b": 2.9, "t2e1": 2.1, "t1e1": 1.95, "t1e2": 1.8, "t2e2": 2.0, "t3e1": 2.35}   # ef/em＝帝国兵 女・男（tools/make_imperial_foes.py）、bf/bc/bm＝盗賊 女・爪・男、mo＝爪の怪物・gm＝ガトリングの機兵・hr＝馬型の機兵（深層のボス）、t1b＝遊技場の鉄腕支配人（T1 のボス）・t2e1＝継ぎ腕の住人・t1e1＝徴収屋・t1e2＝仕込み銃の客引き・t2e2＝裂晶の運び手・t3e1＝壁喰い（設計書の背）（tools/make_foes.py）。背は仮（2026-11-14）   # 前作の HEIGHT（f1 233・f3 225 px）÷205×1.85。g1＝ボス（前作の敵将。大きめに）
 const FOE_SPD := 2.4       # 攻撃の連番の速さ（一騎打ちの何倍か。前作は3.3。予兆を読めるよう少し遅く）
 const ATK_START := 1.15    # この左右の距離で攻撃を始める
@@ -49,15 +50,26 @@ var atk_n := 0
 var spd := FOE_SPD
 const WAKE_D := 4.5   # 待っている敵が動き出す距離（画面の中。立っている姿が先に見える。仲間の攻撃が当たっても動き出す）
 var force_atk := ""     # 撮影用：攻撃の種類を固定（CAPTURE_FOE）
+# のけぞり・アーマー・ブレイク（2026-11-15、foe_stats.gd）
+var fst := {}            # 種類の数値（foe_stats.gd）
+var down_acc := 0.0      # たまったダウン値
+var down_t := 9.0        # 最後に当たってからの秒数
+var gap_t := 0.0         # 攻撃の後の大きな隙の残り
+var last_st := true      # 直前の当たりでのけぞったか（浮かせる・寄せるの判定）
+var brk := 0.0           # ブレイクの帯（ボス。たまった傷）
+var brk_max := 1.0
+var broken_t := 0.0      # ブレイクで倒れている残り
+var brk_pending := false # 突進中に満ちた（突進が終わったら倒れる）
 
 func setup(b, k: String, c: Dictionary, level: int) -> void:
 	battle = b
 	kind = k
 	clips = c
 	size = randf_range(0.94, 1.06)
-	hp_max = (60.0 + level * 10.0) * b.foe_hp_mul   # 前作（22+5n）は2振りで倒れ、連携を見せる前に終わったので硬く
+	fst = FS.get_k(k)
+	hp_max = (60.0 + level * 10.0) * b.foe_hp_mul * float(fst.hp)   # 前作（22+5n）は2振りで倒れ、連携を見せる前に終わったので硬く。種類の倍率（foe_stats.gd）
 	hp = hp_max
-	dmg = int(round((7 + level) * b.foe_dmg_mul))
+	dmg = int(round((7 + level) * b.foe_dmg_mul * float(fst.atk)))
 	sp = (1.13 + randf_range(0.0, 0.38) + level * 0.03)
 	yo = randf_range(-1.0, 1.0) * 1.1
 	t = randf_range(0.0, 6.0)
@@ -67,9 +79,10 @@ func setup(b, k: String, c: Dictionary, level: int) -> void:
 func make_boss(hp_val: float, dmg_val: int) -> void:
 	boss = true
 	size = 1.0
-	hp_max = hp_val
-	hp = hp_val
-	dmg = dmg_val
+	hp_max = hp_val * float(fst.hp)
+	hp = hp_max
+	dmg = int(round(dmg_val * float(fst.atk)))
+	brk_max = hp_max * FS.BREAK_K
 	sp = 1.05
 	reach = 2.6
 	lane = 0.75
@@ -135,11 +148,15 @@ func _physics_process(delta: float) -> void:
 		mat.set_shader_parameter("flash_mix", Color(1, 1, 1, 0.0))
 		mat.set_shader_parameter("flash", Color(1.0, 1.0, 1.0, 0.5) if white else Color(0.75, 0.88, 1.0, 0.2 * flash / 0.1))
 	battle.apply_light(sprite, mat, refl, position)
+	mat.set_shader_parameter("armor_col", Color(1, 1, 1, 0.85 if (armored() and state != "dying" and not boss) else 0.0))   # アーマー中は白い縁取り（ボスは出さない＝いつも硬い）
 	bar_t = maxf(0.0, bar_t - delta)
 	hpbar.visible = bar_t > 0.0 and state != "dying"
 	if dt <= 0.0:
 		return
 	t += dt
+	down_t += dt
+	if down_t > FS.DOWN_RESET:
+		down_acc = 0.0
 	if lift_y > 0.0 or lift_v > 0.0:
 		lift_v -= 16.0 * dt
 		lift_y = maxf(0.0, lift_y + lift_v * dt)
@@ -169,7 +186,24 @@ func _physics_process(delta: float) -> void:
 			return
 		"rush":
 			_rush_step(dt, pl)
+			if state != "rush" and brk_pending:
+				_break_down()
 			return
+		"broken":   # ブレイク：倒れて BREAK_T 秒（受ける傷 1.5 倍）。足元を軸に後ろへ倒し、起き上がる
+			broken_t -= dt
+			var bk: float = clampf(minf((FS.BREAK_T - broken_t) / 0.25, broken_t / 0.35), 0.0, 1.0)
+			mat.set_shader_parameter("rot", face * 1.15 * (1.0 - pow(1.0 - bk, 3.0)))
+			_show("walk", 0)
+			if broken_t <= 0.0:
+				mat.set_shader_parameter("rot", 0.0)
+				brk = 0.0
+				state = "walk"
+				atk_cd = 0.6
+			return
+		"gap":   # 重い敵の攻撃の後の大きな隙（ここではどの当たりでものけぞる）
+			gap_t -= dt
+			if gap_t <= 0.0:
+				state = "walk"
 		"stun":
 			stun -= dt
 			position.x += kx * dt
@@ -229,6 +263,9 @@ func _physics_process(delta: float) -> void:
 			if atk.t >= atk.end_t:
 				state = "walk"
 				atk_cd = 0.8 if boss else 1.0
+				if float(fst.get("gap", 0.0)) > 0.0:
+					state = "gap"
+					gap_t = float(fst.gap)
 		"walk":
 			var dx: float = pl.position.x - position.x
 			face = 1 if dx >= 0 else -1
@@ -298,27 +335,54 @@ func _start_atk(dist: float = 0.0) -> void:
 
 ## 浮かせる（リリィの上段・ジャブの2発目）：v＝上向きの速さ（m/秒）。ボスは浮かない
 func lift_up(v: float) -> void:
-	if boss or state == "dying":
+	if boss or state == "dying" or not last_st:
 		return
 	lift_v = maxf(lift_v, v)
 	stun = maxf(stun, 0.45)
 
-## ラナの攻撃が当たった
-func take_hit(d: float, dir: int, strong: bool) -> void:
+## アーマー中か（この間はダウン値がたまっても、のけぞらない）
+func armored() -> bool:
+	if boss:
+		return true
+	if gap_t > 0.0 and state == "gap":
+		return false
+	match str(fst.get("armor", "none")):
+		"always":
+			return true
+		"attack":   # 予兆が出てから当たりまで
+			return state == "atk" and not atk.is_empty() and not atk.get("done", true)
+		"charge":   # 溜めのコマに入ってから当たりまで
+			return state == "atk" and not atk.is_empty() and atk.get("charged", false) and not atk.get("done", true)
+	return false
+
+## ラナ・仲間の攻撃が当たった。戻り値＝のけぞったか（止めの長さに使う）。ally＝仲間の技（ダウン値を半分だけ積む）
+func take_hit(d: float, dir: int, strong: bool, ally := false) -> bool:
 	if state == "dying":
-		return
+		return false
 	if state == "idle":
 		state = "walk"
+	if state == "broken":
+		d *= FS.BREAK_DMG
 	hp -= d
 	flash = 0.1
 	bar_t = 0.0 if boss else 1.6
 	hpbar.material_override.set_shader_parameter("ratio", maxf(0.0, hp / hp_max))
-	if boss:   # のけぞらない（少しだけ押される）
-		position.x += dir * (0.12 if strong else 0.04)
+	last_st = false
+	if boss:   # のけぞらない（少しだけ押される）。傷がブレイクの帯にたまり、満ちると倒れる
+		if state != "broken" and hp > 0.0:
+			position.x += dir * (0.12 if strong else 0.04)
+			brk += d
+			if brk >= brk_max:
+				brk = brk_max
+				if state == "rush":
+					brk_pending = true   # 突進中は止まらない
+				else:
+					_break_down()
 		if hp <= 0.0:
 			if atk.get("warn") != null and not atk.done:
 				battle.fx.drop(atk.warn)
 			atk = {}
+			mat.set_shader_parameter("rot", 0.0)
 			state = "dying"
 			die_t = 0.0
 			die_dir = dir
@@ -326,12 +390,28 @@ func take_hit(d: float, dir: int, strong: bool) -> void:
 			if battle.fx2d and not battle.fx.legacy:
 				battle.fx2d.kill(position + Vector3(0, height() * 0.5, 0), battle.fx, position)
 			battle.on_kill(self)
-		return
+		return false
+	# ダウン値：通常 1・強い 3（仲間は半分）をため、種類の値に達したらのけぞる
+	down_acc += (FS.DOWN_STRONG if strong else FS.DOWN_NORMAL) * (FS.DOWN_ALLY_K if ally else 1.0)
+	down_t = 0.0
+	var stagger: bool = down_acc >= float(fst.down) - 0.001
+	if state == "gap":
+		stagger = true
+	elif str(fst.armor) == "always":
+		stagger = stagger and strong
+	elif armored():
+		stagger = false
+	if hp > 0.0 and not stagger:   # アーマーで受けた：攻撃は止まらない。白い光は出さず淡い青だけ（当たり続けて体が白く飛ぶのを防ぐ）
+		flash = 0.06
+		return false
+	down_acc = 0.0
+	last_st = true
+	gap_t = 0.0
 	if atk.get("warn") != null and not atk.done:
 		battle.fx.drop(atk.warn)
 	atk = {}
 	stun = maxf(stun, 0.5 if strong else 0.16)
-	kx = dir * (3.9 if strong else 1.6)
+	kx = dir * (3.9 if strong else 1.6) * float(fst.get("kb", 1.0))
 	state = "stun"
 	if hp <= 0.0:
 		state = "dying"
@@ -341,6 +421,28 @@ func take_hit(d: float, dir: int, strong: bool) -> void:
 		if battle.fx2d and not battle.fx.legacy:
 			battle.fx2d.kill(position + Vector3(0, height() * 0.5, 0), battle.fx, position)
 		battle.on_kill(self)
+	return true
+
+## ボスのブレイク：攻撃を止めて BREAK_T 秒倒れる（受ける傷 1.5 倍）。帯は倒れている間に空へ戻る
+func _break_down() -> void:
+	brk_pending = false
+	if atk.get("warn") != null and not atk.get("done", true):
+		battle.fx.drop(atk.warn)
+	atk = {}
+	state = "broken"
+	broken_t = FS.BREAK_T
+	battle.shake = maxf(battle.shake, 10.0)
+	battle.freeze = maxf(battle.freeze, 0.12)
+	if battle.fx2d and battle.fx2d.enabled and not battle.fx.legacy:
+		battle.fx2d.hit(position + Vector3(0, height() * 0.5, 0), face, true, "gold")
+	if battle.has_signal("boss_break"):
+		battle.emit_signal("boss_break", self)
+
+## ブレイクの帯の割合（HUD）：倒れている間は残り時間で減っていく
+func break_ratio() -> float:
+	if state == "broken":
+		return broken_t / FS.BREAK_T
+	return clampf(brk / brk_max, 0.0, 1.0)
 
 
 ## 突進（clip の "rush"）：構え（wind のコマ、床に進む帯の予兆）→ 走る（loop のコマを回しながら dist m を spd m/秒で進む。通り道で1回当たる）→ 止まる（end のコマ）。

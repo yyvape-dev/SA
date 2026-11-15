@@ -10,6 +10,7 @@ const COL_SHUT := Color(1.0, 0.2, 0.2)
 const COL_GOLD := Color(1.0, 0.78, 0.3)
 const COL_HOME := Color(0.72, 0.5, 1.0)   # 戻る扉（街の入口の扉と同じ紫）
 const Themes := preload("res://scripts/dungeon_themes.gd")
+const FoeStats := preload("res://scripts/foe_stats.gd")
 const HOME_HOLD := 1.2     # 戻る扉の上にこの秒数立つと街へ（うっかり出ないように）
 
 var main          # main.gd
@@ -23,7 +24,7 @@ var group_i := 0         # 次に出す群れ
 var pending := []        # 同時に出せる数を超えた分（位置）。空きができたら出す
 var late_t := 0.0
 var travel := 1          # 進む向き（+1＝右）
-var cap := 10            # 同時に出ている敵の上限（仮。重さを測って決める。環境変数 DG_CAP）
+var cap := 6             # 同時に出ている敵の上限（2026-11-15 ユーザー決定 A 案。前は 10。環境変数 DG_CAP）
 var kills := 0
 var home = null          # 戻る扉
 var home_x := 0.0
@@ -166,7 +167,8 @@ func _plan_groups(x0: float) -> void:
 		var gx: float = lerpf(x0, x1, fr[i])
 		if i == 0:   # 最初の群れは入った時に画面の中に見える所（5.5〜10m 先。入口の端ではカメラが壁で止まり、見えるのは約 8m 先まで）
 			gx = x0 + travel * minf(5.5, absf(x1 - x0) * 0.5)
-		groups.append({"x": gx, "n": int(room.groups[i]) + int(cfg().add), "m": [], "rein": 0})
+		var n: int = int(room.groups[i]) + int(cfg().add)
+		groups.append({"x": gx, "n": n, "m": [], "rein": 0, "kinds": _group_kinds(n)})
 	_place_groups()
 
 ## 群れは部屋に入った時点で進む先に立たせる（2026-11-15 ユーザー「大半は最初からいる」「来た側から湧くのは NG」「片付けるたびに進む先から増援は可」）。
@@ -186,12 +188,12 @@ func _place_groups() -> void:
 			if placed >= cap:
 				break
 			var x: float = clampf(float(g.x) + travel * rng.randf_range(0.0, 4.5), -rw + 0.6, rw - 0.6)
-			var e = _spawn_one(x)
+			var e = _spawn_one(x, g.kinds.pop_front())
 			if e:
 				e.state = "idle"
 				g.m.append(e)
 				placed += 1
-		g.rein = n - g.m.size()
+		g.rein = n - g.m.size()   # 残り（g.kinds に種類が残っている）
 
 ## 戻る扉：入口の部屋の奥の縁、奥・手前の出口から離れた所
 func _build_home() -> void:
@@ -290,8 +292,7 @@ func _groups_step(delta: float) -> void:
 		rein_wait -= delta
 	while not pending.is_empty() and b.alive_count() < cap and rein_wait <= 0.0:
 		var x: float = clampf(p.position.x + travel * rng.randf_range(10.0, 11.5), -rw + 0.6, rw - 0.6)
-		_spawn_one(x)
-		pending.pop_front()
+		_spawn_one(x, str(pending.pop_front()))
 	var left := false
 	for g in groups:
 		var alive := []
@@ -307,7 +308,7 @@ func _groups_step(delta: float) -> void:
 					e.state = "walk"
 		if alive.is_empty() and int(g.rein) > 0:   # 群れを片付けた→増援（先に予告）
 			for k in int(g.rein):
-				pending.append(0.0)
+				pending.append(g.kinds.pop_front() if not g.kinds.is_empty() else "")
 			rein_wait = REIN_WARN
 			if main.hud and main.hud.has_method("edge_warn"):
 				main.hud.edge_warn(travel, REIN_WARN + 0.6)
@@ -317,9 +318,27 @@ func _groups_step(delta: float) -> void:
 	if not left and b.alive_count() == 0 and pending.is_empty():
 		_open_room()
 
-func _spawn_one(x: float):
+func _spawn_one(x: float, kind = ""):
 	var foes: Array = cfg().foes
-	return main.battle.spawn(foes[rng.randi() % foes.size()], Vector3(x, 0, rng.randf_range(main.BELT_Z.x, main.BELT_Z.y)))
+	var k: String = str(kind) if kind != null and str(kind) != "" else str(foes[rng.randi() % foes.size()])
+	return main.battle.spawn(k, Vector3(x, 0, rng.randf_range(main.BELT_Z.x, main.BELT_Z.y)))
+
+## 1 群れの種類：出る種類から選ぶ。重い敵は 1 群れに最大 1 体（2026-11-15 ユーザー決定。アーマー持ちが並んで殴れない状態を防ぐ）
+func _group_kinds(n: int) -> Array:
+	var foes: Array = cfg().foes
+	var light := []
+	for f in foes:
+		if not FoeStats.heavy(str(f)):
+			light.append(f)
+	var out := []
+	var has_heavy := false
+	for i in n:
+		var k: String = str(foes[rng.randi() % foes.size()])
+		if FoeStats.heavy(k) and has_heavy and not light.is_empty():
+			k = str(light[rng.randi() % light.size()])
+		has_heavy = has_heavy or FoeStats.heavy(k)
+		out.append(k)
+	return out
 
 ## 戻る扉：上に HOME_HOLD 秒立つと街へ（何も残さない）
 func _home_step(delta: float) -> void:
@@ -358,6 +377,11 @@ func _spawn_boss() -> void:
 	boss = b.spawn(str(cfg().boss), Vector3(x, 0, 0.2))
 	boss.make_boss(cfg().boss_hp, int(cfg().boss_dmg))
 	log_ev("boss", null)
+	if not b.boss_break.is_connected(_on_boss_break):
+		b.boss_break.connect(_on_boss_break)
+
+func _on_boss_break(_e) -> void:
+	log_ev("break", t_run)
 
 func _check_exits() -> void:
 	var p: Node3D = main.player
