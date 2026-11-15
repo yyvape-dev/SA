@@ -695,8 +695,8 @@ func _unhandled_input(e: InputEvent) -> void:
 			use_ult()
 		elif e.pressed and (e.keycode == KEY_U or e.keycode == KEY_I or e.keycode == KEY_O or e.keycode == KEY_P):
 			var slot: int = [KEY_U, KEY_I, KEY_O, KEY_P].find(e.keycode)
-			if world.main and world.main.progress and slot < world.main.progress.skill_slots.size():
-				use_skill(str(world.main.progress.skill_slots[slot]))
+			if world.main and world.main.progress:
+				use_skill(str(world.main.progress.battle_slots()[slot]))
 
 ## 撮影用：状態を固定する
 func debug_state(s: String) -> void:

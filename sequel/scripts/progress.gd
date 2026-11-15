@@ -9,9 +9,10 @@ var hard_open := false
 var best := {}           # "テーマ_難易度"（例 t1_normal）-> 最速のクリア時間（秒）
 var clears := {}         # "テーマ_難易度" -> クリア回数（開く条件もここから決める。specs/dungeon_themes.md）
 const Themes := preload("res://scripts/dungeon_themes.gd")
-const SKILLS_DEFAULT := ["flurry", "rift", "vortex", "shadow"]   # 2026-11-16：4 つ目の枠＝回り込み（specs/combat_tactics.md）
+const SKILLS_DEFAULT := ["flurry", "rift", "vortex"]
+const SLOT4 := "shadow"   # 2026-11-16：4 つ目の枠＝回り込み（固定。技のセットの入れ替えには出さない。specs/combat_tactics.md）
 var skills_owned: Array = SKILLS_DEFAULT.duplicate()   # 持っている技（今は最初から3つ）
-var skill_slots: Array = SKILLS_DEFAULT.duplicate()    # 枠1〜3 の技の id
+var skill_slots: Array = SKILLS_DEFAULT.duplicate()    # 枠1〜3 の技の id（4 つ目は SLOT4 固定。battle_slots()）
 ## スキルツリー（specs/skill_tree.md、2026-11-14）。キャラ＝"rana"・"lily"・"ranka"
 const SkillTree := preload("res://scripts/skill_tree.gd")
 var sp := {"rana": 0, "lily": 0, "ranka": 0}   # 残りの SP（キャラごと）
@@ -34,6 +35,10 @@ func reset() -> void:
 	first_clear_paid = {}
 
 ## ---------- スキルツリー ----------
+## 戦闘のボタンの技：枠 1〜3＋4 つ目（回り込み、固定）
+func battle_slots() -> Array:
+	return skill_slots.slice(0, 3) + [SLOT4]
+
 func skill_level(ch: String, id: String) -> int:
 	var d: Dictionary = skill_lv.get(ch, {})
 	if d.has(id):
@@ -101,7 +106,7 @@ func respec(ch: String) -> void:
 	sp[ch] = sp_of(ch) + back
 	if ch == "rana":
 		skills_owned = skills_owned.filter(func(x): return SKILLS_DEFAULT.has(x))
-		for i in skill_slots.size():
+		for i in mini(3, skill_slots.size()):
 			if not skills_owned.has(skill_slots[i]):
 				skill_slots[i] = SKILLS_DEFAULT[i]
 
@@ -194,10 +199,8 @@ func from_dict(d: Dictionary) -> void:
 	var ss = d.get("skill_slots", null)
 	if ss is Array and ss.size() >= 3:
 		skill_slots = ss.duplicate()
-		while skill_slots.size() < SKILLS_DEFAULT.size():   # 前の保存（3 枠）に 4 つ目を足す
-			skill_slots.append(SKILLS_DEFAULT[skill_slots.size()])
-	if not skills_owned.has("shadow"):
-		skills_owned.append("shadow")
+		skill_slots.resize(3)   # 前の版（2026-11-16 の途中）は 4 つ目も保存していた
+	skills_owned = skills_owned.filter(func(x): return x != SLOT4)
 	if d.has("sp") and d.sp is Dictionary:
 		for ch in SkillTree.CHARS:
 			sp[ch] = int(d.sp.get(ch, 0))

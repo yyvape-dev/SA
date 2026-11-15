@@ -1,3 +1,9 @@
+【後続作業あり：2026-11-15 スキル育成】
+このHUD作業を継続した最新ソースは `codex/skill-tree-polish-20261115`。
+`sequel/HANDOFF.md` の先頭と `docs/skill_tree_polish/README.md`、`specs/skill_tree.md`8節を先に読む。
+46d2741から育成UIを実装し、公開済み後続ソースc04e8b6（T3/T4・ボス・戦闘修正）を統合している。
+下はHUD完成時点の記録。新規作業で古いブランチを土台にして後続更新を消さない。
+
 GitHub yyvape-dev/SA の sequel/（SA2、Godot 4.7.2・Web）の作業を引き継いでください。次の依頼内容はこのプロンプトの末尾に追記します。まず現状を確認し、完了済み部分を作り直さず進めてください。
 
 ■ 土台

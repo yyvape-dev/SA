@@ -88,7 +88,7 @@ class _Pad extends Control:
 			b["sk%d" % i] = [ac + Vector2(cos(a), -sin(a)) * 175 * u, 52 * u]
 		# 4 枠目（2026-11-16、回り込み）：回避の左。弧の 215° は回避と重なるので使わない。街で歯車が出る時は出さない
 		var town_gear: bool = not ui.lily_controls and ui.main and ui.main.hud and ui.main.hud.visible and ui.main.dungeon == null and not ui.main.hud.menu_open and not ui.main.hud.slot_open
-		if not ui.lily_controls and not town_gear and ui.main and ui.main.progress and ui.main.progress.skill_slots.size() >= 4:
+		if not ui.lily_controls and not town_gear and ui.main and ui.main.progress and ui.main.progress.has_method("battle_slots"):
 			b["sk3"] = [Vector2(s.x - 460 * u, s.y - 90 * u), 48 * u]
 		b["ult"] = [Vector2(s.x - 100 * u, 210 * u), 62 * u]
 		if not ui.lily_controls and ui.main and ui.main.hud and ui.main.hud.visible and ui.main.dungeon == null and not ui.main.hud.menu_open and not ui.main.hud.slot_open:
@@ -108,6 +108,8 @@ class _Pad extends Control:
 				return str(ui.player.actor.slot_ids()[i])
 			return ["rush", "barrage", "storm"][i]
 		if ui.main and ui.main.progress:
+			if i >= 3 and ui.main.progress.has_method("battle_slots"):
+				return str(ui.main.progress.battle_slots()[i])
 			return str(ui.main.progress.skill_slots[i])
 		return ""
 

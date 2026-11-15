@@ -379,7 +379,7 @@ func _fight(e) -> void:
 			ult_uses += 1
 		if not used and OS.get_environment("BOT_SKILLS") != "0":
 			for id in (["vortex", "flurry", "rift", "shadow"] if main.battle.alive_count() >= 3 else ["shadow", "flurry", "rift", "vortex"]):
-				if main.progress.skill_slots.has(id) and p.use_skill(id):
+				if main.progress.battle_slots().has(id) and p.use_skill(id):
 					used = true
 					break
 		if not used and atk_cd <= 0.0:
