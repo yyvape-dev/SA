@@ -5,7 +5,8 @@
 - [実装結果と比較](docs/expedition_apparatus_result.md)。仕様の正本 [specs/dungeon_select_ui.md](specs/dungeon_select_ui.md) の流れも更新。
 - 推奨レベルの実数値だけ回答待ち（4/10/18/26は仮値としてモックへ記載）。RECOMMENDEDは未設定0＝非表示、入場条件には使わない。現在レベルは実値。回答が来たら描画ヘルパーの定数を更新して再書き出し。
 - mainには試し版previews/sa2-dungeon/のみ。本編sequel/web/とmain.gdは未変更。URL: https://yyvape-dev.github.io/SA/previews/sa2-dungeon/?town=back&at=gate&unlock=1
-- iPhone実機未確認。終了時の既存解放警告と、ソフトウェアWebGLでの描画間隔は結果に記録する。
+- 公開確認済み: main749438e、Pages成功、公開URLの844×390地図→T2難易度、pageerror0。
+- iPhone実機未確認。ソフトウェアWebGLは地図の描画間隔中央値50ms・最大117msで、常に100ms未満は未達。終了時の既存解放警告も結果に記録。
 
 
 ## 選択UI v2のモック（未採用・2026-11-15）

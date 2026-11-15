@@ -14,3 +14,5 @@
 
 - Final optimization: underlying town vignette uses a screen-reading full-screen shader even when3D is disabled. RED covered-postprocess visibility assertion → GREEN, preserve original hidden state and restore on close/exit. Final Web map RAF median50ms, min16.7/max116.7 (19positive samples); not an all-frames<100ms or real-device guarantee.
 - Final exported7c22d21 PCK manifest:23 runtime assets, no art/ui_source. Protected flow bodies and main.gd unchanged againsta62f698.
+
+- Source and handoff pushed; preview-only main749438e (10files), Pages43667918757success, publicChromium844x390 HTTP200/pack7c22d21/map→T2difficulty/pageerror0. Source stays unmerged as requested. Numeric recommendation answer remains pending; no invented balance defaults.

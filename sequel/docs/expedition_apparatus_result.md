@@ -65,3 +65,11 @@ Chromium＋SwiftShader（ソフトウェアWebGL）の地図でrequestAnimationF
 - 機械の装飾と文字なしの説明が初見で理解できるかは要ユーザー評価。
 
 検証ログ: [自動周回](expedition_apparatus_validation/dungeon-test.log)、[最終Web](expedition_apparatus_validation/web-release.log)、[書き出し](expedition_apparatus_validation/export-release.log)、[状態](expedition_apparatus_validation/state-green.log)。実通信中の[待機](expedition_apparatus_img/web_loading.png)と[入場後](expedition_apparatus_img/web_dungeon.png)。
+
+## 公開確認（事実）
+
+- main `749438e151b3debd5f6e6db34488a7dfee44ab89`。公開直前main `646aecc` との差分はpreviews/sa2-dungeon/の10ファイルのみ。既存の追加パック等は残し、本編sequel/web/は変更しない。
+- [Pages配信成功](https://github.com/yyvape-dev/SA/actions/runs/43667918757)。公開URLをChromium844×390で起動、HTTP200、index.pck?v=20261115021721-7c22d21-g4.7.2を読み込み、地図→T2難易度へタップ、pageerror0。
+- 公開版の[地図](expedition_apparatus_img/public_map.png)／[難易度](expedition_apparatus_img/public_diff.png)。推奨値は回答待ちのため空欄。公開ログもvalidationに保存。
+
+検討用HTMLの過人数表示とは異なり、本体は指定されたchoose()を保ち、難易度を決め直すと前回編成を新しい上限内で復元する従来動作を維持している。
