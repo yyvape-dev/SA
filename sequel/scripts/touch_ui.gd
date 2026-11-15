@@ -3,7 +3,7 @@ extends CanvasLayer
 ## 文字は使わない（日本語フォントを入れるまでは図形のアイコン）。
 
 const Art := preload("res://scripts/t6_hud_art.gd")
-const SkillIcons := preload("res://scripts/skill_icons.gd")
+const CombatArt := preload("res://scripts/combat_hud_art.gd")
 var main          # main.gd（スキルの枠・街かどうか）
 var player # Rana or the manual Lily input controller
 var battle: Node3D
@@ -54,11 +54,12 @@ class _Hud extends Control:
 	var ui
 	var shown := 1.0
 	func _process(delta: float) -> void:
-		var r: float = ui.battle.hp / ui.battle.hp_max
+		var hp: Vector2 = CombatArt.health(ui)
+		var r: float = clampf(hp.x / maxf(1.0,hp.y),0,1)
 		shown = maxf(r, shown - delta * 0.6) if shown > r else r
 		queue_redraw()
 	func _draw() -> void:
-		Art.gauges(self, ui, size.y / 720.0, shown)
+		CombatArt.gauges(self, ui, size.y / 720.0, shown)
 
 class _Pad extends Control:
 	## 右下（specs/skill_ui.md）：攻撃・回避・スキル3枠（攻撃の中心から半径 175u の弧、165°・115°・65°）。4枠目 215° は空けておく。
@@ -195,8 +196,6 @@ class _Pad extends Control:
 		else:
 			draw_circle(stick_center, 28 * u, Color(0.3, 0.33, 0.38, 0.2))
 		var buttons := _btns()
-		var font := ThemeDB.fallback_font
-		var pl = ui.player
 		for key in buttons:
 			var center: Vector2 = buttons[key][0]
 			var radius: float = buttons[key][1]
@@ -206,41 +205,9 @@ class _Pad extends Control:
 			if key == "atk" and ui.attack_is_contextual():
 				ui.draw_attack_context(self, center, radius, pressed)
 				continue
-			var action: bool = key == "atk" or key.begins_with("sk")
-			Art.button(self, center, radius, pressed, key == "ult", action)
-			var color := Color(1, 1, 1, (1.0 if pressed else 0.9) if action else (0.7 if pressed else 0.38))
-			match key:
-				"atk":
-					if ui.lily_controls:
-						Art.icon(self, Art.FIST, center, radius * 1.25, color)
-					else:
-						draw_arc(center + Vector2(-8, 10) * u, radius * 0.55, -2.4, -0.2, 20, color, 5 * u, true)
-				"dodge":
-					Art.icon(self, Art.DODGE, center, radius * 1.25, color)
-				"ult":
-					var ucost: float = pl.ult_cost() if pl != null and pl.has_method("ult_cost") else ui.battle.ULT_COST   # スキルツリーの技レベルで下がる
-					if ui.ult_value() < ucost:
-						draw_colored_polygon(PackedVector2Array([center + Vector2(0, -radius), center + Vector2(radius, 0), center + Vector2(0, radius), center + Vector2(-radius, 0)]), Color(0.015, 0.015, 0.025, 0.55))
-					else:
-						for stock in int(ui.ult_value() / ucost):
-							draw_circle(center + Vector2((stock - 0.5) * 15, radius * 0.65), 3 * u, Color(0.88, 0.45, 1, 0.7))
-				"gear":
-					Art.gear(self, center, radius * 0.6, 0.5)
-				_:
-					var id := _slot_id(int(key.substr(2)))
-					var cd: float = float(pl.skill_cd.get(id, 0.0))
-					var full: float = float(pl.skills[id].cd) if pl.skills.has(id) else 1.0
-					if ui.lily_controls and Art.ICONS.has(id):
-						Art.icon(self, Art.ICONS[id], center, radius * 1.25, color)
-					else:
-						SkillIcons.draw(self, id, center, radius, color, u)
-					if cd > 0.0:
-						draw_circle(center, radius * 0.78, Color(0.01, 0.015, 0.025, 0.35))
-						draw_arc(center, radius * 0.9, -PI * 0.5, -PI * 0.5 + TAU * clampf(cd / full, 0, 1), 48, Color(0.73, 0.61, 0.39, 0.55), 2 * u, true)
-						var text := ("%.1f" % cd) if cd < 10.0 else str(int(ceil(cd)))
-						var font_size := int(24 * u)
-						var position := center + Vector2(-radius, font_size * 0.35)
-						draw_string_outline(font, position, text, HORIZONTAL_ALIGNMENT_CENTER, radius * 2, font_size, int(5 * u), Color(0.01, 0.01, 0.02, 0.85))
-						draw_string(font, position, text, HORIZONTAL_ALIGNMENT_CENTER, radius * 2, font_size, Color(0.9, 0.92, 0.94, 0.85))
-					if pl.skill_ready_flash.has(id):
-						draw_arc(center, radius * 0.95, 0, TAU, 48, Color(0.8, 0.7, 0.48, float(pl.skill_ready_flash[id]) / 0.25 * 0.5), 2 * u, true)
+			if key == "gear":
+				Art.button(self, center, radius, pressed)
+				Art.gear(self, center, radius * 0.6, 0.5)
+				continue
+			var id := _slot_id(int(key.substr(2))) if key.begins_with("sk") else ""
+			CombatArt.action(self, ui, key, id, center, radius, pressed, u)

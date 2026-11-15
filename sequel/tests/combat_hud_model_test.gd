@@ -1,0 +1,18 @@
+extends SceneTree
+const Model=preload("res://scripts/combat_hud_model.gd")
+func _initialize():
+ var d=Model.meter(76,100,150,200,100)
+ assert(d.has("health_fraction"),"meter must expose actual health and charge state")
+ assert(is_equal_approx(d.health_fraction,0.76))
+ assert(is_equal_approx(d.charge_fraction,0.75))
+ assert(d.stock==1 and d.thresholds==[0.5,1.0])
+ var trained=Model.meter(31,100,160,200,80)
+ assert(trained.stock==2 and trained.thresholds==[0.4,0.8],"thresholds must follow actual skill cost, not a fixed half divider")
+ var empty=Model.meter(-4,0,30,0,0)
+ assert(empty.health_fraction==0 and empty.charge_fraction==0 and empty.stock==0 and empty.thresholds.is_empty())
+ var capped=Model.meter(130,100,250,200,100)
+ assert(capped.health_fraction==1 and capped.charge_fraction==1 and capped.stock==2)
+ var below=Model.meter(1,100,79.9,200,80)
+ assert(below.stock==0)
+ print("COMBAT_MODEL PASS actual HP, capped charge, variable-cost thresholds, empty and ready states")
+ quit()
