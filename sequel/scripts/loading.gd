@@ -11,6 +11,8 @@ var _err: Label
 var _progress := -1.0
 var _connected := false
 var _theme := -1
+var _difficulty := 0
+var _chosen: Array = []
 
 func _ready() -> void:
  layer = 100
@@ -32,9 +34,14 @@ func show_now() -> void:
  _t = 0.0
  _progress = -1.0
  _theme = -1
+ _difficulty = 0
+ _chosen = []
  var m = get_parent()
- if m != null and "hud" in m and m.hud != null:
+ var town_transition: bool = m != null and "town_floor_busy" in m and m.town_floor_busy
+ if not town_transition and m != null and "hud" in m and m.hud != null and m.hud.menu_stage in ["diff", "party"]:
   _theme = m.hud.menu_theme
+  _difficulty = m.hud.menu_sel
+  _chosen = m.hud.pick.duplicate()
  visible = true
  _apply()
 
@@ -80,22 +87,4 @@ func _apply() -> void:
 func _draw_spin() -> void:
  var sz := _spin.size
  if sz.x < 1:return
- var u := sz.y / 720.0
- SelectArt.background(_spin, sz, Color(0.27, 0.32, 0.42))
- _spin.draw_rect(Rect2(Vector2.ZERO,sz),Color(0.005,0.012,0.025,0.36))
- var c := sz * Vector2(0.5,0.43)
- if _theme >= 0:
-  SelectArt.fit(_spin,SelectArt.NODES[_theme],Rect2(c-Vector2(150,150)*u,Vector2(300,300)*u))
- else:SelectArt.gate(_spin,c,85*u)
- var rc := c + Vector2(0,186)*u
- _spin.draw_arc(rc,21*u,0,TAU,48,Color(SelectArt.BRASS,0.28),2*u,true)
- _spin.draw_arc(rc,21*u,_t*2,_t*2+4.1,36,SelectArt.GOLD,3*u,true)
- SelectArt.diamond(_spin,rc,7*u,SelectArt.GOLD)
- var bar := Rect2(Vector2(sz.x*0.5-180*u,sz.y*0.83),Vector2(360,5)*u)
- _spin.draw_rect(bar,Color(1,1,1,0.1))
- if _progress>=0:
-  _spin.draw_rect(Rect2(bar.position,Vector2(bar.size.x*_progress,bar.size.y)),SelectArt.GOLD)
-  _spin.draw_string(ThemeDB.fallback_font,bar.end+Vector2(18,5)*u,str(int(_progress*100))+"%",HORIZONTAL_ALIGNMENT_LEFT,-1,int(20*u),SelectArt.GOLD)
- else:
-  var fraction := fmod(_t*0.32,1.0)
-  _spin.draw_rect(Rect2(bar.position+Vector2(bar.size.x*fraction*0.78,0),Vector2(bar.size.x*0.22,bar.size.y)),Color(SelectArt.GOLD,0.65))
+ SelectArt.loading(_spin,sz,_theme,_difficulty,_chosen,_t,_progress)

@@ -348,7 +348,7 @@ func _input(e: InputEvent) -> void:
 		KEY_ESCAPE, KEY_K, KEY_X: menu_back()
 	if tap.x >= 0:
 		for i in Themes.THEMES.size():
-			if r["node%d" % i].has_point(tap):
+			if menu_stage == "theme" and (r["node%d" % i].has_point(tap) or r["badge%d" % i].has_point(tap)):
 				choose_theme(i)
 				return
 		if menu_stage == "diff":

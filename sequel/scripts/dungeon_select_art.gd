@@ -1,243 +1,283 @@
 extends RefCounted
-## Presentation only. Rectangles are the single source for drawing and hit testing.
-const MAP = preload("res://assets/ui/dungeon_select/map_bg.webp")
-const NODES = [preload("res://assets/ui/dungeon_select/node_t1.webp"), preload("res://assets/ui/dungeon_select/node_t2.webp"), preload("res://assets/ui/dungeon_select/node_t3.webp"), preload("res://assets/ui/dungeon_select/node_t4.webp")]
-const THEMES = preload("res://scripts/dungeon_themes.gd")
-const HUD_ART = preload("res://scripts/t6_hud_art.gd")
-const GOLD = Color("e7bd72")
-const BLUE = Color("55b5ff")
-const RED = Color("ef666b")
-const INK = Color("080e18")
-const BRASS = Color("8e7450")
-const POS = [Vector2(240, 510), Vector2(430, 395), Vector2(620, 280), Vector2(805, 165)]
+## Expedition instrument: presentation only; all tap bounds share rects().
+const MAP=preload("res://assets/ui/dungeon_select/map_bg.webp")
+const NODES=[preload("res://assets/ui/dungeon_select/node_t1.webp"),preload("res://assets/ui/dungeon_select/node_t2.webp"),preload("res://assets/ui/dungeon_select/node_t3.webp"),preload("res://assets/ui/dungeon_select/node_t4.webp")]
+const THEMES=preload("res://scripts/dungeon_themes.gd")
+const HUD_ART=preload("res://scripts/t6_hud_art.gd")
+const M=preload("res://scripts/dungeon_select_materials.gd")
+const GOLD=Color("e7bd72")
+const BLUE=Color("55b5ff")
+const RED=Color("ef666b")
+const INK=Color("080e18")
+const BRASS=Color("8e7450")
+# Informational only. Values remain pending user confirmation; never consulted by progression.
+const RECOMMENDED=[0,0,0,0]
 
-static func rects(sz: Vector2, stage: String, t: float, shake_i: int = -1, shake_t: float = 0.0) -> Dictionary:
- var u = sz.y / 720.0
- var ox = (sz.x - 1280.0 * u) * 0.5
- var r = {"ox":ox, "close":Rect2(Vector2(sz.x-100*u,12*u),Vector2(88,88)*u)}
- for i in 4:r["node%d"%i]=Rect2(Vector2(ox,0)+(POS[i]-Vector2(96,96))*u,Vector2(192,192)*u)
- var shift = (1.0 - smoothstep(0.0,0.18,t))*16.0
- r.panel=Rect2(Vector2(ox+(930+shift)*u,108*u),Vector2(330,584)*u)
- for i in 3:r["diff%d"%i]=Rect2(r.panel.position+Vector2(18,114+i*118)*u,Vector2(294,104)*u)
- r.go=Rect2(r.panel.position+Vector2(18,482)*u,Vector2(294,88)*u)
+static func rects(sz:Vector2,stage:String,t:float,shake_i:int=-1,shake_t:float=0.0)->Dictionary:
+ var u=sz.y/720.0
+ var r={"ox":0.0,"close":Rect2(Vector2(sz.x-108*u,23*u),Vector2(84,84)*u)}
+ for i in 4:
+  r["node%d"%i]=Rect2(Vector2(sz.x*(0.18+i*0.205)-92*u,sz.y*(0.69-i*0.16)-95*u),Vector2(184,184)*u) if stage=="theme" else Rect2()
+  r["badge%d"%i]=Rect2(Vector2(sz.x*(0.18+i*0.205)+20*u,sz.y*(0.69-i*0.16)+36*u),Vector2(206,126)*u) if stage=="theme" else Rect2()
+ var slide=(1.0-smoothstep(0.0,0.18,t))*10*u
+ r.panel=Rect2(Vector2(sz.x*0.40+slide,sz.y*0.17),Vector2(sz.x*0.54,sz.y*0.58))
+ r.hero=Rect2(Vector2(sz.x*0.055,sz.y*0.10),Vector2(sz.x*0.305,sz.y*0.79))
+ for i in 3:r["diff%d"%i]=Rect2(Vector2(sz.x*0.405+slide,sz.y*(0.18+i*0.193)),Vector2(sz.x*0.52,sz.y*0.18))
+ r.go=Rect2(Vector2(sz.x*0.65,sz.y*0.775),Vector2(sz.x*0.29,sz.y*0.15))
  if stage=="party":
-  var dy=(1.0-smoothstep(0.0,0.18,t))*12.0
-  r.ppanel=Rect2(Vector2(ox+60*u,(76+dy)*u),Vector2(1160,600)*u)
-  r.rana=Rect2(r.ppanel.position+Vector2(34,156)*u,Vector2(196,282)*u)
-  for i in 4:r["ally%d"%i]=Rect2(r.ppanel.position+Vector2(258+i*220,156)*u,Vector2(196,282)*u)
-  r.go=Rect2(r.ppanel.position+Vector2(804,480)*u,Vector2(320,90)*u)
-  r.close=Rect2(r.ppanel.position+Vector2(1060,10)*u,Vector2(88,88)*u)
- if shake_t > 0.0:
-  var key = "node%d" % (shake_i-10) if shake_i >= 10 and shake_i < 14 else "ally%d" % (shake_i-20) if shake_i >= 20 and shake_i < 24 else "diff%d" % shake_i
-  if r.has(key):r[key].position.x += sin(shake_t*60)*7*u
+  r.ppanel=Rect2(Vector2(sz.x*0.30,sz.y*0.13),Vector2(sz.x*0.64,sz.y*0.77))
+  r.hero=Rect2(Vector2(sz.x*0.045,sz.y*0.105),Vector2(sz.x*0.245,sz.y*0.79))
+  r.rana=Rect2(Vector2(sz.x*0.315,sz.y*0.16),Vector2(sz.x*0.13,sz.y*0.47))
+  r.ally0=Rect2(Vector2(sz.x*0.46,sz.y*0.16),r.rana.size)
+  r.ally1=Rect2(Vector2(sz.x*0.605,sz.y*0.16),r.rana.size)
+  for i in 2:r["ally%d"%(i+2)]=Rect2(Vector2(sz.x*(0.755+i*0.107),sz.y*0.22),Vector2(sz.x*0.087,sz.y*0.38))
+  r.go=Rect2(Vector2(sz.x*0.59,sz.y*0.70),Vector2(sz.x*0.35,sz.y*0.235))
+  r.count=Rect2(Vector2(sz.x*0.335,sz.y*0.72),Vector2(sz.x*0.19,sz.y*0.18))
+ if shake_t>0.0:
+  var key="node%d"%(shake_i-10) if shake_i>=10 and shake_i<14 else "ally%d"%(shake_i-20) if shake_i>=20 and shake_i<24 else "diff%d"%shake_i
+  if r.has(key):r[key].position.x+=sin(shake_t*60)*7*u
+  if shake_i>=10 and shake_i<14:r["badge%d"%(shake_i-10)].position.x+=sin(shake_t*60)*7*u
  return r
 
-static func fit(v, tex: Texture2D, rc: Rect2, tint=Color.WHITE) -> void:
- var s=tex.get_size()
- var k=minf(rc.size.x/s.x,rc.size.y/s.y)
- var extent=s*k
- v.draw_texture_rect(tex,Rect2(rc.get_center()-extent*0.5,extent),false,tint)
+static func fitted(tex:Texture2D,rc:Rect2)->Rect2:
+ var extent=tex.get_size()*minf(rc.size.x/tex.get_width(),rc.size.y/tex.get_height())
+ return Rect2(rc.get_center()-extent*0.5,extent)
 
-static func background(v,sz: Vector2,tint=Color.WHITE) -> void:
- # Keep the entire composition and aspect. Fill any extra margins with ink.
- v.draw_rect(Rect2(Vector2.ZERO,sz),INK)
- var scale_=maxf(sz.x/MAP.get_width(),sz.y/MAP.get_height())
- var extent=MAP.get_size()*scale_
- v.draw_texture_rect(MAP,Rect2((sz-extent)*0.5,extent),false,tint)
+static func fit(v,tex:Texture2D,rc:Rect2,tint=Color.WHITE)->void:
+ v.draw_texture_rect(tex,fitted(tex,rc),false,tint)
 
-static func plate(v,rc: Rect2,col: Color,u: float,on=false) -> void:
- var cut=10*u
- var p=rc.position
- var e=rc.end
- var pts=PackedVector2Array([p+Vector2(cut,0),Vector2(e.x-cut,p.y),Vector2(e.x,p.y+cut),e-Vector2(0,cut),e-Vector2(cut,0),Vector2(p.x+cut,e.y),Vector2(p.x,e.y-cut),p+Vector2(0,cut)])
- v.draw_colored_polygon(pts,Color(0.027,0.042,0.061,0.97))
- pts.append(pts[0])
- v.draw_polyline(pts,BRASS if not on else col,2*u,true)
- v.draw_line(p+Vector2(12,5)*u,Vector2(e.x-12*u,p.y+5*u),Color(col,0.45 if on else 0.13),2*u,true)
- v.draw_line(p+Vector2(12,9)*u,Vector2(e.x-12*u,p.y+9*u),Color(col,0.1),3*u,true)
- for x in [p.x+10*u,e.x-10*u]:
-  for y in [p.y+15*u,e.y-15*u]:
-   v.draw_circle(Vector2(x,y),2.3*u,Color("171921"))
-   v.draw_arc(Vector2(x,y),2.3*u,PI,TAU,8,Color(BRASS,0.8),u,true)
- if on:
-  v.draw_line(p+Vector2(4,20)*u,Vector2(p.x+4*u,e.y-20*u),Color(col,0.8),3*u,true)
+static func cover(v,tex:Texture2D,rc:Rect2,tint=Color.WHITE)->void:
+ var scale_=maxf(rc.size.x/tex.get_width(),rc.size.y/tex.get_height())
+ var extent=rc.size/scale_
+ v.draw_texture_rect_region(tex,rc,Rect2((tex.get_size()-extent)*0.5,extent),tint)
 
-static func diamond(v,c: Vector2,s: float,col: Color,filled=true) -> void:
- var pts=PackedVector2Array([c+Vector2(0,-s),c+Vector2(s*0.68,0),c+Vector2(0,s),c+Vector2(-s*0.68,0)])
- if filled:
-  v.draw_colored_polygon(pts,col.darkened(0.28))
-  v.draw_colored_polygon(PackedVector2Array([pts[0],pts[1],c,pts[3]]),col)
- pts.append(pts[0]);v.draw_polyline(pts,Color(col,0.9),maxf(1,s*0.08),true)
+static func paper(v,rc:Rect2,tint=Color.WHITE)->void:
+ fit(v,M.PAPER,rc,tint)
 
-static func close(v,rc: Rect2,u: float,back: bool) -> void:
+static func background(v,sz:Vector2,tint=Color.WHITE)->void:
+ cover(v,MAP,Rect2(Vector2.ZERO,sz),tint)
+
+static func backing(v,sz:Vector2,interior:bool=true)->void:
+ var tex=M.BACKING
+ if interior:cover(v,tex,Rect2(Vector2.ZERO,sz))
+ # Keep hardware corners and source pixels proportional when aspect changes.
+ var st=StyleBoxTexture.new();st.texture=tex;st.draw_center=false
+ for side in [SIDE_LEFT,SIDE_TOP,SIDE_RIGHT,SIDE_BOTTOM]:st.set_texture_margin(side,55.0)
+ v.draw_style_box(st,Rect2(Vector2.ZERO,sz))
+
+static func number(v,rc:Rect2,text:String,col:Color,size_:float)->void:
+ var font=HUD_ART.FONT
+ var fs=maxi(int(22*v.size.y/720.0),int(size_))
+ var width=font.get_string_size(text,HORIZONTAL_ALIGNMENT_LEFT,-1,fs).x
+ v.draw_string(font,Vector2(rc.get_center().x-width*0.5,rc.get_center().y+fs*0.32),text,HORIZONTAL_ALIGNMENT_LEFT,-1,fs,col)
+
+static func halo(v,c:Vector2,radius:float,col:Color,strength:float=1.0)->void:
+ for i in range(3,0,-1):v.draw_arc(c,radius+i*1.2,0,TAU,48,Color(col,0.10*strength/i),i*2.0,true)
+
+static func close(v,rc:Rect2,u:float,back:bool)->void:
+ fit(v,M.CLOCK,rc,Color(0.58,0.53,0.45))
  var c=rc.get_center()
- v.draw_circle(c,28*u,Color(INK,0.9))
- v.draw_arc(c,28*u,0,TAU,40,BRASS,1.5*u,true)
- if back:
-  v.draw_polyline(PackedVector2Array([c+Vector2(6,-13)*u,c+Vector2(-8,0)*u,c+Vector2(6,13)*u]),GOLD,3*u,true)
+ if back:v.draw_polyline(PackedVector2Array([c+Vector2(7,-13)*u,c+Vector2(-7,0)*u,c+Vector2(7,13)*u]),GOLD,2.5*u,true)
  else:
-  for direction in [-1,1]:v.draw_line(c+Vector2(-10,-10*direction)*u,c+Vector2(10,10*direction)*u,GOLD,2.5*u,true)
+  for side in [-1,1]:v.draw_line(c+Vector2(-10,-10*side)*u,c+Vector2(10,10*side)*u,GOLD,2*u,true)
 
-static func gate(v,c: Vector2,s: float) -> void:
- v.draw_circle(c,s*0.65,Color(0.025,0.035,0.055,0.9))
- for i in 3:
-  v.draw_arc(c,s*(0.68-i*0.08),PI,TAU,24,BRASS.darkened(i*0.16),s*0.08,true)
- for side in [-1,1]:
-  var p=c+Vector2(side*s*0.58,0)
-  v.draw_line(p,p+Vector2(0,s*0.6),Color("26282e"),s*0.2,true)
-  v.draw_line(p+Vector2(side*s*0.05,0),p+Vector2(side*s*0.05,s*0.6),BRASS,s*0.035,true)
- v.draw_line(c+Vector2(-s*0.72,s*0.6),c+Vector2(s*0.72,s*0.6),GOLD,s*0.07,true)
- diamond(v,c+Vector2(0,-s*0.62),s*0.16,GOLD)
- v.draw_polyline(PackedVector2Array([c+Vector2(-s*0.15,-s*0.2),c+Vector2(s*0.15,0),c+Vector2(-s*0.15,s*0.2)]),GOLD,s*0.065,true)
+static func path(v,a:Vector2,b:Vector2,opened:bool,u:float)->void:
+ for i in 24:
+  if not opened and i%3!=0:continue
+  var p=a.lerp(b,float(i)/24)+Vector2(0,sin(float(i)/24*PI)*12*u)
+  var q=a.lerp(b,float(i+1)/24)+Vector2(0,sin(float(i+1)/24*PI)*12*u)
+  if opened:v.draw_line(p,q,Color(GOLD,0.1),9*u,true)
+  v.draw_line(p,q,Color(GOLD,0.9) if opened else Color(0.5,0.5,0.6,0.3),2*u,true)
 
-static func lock(v,c: Vector2,s: float) -> void:
- v.draw_circle(c,s*1.17,Color(INK,0.95))
- v.draw_arc(c+Vector2(0,-s*0.28),s*0.43,PI,TAU,18,Color("9b9fa3"),s*0.15,true)
- var box=Rect2(c+Vector2(-s*0.62,-s*0.22),Vector2(s*1.24,s*0.92))
- v.draw_style_box(_style(Color("606873"),Color("abb0b3"),s*0.12),box)
- v.draw_circle(c+Vector2(0,s*0.14),s*0.12,INK)
- v.draw_line(c+Vector2(0,s*0.14),c+Vector2(0,s*0.4),INK,s*0.1,true)
+static func chained(v,rc:Rect2)->void:
+ fit(v,M.SHUT_MOUNT,rc)
 
-static func _style(bg: Color,border: Color,radius: float) -> StyleBoxFlat:
- var st=StyleBoxFlat.new();st.bg_color=bg;st.border_color=border;st.set_border_width_all(1);st.set_corner_radius_all(int(radius));return st
-
-static func path(v,a: Vector2,b: Vector2,opened: bool,u: float) -> void:
- var steps=24
- for j in steps:
-  if not opened and j%3!=0:continue
-  var x=float(j)/steps
-  var y=float(j+1)/steps
-  var p=a.lerp(b,x)+Vector2(0,sin(x*PI)*18*u)
-  var q=a.lerp(b,y)+Vector2(0,sin(y*PI)*18*u)
-  v.draw_line(p,q,Color(0.015,0.02,0.025,0.85),7*u,true)
-  v.draw_line(p,q,Color(GOLD,0.8) if opened else Color(0.54,0.57,0.63,0.32),2.3*u,true)
-
-static func map(v,h,sz: Vector2) -> void:
+static func map(v,h,sz:Vector2)->void:
  var u=sz.y/720.0
  var r=rects(sz,h.menu_stage,h.menu_t,h.shake_i,h.shake_hard)
- var pr=h.main.progress
- var reveal=smoothstep(0.0,0.22,h.menu_t) if h.menu_stage=="theme" else 1.0
- background(v,sz,Color(0.76,0.82,0.91,1))
- v.draw_rect(Rect2(Vector2.ZERO,sz),Color(0.015,0.025,0.04,0.12+(1-reveal)*0.65))
- # Thin atlas frame, corner hardware; no instructional bands.
- var edge=Rect2(Vector2(16,16)*u,sz-Vector2(32,32)*u)
- v.draw_rect(edge,Color(BRASS,0.3),false,u)
- for p in [edge.position,Vector2(edge.end.x,edge.position.y),edge.end,Vector2(edge.position.x,edge.end.y)]:diamond(v,p,4*u,BRASS)
- var gc=Vector2(r.ox+82*u,626*u)
- var last=gc
- for i in 4:
-  var c: Vector2=r["node%d"%i].get_center()
-  path(v,last,c,i==0 or pr.theme_open(i),u)
-  last=c
- gate(v,gc,38*u)
- for i in 4:
-  var rc: Rect2=r["node%d"%i]
-  var c=rc.get_center()
-  var col: Color=THEMES.THEMES[i].col
-  var opened: bool=pr.theme_open(i)
-  var selected: bool=h.menu_theme==i
-  var base=c+Vector2(0,65*u)
-  for radius in [67,72]:v.draw_arc(base,float(radius)*u,0,TAU,48,Color(col,0.32 if opened else 0.08),u,true)
-  if selected:
-   for ring in 3:v.draw_arc(base,(76+ring*3)*u,0,TAU,60,Color(GOLD,0.7/(ring+1)),2*u,true)
-   diamond(v,c+Vector2(0,-104*u),10*u,GOLD)
-  fit(v,NODES[i],rc,Color.WHITE if opened else Color(0.25,0.29,0.34,0.8))
-  if not opened:
-   v.draw_line(c+Vector2(-58,28)*u,c+Vector2(58,60)*u,Color("535969"),4*u,true)
-   v.draw_line(c+Vector2(-58,60)*u,c+Vector2(58,28)*u,Color("535969"),4*u,true)
-   lock(v,c+Vector2(0,40*u),23*u)
-  for k in i+1:v.draw_circle(c+Vector2((k-i*0.5)*12,103)*u,3*u,Color(col,0.85 if opened else 0.25))
-  for k in 3:
-   if pr.cleared(THEMES.THEMES[i].id,THEMES.DIFF_ORDER[k]):diamond(v,c+Vector2((k-1)*24,122)*u,7*u,[BLUE,RED,GOLD][k])
- close(v,r.close,u,h.menu_stage!="theme")
- if h.menu_stage=="diff":panel(v,h,r,sz)
- elif h.menu_stage=="party":party(v,h,r,sz)
- if h.menu_feedback_t>0:
-  v.draw_arc(h.menu_feedback_pos,(18+(0.14-h.menu_feedback_t)*95)*u,0,TAU,32,Color(GOLD,h.menu_feedback_t*5),2*u,true)
-
-static func panel(v,h,r: Dictionary,sz: Vector2) -> void:
- var u=sz.y/720.0
- var pn: Rect2=r.panel
- var th: Dictionary=THEMES.THEMES[h.menu_theme]
- plate(v,pn,GOLD,u)
- fit(v,NODES[h.menu_theme],Rect2(pn.position+Vector2(17,4)*u,Vector2(100,100)*u))
- for k in h.menu_theme+1:diamond(v,pn.position+Vector2(145+k*25,52)*u,8*u,th.col)
- var pr=h.main.progress
- for i in 3:
-  var rc: Rect2=r["diff%d"%i]
-  var selected: bool=h.menu_sel==i
-  var opened: bool=pr.diff_open(th.id,THEMES.DIFF_ORDER[i])
-  var col: Color=BLUE if i==0 else RED
-  plate(v,rc,col if opened else Color("5e6570"),u,selected and opened)
-  if selected and opened:v.draw_rect(rc.grow(-6*u),Color(col,0.11))
-  if i==2 and opened:v.draw_rect(rc.grow(-7*u),Color(GOLD,0.65),false,u)
-  for k in i+1:diamond(v,rc.position+Vector2(30+k*31,36)*u,14*u,col if opened else Color("58616c"))
-  for k in (2 if i==0 else 3):person(v,rc.position+Vector2(212+k*24,31)*u,8*u,Color("a8b3bf") if opened else Color("4d535b"))
-  var key=THEMES.key(th.id,THEMES.DIFF_ORDER[i])
-  v._clock(rc.position+Vector2(28,77)*u,9*u,GOLD if pr.best.has(key) else Color("505b69"))
-  v._num(rc.position+Vector2(45,85)*u,v._time_str(float(pr.best[key])) if pr.best.has(key) else "—",23,GOLD if pr.best.has(key) else Color("657080"))
-  if selected and opened:check(v,rc.position+Vector2(266,77)*u,10*u,col)
-  if not opened:lock(v,rc.get_center()+Vector2(30*u,0),19*u)
- go_button(v,r.go,u,h.menu_t)
-
-static func go_button(v,rc: Rect2,u: float,t: float) -> void:
- plate(v,rc,GOLD,u,true)
- var inner=rc.grow(-6*u)
- v.draw_style_box(_style(Color("9a6a2c"),GOLD,3*u),inner)
- v.draw_rect(Rect2(inner.position,Vector2(inner.size.x,inner.size.y*0.45)),Color(1,0.85,0.5,0.16))
- var c=rc.get_center()
- for side in [-1,1]:v.draw_line(c+Vector2(side*61,-18)*u,c+Vector2(side*61,18)*u,Color(GOLD,0.45),u,true)
- v.draw_colored_polygon(PackedVector2Array([c+Vector2(-12,-22)*u,c+Vector2(21,0)*u,c+Vector2(-12,22)*u]),Color("fff0c2"))
- v.draw_arc(c,32*u,-0.35,0.35,10,Color(GOLD,0.25+sin(t*3)*0.12),u,true)
-
-static func person(v,c: Vector2,s: float,col: Color) -> void:
- v.draw_circle(c+Vector2(0,-s*0.65),s*0.4,col)
- v.draw_arc(c+Vector2(0,s*0.9),s*0.8,PI,TAU,18,col,s*0.45,true)
-
-static func check(v,c: Vector2,s: float,col: Color) -> void:
- v.draw_polyline(PackedVector2Array([c+Vector2(-s*0.65,0),c+Vector2(-s*0.15,s*0.5),c+Vector2(s*0.8,-s*0.6)]),col,maxf(2,s*0.2),true)
-
-static func party(v,h,r: Dictionary,sz: Vector2) -> void:
- var u=sz.y/720.0
- var pp: Rect2=r.ppanel
- v.draw_rect(Rect2(Vector2.ZERO,sz),Color(0.005,0.009,0.02,0.72))
- plate(v,pp,GOLD,u)
- fit(v,NODES[h.menu_theme],Rect2(pp.position+Vector2(26,14)*u,Vector2(110,110)*u))
- for k in h.menu_sel+1:diamond(v,pp.position+Vector2(170+k*30,65)*u,13*u,BLUE if h.menu_sel==0 else RED)
- if h.menu_sel==2:v.draw_arc(pp.position+Vector2(200,65)*u,57*u,0,TAU,48,Color(GOLD,0.6),u,true)
- var cap: int=h.party_cap()
- var used: int=1+h.pick.size()
- for k in cap:
-  var c=pp.position+Vector2(570+(k-(cap-1)*0.5)*52,65)*u
-  if h.shake_i==30 and h.shake_hard>0:c.x+=sin(h.shake_hard*60)*7*u
-  v.draw_circle(c,21*u,Color(BLUE,0.14 if k<used else 0.04))
-  person(v,c,13*u,GOLD if k==0 else BLUE if k<used else Color("3f4a58"))
- face_card(v,r.rana,HUD_ART.RANA,GOLD,true,false,u,true)
- var faces={"lily":HUD_ART.LILY,"ranka":HUD_ART.RANKA}
- for i in 4:
-  var id: String=h.ALLY_IDS[i]
-  var rc: Rect2=r["ally%d"%i]
-  var available: bool=id!="" and h.main.ally_ready(id)
-  face_card(v,rc,faces.get(id),BLUE if id in h.pick else Color("71808f"),id in h.pick,not available,u)
- go_button(v,r.go,u,h.menu_t)
- # A compact chosen-party preview replaces explanatory text.
- var x=pp.position.x+54*u
- for id in ["rana"]+h.pick:
-  var tex: Texture2D=HUD_ART.RANA if id=="rana" else faces[id]
-  fit(v,tex,Rect2(Vector2(x,pp.position.y+489*u),Vector2(70,70)*u))
-  x+=78*u
- close(v,r.close,u,true)
-
-static func face_card(v,rc: Rect2,tex,col: Color,on: bool,locked_: bool,u: float,fixed_=false) -> void:
- plate(v,rc,col,u,on)
- var c=rc.get_center()+Vector2(0,-18*u)
- for k in 2:v.draw_arc(c,(72+k*5)*u,0,TAU,56,Color(col,0.5 if on else 0.16),1.6*u,true)
- if tex!=null:fit(v,tex,Rect2(c-Vector2(67,67)*u,Vector2(134,134)*u),Color(1,1,1,0.28 if locked_ else 1))
+ if h.menu_stage=="theme":
+  background(v,sz,Color(0.82,0.86,0.93))
+  backing(v,sz,false)
+  var gate_rc=Rect2(Vector2(sz.x*0.025,sz.y*0.76),Vector2(122,122)*u)
+  fit(v,NODES[2],gate_rc)
+  var last=gate_rc.get_center()
+  for i in 4:
+   var rc:Rect2=r["node%d"%i]
+   var open_:bool=h.main.progress.theme_open(i)
+   path(v,last,rc.get_center()+Vector2(0,42*u),open_,u);last=rc.get_center()+Vector2(0,42*u)
+   if h.menu_theme==i:halo(v,last,47*u,GOLD,3)
+   fit(v,NODES[i],rc,Color.WHITE if open_ else Color(0.26,0.26,0.30))
+   var badge:Rect2=fitted(M.PAPER,r["badge%d"%i])
+   paper(v,badge,Color.WHITE if open_ else Color(0.4,0.4,0.45))
+   fit(v,M.ENEMIES[i],Rect2(badge.position+Vector2(badge.size.x*0.10,badge.size.y*0.17),badge.size*Vector2(0.48,0.65)),Color.WHITE if open_ else Color(0.4,0.4,0.45))
+   recommendation(v,Rect2(badge.position+badge.size*Vector2(0.56,0.20),badge.size*Vector2(0.30,0.56)),i,h.main.progress.lv,35*u)
+   if h.menu_theme==i:halo(v,badge.end-Vector2(15,15)*u,10*u,GOLD,2)
+   if not open_:chained(v,Rect2(rc.get_center()-Vector2(30,20)*u,Vector2(60,90)*u))
+   # A worn wax-like rim records a cleared theme without abstract difficulty pips.
+   if h.main.progress.cleared(THEMES.THEMES[i].id,"normal"):v.draw_arc(badge.end-Vector2(20,20)*u,9*u,0,TAU,24,GOLD,3*u,true)
+  var current=Rect2(Vector2(sz.x*0.85,sz.y*0.045),Vector2(150,70)*u)
+  paper(v,current)
+  fit(v,HUD_ART.RANA,Rect2(current.position+Vector2(12,13)*u,Vector2(45,45)*u))
+  number(v,Rect2(current.position+Vector2(66,6)*u,Vector2(62,59)*u),str(h.main.progress.lv),INK,32*u)
+ elif h.menu_stage=="diff":
+  backing(v,sz);panel(v,h,r,sz)
  else:
-  person(v,c+Vector2(0,6)*u,40*u,Color("242f40"))
-  v.draw_arc(c,62*u,0,TAU,40,Color("384352"),u,true)
- if locked_:lock(v,c+Vector2(0,12)*u,20*u)
- var mark=Vector2(rc.get_center().x,rc.end.y-34*u)
- if fixed_:diamond(v,mark,12*u,GOLD)
- elif on:check(v,mark,14*u,BLUE)
- elif not locked_:v.draw_circle(mark,12*u,Color(col,0.13));v.draw_line(mark-Vector2(6,0)*u,mark+Vector2(6,0)*u,col,2*u);v.draw_line(mark-Vector2(0,6)*u,mark+Vector2(0,6)*u,col,2*u)
+  backing(v,sz);party(v,h,r,sz)
+ close(v,r.close,u,h.menu_stage!="theme")
+ if h.menu_feedback_t>0:halo(v,h.menu_feedback_pos,18*u,GOLD,h.menu_feedback_t*9)
+
+static func recommendation(v,rc:Rect2,theme:int,current_lv:int,fs:float)->void:
+ var level_:int=RECOMMENDED[theme]
+ if level_>0:number(v,rc,str(level_),Color("9b4024") if current_lv<level_ else INK,fs)
+
+static func mission(v,h,rc:Rect2,compact:bool=false)->void:
+ fit(v,M.PORTRAIT_PAPER,rc)
+ var actual=fitted(M.PORTRAIT_PAPER,rc)
+ var inset=actual.grow(-actual.size.x*0.10)
+ if compact:
+  fit(v,NODES[h.menu_theme],Rect2(inset.position,inset.size*Vector2(1,0.28)))
+  fit(v,M.ENEMIES[h.menu_theme],Rect2(inset.position+Vector2(0,inset.size.y*0.28),inset.size*Vector2(1,0.43)))
+  risk(v,Rect2(inset.position+Vector2(0,inset.size.y*0.72),inset.size*Vector2(1,0.18)),h.menu_sel,true,true)
+ else:
+  fit(v,M.ENEMIES[h.menu_theme],Rect2(inset.position+Vector2(0,inset.size.y*0.03),inset.size*Vector2(1,0.77)))
+  fit(v,NODES[h.menu_theme],Rect2(inset.position+Vector2(0,inset.size.y*0.74),inset.size*Vector2(0.40,0.22)))
+ recommendation(v,Rect2(inset.position+inset.size*Vector2(0.44,0.87),inset.size*Vector2(0.50,0.12)),h.menu_theme,h.main.progress.lv,rc.size.y*0.07)
+
+static func risk(v,rc:Rect2,i:int,on:bool,opened:bool)->void:
+ var col=BLUE if i==0 else RED
+ # Illustrated field reports replace abstract diamonds. Opening and border are painted assets.
+ var art_rc=fitted(M.RISK_FRAME,rc)
+ var inside=Rect2(art_rc.position+art_rc.size*Vector2(0.12,0.24),art_rc.size*Vector2(0.73,0.48))
+ cover(v,M.RISKS[i],inside,Color.WHITE if opened else Color(0.25,0.25,0.28))
+ fit(v,M.RISK_FRAME,rc,Color.WHITE if opened else Color(0.42,0.42,0.47))
+ if on and opened:
+  v.draw_line(inside.position,Vector2(inside.end.x,inside.position.y),col,2.0,true)
+  halo(v,Vector2(inside.position.x,inside.get_center().y),inside.size.y*0.37,col,2)
+ if i==2 and opened:v.draw_line(Vector2(inside.position.x,inside.end.y),inside.end,GOLD,2,true)
+ if not opened:chained(v,Rect2(inside.get_center()-Vector2(inside.size.y*0.24,inside.size.y*0.36),Vector2(inside.size.y*0.48,inside.size.y*0.72)))
+
+static func medallion(v,tex:Texture2D,rc:Rect2,col:Color=BLUE)->void:
+ v.draw_circle(rc.get_center(),rc.size.x*0.48,INK)
+ fit(v,tex,rc.grow(-2))
+ v.draw_arc(rc.get_center(),rc.size.x*0.48,0,TAU,36,col,1.4,true)
+
+static func panel(v,h,r:Dictionary,sz:Vector2)->void:
+ var u=sz.y/720.0
+ mission(v,h,r.hero)
+ for i in 3:
+  var rc:Rect2=r["diff%d"%i]
+  var opened:bool=h.main.progress.diff_open(THEMES.THEMES[h.menu_theme].id,THEMES.DIFF_ORDER[i])
+  # A single report sleeve encloses the scene, portrait capacity and actual numeric record.
+  var sleeve=StyleBoxTexture.new();sleeve.texture=M.REPORT
+  sleeve.texture_margin_left=85;sleeve.texture_margin_right=90;sleeve.texture_margin_top=32;sleeve.texture_margin_bottom=32
+  sleeve.modulate_color=Color.WHITE if opened else Color(0.45,0.45,0.48)
+  var paper_scale=rc.size.y/M.REPORT.get_height()
+  v.draw_set_transform(rc.position,0,Vector2(paper_scale,paper_scale))
+  v.draw_style_box(sleeve,Rect2(Vector2.ZERO,Vector2(rc.size.x/paper_scale,M.REPORT.get_height())))
+  v.draw_set_transform(Vector2.ZERO)
+  var scene=Rect2(rc.position+rc.size*Vector2(0.06,0.18),rc.size*Vector2(0.51,0.64))
+  cover(v,M.RISKS[i],scene,Color.WHITE if opened else Color(0.25,0.25,0.30))
+  var col=BLUE if i==0 else RED
+  if h.menu_sel==i and opened:
+   v.draw_rect(scene,Color(col,0.85),false,2*u)
+   halo(v,Vector2(scene.position.x,scene.get_center().y),scene.size.y*0.40,col,2)
+  if i==2:v.draw_line(scene.end,Vector2(scene.position.x,scene.end.y),GOLD,2*u,true)
+  var count=2 if i==0 else 3
+  for j in count:
+   var face:Texture2D=[HUD_ART.RANA,HUD_ART.LILY,HUD_ART.RANKA][j]
+   medallion(v,face,Rect2(rc.position+Vector2(rc.size.x*(0.60+j*0.075),rc.size.y*0.20),Vector2(25,25)*u),BRASS)
+  number(v,Rect2(rc.position+rc.size*Vector2(0.83,0.12),rc.size*Vector2(0.10,0.42)),str(count),INK,30*u)
+  var key=THEMES.key(THEMES.THEMES[h.menu_theme].id,THEMES.DIFF_ORDER[i])
+  var best=float(h.main.progress.best.get(key,0))
+  var text=("%d:%02d"%[int(best/60),int(best)%60]) if h.main.progress.best.has(key) else "—"
+  var clock_rc=Rect2(rc.position+rc.size*Vector2(0.66,0.46),rc.size*Vector2(0.25,0.50))
+  fit(v,M.CLOCK,clock_rc,Color(0.7,0.65,0.55))
+  number(v,clock_rc,text,GOLD,19*u)
+  if not opened:chained(v,Rect2(scene.get_center()-Vector2(20,28)*u,Vector2(40,56)*u))
+ # Next is a portrait dispatch tab, distinct from the mechanical departure activation.
+ fit(v,M.DISPATCH,r.go)
+ var dispatch=fitted(M.DISPATCH,r.go)
+ for j in 2:
+  var tex:Texture2D=[HUD_ART.RANA,HUD_ART.LILY][j]
+  medallion(v,tex,Rect2(dispatch.position+dispatch.size*Vector2(0.33+j*0.19,0.18),Vector2(dispatch.size.y*0.64,dispatch.size.y*0.64)),GOLD)
+
+static func face_card(v,rc:Rect2,tex,col:Color,on:bool,locked_:bool,u:float,fixed_:bool=false)->void:
+ if locked_:
+  chained(v,rc);return
+ var frame= M.GOLD_MOUNT if fixed_ else M.BLUE_MOUNT
+ var drawn=fitted(frame,rc)
+ var inner=Rect2(drawn.position+drawn.size*Vector2(0.17,0.19),drawn.size*Vector2(0.65,0.60))
+ v.draw_style_box(_style(Color("0a1725"),Color("213344"),inner.size.x*0.2),inner)
+ if tex!=null:fit(v,tex,inner,Color.WHITE if on else Color(0.55,0.57,0.62))
+ fit(v,frame,rc,Color.WHITE if on else Color(0.40,0.44,0.49))
+ if on:halo(v,drawn.get_center(),drawn.size.x*0.41,col,1)
+
+static func party(v,h,r:Dictionary,sz:Vector2)->void:
+ var u=sz.y/720.0
+ mission(v,h,r.hero,true)
+ face_card(v,r.rana,M.BUSTS[0],GOLD,true,false,u,true)
+ for i in 4:
+  var id:String=h.ALLY_IDS[i]
+  var rc:Rect2=r["ally%d"%i]
+  var available:bool=id!="" and h.main.ally_ready(id)
+  face_card(v,rc,M.BUSTS[i+1] if i<2 else null,BLUE,id in h.pick,not available,u)
+  # Availability of a real ally loading is distinct from future locked mounts.
+  if i<2 and not available:
+   var at=rc.get_center()
+   v.draw_arc(at,14*u,h.menu_t*2,h.menu_t*2+4.0,24,BLUE,2*u,true)
+ var count_rc:Rect2=r.count
+ if h.shake_i==30 and h.shake_hard>0:count_rc.position.x+=sin(h.shake_hard*60)*6*u
+ fit(v,M.CLOCK,count_rc,Color(0.72,0.65,0.51))
+ number(v,count_rc,"%d/%d"%[1+h.pick.size(),h.party_cap()],GOLD,32*u)
+ go_button(v,r.go,u,h.menu_t)
+
+static func go_button(v,rc:Rect2,u:float,t:float)->void:
+ var dst=fitted(M.ACTIVATION,rc)
+ fit(v,M.ACTIVATION,rc)
+ halo(v,dst.position+dst.size*Vector2(0.43,0.49),dst.size.y*0.19,GOLD,1.2+sin(t*3)*0.35)
+
+static func _style(bg:Color,border:Color,radius:float)->StyleBoxFlat:
+ var st=StyleBoxFlat.new();st.bg_color=bg;st.border_color=border;st.set_border_width_all(1);st.set_corner_radius_all(int(radius));return st
+
+static func loading(v,sz:Vector2,theme:int,diff:int,chosen:Array,t:float,progress:float)->void:
+ var u=sz.y/720.0
+ backing(v,sz)
+ if theme<0:
+  # Boot has no selected expedition; don't invent a dungeon context.
+  var lens=Rect2(sz*Vector2(0.40,0.16),Vector2(280,280)*u)
+  fit(v,M.LENS,lens)
+ else:
+  fit(v,M.ENEMIES[theme],Rect2(sz*Vector2(0.055,0.14),Vector2(sz.x*0.29,sz.y*0.65)))
+  var lens=Rect2(sz*Vector2(0.39,0.07),Vector2(sz.x*0.30,sz.y*0.59))
+  var lens_rect=fitted(M.LENS,lens)
+  fit(v,NODES[theme],lens_rect.grow(-lens_rect.size.x*0.18))
+  fit(v,M.LENS,lens)
+  var c=lens_rect.get_center()
+  v.draw_arc(c,lens_rect.size.x*0.31,t*0.8,t*0.8+3.0,48,Color(GOLD,0.55),1.5*u,true)
+  risk(v,Rect2(sz*Vector2(0.74,0.18),Vector2(sz.x*0.20,sz.y*0.25)),diff,true,true)
+  var recommended: int=RECOMMENDED[theme]
+  if recommended>0:
+   var rec=Rect2(sz*Vector2(0.78,0.47),Vector2(sz.x*0.12,sz.y*0.13))
+   paper(v,rec);number(v,rec,str(recommended),INK,34*u)
+  var faces=[HUD_ART.RANA]
+  for id in chosen:
+   if id=="lily":faces.append(HUD_ART.LILY)
+   elif id=="ranka":faces.append(HUD_ART.RANKA)
+  for i in faces.size():
+   var rc=Rect2(Vector2(sz.x*(0.48+(i-(faces.size()-1)*0.5)*0.075),sz.y*0.63),Vector2(65,65)*u)
+   medallion(v,faces[i],rc,GOLD if i==0 else BLUE)
+ var tube=Rect2(sz*Vector2(0.14,0.80),Vector2(sz.x*0.72,sz.y*0.12))
+ var glass=StyleBoxTexture.new();glass.texture=M.TUBE
+ glass.texture_margin_left=90;glass.texture_margin_right=90;glass.texture_margin_top=12;glass.texture_margin_bottom=12
+ v.draw_style_box(glass,tube)
+ var inner=Rect2(tube.position+tube.size*Vector2(0.12,0.28),tube.size*Vector2(0.76,0.39))
+ var start=0.0 if progress>=0 else fmod(t*0.20,0.75)
+ var width=clampf(progress,0,1) if progress>=0 else 0.25
+ var energy=Rect2(inner.position+Vector2(inner.size.x*start,0),Vector2(inner.size.x*width,inner.size.y))
+ if energy.size.x>1:
+  v.draw_style_box(_style(Color(1,0.59,0.08,0.42),Color(1,0.75,0.35,0.15),inner.size.y*0.45),energy)
+  var filament=PackedVector2Array()
+  for i in 25:filament.append(Vector2(energy.position.x+energy.size.x*i/24.0,inner.get_center().y+sin(t*12+i*1.5)*inner.size.y*0.21))
+  v.draw_polyline(filament,Color(1,0.55,0.05,0.20),10*u,true)
+  v.draw_polyline(filament,Color(1,0.80,0.28,0.65),3*u,true)
+  v.draw_polyline(filament,Color(1,0.97,0.77,0.95),u,true)
