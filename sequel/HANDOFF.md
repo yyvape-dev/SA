@@ -1,5 +1,12 @@
 # 続編（SA2・融合都市）引き継ぎ
 
+## 次の会話へ（ダンジョン選択UI、2026-11-15追記）
+- A〜Hを制作。ソースは `codex/dungeon-select-ui-20261115`（実装108702a）、土台は `claude/skill-tree-implementation-fsvlcl` のa62f698。mainへの本編マージはしない。
+- 地図は門＋T1〜T4、将来の仲間2枠でユーザー了承済み。以前の「枠数未決」は解決。
+- 結果・比較・検証・事実と仮説: [制作結果](docs/dungeon_select_ui_result_20261115.md)。画面仕様の正本は [specs/dungeon_select_ui.md](specs/dungeon_select_ui.md)。
+- 試し版のみmainのpreviews/sa2-dungeon/へ公開。URL: https://yyvape-dev.github.io/SA/previews/sa2-dungeon/?town=back&at=gate&unlock=1
+- 次に確かめること: iPhone実機の描画・入力遅延。ネイティブ終了時の解放警告（bench起因は仮説）。進行関数・main.gdのパーティは未変更。
+
 ## 次の会話へ（2026-11-14 22:00 時点。ブランチ claude/skill-tree-implementation-fsvlcl＝作業の土台、main は未マージ）
 - できている：スキルツリー／ダンジョンの仕組み（テーマ4×難易度3、5×5に12〜14部屋、3群れ、失敗と戻る扉、仲間の体力）／T2 の部品の仮組み（板を並べる方式）／ダンジョンのカメラは D2・帯4m に固定。仕様の正本は `specs/dungeon_themes.md`（0.決定〜11.カメラ）。
 - 試し版：https://yyvape-dev.github.io/SA/previews/sa2-dungeon/?town=back&at=gate （T2 直行 `?town=back&dgtest=5&dgtheme=t2`）。iPhone 実機は未確認。
