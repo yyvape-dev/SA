@@ -1,5 +1,13 @@
 # 続編（SA2・融合都市）引き継ぎ
 
+## 次の会話へ（戦闘バランス、2026-11-15 21:00 Claude）← 最初にここ
+- 土台：branch `claude/skill-tree-implementation-fsvlcl`（Codex の選択画面 `codex/dungeon-select-ui-20261115` も取り込み済み）。試し版 https://yyvape-dev.github.io/SA/previews/sa2-dungeon/?town=back&at=gate&unlock=1 （`&diag=1` で読み込みの診断）。iPhone 実機で T2〜T4 の背景・ランカ同行・入場まで動く（ユーザー確認 20:14）。
+- **次の作業＝戦闘バランス**。検討表（Sheets）https://claude.ai/artifact/7SXNn7Xi1yTFrCEpVipjbC の案でいく（ユーザー「いいね、それでいこう」）。入れる順：①のけぞり（ダウン値）・攻撃の間のアーマー・ボスのブレイク・敵の種類ごとの体力と攻撃 → ②お金と回復薬（店・回復のボタン） → ③装備の種類・強化・素材。
+- **ユーザーの懸念：アーマー等を入れるなら今は敵が多すぎ**。今の事実：1 部屋＝群れ 3 つ×4〜6 体（ハード＋1・エキスパート＋2）＝ノーマルで 12〜18 体、同時の上限 10（`dungeon_map.gd` の GROUPS・GROUP_N、`dungeon.gd` の cap）。8 割が最初から立ち、残りは群れを片付けるたびに進む先から増援（赤い予告）。数は①と合わせて決める（未決）。
+- 測り方：自動の周回 `DUNGEON_TEST=1`（run 1〜4 の時間・被弾）。実機と同じ道の確認 `TOWN=back CAPTURE_PARTY=1 FOE_THEME=t3 PARTY=ranka`、部屋に入った直後 `CAPTURE_ROOM=1`、敵の見え方 `CAPTURE_FOE=1 FOE_KINDS=… FOE_THEME=…`。試し版を出す前に `git log origin/main -- previews/sa2-dungeon` で他の人の試し版を確かめる（11-15 に上書き事故）。
+- 回答待ち（Codex から）：地図の推奨レベル（仮 4/10/18/26）。
+- 決まり：決まっていないことは質問にする。敵の絵は FOE_RES 0.5（スマホの熱・メモリ）。T1 の背景は今の歓楽街のまま。
+
 ## 次の会話へ（魔導式遠征盤の実装、2026-11-15）
 - ユーザー採用: [世界観から再設計した生成モック](docs/dungeon_select_mock_v2/mock_board_world_design.png)。地図の調査札／現場絵の難易度／仲間の台座／金の起動装置／光る管の待機を実装。ソース codex/dungeon-select-ui-20261115、実装7c22d21。
 - [実装結果と比較](docs/expedition_apparatus_result.md)。仕様の正本 [specs/dungeon_select_ui.md](specs/dungeon_select_ui.md) の流れも更新。
