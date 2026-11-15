@@ -1,0 +1,13 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+BOOT main_ready 1422ms
+BOOT before_d1 1423ms
+BOOT after_d1 1423ms
+BOOT after_build_city 2362ms
+CAMV D2 belt=(-2.0, 2.0) ofs=(0.0, 3.2, 15.3) fov=16.80
+BOOT before_player 2385ms
+BOOT after_player 2990ms
+BOOT ally_loaded 3207ms
+BOOT ranka_loaded 3485ms
+BOOT fx1_loaded 3492ms
+SKILL_TREE_LIVE PASS actual scene, touch upgrade, apply_progress, save, modal restore

@@ -31,5 +31,7 @@ const path = require('path');
  fs.writeFileSync(path.join(out,'web-console.json'),JSON.stringify({errors,logs,packs},null,2));
  await browser.close();
  if(errors.length)throw new Error(errors.join('\n'));
+ const expected=process.env.TREE_EXPECT_VERSION;
+ if(expected && !packs.some(p=>p.url.includes('index.pck?v='+expected)&&p.status===200))throw new Error('Expected build was not loaded: '+expected);
  console.log('SKILL_TREE_WEB captured town → tree → Lily → slots → close; pageerrors='+errors.length);
 })().catch(e=>{console.error(e);process.exit(1)});
