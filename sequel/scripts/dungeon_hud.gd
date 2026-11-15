@@ -14,6 +14,8 @@ var menu_feedback_pos := Vector2.ZERO
 var menu_feedback_t := 0.0
 var _covered_world: Node3D
 var _covered_world_visible := true
+var _covered_viewport: Viewport
+var _viewport_3d_was_disabled := false
 const Art := preload("res://scripts/t6_hud_art.gd")
 ## スキルツリー（specs/skill_tree.md 4.）：仮で歯車の画面に「スロット｜ツリー」の切り替えを足した（開き方は未決）
 var slot_mode := "slot"    # "slot"＝スロット設定、"tree"＝スキルツリー
@@ -69,6 +71,12 @@ func _process(delta: float) -> void:
 ## The map is opaque. Skip hidden 3D drawing, restore the exact previous visibility.
 func _sync_menu_world() -> void:
 	var covered: bool = menu_open or (main != null and "loading" in main and is_instance_valid(main.loading) and main.loading.visible)
+	if covered and not is_instance_valid(_covered_viewport):
+		_covered_viewport = get_viewport()
+		_viewport_3d_was_disabled = _covered_viewport.disable_3d
+		_covered_viewport.disable_3d = true
+	elif not covered and is_instance_valid(_covered_viewport):
+		_release_viewport()
 	var wanted: Node3D = main.level if covered and main != null and "level" in main else null
 	if is_instance_valid(_covered_world) and _covered_world != wanted:
 		_covered_world.visible = _covered_world_visible
@@ -77,6 +85,16 @@ func _sync_menu_world() -> void:
 		_covered_world = wanted
 		_covered_world_visible = wanted.visible
 		wanted.visible = false
+
+func _release_viewport() -> void:
+	if is_instance_valid(_covered_viewport):
+		_covered_viewport.disable_3d = _viewport_3d_was_disabled
+	_covered_viewport = null
+
+func _exit_tree() -> void:
+	_release_viewport()
+	if is_instance_valid(_covered_world):
+		_covered_world.visible = _covered_world_visible
 
 func fade(d: float) -> void:
 	fade_d = d

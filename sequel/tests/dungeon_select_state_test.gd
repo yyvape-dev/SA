@@ -17,6 +17,7 @@ class Model extends Node:
  var level=Node3D.new()
  var party_last=[]
  var hud
+ var loading
  var district=DistrictStub.new()
  var unavailable=false
  var town_floor_busy=false
@@ -24,10 +25,11 @@ class Model extends Node:
  func ally_ready(id):return not unavailable and id in ["lily","ranka"]
 func _initialize():call_deferred("run")
 func run():
+ var old_3d=root.disable_3d
  var m=Model.new();root.add_child(m);m.add_child(m.player);m.add_child(m.battle);m.add_child(m.district);m.add_child(m.level)
  m.progress=Progress.new();m.progress.reset()
  var h=HUD.new();m.hud=h;h.main=m;m.add_child(h)
- h.open_menu();await process_frame;await process_frame;assert(not m.level.visible,"covered world should not render");assert(h.menu_stage=="theme");assert(not h.choose_theme(1));assert(h.shake_i==11)
+ h.open_menu();await process_frame;await process_frame;assert(not m.level.visible,"covered world should not render");assert(root.disable_3d,"covered viewport must skip all 3D rendering");assert(h.menu_stage=="theme");assert(not h.choose_theme(1));assert(h.shake_i==11)
  h.menu_t=1.0
  var touch=InputEventScreenTouch.new();touch.pressed=true;touch.position=h.view.menu_rects().badge0.get_center()
  var input_start=Time.get_ticks_usec();h._input(touch)
@@ -43,7 +45,7 @@ func run():
  h.menu_back();assert(h.menu_stage=="diff");h.menu_back();assert(h.menu_stage=="theme")
  m.progress.unlock_all=true;assert(h.choose_theme(3));assert(h.choose(2));assert(h.party_cap()==3)
  m.unavailable=false;h.toggle_ally(0);h.toggle_ally(1);assert(h.pick.size()==2)
- var loading=Loading.new();m.add_child(loading);loading.show_now()
+ var loading=Loading.new();m.loading=loading;m.add_child(loading);loading.show_now()
  assert("_chosen" in loading,"loading must snapshot the chosen expedition")
  assert(loading._chosen==["lily","ranka"]);assert(loading._difficulty==2)
  h.pick.clear();assert(loading._chosen==["lily","ranka"],"snapshot must not alias HUD picks")
@@ -54,6 +56,12 @@ func run():
  m.town_floor_busy=false
  loading.error_text="dg1 8 200";await process_frame;await process_frame
  assert(not loading._err.text.contains("dg"));assert(loading._err.text.contains("200"))
- h.menu_back();h.menu_back();h.menu_back();await process_frame;await process_frame;assert(m.level.visible,"world visibility must restore")
+ h.menu_back();h.menu_back();h.menu_back();await process_frame;await process_frame;assert(not m.level.visible and root.disable_3d,"loading must keep 3D disabled after menu closes")
+ loading.hide_soon();await create_timer(0.4).timeout;await process_frame
+ assert(m.level.visible,"world visibility must restore");assert(root.disable_3d==old_3d,"restore previous viewport setting")
  print("SELECT_STATE PASS locks, party cap, unavailable/future allies, back navigation, real loading progress")
- m.free();quit(0)
+ root.disable_3d=true;h.open_menu();await process_frame;h.close_menu();await process_frame
+ assert(root.disable_3d,"preserve an already disabled viewport")
+ root.disable_3d=false;h.open_menu();await process_frame
+ m.free();assert(not root.disable_3d,"HUD removal must release viewport override")
+ root.disable_3d=old_3d;quit(0)

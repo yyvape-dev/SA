@@ -99,7 +99,9 @@ static func map(v,h,sz:Vector2)->void:
   background(v,sz,Color(0.82,0.86,0.93))
   backing(v,sz,false)
   var gate_rc=Rect2(Vector2(sz.x*0.025,sz.y*0.76),Vector2(122,122)*u)
-  fit(v,NODES[2],gate_rc)
+  var gate_center=gate_rc.get_center()
+  v.draw_circle(gate_center,gate_rc.size.x*0.28,Color("371763"))
+  fit(v,M.LENS,gate_rc)
   var last=gate_rc.get_center()
   for i in 4:
    var rc:Rect2=r["node%d"%i]
@@ -189,7 +191,7 @@ static func panel(v,h,r:Dictionary,sz:Vector2)->void:
   number(v,Rect2(rc.position+rc.size*Vector2(0.83,0.12),rc.size*Vector2(0.10,0.42)),str(count),INK,30*u)
   var key=THEMES.key(THEMES.THEMES[h.menu_theme].id,THEMES.DIFF_ORDER[i])
   var best=float(h.main.progress.best.get(key,0))
-  var text=("%d:%02d"%[int(best/60),int(best)%60]) if h.main.progress.best.has(key) else "—"
+  var text=("%d:%02d"%[int(best/60),int(best)%60]) if h.main.progress.best.has(key) else "-"
   var clock_rc=Rect2(rc.position+rc.size*Vector2(0.66,0.46),rc.size*Vector2(0.25,0.50))
   fit(v,M.CLOCK,clock_rc,Color(0.7,0.65,0.55))
   number(v,clock_rc,text,GOLD,19*u)
