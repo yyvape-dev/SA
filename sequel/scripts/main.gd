@@ -106,7 +106,7 @@ func _ready() -> void:
 		progress_unlock_all = true
 	_boot("main_ready")
 	# 撮影・確認では乱数の種を固定する（版どうしで同じ場面・同じコマを比べるため）
-	for k in ["CAPTURE_ROOM", "CAPTURE_MENU", "CAPTURE_FOE", "CAPTURE_FX", "CAPTURE_LINEUP", "CAPTURE_PLAY", "CAPTURE_DUNGEON", "DUNGEON_TEST", "CAPTURE_GUIDE", "CAPTURE_REUSE"]:
+	for k in ["CAPTURE_PARTY", "CAPTURE_ROOM", "CAPTURE_MENU", "CAPTURE_FOE", "CAPTURE_FX", "CAPTURE_LINEUP", "CAPTURE_PLAY", "CAPTURE_DUNGEON", "DUNGEON_TEST", "CAPTURE_GUIDE", "CAPTURE_REUSE"]:
 		if OS.has_environment(k):
 			seed(20261106)
 	loading = Loading.new()
@@ -246,6 +246,8 @@ func _ready() -> void:
 		_capture_fx.call_deferred()
 	elif OS.has_environment("CAPTURE_FOE"):
 		_capture_foe.call_deferred()
+	elif OS.has_environment("CAPTURE_PARTY"):
+		_capture_party.call_deferred()
 	elif OS.has_environment("CAPTURE_ROOM"):
 		_capture_room.call_deferred()
 	elif OS.has_environment("CAPTURE_MENU"):
@@ -260,6 +262,36 @@ func _ready() -> void:
 	if OS.has_environment("DUNGEON_LAYOUT_TEST"):
 		load("res://scripts/dungeon_map.gd").self_test()
 		get_tree().quit()
+
+## 撮影・再現：実機と同じ道（街で控え→選択画面で仲間を選ぶ→入場→となりの部屋で戦う）。PARTY=ranka 等、FOE_THEME。captures/party_<n>.png
+func _capture_party() -> void:
+	var dir := ProjectSettings.globalize_path("res://captures")
+	DirAccess.make_dir_recursive_absolute(dir)
+	progress.unlock_all = true
+	for i in 900:
+		await get_tree().process_frame
+		if ally_ready("lily") and ally_ready("ranka") and i > 120:
+			break
+	print("PARTY bench=", bench.keys(), " ally=", battle.ally != null, " ranka=", battle.ranka != null)
+	var th: String = OS.get_environment("FOE_THEME") if OS.has_environment("FOE_THEME") else "t3"
+	hud.open_menu()
+	hud.choose_theme(["t1", "t2", "t3", "t4"].find(th))
+	hud.choose(0)
+	hud.pick = (OS.get_environment("PARTY") if OS.has_environment("PARTY") else "ranka").split(",")
+	hud.go()
+	for i in 240:
+		await get_tree().process_frame
+	print("PARTY in dungeon party=", party, " ally=", battle.ally != null, " ranka=", battle.ranka != null)
+	var L: Dictionary = dungeon.layout
+	var d0: String = L.rooms[L.entrance].exits.keys()[0]
+	dungeon._enter(L.rooms[L.entrance].exits[d0], d0)
+	for n in 8:
+		for i in 60:
+			await get_tree().process_frame
+			player.position.x += dungeon.travel * 0.04
+		get_viewport().get_texture().get_image().save_png(dir + "/party_%d.png" % n)
+		print("PARTY t=", n, " foes=", battle.enemies.size(), " cine=", battle.cine, " ranka_state=", battle.ranka.state if battle.ranka else "-", " hp=", battle.hp)
+	get_tree().quit()
 
 ## 撮影：入口のとなりの部屋へ入った直後（敵が最初から立っているか）→ 4m・8m 進んだ所（2026-11-15）。captures/room_<n>.png
 func _capture_room() -> void:
