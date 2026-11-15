@@ -172,6 +172,8 @@ func _plan_groups(x0: float) -> void:
 ## 群れは部屋に入った時点で進む先に立たせる（2026-11-15 ユーザー「大半は最初からいる」「来た側から湧くのは NG」「片付けるたびに進む先から増援は可」）。
 ## 各群れの 8 割を立たせ（待ち＝idle）、残り 2 割と上限を超えた分はその群れの増援。群れを片付けたら、増援が進む先の画面の外から来る。
 const PRE_K := 0.8
+const REIN_WARN := 1.0   # 増援の予告の秒数
+var rein_wait := 0.0
 func _place_groups() -> void:
 	var rw: float = room.rw
 	var placed := 0
@@ -283,8 +285,10 @@ func _groups_step(delta: float) -> void:
 	var b = main.battle
 	var p: Node3D = main.player
 	var rw: float = room.rw
-	# 増援：進む先の画面の外（来た側からは出さない）
-	while not pending.is_empty() and b.alive_count() < cap:
+	# 増援：予告（画面の端に赤い印 REIN_WARN 秒）のあと、進む先の画面の外から（来た側からは出さない）
+	if rein_wait > 0.0:
+		rein_wait -= delta
+	while not pending.is_empty() and b.alive_count() < cap and rein_wait <= 0.0:
 		var x: float = clampf(p.position.x + travel * rng.randf_range(10.0, 11.5), -rw + 0.6, rw - 0.6)
 		_spawn_one(x)
 		pending.pop_front()
@@ -301,9 +305,12 @@ func _groups_step(delta: float) -> void:
 			for e in alive:
 				if e.state == "idle":
 					e.state = "walk"
-		if alive.is_empty() and int(g.rein) > 0:   # 群れを片付けた→増援
+		if alive.is_empty() and int(g.rein) > 0:   # 群れを片付けた→増援（先に予告）
 			for k in int(g.rein):
 				pending.append(0.0)
+			rein_wait = REIN_WARN
+			if main.hud and main.hud.has_method("edge_warn"):
+				main.hud.edge_warn(travel, REIN_WARN + 0.6)
 			log_ev("wave", int(g.rein))
 			g.rein = 0
 		left = left or not alive.is_empty() or int(g.rein) > 0

@@ -49,6 +49,7 @@ func _process(delta: float) -> void:
 	if result_t >= 0.0:
 		result_t += delta
 	fade_t = maxf(0.0, fade_t - delta)
+	warn_t = maxf(0.0, warn_t - delta)
 	respec_arm = maxf(0.0, respec_arm - delta)
 	for k in tree_flash.keys():
 		tree_flash[k] = float(tree_flash[k]) - delta
@@ -58,6 +59,13 @@ func _process(delta: float) -> void:
 	w_flash = maxf(0.0, w_flash - delta)
 	shake_hard = maxf(0.0, shake_hard - delta)
 	view.queue_redraw()
+
+## 増援の予告：進む先の画面の端に赤い山形（敵＝赤）。dir＝+1 右・-1 左（2026-11-15 ユーザー）
+var warn_t := 0.0
+var warn_dir := 1
+func edge_warn(dir: int, d: float) -> void:
+	warn_dir = dir
+	warn_t = d
 
 func fade(d: float) -> void:
 	fade_d = d
@@ -445,6 +453,15 @@ class _View extends Control:
 				_slots()
 		if hud.result_t >= 0.0:
 			_result()
+		if hud.warn_t > 0.0 and m.dungeon != null:   # 増援の予告：画面の端に赤い山形が3つ、外へ向かって点滅
+			var a: float = clampf(hud.warn_t / 0.3, 0.0, 1.0) * (0.55 + 0.45 * sin(hud.warn_t * 14.0))
+			var ex: float = size.x - 46 * u if hud.warn_dir > 0 else 46 * u
+			var cy := size.y * 0.52
+			draw_rect(Rect2(Vector2(size.x - 14 * u if hud.warn_dir > 0 else 0.0, 0), Vector2(14 * u, size.y)), Color(RED.r, RED.g, RED.b, 0.35 * a))
+			for k in 3:
+				var cx: float = ex - hud.warn_dir * k * 24 * u
+				var s_: float = 20 * u
+				draw_polyline(PackedVector2Array([Vector2(cx - hud.warn_dir * s_ * 0.6, cy - s_), Vector2(cx + hud.warn_dir * s_ * 0.6, cy), Vector2(cx - hud.warn_dir * s_ * 0.6, cy + s_)]), Color(RED.r, RED.g, RED.b, a * (1.0 - k * 0.25)), 7 * u)
 		if hud.fade_t > 0.0 and hud.fade_d > 0.0:
 			var k: float = 1.0 - hud.fade_t / hud.fade_d
 			var a: float = 1.0 - absf(2.0 * k - 1.0)

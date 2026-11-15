@@ -145,7 +145,7 @@ def main():
         A = [key(a) for a in frames_of(apath)]
         ref_y, ref_fx = foot_of(A[0])
         base_h = standing_h(A[0])           # 攻撃の1コマ目＝待機の立ち姿（帽子〜足裏）
-        scale = HEIGHT[kind] * PX_PER_M / base_h
+        scale = HEIGHT[kind] * PX_PER_M / base_h * 0.5   # 2026-11-15 半分（スマホの熱・メモリ、ユーザー決定 B）
         if kind == "ef":
             widx = list(range(0, 72, 9))     # 1本で1周期（71コマ）→8コマ
             aidx = [0, 4, 8, 11, 13, 15, 17, 19, 22, 28, 36, 44, 50, 54, 60, 68]
@@ -176,7 +176,7 @@ def main():
             atl_a.add(img, foot)
         wf, wsz = atl_w.build(out)
         af, asz = atl_a.build(out)
-        h_px = HEIGHT[kind] * PX_PER_M
+        h_px = HEIGHT[kind] * PX_PER_M * 0.5
         # 実時間（秒）：振りかぶり 0.6 倍・当たり後の伸び 0.35 倍・戻り 0.5 倍に詰める。durs は ms×FOE_SPD(2.4)
         SPD = 2.4
         real = []

@@ -155,6 +155,12 @@ func apply_light(spr: Sprite3D, mat: ShaderMaterial, refl: Sprite3D, p: Vector3)
 		refl.offset = spr.offset
 		refl.material_override.set_shader_parameter("tint", mat.get_shader_parameter("tint"))
 
+## 敵が画面に映っているか（体の中ほどがカメラの視野に入っているか）
+func on_screen(e: Node3D) -> bool:
+	if main == null or main.cam == null:
+		return true
+	return main.cam.is_position_in_frustum(e.global_position + Vector3(0, 1.0, 0))
+
 ## ラナと敵が使う時間（止めている間は 0）
 func dt(delta: float) -> float:
 	return 0.0 if (freeze > 0.0 or cine) else delta
@@ -339,8 +345,11 @@ func _attack_from(p: Node3D, spec: Dictionary, mul: float) -> int:
 		for i in mini(int(spec.seek_n), cand.size()):
 			seek.append(cand[i][1])
 		shape = "seek"
+	var ally_hit: bool = p != player
 	for e in enemies:
 		if e.state == "dying":
+			continue
+		if ally_hit and not on_screen(e):   # 仲間の技は画面の外の敵に当てない（2026-11-15 ユーザー。外の群れが走り込んでくるのを防ぐ）
 			continue
 		var dx: float = (e.position.x - pp.x) * dir
 		var dz: float = absf(e.position.z - (pp.z + zs * maxf(0.0, dx)))

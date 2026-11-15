@@ -258,7 +258,7 @@ func _ult_process(delta: float) -> void:
 		if ult_t - delta < 0.05:
 			rfx.petals_burst(position + Vector3(0, 1.2, 0), 18, {"spd": Vector2(1.0, 3.0), "up": 0.8, "size": 0.16})
 		return
-	world.cine = false
+	# 2026-11-15 ユーザー：必殺技の演出中は止める（_end_ult まで cine のまま）
 	world.cam_zoom = maxf(0.0, 1.0 - (ult_t - ULT_CUT.cut_end) / 0.35)
 	var t2 := ult_t - ULT_CUT.cut_end
 	var steps: int = int(sk_tab.ult.steps)

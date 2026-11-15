@@ -276,6 +276,8 @@ func _capture_room() -> void:
 	battle.hp_max = 99999.0
 	battle.hp = 99999.0
 	for n in 4:
+		if n == 3:   # 増援の予告の見え方
+			hud.edge_warn(dungeon.travel, 1.6)
 		for i in 40:
 			await get_tree().process_frame
 		get_viewport().get_texture().get_image().save_png(dir + "/room_%d.png" % n)
