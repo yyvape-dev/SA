@@ -501,6 +501,8 @@ func _bench(id: String) -> void:
 	var a: Node3D = battle.ally if id == "lily" else battle.ranka
 	if a == null or not is_instance_valid(a):
 		return
+	if str(a.get("state")) == "ult" and a.has_method("_end_ult"):   # 必殺技の途中で外すと止め（cine）が残る→先に終わらせる
+		a._end_ult()
 	if a.get_parent():
 		a.get_parent().remove_child(a)
 	bench[id] = a

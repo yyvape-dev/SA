@@ -1,0 +1,24 @@
+{
+  "tool": "OpenAI image_gen.imagegen",
+  "references": [
+    "art/painted_bt/w_shady.png",
+    "art/painted_bt/back_alley_1.png",
+    "art/incoming/dungeon_20261114/t4_room.jpeg"
+  ],
+  "source_sizes": {
+    "atlas": [
+      1254,
+      1254
+    ],
+    "map": [
+      1860,
+      845
+    ]
+  },
+  "processing": "quadrant slices; lossless WebP exact=True; no resampling",
+  "pixel_equality": "PASS entire RGBA atlas reconstructed and RGB map",
+  "source_hashes": {
+    "nodes_atlas.png": "fa7ac8ef36fc2bfe1a7b98e98346439661cfbaf87f1bb4e6d53ad75704215a53",
+    "map_bg.png": "df97db85d95eb28bf0b9a111e713d13a3029e68098d42795d93f59244a251973"
+  }
+}

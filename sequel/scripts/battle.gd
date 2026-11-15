@@ -165,6 +165,16 @@ func on_screen(e: Node3D) -> bool:
 func dt(delta: float) -> float:
 	return 0.0 if (freeze > 0.0 or cine) else delta
 
+## 止め（cine）の安全装置：必殺技の演出が途中で切れて cine が残っても、CINE_MAX 秒で解く（2026-11-15 実機でフリーズの報告）
+const CINE_MAX := 6.0
+var cine_t := 0.0
+func _process(delta: float) -> void:
+	cine_t = cine_t + delta if cine else 0.0
+	if cine_t > CINE_MAX:
+		push_warning("cine stuck %.1fs -> released" % cine_t)
+		cine = false
+		cine_t = 0.0
+
 ## 大技の始まり：背景を暗くし、hold 秒そのまま
 func big_moment(hold: float) -> void:
 	if fx and fx.legacy:

@@ -1,0 +1,18 @@
+# Execution ledger: 2026-11-15-expedition-apparatus.md
+
+- User approved world-design mock and implementation. Existing isolated feature branch is used; main source stays unchanged.
+- Art: 3 source sheets generated; 23 native-resolution runtime crops; exact lossless pixel comparison passed. Raw sheets have .gdignore; original enemy/bust crops preserve pixels. Runtime frames fit aspect; blank paper/cloth/glass borders use nine-slice only.
+- Layout: new test observed RED (missing enemy badges, active hidden map nodes). GREEN at844x390 and1280x720 including transition frames, all targets44+, nonoverlap, shared shake bounds. HUD input added enemy-slip hit route only.
+- State: locked/unavailable/future/party-cap/back and same-event enemy-slip tap+feedback pass. Loading snapshots theme,difficulty,chosen array and uses actual district progress with retry reset.
+- Review important1: retained menu_stage gave stale mission during town-floor transition. Reproduced RED town-context assertion; fixed using existing main.town_floor_busy guard without modifying main.gd; state suite GREEN.
+- Review important2: reviewer suspected raw PNG export. Existing .gdignore does exclude them: previous exported PCK contains no art/ui_source paths. Final export will independently verify new sheets too; no startup payload claim until manifest inspected.
+- Unresolved user data: recommendation4/10/18/26 was explicitly described as mock data; async question sent. RECOMMENDED remains0 (hidden) until reply, never a progression gate.
+- Full original bot: DUNGEON DONE, final run log in /workspace/ui-evidence/apparatus/dungeon-test.log. Native unlockedmenu0–5 completed, party lily+ranka. Locked capture running.
+
+- Web acceptance first pass: T2/hard/party/dg1/dg_t2 entered, pageerror0. SwiftShader map RAF intervals about300ms. Disabling covered3D lowered observed intervals to about200ms (not a100ms claim). Added RED→GREEN coverage for covered combat HUD visibility and prior-state restoration; hide controls/input while opaque expedition UI is open, skip underlying HUD drawing and batch path polylines. Final Web measurement pending.
+- Best-time display uses whole M:SS for readable small dial; unsupported em dash replaced with ASCII hyphen after checking actual font cmap.
+
+- Final optimization: underlying town vignette uses a screen-reading full-screen shader even when3D is disabled. RED covered-postprocess visibility assertion → GREEN, preserve original hidden state and restore on close/exit. Final Web map RAF median50ms, min16.7/max116.7 (19positive samples); not an all-frames<100ms or real-device guarantee.
+- Final exported7c22d21 PCK manifest:23 runtime assets, no art/ui_source. Protected flow bodies and main.gd unchanged againsta62f698.
+
+- Source and handoff pushed; preview-only main749438e (10files), Pages43667918757success, publicChromium844x390 HTTP200/pack7c22d21/map→T2difficulty/pageerror0. Source stays unmerged as requested. Numeric recommendation answer remains pending; no invented balance defaults.
