@@ -5,6 +5,7 @@ extends Node3D
 ## 通常の攻撃は5本からランダム（同じものを続けない）。スキル（2026-11-07、ユーザー決定）：迅雷・雷連打・雷陣を、待ちが明けたらその場を見て自動で出す。
 ## 必殺技 天雷：battle.ally_ult が満タンで自動（ボス、いなければ体力のいちばん多い敵だけを狙う）。表は scripts/lily_skills.gd。
 
+const FoeStats := preload("res://scripts/foe_stats.gd")
 const SPR := preload("res://scripts/sprite_bb.gdshader")
 const LilySkills := preload("res://scripts/lily_skills.gd")
 const SkillTree := preload("res://scripts/skill_tree.gd")
@@ -77,7 +78,7 @@ var ghost_t := 0.0
 var ghosts := []
 var skills_on := OS.get_environment("LILY_SKILLS") != "0"   # 比べる用：LILY_SKILLS=0 でスキルを出さない
 var sk_tab := {}
-var sk_cd := {"rush": 1.5, "barrage": 3.0, "storm": 5.0}   # 待ちの残り（最初はずらす）
+var sk_cd := {"rush": 1.5, "barrage": 3.0, "storm": 5.0, "flank": 4.0}   # 待ちの残り（最初はずらす）
 var sk_id := ""
 var sk := {}
 var ev_i := 0
@@ -555,6 +556,11 @@ func _pick_skill(e: Node3D) -> bool:
 		_start_skill("storm", e)
 		return true
 	var dx := absf(e.position.x - position.x)
+	# 回り込み：狙った敵がリリィの方を向いている（正面から殴ることになる）とき、向こう側へ抜けて背中を取る（2026-11-16）
+	if sk_tab.has("flank") and float(sk_cd.get("flank", 1.0)) <= 0.0 and not e.boss and dx > 1.0 and dx < 6.0 and absf(e.position.z - position.z) < 1.6 \
+			and int(e.face) == (1 if position.x >= e.position.x else -1):
+		_start_skill("flank", e)
+		return true
 	if sk_cd.rush <= 0.0 and dx > RUSH_MIN and dx < RUSH_MAX:
 		_start_skill("rush", e)
 		return true
@@ -578,7 +584,9 @@ func _start_skill(id: String, e: Node3D) -> void:
 	ghost_t = 0.0
 	dash_from = position
 	var side := -face
-	dash_to = Vector3(e.position.x + side * 1.0, 0, e.position.z)
+	if sk.get("behind", false):   # 回り込み：向こう側へ抜ける
+		side = face
+	dash_to = Vector3(e.position.x + side * (1.0 + (0.35 * float(e.size) if sk.get("behind", false) else 0.0)), 0, e.position.z)
 	world.big_moment(float(sk.frames.size()) / float(sk.fps) * 0.85)
 	dash_to.x = clampf(dash_to.x, world.ROOM_X.x, world.ROOM_X.y)
 
@@ -590,6 +598,10 @@ func _skill_step(dt: float) -> bool:
 	if sk.has("dash"):   # 一気に詰める：dash の間に dash_to まで（はじめ速く、着く前にゆるむ）
 		var d0: float = float(sk.dash[0]) / fps
 		var d1: float = float(sk.dash[1]) / fps
+		if sk.get("behind", false) and t > d1 and t - dt <= d1:   # 抜けた：振り返り、敵に背中を見せさせる
+			face = -face
+			if _alive(target):
+				target.turn_back(face, FoeStats.BACK_WRAP_T)
 		if t >= d0 and t <= d1 + dt:
 			var u := clampf((t - d0) / (d1 - d0), 0.0, 1.0)
 			u = 1.0 - pow(1.0 - u, 2.0)
@@ -815,7 +827,7 @@ func slot_ids() -> Array:
 	return ["rush", "barrage", "storm"]
 
 func fresh_cd() -> Dictionary:
-	return {"rush": 0.0, "barrage": 0.0, "storm": 0.0}
+	return {"rush": 0.0, "barrage": 0.0, "storm": 0.0, "flank": 0.0}
 
 ## 撮影用：決まった技を出させる（id＝rush・barrage・storm・ult）
 func force_skill(id: String, e: Node3D) -> void:

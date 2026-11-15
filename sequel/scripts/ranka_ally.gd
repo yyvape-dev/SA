@@ -46,7 +46,7 @@ func setup(w, d: Dictionary) -> void:
 	for c in CLIP_FPS:
 		if data.clips.has(c):
 			data.clips[c].fps = CLIP_FPS[c]
-	sk_cd = {"shot": 2.0, "ring": 4.0, "quake": 8.0}
+	sk_cd = {"shot": 2.0, "ring": 4.0, "quake": 8.0, "lure": 3.0}
 
 func _ready() -> void:
 	super._ready()
@@ -73,11 +73,13 @@ func _notification(what: int) -> void:
 	if what == NOTIFICATION_PREDELETE and is_instance_valid(rfx):
 		rfx.queue_free()
 
+const LURE_T := 1.4   # 振り向かせた敵が背中を見せる秒数（仮）
+
 func slot_ids() -> Array:
 	return ["shot", "ring", "quake"]
 
 func fresh_cd() -> Dictionary:
-	return {"shot": 0.0, "ring": 0.0, "quake": 0.0}
+	return {"shot": 0.0, "ring": 0.0, "quake": 0.0, "lure": 0.0}
 
 # ---------- 通常攻撃 ----------
 func _start_atk(e: Node3D) -> void:
@@ -187,6 +189,15 @@ func _pick_skill(e: Node3D) -> bool:
 		_start_skill("ring", e)
 		return true
 	var dx := absf(e.position.x - position.x)
+	# 振り向かせ：前 8m に 2 体以上（ボスは除く）いて、ラナかリリィがその近くにいるとき（背中を殴れる味方がいる。2026-11-16）
+	if sk_tab.has("lure") and float(sk_cd.get("lure", 1.0)) <= 0.0 and not e.boss and dx < 8.0:
+		var front := 0
+		for x in foes:
+			if not x.boss and (x.position.x - position.x) * face > 0.0 and absf(x.position.x - position.x) < 8.0:
+				front += 1
+		if front >= 2 and absf(world.player.position.x - e.position.x) < 4.0:
+			_start_skill("lure", e)
+			return true
 	if sk_cd.shot <= 0.0 and dx > SHOT_MIN and dx < SHOT_MAX and absf(e.position.z - position.z) < 0.8:
 		_start_skill("shot", e)
 		return true
@@ -206,6 +217,17 @@ func _skill_hit(spec: Dictionary) -> void:
 			hs.x1 = position.x + face * float(spec.r)
 			rfx.ki_shot(a, b, big)
 			world.shake = maxf(world.shake, float(spec.get("shake", 3.0)))
+		"lure":   # 振り向かせ：狙った敵の向こう側へ気弾 → 着弾の周りの敵が着弾の方を向く（背中をラナたちへ）
+			var tg: Node3D = target if _alive(target) else null
+			var px: float = (tg.position.x if tg else position.x + face * 5.0) + face * 2.2
+			var pz: float = tg.position.z if tg else position.z
+			var a := position + Vector3(face * 1.05, 1.42, 0.12)
+			rfx.ki_shot(a, Vector3(px, 1.2, pz + 0.12), false)
+			rfx.ring(Vector3(px, 0, pz), 1.6, 0, false)
+			for x in world.enemies:
+				if x.state != "dying" and not x.boss and absf(x.position.x - px) < 3.5 and absf(x.position.z - pz) < 2.0:
+					x.turn_back(1 if px >= x.position.x else -1, LURE_T)
+			hs.cx = absf(px - position.x)
 		"ring", "ring_end":
 			rfx.ring(position, float(spec.r), int(spec.get("n", 0)), spec.fx == "ring_end")
 			if spec.fx == "ring_end":

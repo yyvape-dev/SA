@@ -270,10 +270,13 @@ func number(p: Vector3, val: int, kind: String) -> void:
 	l.fixed_size = false
 	l.pixel_size = 0.0062
 	l.font_size = 64 if kind != "strong" else 86
+	if kind == "back":
+		l.font_size = 80
 	l.outline_size = 22
 	l.outline_modulate = Color(0, 0, 0, 0.85)
 	match kind:
 		"strong": l.modulate = Color8(255, 236, 165)
+		"back": l.modulate = Color8(255, 196, 60)   # 背中の当たり（金＝決着。specs/combat_tactics.md 3.）
 		"hurt": l.modulate = Color8(255, 107, 107)
 		_: l.modulate = Color(1, 1, 1)
 	# 重ならないように（2026-11-07、game-vfx-juice）：横にランダムにずらし、近くの新しい数字と重なる位置は避ける。それでも重なれば少し上へ

@@ -9,7 +9,7 @@ var hard_open := false
 var best := {}           # "テーマ_難易度"（例 t1_normal）-> 最速のクリア時間（秒）
 var clears := {}         # "テーマ_難易度" -> クリア回数（開く条件もここから決める。specs/dungeon_themes.md）
 const Themes := preload("res://scripts/dungeon_themes.gd")
-const SKILLS_DEFAULT := ["flurry", "rift", "vortex"]
+const SKILLS_DEFAULT := ["flurry", "rift", "vortex", "shadow"]   # 2026-11-16：4 つ目の枠＝回り込み（specs/combat_tactics.md）
 var skills_owned: Array = SKILLS_DEFAULT.duplicate()   # 持っている技（今は最初から3つ）
 var skill_slots: Array = SKILLS_DEFAULT.duplicate()    # 枠1〜3 の技の id
 ## スキルツリー（specs/skill_tree.md、2026-11-14）。キャラ＝"rana"・"lily"・"ranka"
@@ -192,8 +192,12 @@ func from_dict(d: Dictionary) -> void:
 	if so is Array and not so.is_empty():
 		skills_owned = so.duplicate()
 	var ss = d.get("skill_slots", null)
-	if ss is Array and ss.size() == 3:
+	if ss is Array and ss.size() >= 3:
 		skill_slots = ss.duplicate()
+		while skill_slots.size() < SKILLS_DEFAULT.size():   # 前の保存（3 枠）に 4 つ目を足す
+			skill_slots.append(SKILLS_DEFAULT[skill_slots.size()])
+	if not skills_owned.has("shadow"):
+		skills_owned.append("shadow")
 	if d.has("sp") and d.sp is Dictionary:
 		for ch in SkillTree.CHARS:
 			sp[ch] = int(d.sp.get(ch, 0))

@@ -302,6 +302,55 @@ func _capture_party() -> void:
 		get_tree().quit()
 		return
 	dungeon._enter(L.rooms[L.entrance].exits[d0], d0)
+	if OS.has_environment("PARTY_FIGHT"):   # 2026-11-16：つなぎ・背中・浮かせ・コンボ表示の確認。決まった入力で戦って撮る（captures/fight_NNN.png）
+		battle.hp_max = 9999.0
+		battle.hp = 9999.0
+		var plan := ["approach", "atkA", "atkB", "rift", "approach", "atkA", "shadow", "flurry", "vortex", "approach", "atkA", "atkB", "atkC", "approach", "rift", "atkA", "atkB", "approach", "shadow", "flurry", "rift"]
+		var pi := 0
+		var wait := 0
+		for f in 900:
+			await get_tree().process_frame
+			if pi >= plan.size():
+				pi = 0
+			var act: String = plan[pi]
+			var near: Node3D = null
+			for e in battle.enemies:
+				if e.state != "dying" and (near == null or absf(e.position.x - player.position.x) + absf(e.position.z - player.position.z) < absf(near.position.x - player.position.x) + absf(near.position.z - player.position.z)):
+					near = e
+			wait += 1
+			match act:
+				"approach":
+					if near == null or (absf(near.position.x - player.position.x) < 1.7 and absf(near.position.z - player.position.z) < 0.4) or wait > 120:
+						pi += 1; wait = 0
+					elif player.state == "move":
+						player.position.x += signf(near.position.x - player.position.x) * 0.09
+						player.position.z = move_toward(player.position.z, near.position.z, 0.06)
+						player.face = 1 if near.position.x >= player.position.x else -1
+				"atkA", "atkB", "atkC":
+					if player.state == "move" or (player.state == "atk" and player.t >= float(player.tab[player.clip].cancel)):
+						if near != null:
+							player.face = 1 if near.position.x >= player.position.x else -1
+						player.attack()
+						pi += 1; wait = 0
+				_:
+					if player.can_use_skill(act):
+						if near != null and player.state != "skill":
+							player.face = 1 if near.position.x >= player.position.x else -1
+						player.use_skill(act)
+						print("FIGHT f=", f, " ", act, " from=", player.state)
+						pi += 1; wait = 0
+					elif wait > 90:
+						pi += 1; wait = 0
+			if f % 6 == 0:
+				get_viewport().get_texture().get_image().save_png(dir + "/fight_%03d.png" % f)
+				var bk := 0
+				var air := 0
+				for e in battle.enemies:
+					if e.back_lock > 0.0: bk += 1
+					if e.airborne(): air += 1
+				if f % 30 == 0: print("FIGHT f=", f, " combo=", battle.style.hits, " rank=", battle.style.rank, " pts=", snappedf(battle.style.pts, 0.1), " back_lock=", bk, " air=", air, " foes=", battle.alive_count())
+		get_tree().quit()
+		return
 	for n in 8:
 		for i in 60:
 			await get_tree().process_frame

@@ -8,7 +8,7 @@ extends RefCounted
 ## 使う条件（ally.gd）：rush＝いちばん近い敵が 3.5〜11m 先、barrage＝近い敵が届く所、storm＝半径 4.5m に敵 3 体以上（ボスがいれば 2 体）
 ## 必殺技 ult：battle.ally_ult が満タン → ボス（いなければ体力のいちばん多い敵）だけを狙う
 
-const ORDER := ["rush", "barrage", "storm"]
+const ORDER := ["rush", "barrage", "storm", "flank"]
 
 ## 連打の1発：ジャブ（A）と上段蹴り（B）のコマを往復させる。hit＝当たるコマの位置
 const JAB := {"f": [6, 7, 8, 9, 8], "hit": 2}
@@ -48,6 +48,13 @@ static func table() -> Dictionary:
 	sev.append([18, {"fx": "seq", "seq": "lily_storm", "at": "self", "ofs": [1.0, 0.6], "s": 0.9}])   # 2026-11-12：締めは焼いた連番（炸裂の 0.25 秒前から）
 	sev.sort_custom(func(x, y): return x[0] < y[0])
 	t["storm"] = {"clip": "atk_heeldrop", "frames": sf, "fps": 20.0, "cd": 14.0, "ev": sev}
+	# 回り込み（2026-11-16 ユーザー決定、specs/combat_tactics.md 9.）：迅雷の踏み込みで狙った敵の向こう側へ抜け、振り返ってジャブ→上段蹴り。
+	#   behind＝向こう側へ抜ける（ally.gd）。抜けたら敵は BACK_WRAP_T 秒リリィに背中を見せる。使う条件：近い敵（1〜6m）がリリィの方を向いている
+	var ff := [14, 16, 17, 18, 19, 20, 22, ["atk_jabkick", 6], ["atk_jabkick", 7], ["atk_jabkick", 8], ["atk_jabkick", 9], ["atk_jabkick", 8],
+		["atk_jabkick", 17], ["atk_jabkick", 18], ["atk_jabkick", 19], ["atk_jabkick", 20], ["atk_jabkick", 21], ["atk_jabkick", 22]]
+	t["flank"] = {"clip": "atk_rush", "frames": ff, "fps": 30.0, "cd": 8.0, "dash": [1, 6], "behind": true,
+		"ev": [[9, {"shape": "fwd", "side": 1, "r": 2.4, "lane": 1.0, "k": 0.8, "strong": false, "kb": 0.2, "fx": "jab", "n": 0, "shake": 3.0}],
+			[14, {"shape": "fwd", "side": 1, "r": 2.4, "lane": 1.1, "k": 1.8, "strong": true, "kb": 1.2, "fx": "kick", "n": 2, "shake": 8.0}]]}
 	# 必殺技 天雷（てんらい）：狙った1体の横へ瞬間移動 → 6 回の連打（毎回その敵に空から稲妻）→ かかと落としで巨大な雷の柱。当たるのはその1体だけ
 	var u := _barrage(6, 1.2)
 	var uev: Array = u.ev

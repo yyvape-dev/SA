@@ -41,6 +41,8 @@ var die_t := 0.0
 var die_dir := 1
 var lift_y := 0.0         # 浮かされた高さ（m）。絵だけを持ち上げる（空中の状態は別の作業）
 var lift_v := 0.0
+var air_hits := 0         # 浮いている間に受けた当たりの数（多いほど早く落ちる。specs/combat_tactics.md 4.）
+var last_air := false     # 直前の当たりが空中だったか（コンボの加点）
 # ボス（前作の敵将を仮置き）：体力が大きい・のけぞらない・3回に1回は左右両側の大振り（床の予兆が長い）
 var boss := false
 var reach := ATK_REACH
@@ -62,6 +64,8 @@ var brk_max := 1.0
 var broken_t := 0.0      # ブレイクで倒れている残り
 var brk_pending := false # 突進中に満ちた（突進が終わったら倒れる）
 var unarmor_t := 0.0     # ジャストガードでアーマーが外れている残り（秒）
+var back_lock := 0.0     # 背中を見せたまま振り向かない残り（秒。回避ですり抜けられた・寄せられた・回り込まれた。specs/combat_tactics.md 3.）
+var last_back := false   # 直前の当たりが背中だったか（数字を金にする）
 
 func setup(b, k: String, c: Dictionary, level: int) -> void:
 	battle = b
@@ -169,13 +173,17 @@ func _physics_process(delta: float) -> void:
 	t += dt
 	down_t += dt
 	unarmor_t = maxf(0.0, unarmor_t - dt)
+	back_lock = maxf(0.0, back_lock - dt)
 	if down_t > FS.DOWN_RESET:
 		down_acc = 0.0
 	if lift_y > 0.0 or lift_v > 0.0:
-		lift_v -= 16.0 * dt
+		lift_v -= FS.AIR_G * (1.0 + FS.AIR_G_ADD * air_hits) * dt   # 当てるほど落ちるのが速い
 		lift_y = maxf(0.0, lift_y + lift_v * dt)
 		if lift_y <= 0.0:
 			lift_v = 0.0
+			if air_hits > 0 or state == "stun":   # 着地：少し倒れたまま
+				stun = maxf(stun, FS.LAND_STUN)
+			air_hits = 0
 		sprite.position.y = lift_y
 		refl.position.y = -lift_y
 	if boss:   # 立ち絵1枚の歩き＝構えの揺れ（前作と同じ）
@@ -184,7 +192,8 @@ func _physics_process(delta: float) -> void:
 	match state:
 		"idle":   # 部屋に最初から立っている（2026-11-15 ユーザー）：ラナが WAKE_D m に入るか、攻撃を受けるまで待つ
 			var ix: float = pl.position.x - position.x
-			face = 1 if ix >= 0 else -1
+			if back_lock <= 0.0:
+				face = 1 if ix >= 0 else -1
 			_show("walk", 0)
 			if absf(ix) < WAKE_D:
 				state = "walk"
@@ -220,6 +229,8 @@ func _physics_process(delta: float) -> void:
 				state = "walk"
 		"stun":
 			stun -= dt
+			if airborne():   # 浮いている間はのけぞったまま
+				stun = maxf(stun, 0.05)
 			position.x += kx * dt
 			kx *= pow(0.0005, dt)
 			if stun <= 0.0:
@@ -282,8 +293,9 @@ func _physics_process(delta: float) -> void:
 					gap_t = float(fst.gap)
 		"walk":
 			var dx: float = pl.position.x - position.x
-			face = 1 if dx >= 0 else -1
-			if absf(dx) > stop_d * size:
+			if back_lock <= 0.0:
+				face = 1 if dx >= 0 else -1
+			if absf(dx) > stop_d * size and back_lock <= 0.0:
 				position.x += signf(dx) * sp * dt
 			# 遠いほど奥行きにばらけ、近づくとラナの奥行きへ寄る
 			var fk := clampf((absf(dx) - 0.5) / 2.2, 0.25, 1.0)
@@ -292,7 +304,7 @@ func _physics_process(delta: float) -> void:
 			if absf(dz) > 0.05:
 				position.z += signf(dz) * minf(absf(dz), sp * 0.6 * dt)
 			atk_cd -= dt
-			if absf(dx) < _max_start() * size and absf(pl.position.z - position.z) < lane * 0.8 and atk_cd <= 0.0 and battle.player_alive():
+			if back_lock <= 0.0 and absf(dx) < _max_start() * size and absf(pl.position.z - position.z) < lane * 0.8 and atk_cd <= 0.0 and battle.player_alive():
 				_start_atk(absf(dx))
 			else:
 				var wc: Dictionary = clips.walk
@@ -351,7 +363,7 @@ func _start_atk(dist: float = 0.0) -> void:
 func lift_up(v: float) -> void:
 	if boss or state == "dying" or not last_st:
 		return
-	lift_v = maxf(lift_v, v)
+	lift_v = maxf(lift_v, v * FS.LIFT_K)
 	stun = maxf(stun, 0.45)
 
 ## アーマー中か（この間はダウン値がたまっても、のけぞらない）
@@ -381,6 +393,10 @@ func take_hit(d: float, dir: int, strong: bool, ally := false) -> bool:
 		state = "walk"
 	if state == "broken":
 		d *= FS.BREAK_DMG
+	# 背中：当てた側（dir＝当てた者から敵への向き）と敵の向きが同じ＝後ろから。傷 1.2 倍・ダウン値 2 倍（2026-11-16 ユーザー了承）
+	last_back = dir == face
+	if last_back:
+		d *= FS.BACK_DMG
 	hp -= d
 	flash = 0.1
 	bar_t = 0.0 if boss else 1.6
@@ -410,11 +426,15 @@ func take_hit(d: float, dir: int, strong: bool, ally := false) -> bool:
 			battle.on_kill(self)
 		return false
 	# ダウン値：通常 1・強い 3（仲間は半分）をため、種類の値に達したらのけぞる
-	down_acc += (FS.DOWN_STRONG if strong else FS.DOWN_NORMAL) * (FS.DOWN_ALLY_K if ally else 1.0)
+	down_acc += (FS.DOWN_STRONG if strong else FS.DOWN_NORMAL) * (FS.DOWN_ALLY_K if ally else 1.0) * (FS.BACK_DOWN if last_back else 1.0)
 	down_t = 0.0
 	var stagger: bool = down_acc >= float(fst.down) - 0.001
-	if state == "gap" or unarmor_t > 0.0:
+	last_air = airborne()
+	if state == "gap" or unarmor_t > 0.0 or last_air:   # 隙・アーマー解除・空中はどの当たりでものけぞる
 		stagger = true
+	if last_air:   # 追い打ち：少し浮き直す（当てるほど弱く）
+		air_hits += 1
+		lift_v = maxf(lift_v, FS.JUGGLE_V * pow(FS.JUGGLE_DECAY, air_hits))
 	elif str(fst.armor) == "always":
 		stagger = stagger and strong
 	elif armored():
@@ -440,6 +460,23 @@ func take_hit(d: float, dir: int, strong: bool, ally := false) -> bool:
 			battle.fx2d.kill(position + Vector3(0, height() * 0.5, 0), battle.fx, position)
 		battle.on_kill(self)
 	return true
+
+func airborne() -> bool:
+	return lift_y > 0.01 or lift_v > 0.0
+
+## 背中を見せさせる：to_face＝向かせる向き（+1 右）、t 秒は振り向かない（ボスは向きだけ変えて止めない）
+func turn_back(to_face: int, t: float) -> void:
+	if state == "dying" or state == "broken":
+		return
+	face = to_face
+	if boss:
+		return
+	back_lock = maxf(back_lock, t)
+	if state == "atk" and not armored():   # 構えの途中なら取り消す（アーマー中の大技は止まらない）
+		if atk.get("warn") != null and not atk.get("done", true):
+			battle.fx.drop(atk.warn)
+		atk = {}
+		state = "walk"
 
 ## ジャストガードを受けた：アーマーを JG_UNARMOR 秒外す（ボスは外さない＝ブレイクで崩す）
 func armor_break() -> void:

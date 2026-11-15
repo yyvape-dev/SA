@@ -150,6 +150,7 @@ static func action(v,ui,key:String,id:String,c:Vector2,radius:float,pressed:bool
   elif actor_state in ["down","hurt","ult"]:ready=false
  else:
   texture=icon(ch,id)
+  if texture==null:texture=M.DODGE # 絵の無い新しい技（回り込み、2026-11-16）は回避の絵で仮置き
   cd=float(pl.skill_cd.get(id,0))
   full=float(pl.skills.get(id,{}).get("cd",1))
   ready=skill_ready(ui,id)

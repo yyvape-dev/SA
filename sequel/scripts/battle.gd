@@ -7,6 +7,7 @@ var combat_audio: Node
 
 const Enemy := preload("res://scripts/enemy.gd")
 const FoeStats := preload("res://scripts/foe_stats.gd")
+const ComboStyle := preload("res://scripts/combo_style.gd")
 const HPBAR := preload("res://scripts/hpbar.gdshader")
 
 var BELT_Z := Vector2(-3.2, 3.5)
@@ -78,7 +79,8 @@ var stat_hits := 0        # 確認用：味方の当たった数・与えたダ�
 var stat_dmg := 0.0
 var hits_taken := 0       # ラナが攻撃を受けた回数（数え続ける。ダンジョンは入った時との差）
 signal foe_killed(e)
-signal boss_break(e)   # ボスのブレイク（2026-11-15。撮影・自動の周回の記録用）
+signal boss_break(e)
+var style = ComboStyle.new()   # コンボとスタイルのランク（2026-11-16、specs/combat_tactics.md 5.）   # ボスのブレイク（2026-11-15。撮影・自動の周回の記録用）
 var shadow_mat: StandardMaterial3D
 var glints: Array = []   # 看板・灯りの位置と色（assets/ground/glints.json）。キャラの縁取り・染めに使う
 const REFL := preload("res://scripts/sprite_refl.gdshader")
@@ -203,6 +205,8 @@ func _update_dim(delta: float) -> void:
 func _physics_process(delta: float) -> void:
 	_update_dim(delta)
 	freeze = maxf(0.0, freeze - delta)
+	if not cine:
+		style.tick(delta)
 	shake = maxf(0.0, shake - delta * 60.0)
 	combo_t = maxf(0.0, combo_t - delta)
 	if combo_t <= 0.0:
@@ -404,6 +408,8 @@ func _attack_from(p: Node3D, spec: Dictionary, mul: float) -> int:
 						m = 0.0
 					e.position.x = move_toward(e.position.x, tx, m)
 					e.position.z = move_toward(e.position.z, pp.z, m * 0.5)
+				if p == player:   # 寄せた敵は背中を見せる（ラナから外を向く。specs/combat_tactics.md 3.）
+					e.turn_back(1 if e.position.x >= p.position.x else -1, FoeStats.BACK_PULL_T)
 			if spec.has("lift") and e.has_method("lift_up"):   # 浮かせる（強めののけぞり＋絵を持ち上げる）
 				e.lift_up(float(spec.lift))
 			var hp_pos: Vector3 = e.position + Vector3(0, e.height() * 0.55, 0)
@@ -420,7 +426,9 @@ func _attack_from(p: Node3D, spec: Dictionary, mul: float) -> int:
 				fx.hit(hp_pos, edir, spec.strong, hits < 4)
 			if spec.get("zap", false):   # 当たった所で稲妻が弾ける（リリィ）
 				fx.zap(hp_pos, 6 if spec.strong else 4, 0.9 if spec.strong else 0.6)
-			fx.number(e.position + Vector3(0, e.height() + 0.5, 0), int(round(d)), "strong" if spec.strong else "")
+			fx.number(e.position + Vector3(0, e.height() + 0.5, 0), int(round(d * (FoeStats.BACK_DMG if e.last_back else 1.0))), "back" if e.last_back else ("strong" if spec.strong else ""))
+			if p == player and p != manual_ally:
+				style.hit(e.last_back, e.last_air)
 			hits += 1
 	# One cue per resolved strike, regardless of how many enemies were hit.
 	if combat_audio != null:
@@ -552,6 +560,8 @@ func just_guard(p: Node3D, e) -> void:
 		fx.drop(e.atk.warn)
 		e.atk.warn = null
 	e.atk.done = true
+	if p == player:
+		style.bonus("guard")
 	e.state = "stun"
 	e.stun = maxf(e.stun, FoeStats.JG_STUN)   # 2026-11-15：0.8→1.2 秒、アーマーを 3 秒外す（ユーザー決定）
 	if e.has_method("armor_break"):
@@ -580,6 +590,7 @@ func enemy_hits_player(e) -> void:
 		return
 	var d: int = e.dmg
 	hits_taken += 1
+	style.hurt()
 	ult = minf(ULT_MAX, ult + 5.0)
 	hp = maxf(0.0, hp - d)
 	var dir := 1 if p.position.x >= e.position.x else -1
