@@ -7,9 +7,9 @@ const THEMES := [
 	{"id": "t1", "col": Color(0.95, 0.35, 0.85), "tint": Color(1, 1, 1, 0.0),
 		"hp": 1.0, "dmg": 1.0, "xp": 1.0, "foes": ["t1e1", "t1e2", "ef", "em", "bf", "bc", "bm"], "boss": "t1b", "pck": "dg1"},   # 前作の仮置き 1・3 は序盤〜中盤（t1〜t3）で新しい敵に入れ替え（2026-11-14 ユーザー）。帝国兵 ef/em は前半（t1・t2）。歓楽街の入口（今の部品）
 	{"id": "t2", "col": Color(0.35, 0.8, 1.0), "tint": Color(0.55, 0.78, 1.0, 0.6),
-		"hp": 1.6, "dmg": 1.4, "xp": 1.5, "foes": ["t2e1", "t2e2", "ef", "em", "bf", "bc", "bm"], "boss": "g1", "pck": "dg_t2"},   # 奥の路地（半魔界）。部品 assets/dungeon/t2（2026-11-14）
+		"hp": 1.6, "dmg": 1.4, "xp": 1.5, "foes": ["t2e1", "t2e2", "ef", "em", "bf", "bc", "bm"], "boss": "t2e1", "pck": "dg_t2"},   # 奥の路地（半魔界）。部品 assets/dungeon/t2（2026-11-14）
 	{"id": "t3", "col": Color(0.72, 0.42, 1.0), "tint": Color(0.78, 0.5, 1.0, 0.65),
-		"hp": 2.4, "dmg": 1.9, "xp": 2.2, "foes": ["t3e1", "bf", "bc", "bm"], "boss": "g1", "pck": "dg_t3"},   # 門の手前の廃墟
+		"hp": 2.4, "dmg": 1.9, "xp": 2.2, "foes": ["t3e1", "bf", "bc", "bm"], "boss": "t3e1", "pck": "dg_t3"},   # 門の手前の廃墟
 	{"id": "t4", "col": Color(0.35, 1.0, 0.75), "tint": Color(0.5, 1.0, 0.8, 0.6),
 		"hp": 3.4, "dmg": 2.5, "xp": 3.0, "foes": ["mo", "gm"], "boss": "hr", "pck": "dg_t4"},   # 深層：爪の怪物・ガトリングの機兵、ボス＝馬型の機兵（突進）（2026-11-14 ユーザー）。   # 地下の採掘坑
 ]
@@ -21,6 +21,7 @@ const DIFFS := {
 	"expert": {"hp": 2.6, "dmg": 2.3, "add": 2, "boss_hp": 6800.0, "boss_dmg": 34, "xp": 8, "boss_xp": 400, "drop": 0.06, "w": [12, 20], "bw": [32, 42]},
 }
 ## 2026-11-15 ユーザー決定：ボスの体力を 2 倍（前 1100／2200／3400。①の後の自動の周回でボス戦が 10〜20 秒だった）
+## 2026-11-15 ユーザー決定：T2・T3 のボス（前作の敵将 g1 の仮置き）を、継ぎ腕の住人・壁喰いを大きくした物に（enemy.gd の BOSS_SIZE）
 const DIFF_ORDER := ["normal", "hard", "expert"]
 
 static func index_of(id: String) -> int:

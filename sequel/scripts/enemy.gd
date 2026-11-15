@@ -6,6 +6,7 @@ extends Node3D
 const SPR := preload("res://scripts/sprite_bb.gdshader")
 const FS := preload("res://scripts/foe_stats.gd")   # 種類ごとの体力・攻撃・アーマー・ダウン値（2026-11-15）
 const HEIGHT := {"1": 2.10, "3": 2.03, "g1": 2.7, "ef": 1.90, "em": 2.00, "bf": 1.85, "bc": 2.00, "bm": 1.95, "mo": 2.4, "gm": 2.5, "hr": 2.8, "t1b": 2.9, "t2e1": 2.1, "t1e1": 1.95, "t1e2": 1.8, "t2e2": 2.0, "t3e1": 2.35}   # ef/em＝帝国兵 女・男（tools/make_imperial_foes.py）、bf/bc/bm＝盗賊 女・爪・男、mo＝爪の怪物・gm＝ガトリングの機兵・hr＝馬型の機兵（深層のボス）、t1b＝遊技場の鉄腕支配人（T1 のボス）・t2e1＝継ぎ腕の住人・t1e1＝徴収屋・t1e2＝仕込み銃の客引き・t2e2＝裂晶の運び手・t3e1＝壁喰い（設計書の背）（tools/make_foes.py）。背は仮（2026-11-14）   # 前作の HEIGHT（f1 233・f3 225 px）÷205×1.85。g1＝ボス（前作の敵将。大きめに）
+const BOSS_SIZE := {"t2e1": 1.4, "t3e1": 1.3}   # 雑魚の絵をボスに使うときの大きさ（2026-11-15。T2・T3 のボス）
 const FOE_SPD := 2.4       # 攻撃の連番の速さ（一騎打ちの何倍か。前作は3.3。予兆を読めるよう少し遅く）
 const ATK_START := 1.15    # この左右の距離で攻撃を始める
 const ATK_REACH := 1.45    # 当たりの瞬間に、この距離までなら当たる
@@ -79,10 +80,16 @@ func setup(b, k: String, c: Dictionary, level: int) -> void:
 ## ボスにする（spawn の直後に呼ぶ）
 func make_boss(hp_val: float, dmg_val: int) -> void:
 	boss = true
-	size = 1.0
-	hp_max = hp_val * float(fst.hp)
+	size = float(BOSS_SIZE.get(kind, 1.0))
+	var bk := 1.0   # 雑魚の絵を使うボスは、雑魚の倍率を掛けない（体力・攻撃は難易度の表どおり）
+	if str(fst.role) == "ボス":
+		bk = float(fst.hp)
+	hp_max = hp_val * bk
 	hp = hp_max
-	dmg = int(round(dmg_val * float(fst.atk)))
+	dmg = int(round(dmg_val * (float(fst.atk) if str(fst.role) == "ボス" else 1.0)))
+	fst.erase("gap")   # ボスは攻撃後の大きな隙を持たない
+	if hpbar:
+		hpbar.position.y = HEIGHT[kind] * size + 0.25
 	brk_max = hp_max * FS.BREAK_K
 	sp = 1.05
 	reach = 2.6
@@ -93,7 +100,7 @@ func make_boss(hp_val: float, dmg_val: int) -> void:
 	spd = 2.0
 	yo = 0.0
 	if shadow:
-		shadow.scale = Vector3(1.6, 1, 1.6)
+		shadow.scale = Vector3(1.6, 1, 1.6) * maxf(1.0, size)
 
 func _ready() -> void:
 	sprite = Sprite3D.new()

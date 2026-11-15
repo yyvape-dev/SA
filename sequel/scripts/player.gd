@@ -66,6 +66,7 @@ var skill_id := ""        # 使っている技
 var skill_uses := {}      # id -> 使った回数（確認用）
 var skill_ready_flash := {}   # id -> 使えるようになった瞬間の光（秒）
 var inv := 0.0
+var inv_blink := true   # 当たらない間に点滅するか（必殺技の後の当たらない残りは点滅させない。2026-11-15 ユーザー「必殺後に透過っぽく点滅する」）
 var flash := 0.0
 var kb := 0.0
 var down_dir := 1
@@ -307,6 +308,7 @@ func use_ult() -> bool:
 func _ult_process(delta: float) -> void:
 	ult_t += delta
 	inv = 0.4   # 必殺技の間は当たらない
+	inv_blink = false
 	var zt: float = ULT_T.zoom
 	if ult_t < ULT_T.cut_end:
 		world.cam_zoom = minf(1.0, ult_t / zt)
@@ -393,7 +395,9 @@ func on_hurt(dir: int, dead: bool) -> void:
 	flash = 0.25
 	if state == "skill" and not dead:   # 技の間はのけぞらない（ダメージは受ける。無敵ではない）
 		inv = 0.35
+		inv_blink = true
 		return
+	inv_blink = true
 	inv = HURT_T + 0.3   # 被弾の動きが終わってから 0.3 秒は当たらない（囲まれて被弾し続けないように）
 	queued = false
 	queued_hold = false
@@ -452,7 +456,7 @@ func _physics_process(delta: float) -> void:
 		mv = Vector2.ZERO
 	flash = maxf(0.0, flash - delta)
 	_update_ghosts(delta)
-	var blink := inv > 0.0 and state != "down" and state != "ult" and int(Time.get_ticks_msec() / 42) % 2 == 0
+	var blink := inv > 0.0 and inv_blink and state != "down" and state != "ult" and int(Time.get_ticks_msec() / 42) % 2 == 0
 	mat.set_shader_parameter("flash", Color(1.0, 0.25, 0.2, 0.7 if flash > 0.0 else 0.0))
 	for id in skill_cd:   # 待ちは止め（ヒットストップ）中も進める
 		if float(skill_cd[id]) > 0.0:
@@ -585,6 +589,7 @@ func _physics_process(delta: float) -> void:
 				clip = "idle"
 				t = 0.0
 				inv = 1.5
+				inv_blink = true
 				world.player_revived()
 	mat.set_shader_parameter("tint", tint)
 	world.apply_light(sprite, mat, refl, position)
