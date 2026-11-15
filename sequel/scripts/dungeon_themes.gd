@@ -16,10 +16,11 @@ const THEMES := [
 
 ## 1 群れの増え方 add、経験値 xp（1 体）、武器の落ちる確率 drop。部屋も敵も約 4 倍になったので、1 体の経験値と落ちる確率は前（12・0.14）より下げた
 const DIFFS := {
-	"normal": {"hp": 1.0, "dmg": 1.0, "add": 0, "boss_hp": 1100.0, "boss_dmg": 14, "xp": 3, "boss_xp": 150, "drop": 0.04, "w": [2, 6], "bw": [12, 18]},
-	"hard":   {"hp": 1.7, "dmg": 1.6, "add": 1, "boss_hp": 2200.0, "boss_dmg": 24, "xp": 5, "boss_xp": 260, "drop": 0.05, "w": [7, 13], "bw": [22, 30]},
-	"expert": {"hp": 2.6, "dmg": 2.3, "add": 2, "boss_hp": 3400.0, "boss_dmg": 34, "xp": 8, "boss_xp": 400, "drop": 0.06, "w": [12, 20], "bw": [32, 42]},
+	"normal": {"hp": 1.0, "dmg": 1.0, "add": 0, "boss_hp": 2200.0, "boss_dmg": 14, "xp": 3, "boss_xp": 150, "drop": 0.04, "w": [2, 6], "bw": [12, 18]},
+	"hard":   {"hp": 1.7, "dmg": 1.6, "add": 1, "boss_hp": 4400.0, "boss_dmg": 24, "xp": 5, "boss_xp": 260, "drop": 0.05, "w": [7, 13], "bw": [22, 30]},
+	"expert": {"hp": 2.6, "dmg": 2.3, "add": 2, "boss_hp": 6800.0, "boss_dmg": 34, "xp": 8, "boss_xp": 400, "drop": 0.06, "w": [12, 20], "bw": [32, 42]},
 }
+## 2026-11-15 ユーザー決定：ボスの体力を 2 倍（前 1100／2200／3400。①の後の自動の周回でボス戦が 10〜20 秒だった）
 const DIFF_ORDER := ["normal", "hard", "expert"]
 
 static func index_of(id: String) -> int:

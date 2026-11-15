@@ -390,9 +390,23 @@ func _capture_foe() -> void:
 			e.yo = 0.0
 			e.force_atk = "atk0" if (j + rnd) % 2 == 0 else "atk1"
 			made.append(e)
+		var jg_f := -1
 		for f in 380:
 			await get_tree().process_frame
 			player.position.x = px
+			if OS.has_environment("FOE_JG"):   # ジャストガードでアーマーが外れる所（2026-11-15）：アーマー中の敵に1回だけ当てて前後を撮る
+				if jg_f < 0:
+					for e in made:
+						if is_instance_valid(e) and e.armored() and not e.atk.is_empty() and not e.atk.get("done", true):
+							battle.just_guard(player, e)
+							jg_f = f
+							print("FOE_JG f=", f, " kind=", e.kind)
+							break
+					if jg_f < 0 and f % 2 == 0:
+						get_viewport().get_texture().get_image().save_png(dir + "/jgpre.png")
+				elif f - jg_f in [1, 6, 30, 100, 190]:
+					get_viewport().get_texture().get_image().save_png(dir + "/jg_%d_%03d.png" % [rnd, f - jg_f])
+				continue
 			if f % 10 == 0 or (f >= 250 and f % 4 == 0):
 				get_viewport().get_texture().get_image().save_png(dir + "/foe_%d_%03d.png" % [rnd, f])
 	get_tree().quit()

@@ -60,6 +60,7 @@ var brk := 0.0           # ブレイクの帯（ボス。たまった傷）
 var brk_max := 1.0
 var broken_t := 0.0      # ブレイクで倒れている残り
 var brk_pending := false # 突進中に満ちた（突進が終わったら倒れる）
+var unarmor_t := 0.0     # ジャストガードでアーマーが外れている残り（秒）
 
 func setup(b, k: String, c: Dictionary, level: int) -> void:
 	battle = b
@@ -148,13 +149,19 @@ func _physics_process(delta: float) -> void:
 		mat.set_shader_parameter("flash_mix", Color(1, 1, 1, 0.0))
 		mat.set_shader_parameter("flash", Color(1.0, 1.0, 1.0, 0.5) if white else Color(0.75, 0.88, 1.0, 0.2 * flash / 0.1))
 	battle.apply_light(sprite, mat, refl, position)
-	mat.set_shader_parameter("armor_col", Color(1, 1, 1, 0.85 if (armored() and state != "dying" and not boss) else 0.0))   # アーマー中は白い縁取り（ボスは出さない＝いつも硬い）
+	var arm_a: float = 0.85 if (armored() and state != "dying" and not boss) else 0.0
+	if unarmor_t > FS.JG_UNARMOR - 0.25:   # ジャストガードで外れた瞬間：金の縁取りが強く光って消える（砕ける）
+		arm_a = (unarmor_t - (FS.JG_UNARMOR - 0.25)) / 0.25
+		mat.set_shader_parameter("armor_col", Color(1.0, 0.8, 0.35, arm_a))
+	else:
+		mat.set_shader_parameter("armor_col", Color(1, 1, 1, arm_a))   # アーマー中は白い縁取り（ボスは出さない＝いつも硬い）
 	bar_t = maxf(0.0, bar_t - delta)
 	hpbar.visible = bar_t > 0.0 and state != "dying"
 	if dt <= 0.0:
 		return
 	t += dt
 	down_t += dt
+	unarmor_t = maxf(0.0, unarmor_t - dt)
 	if down_t > FS.DOWN_RESET:
 		down_acc = 0.0
 	if lift_y > 0.0 or lift_v > 0.0:
@@ -346,10 +353,14 @@ func armored() -> bool:
 		return true
 	if gap_t > 0.0 and state == "gap":
 		return false
+	if unarmor_t > 0.0:
+		return false
 	match str(fst.get("armor", "none")):
 		"always":
 			return true
-		"attack":   # 予兆が出てから当たりまで
+		"attack":   # 予兆が出てから当たりまで（armor_atk があればその攻撃だけ＝大技）
+			if fst.has("armor_atk") and not (fst.armor_atk as Array).has(str(atk.get("clip", ""))):
+				return false
 			return state == "atk" and not atk.is_empty() and not atk.get("done", true)
 		"charge":   # 溜めのコマに入ってから当たりまで
 			return state == "atk" and not atk.is_empty() and atk.get("charged", false) and not atk.get("done", true)
@@ -395,7 +406,7 @@ func take_hit(d: float, dir: int, strong: bool, ally := false) -> bool:
 	down_acc += (FS.DOWN_STRONG if strong else FS.DOWN_NORMAL) * (FS.DOWN_ALLY_K if ally else 1.0)
 	down_t = 0.0
 	var stagger: bool = down_acc >= float(fst.down) - 0.001
-	if state == "gap":
+	if state == "gap" or unarmor_t > 0.0:
 		stagger = true
 	elif str(fst.armor) == "always":
 		stagger = stagger and strong
@@ -422,6 +433,15 @@ func take_hit(d: float, dir: int, strong: bool, ally := false) -> bool:
 			battle.fx2d.kill(position + Vector3(0, height() * 0.5, 0), battle.fx, position)
 		battle.on_kill(self)
 	return true
+
+## ジャストガードを受けた：アーマーを JG_UNARMOR 秒外す（ボスは外さない＝ブレイクで崩す）
+func armor_break() -> void:
+	if boss or state == "dying":
+		return
+	unarmor_t = FS.JG_UNARMOR
+	down_acc = 0.0
+	if battle.fx2d and battle.fx2d.enabled and not battle.fx.legacy:
+		battle.fx2d.hit(position + Vector3(0, height() * 0.55, 0), face, true, "gold")
 
 ## ボスのブレイク：攻撃を止めて BREAK_T 秒倒れる（受ける傷 1.5 倍）。帯は倒れている間に空へ戻る
 func _break_down() -> void:

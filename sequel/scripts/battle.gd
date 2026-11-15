@@ -553,7 +553,9 @@ func just_guard(p: Node3D, e) -> void:
 		e.atk.warn = null
 	e.atk.done = true
 	e.state = "stun"
-	e.stun = maxf(e.stun, 0.8)
+	e.stun = maxf(e.stun, FoeStats.JG_STUN)   # 2026-11-15：0.8→1.2 秒、アーマーを 3 秒外す（ユーザー決定）
+	if e.has_method("armor_break"):
+		e.armor_break()
 	e.kx = (-1 if e.position.x < p.position.x else 1) * 1.2
 	e.flash = maxf(e.flash, 0.1)
 	p.inv = maxf(p.inv, 0.6)
