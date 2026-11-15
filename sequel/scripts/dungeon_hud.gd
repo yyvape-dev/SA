@@ -8,6 +8,7 @@ var menu_open := false
 var slot_open := false     # スキルのスロット設定（街だけ）
 var slot_pick := ""        # 一覧で選んだ技
 const SkillIcons := preload("res://scripts/skill_icons.gd")
+const CombatArt := preload("res://scripts/combat_hud_art.gd")
 const SkillTree := preload("res://scripts/skill_tree.gd")
 const SelectArt := preload("res://scripts/dungeon_select_art.gd")
 var menu_feedback_pos := Vector2.ZERO
@@ -495,50 +496,22 @@ class _View extends Control:
 		if hud.menu_open:
 			_menu()
 			return
-		var pr = m.progress
-		# レベル（金の山形＋数字）・経験値の細い帯（金）・武器（剣＋数字）。体力の帯（touch_ui）の下
-		var y := 150.0 * u   # 必殺技のゲージ（体力の帯の下）の下
-		var lvc := GOLD.lerp(Color.WHITE, hud.lv_flash) if hud.lv_flash > 0.0 else GOLD
-		_chev(Vector2(48 * u, y - 10 * u), 11 * u, lvc)
-		_num(Vector2(66 * u, y), str(pr.lv), 30, lvc)
-		var bx := 112.0 * u
-		draw_rect(Rect2(Vector2(bx, y - 16 * u), Vector2(150 * u, 8 * u)), DIM)
-		draw_rect(Rect2(Vector2(bx, y - 16 * u), Vector2(150 * u * float(pr.xp) / float(pr.need()), 8 * u)), GOLD)
-		var wc := GOLD if hud.w_flash > 0.0 and int(hud.w_flash * 8) % 2 == 0 else Color(0.9, 0.92, 1.0)
-		_sword(Vector2(296 * u, y - 10 * u), 10 * u, wc)
-		_num(Vector2(316 * u, y), str(pr.weapon), 30, wc)
-		# 仲間の体力（青＝味方。倒れている間は灰で、起きるまでの残りを細い線で）
-		var ay := y + 18 * u
-		for a in m.battle.ally_list():
-			if not a.has_method("hp_ratio"):
-				continue
-			var down: bool = a.state == "down"
-			draw_circle(Vector2(54 * u, ay + 4 * u), 6 * u, Color(0.75, 0.88, 1.0) if not down else Color(0.4, 0.4, 0.45))
-			draw_rect(Rect2(Vector2(68 * u, ay), Vector2(140 * u, 8 * u)), DIM)
-			if down:
-				draw_rect(Rect2(Vector2(68 * u, ay + 3 * u), Vector2(140 * u * (1.0 - a.down_t / a.DOWN_T), 2 * u)), Color(0.6, 0.6, 0.66))
-			else:
-				draw_rect(Rect2(Vector2(68 * u, ay), Vector2(140 * u * a.hp_ratio(), 8 * u)), Color(0.45, 0.72, 1.0))
-			ay += 16 * u
 		var d = m.dungeon
 		if hud.in_dungeon and d != null and not d.layout.is_empty():
 			_map(d)
 			_num(Vector2(0, 52 * u), _time_str(d.t_run), 34, Color(1, 1, 1, 0.92), HORIZONTAL_ALIGNMENT_CENTER, size.x)
 			if d.boss != null and is_instance_valid(d.boss):
-				var w := 560.0 * u
-				var p := Vector2((size.x - w) * 0.5, 70 * u)
-				var r: float = maxf(0.0, d.boss.hp / d.boss.hp_max)
-				draw_rect(Rect2(p - Vector2(4, 4) * u, Vector2(w, 18 * u) + Vector2(8, 8) * u), DIM)
-				draw_rect(Rect2(p, Vector2(w * r, 18 * u)), RED)
-				draw_rect(Rect2(p, Vector2(w * r, 6 * u)), Color(1, 1, 1, 0.25))
-				# ブレイクの帯（金＝決着）：傷がたまると満ち、満ちると倒れる。倒れている間は点滅しながら減る（2026-11-15）
+				var brc: Rect2 = CombatArt.boss_rect(size)
+				CombatArt.boss(self,brc,maxf(0.0,d.boss.hp/d.boss.hp_max))
+				# ブレイクの帯（金＝決着）：Codex の真鍮の帯の下。傷がたまると満ち、満ちると倒れる。倒れている間は点滅しながら減る（2026-11-15）
 				if d.boss.has_method("break_ratio"):
 					var br: float = d.boss.break_ratio()
-					var bp := p + Vector2(0, 24 * u)
+					var bw: float = brc.size.x - 24 * u
+					var bp := Vector2(brc.position.x + 12 * u, brc.end.y + 4 * u)
 					var brk_on: bool = d.boss.state == "broken"
-					draw_rect(Rect2(bp - Vector2(4, 3) * u, Vector2(w, 8 * u) + Vector2(8, 6) * u), DIM)
+					draw_rect(Rect2(bp - Vector2(3, 3) * u, Vector2(bw, 8 * u) + Vector2(6, 6) * u), DIM)
 					var ga: float = 1.0 if not brk_on else 0.6 + 0.4 * sin(Time.get_ticks_msec() * 0.02)
-					draw_rect(Rect2(bp, Vector2(w * br, 8 * u)), Color(GOLD.r, GOLD.g, GOLD.b, ga))
+					draw_rect(Rect2(bp, Vector2(bw * br, 8 * u)), Color(GOLD.r, GOLD.g, GOLD.b, ga))
 		if hud.menu_open:
 			_menu()
 		if hud.slot_open:

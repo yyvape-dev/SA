@@ -1,0 +1,391 @@
+{
+  "tool": "OpenAI image_gen",
+  "reference": "docs/combat_hud_polish/visual_target.png",
+  "processing": "native crops only, no resampling, lossless WebP exact=True; empty gauge frames may stretch their central track only at runtime",
+  "entries": [
+    {
+      "file": "hp_frame.webp",
+      "source": "frames.png",
+      "rect": [
+        41,
+        32,
+        855,
+        142
+      ],
+      "size": [
+        814,
+        110
+      ],
+      "bytes": 82716,
+      "pixels": "exact"
+    },
+    {
+      "file": "charge_frame.webp",
+      "source": "frames.png",
+      "rect": [
+        921,
+        31,
+        1746,
+        146
+      ],
+      "size": [
+        825,
+        115
+      ],
+      "bytes": 99116,
+      "pixels": "exact"
+    },
+    {
+      "file": "boss_frame.webp",
+      "source": "frames.png",
+      "rect": [
+        39,
+        181,
+        862,
+        298
+      ],
+      "size": [
+        823,
+        117
+      ],
+      "bytes": 78656,
+      "pixels": "exact"
+    },
+    {
+      "file": "xp_frame.webp",
+      "source": "frames.png",
+      "rect": [
+        918,
+        216,
+        1746,
+        279
+      ],
+      "size": [
+        828,
+        63
+      ],
+      "bytes": 39666,
+      "pixels": "exact"
+    },
+    {
+      "file": "portrait_frame.webp",
+      "source": "frames.png",
+      "rect": [
+        326,
+        309,
+        563,
+        556
+      ],
+      "size": [
+        237,
+        247
+      ],
+      "bytes": 33742,
+      "pixels": "exact"
+    },
+    {
+      "file": "stock_frame.webp",
+      "source": "frames.png",
+      "rect": [
+        1227,
+        336,
+        1429,
+        533
+      ],
+      "size": [
+        202,
+        197
+      ],
+      "bytes": 32182,
+      "pixels": "exact"
+    },
+    {
+      "file": "button_frame.webp",
+      "source": "frames.png",
+      "rect": [
+        301,
+        574,
+        588,
+        868
+      ],
+      "size": [
+        287,
+        294
+      ],
+      "bytes": 38788,
+      "pixels": "exact"
+    },
+    {
+      "file": "ult_frame.webp",
+      "source": "frames.png",
+      "rect": [
+        1168,
+        558,
+        1499,
+        882
+      ],
+      "size": [
+        331,
+        324
+      ],
+      "bytes": 58036,
+      "pixels": "exact"
+    },
+    {
+      "file": "rana_flurry.webp",
+      "source": "icons.png",
+      "rect": [
+        0,
+        0,
+        313,
+        313
+      ],
+      "size": [
+        313,
+        313
+      ],
+      "bytes": 94878,
+      "pixels": "exact"
+    },
+    {
+      "file": "rana_rift.webp",
+      "source": "icons.png",
+      "rect": [
+        313,
+        0,
+        627,
+        313
+      ],
+      "size": [
+        314,
+        313
+      ],
+      "bytes": 108594,
+      "pixels": "exact"
+    },
+    {
+      "file": "rana_vortex.webp",
+      "source": "icons.png",
+      "rect": [
+        627,
+        0,
+        940,
+        313
+      ],
+      "size": [
+        313,
+        313
+      ],
+      "bytes": 103762,
+      "pixels": "exact"
+    },
+    {
+      "file": "rana_ult.webp",
+      "source": "ultimates.png",
+      "rect": [
+        0,
+        0,
+        960,
+        819
+      ],
+      "size": [
+        960,
+        819
+      ],
+      "bytes": 636200,
+      "pixels": "exact"
+    },
+    {
+      "file": "lily_rush.webp",
+      "source": "icons.png",
+      "rect": [
+        0,
+        313,
+        313,
+        627
+      ],
+      "size": [
+        313,
+        314
+      ],
+      "bytes": 90494,
+      "pixels": "exact"
+    },
+    {
+      "file": "lily_barrage.webp",
+      "source": "icons.png",
+      "rect": [
+        313,
+        313,
+        627,
+        627
+      ],
+      "size": [
+        314,
+        314
+      ],
+      "bytes": 102544,
+      "pixels": "exact"
+    },
+    {
+      "file": "lily_storm.webp",
+      "source": "icons.png",
+      "rect": [
+        627,
+        313,
+        940,
+        627
+      ],
+      "size": [
+        313,
+        314
+      ],
+      "bytes": 106472,
+      "pixels": "exact"
+    },
+    {
+      "file": "lily_ult.webp",
+      "source": "ultimates.png",
+      "rect": [
+        960,
+        0,
+        1920,
+        819
+      ],
+      "size": [
+        960,
+        819
+      ],
+      "bytes": 663054,
+      "pixels": "exact"
+    },
+    {
+      "file": "ranka_shot.webp",
+      "source": "icons.png",
+      "rect": [
+        0,
+        627,
+        313,
+        940
+      ],
+      "size": [
+        313,
+        313
+      ],
+      "bytes": 76282,
+      "pixels": "exact"
+    },
+    {
+      "file": "ranka_ring.webp",
+      "source": "icons.png",
+      "rect": [
+        313,
+        627,
+        627,
+        940
+      ],
+      "size": [
+        314,
+        313
+      ],
+      "bytes": 92816,
+      "pixels": "exact"
+    },
+    {
+      "file": "ranka_quake.webp",
+      "source": "icons.png",
+      "rect": [
+        627,
+        627,
+        940,
+        940
+      ],
+      "size": [
+        313,
+        313
+      ],
+      "bytes": 104402,
+      "pixels": "exact"
+    },
+    {
+      "file": "ranka_ult.webp",
+      "source": "icons.png",
+      "rect": [
+        940,
+        627,
+        1254,
+        940
+      ],
+      "size": [
+        314,
+        313
+      ],
+      "bytes": 109544,
+      "pixels": "exact"
+    },
+    {
+      "file": "attack_sword.webp",
+      "source": "icons.png",
+      "rect": [
+        0,
+        940,
+        313,
+        1254
+      ],
+      "size": [
+        313,
+        314
+      ],
+      "bytes": 72542,
+      "pixels": "exact"
+    },
+    {
+      "file": "dodge.webp",
+      "source": "icons.png",
+      "rect": [
+        313,
+        940,
+        627,
+        1254
+      ],
+      "size": [
+        314,
+        314
+      ],
+      "bytes": 84326,
+      "pixels": "exact"
+    },
+    {
+      "file": "attack_fist.webp",
+      "source": "icons.png",
+      "rect": [
+        627,
+        940,
+        940,
+        1254
+      ],
+      "size": [
+        313,
+        314
+      ],
+      "bytes": 85002,
+      "pixels": "exact"
+    },
+    {
+      "file": "attack_palm.webp",
+      "source": "icons.png",
+      "rect": [
+        940,
+        940,
+        1254,
+        1254
+      ],
+      "size": [
+        314,
+        314
+      ],
+      "bytes": 95178,
+      "pixels": "exact"
+    }
+  ]
+}
