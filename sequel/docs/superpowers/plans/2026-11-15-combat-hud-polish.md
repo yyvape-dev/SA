@@ -7,7 +7,7 @@ Reference: docs/combat_hud_polish/visual_target.png, specs/skill_ui.md; user con
 - [x] Generate only reusable frame/gauge/button assets and actual character skill icons. Store original sheets under .gdignore; native lossless crops; record provenance and pixel equality. Retain adopted portraits, no character redraw.
 - [x] Add RED→GREEN tests for displayed health/charge/usable-stock model, active/empty/party/manual states, cost-based thresholds, missing skills; retain existing touch target geometry. Render presentation at844x390 with readable cooldown seconds and clearly distinct skills.
 - [x] Implement blue player/ally HP, violet actual ultimate charge, gold ready count, compact XP/weapon/level, red boss HP. Same physical touch positions; CD ring based on actual cooldown, ready/pressed/unavailable visual states, no UI words.
-- [ ] Test native status fixtures, actual combat and buttons, progression bot, Web export and touch screenshots. Preserve exact gameplay methods and inspect PCK excluding raw sources.
+- [x] Test native status fixtures, actual combat and buttons, progression bot, Web export and touch screenshots. Preserve exact gameplay methods and inspect PCK excluding raw sources.
 - [ ] Push source branch, update HANDOFF/spec/results, publish only previews/sa2-dungeon/ on main, verify Pages/public URL.
 
 Constraints:844x390 battle remains visible; existing actual targets>=44px; retain blue friendly, red enemies, gold readiness; no static fake fractions, no fixed half-charge assumption (ult_cost varies by skill level). UI illustrations preserve aspect; frame surfaces may nine-slice. main.gd and combat logic unchanged.

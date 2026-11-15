@@ -1,5 +1,11 @@
 # 続編（SA2・融合都市）引き継ぎ
 
+## 次の会話へ（戦闘HUD、2026-11-15）
+- ユーザー確認: 体力・必殺などゲージ全体。戦闘の描画を真鍮・青いHP・紫の必殺・実技の絵へ更新。3人分のスキル、仲間復帰、ボスを含む。
+- ソース `codex/combat-hud-polish-20261115`、実装2f1feb4、Web版20261115130227-2f1feb4-g4.7.2。[結果・比較・未確認](docs/combat_hud_polish/README.md)。
+- 操作位置、戦闘ルール、main.gd、選択画面の進行関数は維持。mainへはpreviews/sa2-dungeon/のみ公開する。
+- 実戦のスキル/CD/必殺消費、3人分の描画、自動6周を確認。終了時ObjectDB2件警告は原因未特定。iPhone実機未確認。
+
 ## 次の会話へ（魔導式遠征盤の実装、2026-11-15）
 - ユーザー採用: [世界観から再設計した生成モック](docs/dungeon_select_mock_v2/mock_board_world_design.png)。地図の調査札／現場絵の難易度／仲間の台座／金の起動装置／光る管の待機を実装。ソース codex/dungeon-select-ui-20261115、実装7c22d21。
 - [実装結果と比較](docs/expedition_apparatus_result.md)。仕様の正本 [specs/dungeon_select_ui.md](specs/dungeon_select_ui.md) の流れも更新。
