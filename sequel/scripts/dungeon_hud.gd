@@ -20,6 +20,8 @@ var _covered_controls: CanvasLayer
 var _controls_were_visible := true
 var _controls_pad: Node
 var _pad_was_processing_input := true
+var _covered_postprocess: CanvasItem
+var _postprocess_was_visible := true
 const Art := preload("res://scripts/t6_hud_art.gd")
 ## スキルツリー（specs/skill_tree.md 4.）：仮で歯車の画面に「スロット｜ツリー」の切り替えを足した（開き方は未決）
 var slot_mode := "slot"    # "slot"＝スロット設定、"tree"＝スキルツリー
@@ -94,6 +96,16 @@ func _sync_menu_world() -> void:
 			controls.set_controls_enabled(false)
 		else:
 			controls.visible = false
+	if covered and not is_instance_valid(_covered_postprocess) and main != null and "vignette_mat" in main and main.vignette_mat != null:
+		for layer_node in main.get_children():
+			if layer_node is CanvasLayer:
+				for item in layer_node.get_children():
+					if item is CanvasItem and item.material == main.vignette_mat:
+						_covered_postprocess = item
+						_postprocess_was_visible = item.visible
+						item.visible = false
+	elif not covered:
+		_release_postprocess()
 	var wanted: Node3D = main.level if covered and main != null and "level" in main else null
 	if is_instance_valid(_covered_world) and _covered_world != wanted:
 		_covered_world.visible = _covered_world_visible
@@ -102,6 +114,11 @@ func _sync_menu_world() -> void:
 		_covered_world = wanted
 		_covered_world_visible = wanted.visible
 		wanted.visible = false
+
+func _release_postprocess() -> void:
+	if is_instance_valid(_covered_postprocess):
+		_covered_postprocess.visible = _postprocess_was_visible
+	_covered_postprocess = null
 
 func _release_controls() -> void:
 	if is_instance_valid(_covered_controls):
@@ -117,6 +134,7 @@ func _release_viewport() -> void:
 	_covered_viewport = null
 
 func _exit_tree() -> void:
+	_release_postprocess()
 	_release_controls()
 	_release_viewport()
 	if is_instance_valid(_covered_world):
