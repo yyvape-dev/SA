@@ -10,8 +10,6 @@ const COL_SHUT := Color(1.0, 0.2, 0.2)
 const COL_GOLD := Color(1.0, 0.78, 0.3)
 const COL_HOME := Color(0.72, 0.5, 1.0)   # 戻る扉（街の入口の扉と同じ紫）
 const Themes := preload("res://scripts/dungeon_themes.gd")
-const TRIGGER_D := 8.0     # 群れの位置にこの距離まで近づくと出てくる
-const LATE_T := 3.0        # 前の群れを倒してからこの秒数たっても近づかなければ、次の群れから寄ってくる
 const HOME_HOLD := 1.2     # 戻る扉の上にこの秒数立つと街へ（うっかり出ないように）
 
 var main          # main.gd
@@ -88,8 +86,10 @@ func start() -> void:
 		main.battle.foe_dmg_mul = 0.0
 		var d0: String = layout.rooms[layout.entrance].exits.keys()[0]
 		_enter(layout.rooms[layout.entrance].exits[d0], d0)
-		groups = [{"x": main.player.position.x + travel * 9.0, "n": perf_n}]
-		group_i = 0
+		groups = [{"x": main.player.position.x + travel * 9.0, "n": perf_n, "m": [], "rein": 0}]
+		_place_groups()
+		for e in groups[0].m:
+			e.state = "walk"
 		wave_t = 0.5
 		print("DGTEST n=%d" % perf_n)
 
@@ -163,7 +163,30 @@ func _plan_groups(x0: float) -> void:
 	var x1: float = travel * (rw - 2.5)
 	var fr := [0.3, 0.62, 0.95]
 	for i in room.groups.size():
-		groups.append({"x": lerpf(x0, x1, fr[i]), "n": int(room.groups[i]) + int(cfg().add)})
+		groups.append({"x": lerpf(x0, x1, fr[i]), "n": int(room.groups[i]) + int(cfg().add), "m": [], "rein": 0})
+	_place_groups()
+
+## 群れは部屋に入った時点で進む先に立たせる（2026-11-15 ユーザー「大半は最初からいる」「来た側から湧くのは NG」「片付けるたびに進む先から増援は可」）。
+## 各群れの 8 割を立たせ（待ち＝idle）、残り 2 割と上限を超えた分はその群れの増援。群れを片付けたら、増援が進む先の画面の外から来る。
+const PRE_K := 0.8
+func _place_groups() -> void:
+	var rw: float = room.rw
+	var placed := 0
+	for g in groups:
+		var n: int = int(g.n)
+		var pre := int(round(n * PRE_K))
+		if n >= 2:
+			pre = clampi(pre, 1, n - 1)
+		for k in pre:
+			if placed >= cap:
+				break
+			var x: float = clampf(float(g.x) + travel * rng.randf_range(-1.2, 2.4), -rw + 0.6, rw - 0.6)
+			var e = _spawn_one(x)
+			if e:
+				e.state = "idle"
+				g.m.append(e)
+				placed += 1
+		g.rein = n - g.m.size()
 
 ## 戻る扉：入口の部屋の奥の縁、奥・手前の出口から離れた所
 func _build_home() -> void:
@@ -251,52 +274,42 @@ func _physics_process(delta: float) -> void:
 		_check_exits()
 	_home_step(delta)
 
-## 群れ：次の群れに近づいたら出す。前の群れを倒して LATE_T 秒たっても近づかなければ、次の群れから寄ってくる。
+## 群れ：最初から立っている（_place_groups）。1 体が動けば群れごと動く。群れを片付けたら増援が進む先の画面の外から来る。全部倒すと部屋が開く。
 ## 同時に出ている数が cap を超える分は pending に積み、空きができたら進む先の画面の外から出す。
 func _groups_step(delta: float) -> void:
 	var b = main.battle
 	var p: Node3D = main.player
 	var rw: float = room.rw
+	# 増援：進む先の画面の外（来た側からは出さない）
 	while not pending.is_empty() and b.alive_count() < cap:
 		var x: float = clampf(p.position.x + travel * rng.randf_range(10.0, 11.5), -rw + 0.6, rw - 0.6)
 		_spawn_one(x)
 		pending.pop_front()
-	if group_i < groups.size():
-		var g: Dictionary = groups[group_i]
-		var near: bool = (float(g.x) - p.position.x) * travel < TRIGGER_D
-		if b.alive_count() == 0 and pending.is_empty() and group_i > 0:
-			late_t += delta
-		if near or late_t >= LATE_T or (group_i == 0 and wave_t <= 0.0):
-			_spawn_group(g)
-			group_i += 1
-			late_t = 0.0
-		wave_t -= delta
-	elif b.alive_count() == 0 and pending.is_empty():
+	var left := false
+	for g in groups:
+		var alive := []
+		var awake := false
+		for e in g.m:
+			if is_instance_valid(e) and e.state != "dying":
+				alive.append(e)
+				awake = awake or e.state != "idle"
+		g.m = alive
+		if awake:   # 1 体が動き出したら群れごと動く
+			for e in alive:
+				if e.state == "idle":
+					e.state = "walk"
+		if alive.is_empty() and int(g.rein) > 0:   # 群れを片付けた→増援
+			for k in int(g.rein):
+				pending.append(0.0)
+			log_ev("wave", int(g.rein))
+			g.rein = 0
+		left = left or not alive.is_empty() or int(g.rein) > 0
+	if not left and b.alive_count() == 0 and pending.is_empty():
 		_open_room()
 
-func _spawn_group(g: Dictionary) -> void:
-	var p: Node3D = main.player
-	var rw: float = room.rw
-	var n: int = int(g.n)
-	var back_n := 1 if n <= 5 else 2   # 後ろから来るのは 1〜2 体（大半は進む先から）
-	for i in n:
-		var x: float
-		if i < back_n:
-			x = p.position.x - travel * rng.randf_range(9.5, 11.0)
-			if absf(x) > rw - 0.6:   # 後ろが壁なら進む先へ
-				x = float(g.x) + travel * rng.randf_range(0.0, 3.0)
-		else:
-			x = maxf(float(g.x) * travel, p.position.x * travel + 7.5) * travel + travel * rng.randf_range(0.0, 3.0)
-		x = clampf(x, -rw + 0.6, rw - 0.6)
-		if main.battle.alive_count() >= cap:
-			pending.append(x)
-		else:
-			_spawn_one(x)
-	log_ev("wave", n)
-
-func _spawn_one(x: float) -> void:
+func _spawn_one(x: float):
 	var foes: Array = cfg().foes
-	main.battle.spawn(foes[rng.randi() % foes.size()], Vector3(x, 0, rng.randf_range(main.BELT_Z.x, main.BELT_Z.y)))
+	return main.battle.spawn(foes[rng.randi() % foes.size()], Vector3(x, 0, rng.randf_range(main.BELT_Z.x, main.BELT_Z.y)))
 
 ## 戻る扉：上に HOME_HOLD 秒立つと街へ（何も残さない）
 func _home_step(delta: float) -> void:

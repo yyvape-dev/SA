@@ -47,6 +47,7 @@ var atk_start := ATK_START
 var stop_d := STOP
 var atk_n := 0
 var spd := FOE_SPD
+const WAKE_D := 8.0   # 待っている敵が動き出す距離（画面の中）
 var force_atk := ""     # 撮影用：攻撃の種類を固定（CAPTURE_FOE）
 
 func setup(b, k: String, c: Dictionary, level: int) -> void:
@@ -150,6 +151,12 @@ func _physics_process(delta: float) -> void:
 		sprite.position.y = absf(sin(t * 3.2)) * 0.05 if state == "walk" else 0.0
 	var pl: Node3D = battle.player
 	match state:
+		"idle":   # 部屋に最初から立っている（2026-11-15 ユーザー）：ラナが WAKE_D m に入るか、攻撃を受けるまで待つ
+			var ix: float = pl.position.x - position.x
+			face = 1 if ix >= 0 else -1
+			_show("walk", 0)
+			if absf(ix) < WAKE_D:
+				state = "walk"
 		"dying":
 			die_t += dt
 			var k := die_t / (1.2 if boss else (0.45 if battle.fx.legacy else 0.75))   # 溶け消えは少し長く（縁が燃えるのを見せる）
@@ -300,6 +307,8 @@ func lift_up(v: float) -> void:
 func take_hit(d: float, dir: int, strong: bool) -> void:
 	if state == "dying":
 		return
+	if state == "idle":
+		state = "walk"
 	hp -= d
 	flash = 0.1
 	bar_t = 0.0 if boss else 1.6
