@@ -164,8 +164,14 @@ func _physics_process(delta: float) -> void:
 	if unarmor_t > FS.JG_UNARMOR - 0.25:   # ジャストガードで外れた瞬間：金の縁取りが強く光って消える（砕ける）
 		arm_a = (unarmor_t - (FS.JG_UNARMOR - 0.25)) / 0.25
 		mat.set_shader_parameter("armor_col", Color(1.0, 0.8, 0.35, arm_a))
+	elif airborne() and state != "dying":   # 浮いている：淡い金の縁取り＋少し後ろへ反る＋影が小さくなる（2026-11-16）
+		mat.set_shader_parameter("armor_col", FS.AIR_COL)
+		mat.set_shader_parameter("rot", -face * 0.32 * clampf(lift_y / 1.2, 0.0, 1.0))
 	else:
 		mat.set_shader_parameter("armor_col", Color(1, 1, 1, arm_a))   # アーマー中は白い縁取り（ボスは出さない＝いつも硬い）
+	if shadow and not boss:
+		var hk: float = 1.0 - 0.45 * clampf(lift_y / 1.8, 0.0, 1.0)
+		shadow.scale = Vector3(hk, 1, hk)
 	bar_t = maxf(0.0, bar_t - delta)
 	hpbar.visible = bar_t > 0.0 and state != "dying"
 	if dt <= 0.0:
@@ -184,6 +190,8 @@ func _physics_process(delta: float) -> void:
 			if air_hits > 0 or state == "stun":   # 着地：少し倒れたまま
 				stun = maxf(stun, FS.LAND_STUN)
 			air_hits = 0
+			if state != "dying" and state != "broken":
+				mat.set_shader_parameter("rot", 0.0)
 		sprite.position.y = lift_y
 		refl.position.y = -lift_y
 	if boss:   # 立ち絵1枚の歩き＝構えの揺れ（前作と同じ）
@@ -363,8 +371,11 @@ func _start_atk(dist: float = 0.0) -> void:
 func lift_up(v: float) -> void:
 	if boss or state == "dying" or not last_st:
 		return
-	lift_v = maxf(lift_v, v * FS.LIFT_K)
+	var was_air := airborne()
+	lift_v = minf(maxf(lift_v, v * FS.LIFT_K), FS.LIFT_MAX)
 	stun = maxf(stun, 0.45)
+	if not was_air and battle.fx2d and battle.fx2d.enabled and not battle.fx.legacy:   # 打ち上げた瞬間：足元に金の衝撃
+		battle.fx2d.hit(position + Vector3(0, 0.15, 0), face, true, "gold")
 
 ## アーマー中か（この間はダウン値がたまっても、のけぞらない）
 func armored() -> bool:
@@ -434,7 +445,7 @@ func take_hit(d: float, dir: int, strong: bool, ally := false) -> bool:
 		stagger = true
 	if last_air:   # 追い打ち：少し浮き直す（当てるほど弱く）
 		air_hits += 1
-		lift_v = maxf(lift_v, FS.JUGGLE_V * pow(FS.JUGGLE_DECAY, air_hits))
+		lift_v = minf(maxf(lift_v, FS.JUGGLE_V * pow(FS.JUGGLE_DECAY, air_hits)), FS.LIFT_MAX)
 	elif str(fst.armor) == "always":
 		stagger = stagger and strong
 	elif armored():

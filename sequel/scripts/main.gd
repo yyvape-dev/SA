@@ -351,7 +351,7 @@ func _capture_party() -> void:
 				for e in battle.enemies:
 					if e.back_lock > 0.0: bk += 1
 					if e.airborne(): air += 1
-				if f % 30 == 0: print("FIGHT f=", f, " combo=", battle.style.hits, " rank=", battle.style.rank, " pts=", snappedf(battle.style.pts, 0.1), " back_lock=", bk, " air=", air, " foes=", battle.alive_count())
+				if f % 30 == 0 or air > 0: print("FIGHT f=", f, " combo=", battle.style.hits, " rank=", battle.style.rank, " pts=", snappedf(battle.style.pts, 0.1), " back_lock=", bk, " air=", air, " foes=", battle.alive_count())
 		get_tree().quit()
 		return
 	for n in 8:
@@ -446,6 +446,18 @@ func _capture_foe() -> void:
 		for f in 380:
 			await get_tree().process_frame
 			player.position.x = px
+			if OS.has_environment("FOE_AIR"):   # 2026-11-16：浮かせの見え方。f60 で打ち上げ、14 コマごとに追い打ち、前後を撮る
+				var ea = made[0] if made.size() > 0 and is_instance_valid(made[0]) else null
+				if ea != null:
+					if f == 60:
+						ea.take_hit(1.0, 1, true)
+						ea.lift_up(3.0)
+					elif f > 60 and f < 150 and (f - 60) % 14 == 0 and ea.airborne():
+						ea.take_hit(1.0, 1, false)
+					if f in [58, 66, 74, 82, 96, 110, 124, 140, 160]:
+						get_viewport().get_texture().get_image().save_png(dir + "/air_%03d.png" % f)
+						print("AIR f=", f, " y=", snappedf(ea.lift_y, 0.01), " hits=", ea.air_hits)
+				continue
 			if OS.has_environment("FOE_JG"):   # ジャストガードでアーマーが外れる所（2026-11-15）：アーマー中の敵に1回だけ当てて前後を撮る
 				if jg_f < 0:
 					for e in made:
