@@ -246,6 +246,8 @@ func _ready() -> void:
 		_capture_fx.call_deferred()
 	elif OS.has_environment("CAPTURE_FOE"):
 		_capture_foe.call_deferred()
+	elif OS.has_environment("CAPTURE_SHOP"):
+		_capture_shop.call_deferred()
 	elif OS.has_environment("CAPTURE_PARTY"):
 		_capture_party.call_deferred()
 	elif OS.has_environment("CAPTURE_ROOM"):
@@ -264,6 +266,76 @@ func _ready() -> void:
 		get_tree().quit()
 
 ## 撮影・再現：実機と同じ道（街で控え→選択画面で仲間を選ぶ→入場→となりの部屋で戦う）。PARTY=ranka 等、FOE_THEME。captures/party_<n>.png
+## 2026-11-16 ②：お金と回復の確認。裏の町の薬屋 → 店の画面で買う → ダンジョン（回復薬のボタン・お金）→ 倒れて「立ち直る」→ クリアの後に動ける所
+func _capture_shop() -> void:
+	var dir := ProjectSettings.globalize_path("res://captures")
+	DirAccess.make_dir_recursive_absolute(dir)
+	progress.unlock_all = true
+	progress.gold = 520
+	for i in 240:
+		await get_tree().process_frame
+	var shot := func(n: String):
+		await get_tree().process_frame
+		get_viewport().get_texture().get_image().save_png(dir + "/shop_%s.png" % n)
+		print("SHOP ", n, " gold=", progress.gold, " pot=", progress.pot_s, "+", progress.pot_l, " dg=", dungeon.state if dungeon else "-")
+	var sx := 0.0
+	for s2 in BT.STALLS:
+		if s2.id == "stall_crystal":
+			sx = float(s2.x)
+	player.position = Vector3(sx, 0, BELT_Z.x + 0.4)
+	for i in 30:
+		await get_tree().process_frame
+	await shot.call("1_town_shop")
+	hud.buy(0)
+	hud.buy(1)
+	for i in 10:
+		await get_tree().process_frame
+	await shot.call("2_bought")
+	hud.close_shop()
+	hud.open_menu()
+	hud.choose_theme(0)
+	hud.choose(0)
+	hud.pick = ["lily"]
+	hud.go()
+	for i in 240:
+		await get_tree().process_frame
+	battle.hp = battle.hp_max * 0.4
+	for i in 20:
+		await get_tree().process_frame
+	await shot.call("3_dungeon_hud")
+	player.use_potion()
+	for i in 20:
+		await get_tree().process_frame
+	await shot.call("4_potion_used")
+	battle.hp = 0.0
+	player.on_hurt(1, true)
+	for i in 150:
+		await get_tree().process_frame
+	await shot.call("5_revive_ask")
+	hud.revive_t = 1.0
+	hud._revive_pick(true)
+	for i in 60:
+		await get_tree().process_frame
+	await shot.call("6_revived")
+	for e in battle.enemies.duplicate():
+		battle.remove_enemy(e)
+	dungeon._coin(player.position + Vector3(2, 0, 0), 37, "gold", 0.5)
+	dungeon._finish()
+	for i in 90:
+		await get_tree().process_frame
+	await shot.call("7_result")
+	hud.result_t = 2.0
+	hud.confirm_result()
+	for i in 60:
+		await get_tree().process_frame
+	await shot.call("8_after")
+	player.position.x = dungeon.shop_x
+	player.position.z = BELT_Z.x + 0.4
+	for i in 30:
+		await get_tree().process_frame
+	await shot.call("9_after_shop")
+	get_tree().quit()
+
 func _capture_party() -> void:
 	var dir := ProjectSettings.globalize_path("res://captures")
 	DirAccess.make_dir_recursive_absolute(dir)
@@ -737,6 +809,7 @@ func _process(delta: float) -> void:
 	_place_cam(false, delta)
 	_check_town_edge()
 	_check_gate()
+	_check_shop()
 	if fx_demo >= 0.0:
 		fx_demo -= delta
 		if fx_demo <= 0.0:
@@ -3684,6 +3757,22 @@ func _build_gate(x: float = GATE_X, straight: bool = false) -> void:
 		beam.name = "lamp_beam"
 		gate.add_child(beam)
 	glints.append({"x": x, "y": 2.0, "z": gate.position.z, "w": 1.6, "col": [GATE_COL.r, GATE_COL.g, GATE_COL.b], "p": 0.8, "len": 4.0})
+
+## 裏の町の薬屋（水晶の屋台、BT.STALLS の stall_crystal）に近づくと店を開く（2026-11-16 ②、ユーザー「屋台で」）
+var shop_armed := true
+func _check_shop() -> void:
+	if town != "back" or dungeon != null or player == null or town_floor_busy or hud == null:
+		return
+	var sx := 0.0
+	for s2 in BT.STALLS:
+		if s2.id == "stall_crystal":
+			sx = float(s2.x)
+	var near: bool = absf(player.position.x - sx) < 1.3 and player.position.z < BELT_Z.x + 0.9
+	if near and shop_armed and not hud.menu_open and not hud.slot_open and not hud.shop_open and not player.locked:
+		shop_armed = false
+		hud.open_shop()
+	elif not near:
+		shop_armed = true
 
 func _check_gate() -> void:
 	if gate == null or dungeon != null or player == null or town_floor_busy or hud == null:

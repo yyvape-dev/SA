@@ -451,7 +451,7 @@ func _record(d) -> void:
 		avg += x
 	if not room_ts.is_empty():
 		avg /= room_ts.size()
-	summary.append("    部屋 %d 回の平均 %.1f秒  ボス戦 %.1f秒  ブレイク %d 回" % [room_ts.size(), avg, (tbd - tb) if tbd > 0.0 and tb > 0.0 else -1.0, nbrk])
+	summary.append("    部屋 %d 回の平均 %.1f秒  ボス戦 %.1f秒  ブレイク %d 回  お金 %d→%d" % [room_ts.size(), avg, (tbd - tb) if tbd > 0.0 and tb > 0.0 else -1.0, nbrk, d.gold0, main.progress.gold])
 
 ## 失敗・戻る扉のあと、セーブが入る前と同じか
 func _check_restored(what: String) -> void:

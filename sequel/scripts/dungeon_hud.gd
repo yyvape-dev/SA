@@ -12,6 +12,15 @@ const CombatArt := preload("res://scripts/combat_hud_art.gd")
 const SkillTree := preload("res://scripts/skill_tree.gd")
 const TreeArt := preload("res://scripts/skill_tree_art.gd")
 const SelectArt := preload("res://scripts/dungeon_select_art.gd")
+const ShopUI := preload("res://scripts/shop_ui.gd")
+const Eco := preload("res://scripts/economy.gd")
+## お金と回復（2026-11-16 ②）：店（回復薬）と「立ち直る」の確認
+var shop_open := false
+var shop_t := 0.0
+var shop_flash := {}
+var revive_open := false
+var revive_cost := 0
+var revive_t := 0.0
 var menu_feedback_pos := Vector2.ZERO
 var menu_feedback_t := 0.0
 var _covered_world: Node3D
@@ -65,6 +74,10 @@ func _process(delta: float) -> void:
 	_sync_menu_world()
 	menu_t += delta
 	menu_feedback_t = maxf(0.0, menu_feedback_t - delta)
+	shop_t += delta
+	revive_t += delta
+	for k in shop_flash.keys():
+		shop_flash[k] = maxf(0.0, float(shop_flash[k]) - delta)
 	if result_t >= 0.0:
 		result_t += delta
 	fade_t = maxf(0.0, fade_t - delta)
@@ -363,6 +376,57 @@ func slot_tap(pos: Vector2) -> void:
 			slot_pick = "" if slot_pick == str(pr.skills_owned[i]) else str(pr.skills_owned[i])
 			return
 
+# ---------- 店・立ち直る（2026-11-16 ②） ----------
+func open_shop() -> void:
+	if shop_open:
+		return
+	shop_open = true
+	shop_t = 0.0
+	if main.player:
+		main.player.locked = true
+		main.player.move_in = Vector2.ZERO
+
+func close_shop() -> void:
+	shop_open = false
+	if main.player:
+		main.player.locked = false
+	if main.progress:
+		main.progress.save()
+
+func shop_items() -> Array:
+	var pr = main.progress
+	return [{"heal": Eco.POT_S_HEAL, "price": Eco.POT_S_PRICE, "have": pr.pot_s, "max": Eco.POT_S_MAX},
+		{"heal": Eco.POT_L_HEAL, "price": Eco.POT_L_PRICE, "have": pr.pot_l, "max": Eco.POT_L_MAX}]
+
+func buy(i: int) -> bool:
+	var pr = main.progress
+	var it: Dictionary = shop_items()[i]
+	if pr.gold < int(it.price) or int(it.have) >= int(it.max):
+		return false
+	pr.gold -= int(it.price)
+	if i == 0:
+		pr.pot_s += 1
+	else:
+		pr.pot_l += 1
+	shop_flash["buy%d" % i] = 0.15
+	return true
+
+func show_revive(cost: int, _gold: int) -> void:
+	revive_open = true
+	revive_cost = cost
+	revive_t = 0.0
+
+func _revive_pick(yes: bool) -> void:
+	if revive_t < 0.4 or main.dungeon == null:
+		return
+	if yes and main.progress.gold < revive_cost:
+		return
+	revive_open = false
+	if yes:
+		main.dungeon.revive_yes()
+	else:
+		main.dungeon.revive_no()
+
 # ---------- 結果 ----------
 func show_result(r: Dictionary) -> void:
 	result = r
@@ -377,6 +441,33 @@ func confirm_result() -> void:
 		main.dungeon.close_result()
 
 func _input(e: InputEvent) -> void:
+	if shop_open or revive_open:
+		var k2 := -1
+		if e is InputEventKey and e.pressed and not e.echo:
+			k2 = e.keycode
+		var tp := Vector2(-1, -1)
+		if e is InputEventScreenTouch and e.pressed:
+			tp = e.position
+		if k2 < 0 and tp.x < 0:
+			return
+		get_viewport().set_input_as_handled()
+		if revive_open:
+			var rr: Dictionary = ShopUI.revive_rects(view.size)
+			if k2 == KEY_J or k2 == KEY_ENTER or (tp.x >= 0 and rr.yes.has_point(tp)):
+				_revive_pick(true)
+			elif k2 == KEY_K or k2 == KEY_ESCAPE or (tp.x >= 0 and rr.no.has_point(tp)):
+				_revive_pick(false)
+			return
+		if shop_t < 0.2:
+			return
+		var sr: Dictionary = ShopUI.shop_rects(view.size)
+		if k2 == KEY_1 or (tp.x >= 0 and sr.buy0.has_point(tp)):
+			buy(0)
+		elif k2 == KEY_2 or (tp.x >= 0 and sr.buy1.has_point(tp)):
+			buy(1)
+		elif k2 == KEY_K or k2 == KEY_ESCAPE or k2 == KEY_X or (tp.x >= 0 and (sr.close.has_point(tp) or not sr.panel.has_point(tp))):
+			close_shop()
+		return
 	if slot_open:
 		if e is InputEventKey and e.pressed and not e.echo and (e.keycode == KEY_K or e.keycode == KEY_X or e.keycode == KEY_ESCAPE):
 			get_viewport().set_input_as_handled()
@@ -519,6 +610,9 @@ class _View extends Control:
 		if hud.in_dungeon and d != null and not d.layout.is_empty():
 			_map(d)
 			_num(Vector2(0, 52 * u), _time_str(d.t_run), 34, Color(1, 1, 1, 0.92), HORIZONTAL_ALIGNMENT_CENTER, size.x)
+			# お金（2026-11-16 ②）：時間の右に、金の硬貨＋数
+			ShopUI.coin(self, Vector2(size.x * 0.5 + 118 * u, 40 * u), 12 * u)
+			_num(Vector2(size.x * 0.5 + 136 * u, 52 * u), str(m.progress.gold), 30, GOLD, HORIZONTAL_ALIGNMENT_LEFT, 200 * u)
 			if d.boss != null and is_instance_valid(d.boss):
 				var brc: Rect2 = CombatArt.boss_rect(size)
 				CombatArt.boss(self,brc,maxf(0.0,d.boss.hp/d.boss.hp_max))
@@ -542,6 +636,10 @@ class _View extends Control:
 				_slots()
 		if hud.result_t >= 0.0:
 			_result()
+		if hud.shop_open:
+			ShopUI.draw_shop(self, size, int(m.progress.gold), hud.shop_items(), hud.shop_flash)
+		if hud.revive_open:
+			ShopUI.draw_revive(self, size, hud.revive_cost, int(m.progress.gold), hud.revive_t)
 		if hud.warn_t > 0.0 and m.dungeon != null:   # 増援の予告：画面の端に赤い山形が3つ、外へ向かって点滅
 			var a: float = clampf(hud.warn_t / 0.3, 0.0, 1.0) * (0.55 + 0.45 * sin(hud.warn_t * 14.0))
 			var ex: float = size.x - 46 * u if hud.warn_dir > 0 else 46 * u
@@ -709,6 +807,11 @@ class _View extends Control:
 		row += 64 * u
 		_sword(Vector2(x0, row - 14 * u), 13 * u, Color.WHITE)
 		_num(Vector2(x1, row), "%d  >  %d" % [res.w0, res.w], 36, GOLD if res.w > res.w0 else Color.WHITE)
+		# 得たお金（2026-11-16 ②。ボス部屋に残った硬貨はこのあと拾える）
+		if res.has("gold"):
+			var gg: int = int(res.gold)
+			_num(Vector2(x1 + 260 * u, row), ("+%d" % gg) if gg >= 0 else str(gg), 36, GOLD if gg >= 0 else Color(0.8, 0.8, 0.85))
+			ShopUI.coin(self, Vector2(x1 + 242 * u, row - 12 * u), 11 * u)
 		# 次の難易度が開いた（その難易度の菱形＋金の枠）
 		if res.unlocked:
 			var c := Vector2(p.x + w - 90 * u, p.y + h - 120 * u)

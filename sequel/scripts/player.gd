@@ -464,6 +464,40 @@ func on_hurt(dir: int, dead: bool) -> void:
 	kb = dir * 2.0
 	face = -dir
 
+## その場で立ち直る（2026-11-16 ②）：倒れた所から起き上がり、inv_t 秒は当たらない
+func revive(inv_t: float) -> void:
+	state = "move"
+	t = 0.0
+	locked = false
+	inv = inv_t
+	inv_blink = true
+	flash = 0.3
+	if world.fx2d and world.fx2d.enabled and not world.fx.legacy:
+		world.fx2d.pickup(position + Vector3(0, 0.8, 0))
+
+## 回復薬（2026-11-16 ②）：小→大の順に 1 つ使う。使った後 POT_CD 秒は使えない。体力が満タンの時は使わない
+var pot_cd := 0.0
+func use_potion() -> bool:
+	var pr = world.main.progress if world.main else null
+	if pr == null or pot_cd > 0.0 or state == "down" or world.hp <= 0.0 or world.hp >= world.hp_max:
+		return false
+	var Eco = load("res://scripts/economy.gd")
+	var k := 0.0
+	if pr.pot_s > 0:
+		pr.pot_s -= 1
+		k = Eco.POT_S_HEAL
+	elif pr.pot_l > 0:
+		pr.pot_l -= 1
+		k = Eco.POT_L_HEAL
+	else:
+		return false
+	world.hp = minf(world.hp_max, world.hp + world.hp_max * k)
+	pot_cd = Eco.POT_CD
+	world.fx.number(position + Vector3(0, 2.3, 0), int(round(world.hp_max * k)), "pot")
+	if world.fx2d and world.fx2d.enabled and not world.fx.legacy:
+		world.fx2d.pickup(position + Vector3(0, 0.8, 0))
+	return true
+
 ## 回避の残像（青＝味方）：今の絵を写した板を置いて、すぐ薄れさせる
 func _ghost() -> void:
 	var g := Sprite3D.new()
@@ -527,6 +561,7 @@ func _physics_process(delta: float) -> void:
 	if dt <= 0.0:
 		return
 	inv = maxf(0.0, inv - dt)
+	pot_cd = maxf(0.0, pot_cd - dt)
 	_chain_tick(dt)
 	# 長押し：押し続けて HOLD_T を超えたら回転斬り（A の当たりの前なら A を取り消して出す。それ以外は次の技にする）
 	if atk_held and not locked:
@@ -693,6 +728,8 @@ func _unhandled_input(e: InputEvent) -> void:
 			dodge()
 		elif e.pressed and e.keycode == KEY_L:
 			use_ult()
+		elif e.pressed and e.keycode == KEY_H:   # 回復薬（2026-11-16 ②）
+			use_potion()
 		elif e.pressed and (e.keycode == KEY_U or e.keycode == KEY_I or e.keycode == KEY_O or e.keycode == KEY_P):
 			var slot: int = [KEY_U, KEY_I, KEY_O, KEY_P].find(e.keycode)
 			if world.main and world.main.progress:

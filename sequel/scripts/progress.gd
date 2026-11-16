@@ -19,6 +19,9 @@ var sp := {"rana": 0, "lily": 0, "ranka": 0}   # 残りの SP（キャラごと�
 var skill_lv := {}           # キャラ → 技 id → 技レベル（無ければ最初の技は 1、ほかは持っていない）
 var deriv := {}              # キャラ → 技 id → 派生 id
 var first_clear_paid := {}   # "テーマ_難易度" → 初回クリアの SP を渡したか
+var gold := 0                # お金（G）。2026-11-16 ②（specs/money_recovery.md）
+var pot_s := 2               # 回復薬（小）の数。はじめに 2 個（Claude の仮）
+var pot_l := 0               # 回復薬（大）の数
 
 func reset() -> void:
 	lv = 1
@@ -33,6 +36,9 @@ func reset() -> void:
 	skill_lv = {}
 	deriv = {}
 	first_clear_paid = {}
+	gold = 0
+	pot_s = 2
+	pot_l = 0
 
 ## ---------- スキルツリー ----------
 ## 戦闘のボタンの技：枠 1〜3＋4 つ目（回り込み、固定）
@@ -184,12 +190,16 @@ func load_save() -> void:
 func to_dict() -> Dictionary:
 	return {"lv": lv, "xp": xp, "weapon": weapon, "hard_open": hard_open, "best": best.duplicate(true), "clears": clears.duplicate(true),
 		"skills_owned": skills_owned.duplicate(), "skill_slots": skill_slots.duplicate(),
-		"sp": sp.duplicate(true), "skill_lv": skill_lv.duplicate(true), "deriv": deriv.duplicate(true), "first_clear_paid": first_clear_paid.duplicate(true)}
+		"sp": sp.duplicate(true), "skill_lv": skill_lv.duplicate(true), "deriv": deriv.duplicate(true), "first_clear_paid": first_clear_paid.duplicate(true),
+		"gold": gold, "pot_s": pot_s, "pot_l": pot_l}
 
 func from_dict(d: Dictionary) -> void:
 	lv = int(d.get("lv", 1))
 	xp = int(d.get("xp", 0))
 	weapon = int(d.get("weapon", 0))
+	gold = int(d.get("gold", 0))
+	pot_s = int(d.get("pot_s", 2))
+	pot_l = int(d.get("pot_l", 0))
 	best = _rekey(d.get("best", {}))
 	clears = _rekey(d.get("clears", {}))
 	hard_open = bool(d.get("hard_open", false)) or diff_open("t1", "hard")

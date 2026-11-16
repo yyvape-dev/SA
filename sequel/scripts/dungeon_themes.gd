@@ -16,12 +16,13 @@ const THEMES := [
 
 ## 1 群れの増え方 add、経験値 xp（1 体）、武器の落ちる確率 drop。部屋も敵も約 4 倍になったので、1 体の経験値と落ちる確率は前（12・0.14）より下げた
 const DIFFS := {
-	"normal": {"hp": 1.0, "dmg": 1.0, "add": 0, "boss_hp": 2200.0, "boss_dmg": 14, "xp": 3, "boss_xp": 150, "drop": 0.04, "w": [2, 6], "bw": [12, 18]},
-	"hard":   {"hp": 1.7, "dmg": 1.6, "add": 1, "boss_hp": 4400.0, "boss_dmg": 24, "xp": 5, "boss_xp": 260, "drop": 0.05, "w": [7, 13], "bw": [22, 30]},
-	"expert": {"hp": 2.6, "dmg": 2.3, "add": 2, "boss_hp": 6800.0, "boss_dmg": 34, "xp": 8, "boss_xp": 400, "drop": 0.06, "w": [12, 20], "bw": [32, 42]},
+	"normal": {"hp": 1.0, "dmg": 1.0, "add": 0, "boss_hp": 2200.0, "boss_dmg": 14, "gold": 1.0, "xp": 6, "boss_xp": 150, "drop": 0.04, "w": [2, 6], "bw": [12, 18]},
+	"hard":   {"hp": 1.7, "dmg": 1.6, "add": 1, "boss_hp": 4400.0, "boss_dmg": 24, "gold": 1.5, "xp": 10, "boss_xp": 260, "drop": 0.05, "w": [7, 13], "bw": [22, 30]},
+	"expert": {"hp": 2.6, "dmg": 2.3, "add": 2, "boss_hp": 6800.0, "boss_dmg": 34, "gold": 2.0, "xp": 16, "boss_xp": 400, "drop": 0.06, "w": [12, 20], "bw": [32, 42]},
 }
 ## 2026-11-15 ユーザー決定：ボスの体力を 2 倍（前 1100／2200／3400。①の後の自動の周回でボス戦が 10〜20 秒だった）
 ## 2026-11-15 ユーザー決定：T2・T3 のボス（前作の敵将 g1 の仮置き）を、継ぎ腕の住人・壁喰いを大きくした物に（enemy.gd の BOSS_SIZE）
+## 2026-11-16 ②：雑魚の経験値を 2 倍（3/5/8→6/10/16。敵の数を半分にした分）、お金の難易度の倍率 gold（1/1.5/2）。テーマの倍率は各テーマの xp（1/1.5/2.2/3）をお金にも使う
 const DIFF_ORDER := ["normal", "hard", "expert"]
 
 static func index_of(id: String) -> int:
@@ -40,6 +41,8 @@ static func cfg(theme: String, diff: String) -> Dictionary:
 	d.boss_dmg = int(round(float(d.boss_dmg) * float(t.dmg)))
 	d.xp = maxi(1, int(round(float(d.xp) * float(t.xp))))
 	d.boss_xp = int(round(float(d.boss_xp) * float(t.xp)))
+	d.theme_mul = float(t.xp)                       # お金のテーマの倍率（2026-11-16 ②）
+	d.gold_mul = float(d.gold) * float(t.xp)        # 雑魚・ボスのお金に掛ける
 	var tw: int = index_of(theme) * 6   # 奥のテーマほど武器の数字も上がる
 	d.w = [int(d.w[0]) + tw, int(d.w[1]) + tw]
 	d.bw = [int(d.bw[0]) + tw, int(d.bw[1]) + tw]

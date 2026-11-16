@@ -86,6 +86,9 @@ class _Pad extends Control:
 		for i in 3:
 			var a := deg_to_rad(SKILL_ANG[i])
 			b["sk%d" % i] = [ac + Vector2(cos(a), -sin(a)) * 175 * u, 52 * u]
+		# 回復薬（2026-11-16 ②、ユーザー「左上」）：体力の帯・仲間の帯の下。ボタンはスティックより先に判定される
+		if not ui.lily_controls and ui.main and ui.main.dungeon != null:
+			b["pot"] = [Vector2(66 * u, 206 * u), 46 * u]
 		# 4 枠目（2026-11-16、回り込み）：回避の左。弧の 215° は回避と重なるので使わない。街で歯車が出る時は出さない
 		var town_gear: bool = not ui.lily_controls and ui.main and ui.main.hud and ui.main.hud.visible and ui.main.dungeon == null and not ui.main.hud.menu_open and not ui.main.hud.slot_open
 		if not ui.lily_controls and not town_gear and ui.main and ui.main.progress and ui.main.progress.has_method("battle_slots"):
@@ -126,6 +129,9 @@ class _Pad extends Control:
 			"dodge": pl.dodge()
 			"gear": ui.main.hud.open_slots()
 			"ult": pl.use_ult()
+			"pot":
+				if not pl.use_potion():
+					shake[k] = 0.25
 			_:
 				var id := _slot_id(int(k.substr(2)))
 				if not pl.use_skill(id) and float(pl.skill_cd.get(id, 0.0)) > 0.0:
@@ -192,6 +198,33 @@ class _Pad extends Control:
 		if v.length() > 1.0: v = v.normalized()
 		ui.player.move_in = v
 
+	## 回復薬のボタン（2026-11-16 ②）：淡い緑の小瓶。右下に持っている数（小、大があれば「小+大」）、使えない間は暗く＋残りの扇
+	func _draw_pot(c: Vector2, r: float, pressed: bool, u: float) -> void:
+		var pr = ui.main.progress
+		var pl = ui.player
+		var n_s: int = int(pr.pot_s)
+		var n_l: int = int(pr.pot_l)
+		var empty: bool = n_s + n_l <= 0
+		Art.button(self, c, r, pressed)
+		var a: float = 0.35 if empty or float(pl.pot_cd) > 0.0 else 1.0
+		var liq := Color(0.55, 1.0, 0.65, a)
+		var glass := Color(0.9, 0.97, 1.0, 0.85 * a)
+		# 瓶：丸い胴＋首＋栓
+		draw_circle(c + Vector2(0, 6 * u), r * 0.42, glass)
+		draw_circle(c + Vector2(0, 6 * u), r * 0.36, liq)
+		draw_rect(Rect2(c + Vector2(-r * 0.13, -r * 0.5), Vector2(r * 0.26, r * 0.3)), glass)
+		draw_rect(Rect2(c + Vector2(-r * 0.17, -r * 0.62), Vector2(r * 0.34, r * 0.14)), Color(0.75, 0.55, 0.32, a))
+		if float(pl.pot_cd) > 0.0:
+			var Eco = load("res://scripts/economy.gd")
+			var f: float = float(pl.pot_cd) / float(Eco.POT_CD)
+			draw_arc(c, r * 0.92, -PI * 0.5, -PI * 0.5 + TAU * f, 40, Color(0, 0, 0, 0.55), r * 0.16)
+		var font := ThemeDB.fallback_font
+		var txt: String = str(n_s) if n_l <= 0 else "%d+%d" % [n_s, n_l]
+		var fs := int(26 * u)
+		var p := c + Vector2(r * 0.25, r * 1.02)
+		draw_string_outline(font, p - Vector2(60 * u, 0), txt, HORIZONTAL_ALIGNMENT_RIGHT, 60 * u + r * 0.75, fs, int(6 * u), Color(0, 0, 0, 0.9))
+		draw_string(font, p - Vector2(60 * u, 0), txt, HORIZONTAL_ALIGNMENT_RIGHT, 60 * u + r * 0.75, fs, Color(0.85, 1.0, 0.88) if not empty else Color(0.6, 0.6, 0.65))
+
 	func _draw() -> void:
 		var u := size.y / 720.0
 		var stick_center := stick_c if stick_id >= 0 else Vector2(200 * u, size.y - 170 * u)
@@ -214,6 +247,9 @@ class _Pad extends Control:
 			if key == "gear":
 				Art.button(self, center, radius, pressed)
 				Art.gear(self, center, radius * 0.6, 0.5)
+				continue
+			if key == "pot":
+				_draw_pot(center, radius, pressed, u)
 				continue
 			var id := _slot_id(int(key.substr(2))) if key.begins_with("sk") else ""
 			CombatArt.action(self, ui, key, id, center, radius, pressed, u)
