@@ -1,0 +1,12 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+BOOT main_ready 383ms
+BOOT before_d1 384ms
+BOOT after_d1 384ms
+BOOT after_build_city 806ms
+CAMV D2 belt=(-2.0, 2.0) ofs=(0.0, 3.2, 15.3) fov=16.80
+BOOT before_player 818ms
+BOOT after_player 1283ms
+BOOT ally_loaded 1472ms
+BOOT fx1_loaded 1479ms
+SA2_T3_PLAYABLE_PASS: same-Level, 20 retries, real deaths/routes, restore, no growth writes

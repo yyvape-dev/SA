@@ -1,0 +1,11 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+BOOT main_ready 387ms
+BOOT before_d1 387ms
+BOOT after_d1 387ms
+BOOT after_build_city 716ms
+BOOT before_player 728ms
+BOOT after_player 1200ms
+BOOT fx1_loaded 1201ms
+BOOT ally_loaded 1521ms
+SA2_T2_ASSET_WAIT_PASS: delayed real loader, cache hit, failure, unscaled timeout, cleanup and late signal

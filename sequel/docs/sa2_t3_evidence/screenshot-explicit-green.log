@@ -1,0 +1,23 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+WARNING: Could not set V-Sync mode, as changing V-Sync mode is not supported by the graphics driver.
+     at: set_use_vsync (platform/linuxbsd/x11/gl_manager_x11.cpp:372)
+OpenGL API 4.5 (Core Profile) Mesa 25.0.7-2+deb13u1 - Compatibility - Using Device: Mesa - llvmpipe (LLVM 19.1.7, 256 bits)
+
+BOOT main_ready 1115ms
+BOOT before_d1 1115ms
+BOOT after_d1 1116ms
+BOOT after_build_city 1676ms
+CAMV D2 belt=(-2.0, 2.0) ofs=(0.0, 3.2, 15.3) fov=16.80
+BOOT before_player 1691ms
+BOOT after_player 2451ms
+BOOT ally_loaded 2896ms
+BOOT fx1_loaded 2905ms
+T3_INPUT_CHECK: ready
+T3_INPUT_CHECK: GUI starts manual Lily on same Level
+T3_INPUT_CHECK: touch movement release
+T3_INPUT_CHECK: keyboard guide starts actual three-person routes
+T3_INPUT_CHECK: keyboard guard against natural machine wind-up
+T3_INPUT_CHECK: input attacks stop both real machine HP and all routes complete
+T3_INPUT_CHECK: same Level normal exploration restored
+T3_INPUT_CHECK: save screenshot: /tmp/t3-captures/t3-win.png
+SA2_T3_INPUT_PASS

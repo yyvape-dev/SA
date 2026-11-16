@@ -1,0 +1,54 @@
+name: SA2 T3 street encounter
+on:
+  push:
+    branches: [feat/sa2-t3-street-encounter-20261108]
+  workflow_dispatch:
+jobs:
+  engine-regression-and-render:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Godot 4.7.2 and render dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y unzip libgl1-mesa-dri fonts-noto-cjk xvfb ffmpeg
+          curl -fL --retry 3 https://github.com/godotengine/godot-builds/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip -o /tmp/godot.zip
+          unzip -q /tmp/godot.zip -d /tmp
+          mv /tmp/Godot_v4.7.2-stable_linux.x86_64 /tmp/godot
+          /tmp/godot --version
+      - name: Import and run fresh inherited/T3 regressions
+        run: |
+          /tmp/godot --headless --path sequel --editor --import --quit > /tmp/t3-import.log 2>&1
+          GODOT_BIN=/tmp/godot T3_LOG_DIR=/tmp/t3-logs bash sequel/tests/run_sa2_t3.sh
+      - name: Export standalone T3 pack and verify dependencies without source project
+        run: |
+          mkdir -p /tmp/t3-isolated
+          printf 'config_version=5\n[application]\nconfig/name="T3 Pack Verification"\n' > /tmp/t3-isolated/project.godot
+          /tmp/godot --headless --path sequel --export-pack 'T3 Web' /tmp/t3.pck > /tmp/t3-export.log 2>&1
+          /tmp/godot --headless --path /tmp/t3-isolated --script "$GITHUB_WORKSPACE/sequel/tests/sa2_t3_pack_test.gd" -- /tmp/t3.pck > /tmp/t3-pack.log 2>&1
+          grep -q SA2_T3_PACK_PASS /tmp/t3-pack.log
+      - name: Record actual normal/loss/restart Godot input
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          T3_SCREENSHOT: /tmp/t3-captures/t3-win.png
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/t3-captures
+          for mode in normal loss restart-save restart-resume; do
+            args=()
+            if [ "$mode" != normal ]; then args=(-- "--$mode"); fi
+            timeout 300s xvfb-run -a /tmp/godot --path sequel --rendering-driver opengl3 --audio-driver Dummy --windowed --resolution 1280x720 --fixed-fps 24 --write-movie "/tmp/t3-captures/$mode.avi" --script res://tests/sa2_t3_input_test.gd "${args[@]}" > "/tmp/t3-render-$mode.log" 2>&1
+            ffmpeg -v error -y -i "/tmp/t3-captures/$mode.avi" -vf 'scale=in_range=full:out_range=limited,format=yuv420p' -color_range tv -c:v libx264 -preset veryfast -crf 23 -movflags +faststart -an "/tmp/t3-captures/$mode.mp4"
+            ffmpeg -v error -i "/tmp/t3-captures/$mode.mp4" -f null -
+            if grep -E 'SCRIPT ERROR|ERROR:|FAIL|leaked' "/tmp/t3-render-$mode.log"; then exit 1; fi
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sa2-t3-godot-evidence
+          path: |
+            /tmp/t3-logs/
+            /tmp/t3-*.log
+            /tmp/t3-captures/*.mp4
+            /tmp/t3-captures/*.png

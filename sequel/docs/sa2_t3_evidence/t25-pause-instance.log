@@ -1,0 +1,14 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+BOOT main_ready 359ms
+BOOT before_d1 359ms
+BOOT after_d1 359ms
+BOOT after_build_city 649ms
+BOOT before_player 659ms
+BOOT after_player 1103ms
+BOOT ally_loaded 1279ms
+BOOT fx1_loaded 1287ms
+T2_5_CHECK: scene ready
+T2_5_CHECK: initial conversation
+T2_5_CHECK: conversation to Lily training via keyboard
+SA2_T2_5_INSTANCE_SAVED

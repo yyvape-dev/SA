@@ -1,0 +1,14 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+BOOT main_ready 392ms
+BOOT before_d1 392ms
+BOOT after_d1 392ms
+BOOT after_build_city 710ms
+BOOT before_player 722ms
+BOOT after_player 1191ms
+BOOT ally_loaded 1385ms
+BOOT fx1_loaded 1393ms
+T2_5_CHECK: scene ready
+T2_5_CHECK: fresh engine restores defeat result
+T2_5_CHECK: fresh engine result permits GUI retry
+SA2_T2_5_RESULT_RESTART_PASS

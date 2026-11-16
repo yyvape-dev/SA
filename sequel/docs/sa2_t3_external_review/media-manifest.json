@@ -1,0 +1,27 @@
+[
+  {
+    "path": "media/t3-battle-1280.png",
+    "bytes": 1078705,
+    "sha256": "bd6fd1b6325755d590c927714ccd5b6fa92de0a564d5bffe01dfdc0fa715e70a"
+  },
+  {
+    "path": "media/t3-loss.mp4",
+    "bytes": 2089959,
+    "sha256": "27e7b7e942ac9d5959609d944402fe847f992565034683bb847a9eadadf5cadd"
+  },
+  {
+    "path": "media/t3-normal.mp4",
+    "bytes": 2945315,
+    "sha256": "22f4e572fda526a217b29d43fe7e3e3fd2f0fbdd1b6bd3c4b0c384d0aee69456"
+  },
+  {
+    "path": "media/t3-restart.mp4",
+    "bytes": 866567,
+    "sha256": "1dd41998f22cde1daf53da0ea1a65cd3072922378d0d5a0f05813af8b7e7837a"
+  },
+  {
+    "path": "media/t3-win-1280.png",
+    "bytes": 907140,
+    "sha256": "fbcc2245da23b45a6b4ccaa0c79498e10a9bd790a6dbf0e3ef1868ac5440fbb4"
+  }
+]

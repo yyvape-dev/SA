@@ -17,6 +17,7 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 
 config/name="SA2 Fusion City"
 run/main_scene="res://main.tscn"
+run/main_scene.sa2_t3="res://sa2_t3_playable.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 
 [display]

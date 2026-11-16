@@ -177,6 +177,7 @@ func force_attack(c: String, e: Node3D) -> void:
 	dash_x0 = position.x
 
 func _physics_process(delta: float) -> void:
+	var motion_from := position
 	if state == "ult":   # 必殺技は実時間で進める（止め・演出の間も）
 		_ult_process(delta)
 		world.apply_light(sprite, mat, refl, position)
@@ -244,6 +245,7 @@ func _physics_process(delta: float) -> void:
 		"hurt":
 			position.x += kb * dt
 			kb *= pow(0.003, dt)
+			world.resolve_motion(self, motion_from)
 			var hc: Dictionary = data.clips["hit"]
 			var hi := int(t * float(hc.fps) * SPD)
 			if hi >= hc.frames.size():
@@ -262,6 +264,7 @@ func _physics_process(delta: float) -> void:
 			var legacy: bool = world.fx.legacy or not c.has("tip")
 			if not legacy:
 				_atk_extras(c, i, dt)
+			world.resolve_motion(self, motion_from)
 			while hit_i < hits.size() and i >= int(hits[hit_i]):
 				var last_hit := hit_i == hits.size() - 1
 				if legacy:   # 前の見た目（FX_OLD=1 の比較用）
@@ -285,6 +288,7 @@ func _physics_process(delta: float) -> void:
 	world.apply_light(sprite, mat, refl, position)
 	position.x = clampf(position.x, world.ROOM_X.x, world.ROOM_X.y)
 	position.z = clampf(position.z, world.BELT_Z.x, world.BELT_Z.y)
+	world.resolve_motion(self, motion_from)
 
 # ---------- リリィの軌跡とエフェクト（2026-11-06、specs/lily_attack_fx.md） ----------
 ## つま先の点（足元から m、右向き）を世界の座標へ。k＝腰を中心に外へ伸ばす倍率

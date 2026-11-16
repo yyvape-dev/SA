@@ -1,0 +1,17 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+BOOT main_ready 402ms
+BOOT before_d1 402ms
+BOOT after_d1 402ms
+BOOT after_build_city 805ms
+CAMV D2 belt=(-2.0, 2.0) ofs=(0.0, 3.2, 15.3) fov=16.80
+BOOT before_player 816ms
+BOOT after_player 1274ms
+BOOT ally_loaded 1456ms
+BOOT fx1_loaded 1463ms
+T3_INPUT_CHECK: ready
+T3_INPUT_CHECK: GUI starts manual Lily on same Level
+T3_INPUT_CHECK: touch movement release
+T3_INPUT_CHECK: keyboard guide starts actual three-person routes
+T3_INPUT_CHECK: durable street checkpoint before process exit
+SA2_T3_RESTART_SAVED

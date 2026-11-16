@@ -1,0 +1,17 @@
+engine-regression-and-render	Record actual normal/loss/restart Godot input	﻿2026-11-09T00:18:54.0133869Z ##[group]Run set -euo pipefail
+engine-regression-and-render	Record actual normal/loss/restart Godot input	2026-11-09T00:18:54.0134226Z [36;1mset -euo pipefail[0m
+engine-regression-and-render	Record actual normal/loss/restart Godot input	2026-11-09T00:18:54.0134480Z [36;1mmkdir -p /tmp/t3-captures[0m
+engine-regression-and-render	Record actual normal/loss/restart Godot input	2026-11-09T00:18:54.0134827Z [36;1mfor mode in normal loss restart-save restart-resume; do[0m
+engine-regression-and-render	Record actual normal/loss/restart Godot input	2026-11-09T00:18:54.0135173Z [36;1m  args=()[0m
+engine-regression-and-render	Record actual normal/loss/restart Godot input	2026-11-09T00:18:54.0135433Z [36;1m  if [ "$mode" != normal ]; then args=(-- "--$mode"); fi[0m
+engine-regression-and-render	Record actual normal/loss/restart Godot input	2026-11-09T00:18:54.0136584Z [36;1m  timeout 300s xvfb-run -a /tmp/godot --path sequel --rendering-driver opengl3 --audio-driver Dummy --windowed --resolution 1280x720 --fixed-fps 24 --write-movie "/tmp/t3-captures/$mode.avi" --script res://tests/sa2_t3_input_test.gd "${args[@]}" > "/tmp/t3-render-$mode.log" 2>&1[0m
+engine-regression-and-render	Record actual normal/loss/restart Godot input	2026-11-09T00:18:54.0138273Z [36;1m  ffmpeg -v error -y -i "/tmp/t3-captures/$mode.avi" -vf 'scale=in_range=full:out_range=limited,format=yuv420p' -color_range tv -c:v libx264 -preset veryfast -crf 23 -movflags +faststart -an "/tmp/t3-captures/$mode.mp4"[0m
+engine-regression-and-render	Record actual normal/loss/restart Godot input	2026-11-09T00:18:54.0139238Z [36;1m  ffmpeg -v error -i "/tmp/t3-captures/$mode.mp4" -f null -[0m
+engine-regression-and-render	Record actual normal/loss/restart Godot input	2026-11-09T00:18:54.0139787Z [36;1m  if grep -E 'SCRIPT ERROR|ERROR:|FAIL|leaked' "/tmp/t3-render-$mode.log"; then exit 1; fi[0m
+engine-regression-and-render	Record actual normal/loss/restart Godot input	2026-11-09T00:18:54.0140217Z [36;1mdone[0m
+engine-regression-and-render	Record actual normal/loss/restart Godot input	2026-11-09T00:18:54.0159686Z shell: /usr/bin/bash -e {0}
+engine-regression-and-render	Record actual normal/loss/restart Godot input	2026-11-09T00:18:54.0159934Z env:
+engine-regression-and-render	Record actual normal/loss/restart Godot input	2026-11-09T00:18:54.0160127Z   LIBGL_ALWAYS_SOFTWARE: 1
+engine-regression-and-render	Record actual normal/loss/restart Godot input	2026-11-09T00:18:54.0160359Z ##[endgroup]
+engine-regression-and-render	Record actual normal/loss/restart Godot input	2026-11-09T00:20:07.5399634Z ERROR: Can't save PNG at path: '/workspace/sa2-t3-evidence/captures/t3-win.png'.
+engine-regression-and-render	Record actual normal/loss/restart Godot input	2026-11-09T00:20:07.5416128Z ##[error]Process completed with exit code 1.

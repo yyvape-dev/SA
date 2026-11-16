@@ -1,0 +1,28 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+BOOT main_ready 440ms
+BOOT before_d1 440ms
+BOOT after_d1 440ms
+BOOT after_build_city 776ms
+BOOT before_player 789ms
+BOOT after_player 1306ms
+BOOT ally_loaded 1492ms
+BOOT fx1_loaded 1500ms
+T2_5_CHECK: scene ready
+T2_5_CHECK: initial conversation
+T2_5_CHECK: conversation to Lily training via keyboard
+T2_5_CHECK: Linux injected touch move and release
+T2_5_CHECK: real AI hit reduces HP to defeat
+T2_5_CHECK: GUI retry resets HP and attempts
+T2_5_CHECK: keyboard just guard against natural AI wind-up
+T2_5_CHECK: same keyboard button also dodges
+T2_5_GUI_BEFORE: state=move dodge=0.0 inv=0.0 count=0
+T2_5_GUI_AFTER: state=atk count=1
+T2_5_CHECK: GUI attack fires once
+T2_5_CHECK: two targets defeated by real hit and HP logic
+T2_5_CHECK: victory GUI restores exploration actors
+T2_5_CHECK: training controls freed
+T2_5_CHECK: restored Rana keyboard attack damages enemy
+T2_5_CHECK: Rana attack finishes before independent AI check
+T2_5_CHECK: restored Lily AI damages enemy
+SA2_T2_5_INPUT_PASS: real scene, keyboard, Linux touch, AI defeat, GUI retry, natural guard, real victory, Rana and Lily AI restore

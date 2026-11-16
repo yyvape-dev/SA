@@ -5,6 +5,12 @@ extends Node3D
 const Enemy := preload("res://scripts/enemy.gd")
 const HPBAR := preload("res://scripts/hpbar.gdshader")
 
+var combat_policy = null # T3 opt-in; null retains legacy behavior.
+
+func resolve_motion(actor: Node3D, previous: Vector3) -> void:
+	if combat_policy != null:
+		actor.position = combat_policy.resolve_motion(actor, previous, actor.position)
+
 var BELT_Z := Vector2(-3.2, 3.5)
 var ROOM_X := Vector2(-19, 19)
 var player: Node3D
@@ -203,9 +209,9 @@ func _spawn_wave() -> void:
 	spawn_side = -spawn_side
 	next_t = 1.5
 
-func spawn(kind: String, pos: Vector3) -> Node3D:
+func spawn(kind: String, pos: Vector3, profile = null) -> Node3D:
 	var e := Enemy.new()
-	e.setup(self, kind, foe_clips[kind], wave)
+	e.setup(self, kind, foe_clips[kind] if profile == null else profile.clips, wave, profile)
 	e.position = pos
 	e.face = 1 if player.position.x > pos.x else -1
 	add_child(e)
@@ -239,8 +245,12 @@ func _separate(delta: float) -> void:
 			var l := d.length()
 			if l < 0.62 and l > 0.001:
 				var push := (0.62 - l) * 0.5 * minf(1.0, delta * 12.0)
+				var before_a: Vector3 = a.position
+				var before_b: Vector3 = b.position
 				a.position.x += d.x / l * push
 				b.position.x -= d.x / l * push
+				resolve_motion(a, before_a)
+				resolve_motion(b, before_b)
 
 # ---------- ラナの攻撃 ----------
 ## spec：{side（+1＝前 −1＝背）, r（届く距離）, lane（奥行き）, dmg, strong, slash（エフェクト）}
@@ -277,7 +287,10 @@ func _attack_from(p: Node3D, spec: Dictionary, mul: float) -> int:
 				inside = e.position.x > lo and e.position.x < hi and dz < spec.lane
 			_:
 				inside = dx > -0.42 and dx < spec.r and dz < spec.lane
+		if inside and combat_policy != null:
+			inside = combat_policy.allows_damage(p, e, spec)
 		if inside:
+			var before_hit: Vector3 = e.position
 			var d: float = spec.dmg * mul * randf_range(0.9, 1.1)
 			var edir := 1 if e.position.x >= p.position.x else -1
 			e.take_hit(d, edir, spec.strong)
@@ -292,6 +305,7 @@ func _attack_from(p: Node3D, spec: Dictionary, mul: float) -> int:
 				e.position.z = move_toward(e.position.z, p.position.z, m * 0.5)
 			if spec.has("lift") and e.has_method("lift_up"):   # 浮かせる（強めののけぞり＋絵を持ち上げる）
 				e.lift_up(float(spec.lift))
+			resolve_motion(e, before_hit)
 			var hp_pos: Vector3 = e.position + Vector3(0, e.height() * 0.55, 0)
 			if fx2d and fx2d.enabled and not fx.legacy:   # 当たり：REEBO の火花＋Kenney の細い火花（2D の層で光る）
 				if hits < 4:
@@ -385,6 +399,8 @@ func player_alive() -> bool:
 
 func enemy_hits_player(e) -> void:
 	var p: Node3D = player
+	if combat_policy != null and not combat_policy.allows_damage(e, p, e.atk):
+		return
 	if not p.can_be_hit():
 		return
 	var d: int = e.dmg
