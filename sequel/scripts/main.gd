@@ -308,7 +308,8 @@ func _capture_party() -> void:
 		var plan := ["approach", "atkA", "atkB", "rift", "approach", "atkA", "shadow", "flurry", "vortex", "approach", "atkA", "atkB", "atkC", "approach", "rift", "atkA", "atkB", "approach", "shadow", "flurry", "rift"]
 		var pi := 0
 		var wait := 0
-		for f in 900:
+		var nf: int = int(OS.get_environment("PARTY_FRAMES")) if OS.has_environment("PARTY_FRAMES") else 900
+		for f in nf:
 			await get_tree().process_frame
 			if pi >= plan.size():
 				pi = 0
@@ -341,7 +342,9 @@ func _capture_party() -> void:
 						pi += 1; wait = 0
 					elif wait > 90:
 						pi += 1; wait = 0
-			if f % 6 == 0:
+			if f % 120 == 0 and OS.has_environment("PARTY_MEM"):
+				print("MEMF f=%d static=%.1fMB vid=%.1fMB tex=%.1fMB nodes=%d" % [f, Performance.get_monitor(Performance.MEMORY_STATIC) / 1048576.0, Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED) / 1048576.0, Performance.get_monitor(Performance.RENDER_TEXTURE_MEM_USED) / 1048576.0, Performance.get_monitor(Performance.OBJECT_NODE_COUNT)])
+			if f % 6 == 0 and not OS.has_environment("PARTY_MEM"):
 				get_viewport().get_texture().get_image().save_png(dir + "/fight_%03d.png" % f)
 				var bk := 0
 				var air := 0

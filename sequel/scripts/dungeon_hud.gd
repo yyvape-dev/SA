@@ -531,7 +531,7 @@ class _View extends Control:
 					draw_rect(Rect2(bp - Vector2(3, 3) * u, Vector2(bw, 8 * u) + Vector2(6, 6) * u), DIM)
 					var ga: float = 1.0 if not brk_on else 0.6 + 0.4 * sin(Time.get_ticks_msec() * 0.02)
 					draw_rect(Rect2(bp, Vector2(bw * br, 8 * u)), Color(GOLD.r, GOLD.g, GOLD.b, ga))
-		if hud.in_dungeon and m.battle and m.battle.get("style") != null:   # コンボとランク（ミニマップの下・必殺技のボタンの左。specs/combat_tactics.md 5.）
+		if hud.in_dungeon and m.battle and m.battle.get("style") != null and not OS.has_environment("COMBO_OFF"):   # コンボとランク（ミニマップの下・必殺技のボタンの左。specs/combat_tactics.md 5.）
 			m.battle.style.draw(self, size.x - 185 * u, 178 * u, u)
 		if hud.menu_open:
 			_menu()

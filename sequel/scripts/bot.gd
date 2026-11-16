@@ -90,7 +90,14 @@ func _shot(tag: String, delay := 0.0) -> void:
 	if shots:
 		shot_q.append([delay, tag])
 
+var mem_t := 0.0
 func _physics_process(delta: float) -> void:
+	if OS.has_environment("BOT_MEM"):   # 2026-11-16：iPhone で落ちる件。ノード・オブジェクト・メモリの増え方を見る
+		mem_t += delta
+		if mem_t >= 5.0:
+			mem_t = 0.0
+			var fxn: int = main.battle.fx.get_child_count() if main.battle.fx else -1
+			print("MEM t=%.0f nodes=%d objs=%d res=%d static=%.1fMB fx=%d bat=%d foes=%d" % [t, Performance.get_monitor(Performance.OBJECT_NODE_COUNT), Performance.get_monitor(Performance.OBJECT_COUNT), Performance.get_monitor(Performance.OBJECT_RESOURCE_COUNT), Performance.get_monitor(Performance.MEMORY_STATIC) / 1048576.0, fxn, main.battle.get_child_count(), main.battle.alive_count()])
 	t += delta
 	t_phase += delta
 	atk_cd -= delta

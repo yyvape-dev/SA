@@ -110,6 +110,13 @@ func _break() -> void:
 	tech_streak = 0
 
 ## 右上のコンボ表示（奈落の jcDrawCombo を Godot の Control へ）。c＝描く Control、right＝右端の x、y0＝ランクの文字の基準線、u＝720 基準の倍率
+## 2026-11-16：文字の大きさは固定（SZ_*×u）。膨らむ演出は描く時の拡大で出す。前は文字の大きさを毎フレーム変えていて、
+## Godot が大きさごとに文字の絵を作って溜め、iPhone の Safari が落ちた（「繰り返し問題が起きました」）。
+const SZ_RANK := 64
+const SZ_SUB := 22
+const SZ_NUM := 44
+const SZ_LABEL := 28
+
 func draw(c: Control, right: float, y0: float, u: float) -> void:
 	var show := hits >= 2
 	var out := out_t > 0.0 and not show
@@ -121,23 +128,27 @@ func draw(c: Control, right: float, y0: float, u: float) -> void:
 	var slide: float = 0.0 if show else (1.0 - a) * 40.0 * u
 	var font: Font = ThemeDB.fallback_font
 	# 全体を右へ傾ける（スタイリッシュに）
-	c.draw_set_transform_matrix(Transform2D(Vector2(1, 0), Vector2(-0.16, 1), Vector2(y0 * 0.16 + slide, 0)))
+	var base := Transform2D(Vector2(1, 0), Vector2(-0.16, 1), Vector2(y0 * 0.16 + slide, 0))
 	var y := y0
 	if ri >= 0:
 		var R: Array = RANKS[ri]
 		var rp: float = rank_pop if show else 0.0
-		var sz := int(64 * u * (1.0 + rp * 0.45))
 		var wob: float = sin(Time.get_ticks_msec() * 0.06) * rp * 2.0 * u
+		c.draw_set_transform_matrix(base)
 		if rp > 0.0:
 			c.draw_circle(Vector2(right - 30 * u, y - 22 * u), 46 * u * (1.0 + rp), Color(R[3].r, R[3].g, R[3].b, rp * 0.35))
-		_text(c, font, str(R[1]), Vector2(right + wob, y), sz, R[3], R[4], a)
+		_scaled(c, base, Vector2(right, y - 22 * u), 1.0 + rp * 0.45)
+		_text(c, font, str(R[1]), Vector2(right + wob, y), int(SZ_RANK * u), R[3], R[4], a)
+		c.draw_set_transform_matrix(base)
 		var sub: String = " ".join(str(R[2]).split(""))
-		c.draw_string(font, Vector2(right - 400 * u, y + 26 * u), sub, HORIZONTAL_ALIGNMENT_RIGHT, 400 * u, int(22 * u), Color(R[3].r, R[3].g, R[3].b, a * 0.9))
+		c.draw_string(font, Vector2(right - 400 * u, y + 26 * u), sub, HORIZONTAL_ALIGNMENT_RIGHT, 400 * u, int(SZ_SUB * u), Color(R[3].r, R[3].g, R[3].b, a * 0.9))
 		y += 70 * u
 	var pz: float = 1.0 + (pop if show else 0.0) * 0.5
-	_text(c, font, str(n), Vector2(right - 92 * u, y), int(44 * u * pz), Color("ffe6a8"), Color("7a4a12"), a)
-	c.draw_string_outline(font, Vector2(right - 300 * u, y), "COMBO", HORIZONTAL_ALIGNMENT_RIGHT, 300 * u, int(28 * u), int(6 * u), Color(0, 0, 0, a * 0.85))
-	c.draw_string(font, Vector2(right - 300 * u, y), "COMBO", HORIZONTAL_ALIGNMENT_RIGHT, 300 * u, int(28 * u), Color(0.95, 0.87, 0.69, a))
+	_scaled(c, base, Vector2(right - 128 * u, y - 16 * u), pz)
+	_text(c, font, str(n), Vector2(right - 128 * u, y), int(SZ_NUM * u), Color("ffe6a8"), Color("7a4a12"), a)
+	c.draw_set_transform_matrix(base)
+	c.draw_string_outline(font, Vector2(right - 300 * u, y), "COMBO", HORIZONTAL_ALIGNMENT_RIGHT, 300 * u, int(SZ_LABEL * u), int(6 * u), Color(0, 0, 0, a * 0.85))
+	c.draw_string(font, Vector2(right - 300 * u, y), "COMBO", HORIZONTAL_ALIGNMENT_RIGHT, 300 * u, int(SZ_LABEL * u), Color(0.95, 0.87, 0.69, a))
 	if show:   # 残り時間の細い帯
 		var w := 150.0 * u
 		var f := clampf(t / WIN, 0.0, 1.0)
@@ -145,6 +156,10 @@ func draw(c: Control, right: float, y0: float, u: float) -> void:
 		var col: Color = RANKS[ri][3] if ri >= 0 else Color("f3dfb0")
 		c.draw_rect(Rect2(Vector2(right - w * f, y + 9 * u), Vector2(w * f, 5 * u)), Color(col.r, col.g, col.b, 0.95))
 	c.draw_set_transform_matrix(Transform2D.IDENTITY)
+
+## anchor を中心に sc 倍して描く（文字の大きさは変えない）
+static func _scaled(c: Control, base: Transform2D, anchor: Vector2, sc: float) -> void:
+	c.draw_set_transform_matrix(base * Transform2D(0.0, Vector2(sc, sc), 0.0, anchor - anchor * sc))
 
 static func _text(c: Control, font: Font, s: String, p: Vector2, size: int, core: Color, edge: Color, a: float) -> void:
 	var w := 600.0
