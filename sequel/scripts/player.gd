@@ -128,7 +128,7 @@ func _build_tables() -> void:
 	var h_hits := []
 	for f in [24, 36, 45, 57, 66]:
 		h_hits.append([f, {"side": 0, "r": 2.3, "lane": 1.3, "dmg": 14.0, "strong": false, "shake": 5.0, "slash": SL_SPIN}])
-	h_hits.append([75, {"side": 0, "r": 2.4, "lane": 1.4, "dmg": 26.0, "strong": true, "shake": 12.0, "slash": SL_SPIN}])
+	h_hits.append([75, {"side": 0, "r": 2.4, "lane": 1.4, "dmg": 26.0, "strong": true, "shake": 12.0, "slash": SL_SPIN, "lift": 3.0}])   # 2026-11-16：長押しの締めで浮かせる（溜めて浮かせる→追い打ち）
 	var h: Dictionary = mk.call("hold", h_hits, 0.08)
 	tab = {"atkA": a, "atkB": b, "atkC": c, "hold": h}
 
@@ -168,8 +168,50 @@ func _root(c: String, tt: float) -> float:
 	return lerpf(float(r[i]), float(r[j]), clampf(x - int(x), 0.0, 1.0))
 
 ## 攻撃：押した瞬間に連撃の次の技。押し続けると長押しの技（attack_press／attack_release。tap は attack()）
+var jg_window := 0.0   # ジャストガードの後、反撃が出せる残り（秒）
+
+## 今、攻撃ボタンが何に変わるか（"" ＝通常攻撃）。反撃＞背中＞浮き の順
+func context_move() -> String:
+	if world == null or locked or state == "down" or state == "hurt" or state == "ult":
+		return ""
+	if jg_window > 0.0:
+		return "ctx_counter"
+	var back := false
+	var air := false
+	for e in world.enemies:
+		if e.state == "dying":
+			continue
+		var dx: float = (e.position.x - position.x) * face
+		if dx < -0.6 or dx > 3.2 or absf(e.position.z - position.z) > 1.2:
+			continue
+		if e.airborne():
+			air = true
+		elif not e.boss and e.back_lock > 0.0 and int(e.face) == face:
+			back = true
+	var c := ""
+	if back:
+		c = "ctx_back"
+	elif air:
+		c = "ctx_air"
+	if c != "" and (chain_used.has(c) or float(skill_cd.get(c, 0.0)) > 0.0):   # 出せない時は光らせない
+		return ""
+	return c
+
+func _try_context() -> bool:
+	var c := context_move()
+	if c == "" or not skills.has(c):
+		return false
+	var ok_state: bool = state == "move" or (state == "atk" and hit_i >= 1) or (state == "skill" and hit_i >= 1 and skill_id != c)
+	if not ok_state:
+		return false
+	if c == "ctx_counter":
+		jg_window = 0.0
+	return use_skill(c)
+
 func attack() -> void:
 	if locked:
+		return
+	if _try_context():
 		return
 	if state == "atk" or state == "dodge":
 		queued = true
@@ -216,6 +258,7 @@ func _end_attack() -> void:
 func refresh_skills() -> void:
 	var pr = world.main.progress if world and world.main else null
 	skills = SkillTree.table_for("rana", pr)
+	skills.merge(Skills.context_table())   # 状況で変わる攻撃（2026-11-16）
 
 ## 必殺技のゲージの必要量（技レベル 3 で −10％、5 で −20％）
 func ult_cost() -> float:
@@ -562,6 +605,7 @@ func _physics_process(delta: float) -> void:
 		return
 	inv = maxf(0.0, inv - dt)
 	pot_cd = maxf(0.0, pot_cd - dt)
+	jg_window = maxf(0.0, jg_window - dt)
 	_chain_tick(dt)
 	# 長押し：押し続けて HOLD_T を超えたら回転斬り（A の当たりの前なら A を取り消して出す。それ以外は次の技にする）
 	if atk_held and not locked:
@@ -730,6 +774,10 @@ func _unhandled_input(e: InputEvent) -> void:
 			use_ult()
 		elif e.pressed and e.keycode == KEY_H:   # 回復薬（2026-11-16 ②）
 			use_potion()
+		elif e.pressed and (e.keycode == KEY_N or e.keycode == KEY_M):   # 仲間を呼ぶ：N＝リリィの回り込み、M＝ランカの振り向かせ
+			var a2 = world.ally if e.keycode == KEY_N else world.ranka
+			if a2 != null:
+				a2.call_tactic("flank" if e.keycode == KEY_N else "lure")
 		elif e.pressed and (e.keycode == KEY_U or e.keycode == KEY_I or e.keycode == KEY_O or e.keycode == KEY_P):
 			var slot: int = [KEY_U, KEY_I, KEY_O, KEY_P].find(e.keycode)
 			if world.main and world.main.progress:

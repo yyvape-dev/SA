@@ -90,6 +90,14 @@ class _Pad extends Control:
 		#   前は左上に置いたが、ユーザー「頻繁に触る物を一番押しづらい場所にするのはどうなん」→ 移した
 		if not ui.lily_controls and ui.main and ui.main.dungeon != null:
 			b["pot"] = [Vector2(s.x - 48 * u, s.y - 246 * u), 40 * u]
+			# 仲間を呼ぶ（2026-11-16）：回復薬の下に縦に並べる（右の親指の列）。連れている仲間だけ
+			var bt = ui.main.battle
+			var cy := s.y - 150 * u
+			for who in ["lily", "ranka"]:
+				var a2 = bt.ally if who == "lily" else bt.ranka
+				if a2 != null and is_instance_valid(a2):
+					b["call_" + who] = [Vector2(s.x - 48 * u, cy), 41 * u]
+					cy += 96 * u
 		# 4 枠目（2026-11-16、回り込み）：回避の左。弧の 215° は回避と重なるので使わない。街で歯車が出る時は出さない
 		var town_gear: bool = not ui.lily_controls and ui.main and ui.main.hud and ui.main.hud.visible and ui.main.dungeon == null and not ui.main.hud.menu_open and not ui.main.hud.slot_open
 		if not ui.lily_controls and not town_gear and ui.main and ui.main.progress and ui.main.progress.has_method("battle_slots"):
@@ -132,6 +140,11 @@ class _Pad extends Control:
 			"ult": pl.use_ult()
 			"pot":
 				if not pl.use_potion():
+					shake[k] = 0.25
+			"call_lily", "call_ranka":
+				var bt = ui.main.battle
+				var a2 = bt.ally if k == "call_lily" else bt.ranka
+				if a2 == null or not a2.call_tactic("flank" if k == "call_lily" else "lure"):
 					shake[k] = 0.25
 			_:
 				var id := _slot_id(int(k.substr(2)))
@@ -199,6 +212,62 @@ class _Pad extends Control:
 		if v.length() > 1.0: v = v.normalized()
 		ui.player.move_in = v
 
+	## 攻撃ボタンの上乗せ（2026-11-16、specs/combat_tactics.md 11.）：状況で変わる時は金に光る輪と印（↑↑浮き・↶背中・✦反撃）、
+	##   長押しの間は溜まっていく金の弧（満ちると回転斬り→締めで浮かせる）
+	func _draw_atk_extra(c: Vector2, r: float, u: float) -> void:
+		var pl = ui.player
+		if pl == null or not pl.has_method("context_move"):
+			return
+		var ctx: String = pl.context_move()
+		var gold := Color(1.0, 0.8, 0.3)
+		if ctx != "":
+			var pulse := 0.6 + 0.4 * sin(Time.get_ticks_msec() * 0.012)
+			draw_arc(c, r * 1.08, 0, TAU, 56, Color(gold.r, gold.g, gold.b, 0.9 * pulse), 7 * u)
+			draw_arc(c, r * 1.2, 0, TAU, 56, Color(gold.r, gold.g, gold.b, 0.35 * pulse), 4 * u)
+			var m := c + Vector2(r * 0.62, -r * 0.62)   # 右上の小さな印
+			draw_circle(m, r * 0.3, Color(0.08, 0.06, 0.03, 0.9))
+			draw_arc(m, r * 0.3, 0, TAU, 24, gold, 3 * u)
+			var k := r * 0.14
+			match ctx:
+				"ctx_air":   # 上向きの山形 2 つ
+					for j in 2:
+						var y0 := m.y + k * 0.9 - j * k * 1.1
+						draw_polyline(PackedVector2Array([Vector2(m.x - k, y0), Vector2(m.x, y0 - k), Vector2(m.x + k, y0)]), gold, 3.5 * u)
+				"ctx_back":   # 回り込む弧＋矢
+					draw_arc(m, k * 1.1, PI * 0.2, PI * 1.6, 16, gold, 3.5 * u)
+					var tip := m + Vector2(cos(PI * 1.6), sin(PI * 1.6)) * k * 1.1
+					draw_polyline(PackedVector2Array([tip + Vector2(-k * 0.7, -k * 0.1), tip, tip + Vector2(-k * 0.1, k * 0.7)]), gold, 3.5 * u)
+				"ctx_counter":   # 四方の光
+					for j in 4:
+						var a := j * PI * 0.5 + PI * 0.25
+						draw_line(m + Vector2(cos(a), sin(a)) * k * 0.3, m + Vector2(cos(a), sin(a)) * k * 1.3, gold, 3.5 * u)
+		if pl.atk_held and not pl.hold_fired and pl.held_t > 0.08:
+			var f: float = clampf(pl.held_t / pl.HOLD_T, 0.0, 1.0)
+			draw_arc(c, r * 0.92, -PI * 0.5, -PI * 0.5 + TAU * f, 48, Color(gold.r, gold.g, gold.b, 0.95), 6 * u)
+
+	## 仲間を呼ぶボタン：仲間の顔＋待ちの扇。押せる時は青の縁（青＝味方）
+	func _draw_call(key: String, c: Vector2, r: float, pressed: bool, u: float) -> void:
+		var bt = ui.main.battle
+		var who := key.substr(5)
+		var a2 = bt.ally if who == "lily" else bt.ranka
+		if a2 == null:
+			return
+		var id := "flank" if who == "lily" else "lure"
+		var cd: float = float(a2.sk_cd.get(id, 0.0))
+		var ok: bool = cd <= 0.0 and (a2.state == "move" or a2.state == "atk")
+		var tex: Texture2D = CombatArt.Old.LILY if who == "lily" else CombatArt.Old.RANKA
+		CombatArt.portrait(self, tex, Rect2(c - Vector2(r, r), Vector2(r, r) * 2.0), not ok)
+		if pressed:
+			draw_circle(c, r * 0.9, Color(1, 1, 1, 0.15))
+		if cd > 0.0:
+			var full: float = float(a2.sk_tab.get(id, {}).get("cd", 8.0))
+			draw_arc(c, r * 0.8, -PI * 0.5, -PI * 0.5 + TAU * clampf(cd / full, 0.0, 1.0), 40, Color(0, 0, 0, 0.6), r * 0.3)
+			var font := ThemeDB.fallback_font
+			draw_string_outline(font, c + Vector2(-r, r * 0.25), "%.0f" % ceilf(cd), HORIZONTAL_ALIGNMENT_CENTER, r * 2.0, int(24 * u), int(6 * u), Color(0, 0, 0, 0.9))
+			draw_string(font, c + Vector2(-r, r * 0.25), "%.0f" % ceilf(cd), HORIZONTAL_ALIGNMENT_CENTER, r * 2.0, int(24 * u), Color(1, 1, 1))
+		else:
+			draw_arc(c, r * 1.02, 0, TAU, 40, Color(0.24, 0.55, 1.0, 0.95), 4 * u)
+
 	## 回復薬のボタン（2026-11-16 ②）：淡い緑の小瓶。右下に持っている数（小、大があれば「小+大」）、使えない間は暗く＋残りの扇
 	func _draw_pot(c: Vector2, r: float, pressed: bool, u: float) -> void:
 		var pr = ui.main.progress
@@ -252,5 +321,10 @@ class _Pad extends Control:
 			if key == "pot":
 				_draw_pot(center, radius, pressed, u)
 				continue
+			if key.begins_with("call_"):
+				_draw_call(key, center, radius, pressed, u)
+				continue
 			var id := _slot_id(int(key.substr(2))) if key.begins_with("sk") else ""
 			CombatArt.action(self, ui, key, id, center, radius, pressed, u)
+			if key == "atk":
+				_draw_atk_extra(center, radius, u)

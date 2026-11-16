@@ -557,7 +557,7 @@ func _pick_skill(e: Node3D) -> bool:
 		return true
 	var dx := absf(e.position.x - position.x)
 	# 回り込み：狙った敵がリリィの方を向いている（正面から殴ることになる）とき、向こう側へ抜けて背中を取る（2026-11-16）
-	if sk_tab.has("flank") and float(sk_cd.get("flank", 1.0)) <= 0.0 and not e.boss and dx > 1.0 and dx < 6.0 and absf(e.position.z - position.z) < 1.6 \
+	if not tactic_manual and sk_tab.has("flank") and float(sk_cd.get("flank", 1.0)) <= 0.0 and not e.boss and dx > 1.0 and dx < 6.0 and absf(e.position.z - position.z) < 1.6 \
 			and int(e.face) == (1 if position.x >= e.position.x else -1):
 		_start_skill("flank", e)
 		return true
@@ -568,6 +568,26 @@ func _pick_skill(e: Node3D) -> bool:
 		_start_skill("barrage", e)
 		return true
 	return false
+
+## 呼ぶ（2026-11-16、specs/combat_tactics.md 11.）：ラナのボタンで、仲間の背中の技（リリィ＝回り込み flank・ランカ＝振り向かせ lure）を今出す。
+##   近い敵へ。待ち・のけぞり・演出中は出ない。呼べる技は自動では使わない（tactic_manual）
+var tactic_manual := not OS.has_environment("DUNGEON_TEST")   # 遊ぶ時は呼ぶボタンだけで出す。自動の周回は今どおり自動
+func call_tactic(id: String) -> bool:
+	if not sk_tab.has(id) or float(sk_cd.get(id, 0.0)) > 0.0 or not (state == "move" or state == "atk"):
+		return false
+	var best = null
+	var bd := 9.0
+	for e in world.enemies:
+		if not _alive(e):
+			continue
+		var d: float = absf(e.position.x - position.x) + absf(e.position.z - position.z) * 0.5
+		if d < bd:
+			bd = d
+			best = e
+	if best == null:
+		return false
+	_start_skill(id, best)
+	return true
 
 func _start_skill(id: String, e: Node3D) -> void:
 	sk_id = id

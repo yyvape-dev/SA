@@ -9,6 +9,19 @@ extends RefCounted
 const BASE_DMG := 18.0
 const ORDER := ["flurry", "rift", "vortex", "shadow"]
 
+## 状況で変わる攻撃（2026-11-16、specs/combat_tactics.md 11.）：攻撃ボタンが金に光っている時だけ、通常攻撃の代わりに出る。
+##   air＝浮いた敵への追い打ち（浮かせ直す）・back＝背中を見せた敵への一撃・counter＝ジャストガードの後の反撃。モーションは今の atkA/B/C を速く
+static func context_table() -> Dictionary:
+	return {
+		"ctx_air": {"clip": "atkB", "spd": 1.7, "cd": 0.5, "total": 0.5, "ctx": true,
+			"ev": [[0.12, {"shape": "fwd", "side": 1, "r": 2.6, "lane": 1.3, "k": 1.1, "strong": false, "kb": 0.1, "lift": 2.2, "fx": "flurry", "shake": 5.0}],
+				[0.28, {"shape": "fwd", "side": 1, "r": 2.7, "lane": 1.3, "k": 1.6, "strong": true, "kb": 0.4, "lift": 2.8, "fx": "flurry_end", "freeze_add": 0.04, "shake": 9.0}]]},
+		"ctx_back": {"clip": "atkA", "spd": 1.8, "cd": 0.6, "total": 0.45, "ctx": true,
+			"ev": [[0.16, {"shape": "fwd", "side": 1, "r": 2.5, "lane": 1.1, "k": 2.4, "strong": true, "kb": 0.8, "fx": "flurry_end", "freeze_add": 0.06, "shake": 10.0}]]},
+		"ctx_counter": {"clip": "atkC", "spd": 2.4, "cd": 0.0, "total": 0.62, "ctx": true,
+			"ev": [[0.3, {"shape": "fwd", "side": 1, "r": 2.9, "lane": 1.4, "k": 3.0, "strong": true, "kb": 1.0, "lift": 2.6, "fx": "flurry_end", "freeze_add": 0.1, "shake": 14.0}]]},
+	}
+
 static func table() -> Dictionary:
 	var t := {}
 	# 乱れ斬り：前方へ集中する10回＋最後に強い1回。敵をラナの前へ寄せ続ける（ボスは寄せない）

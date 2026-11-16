@@ -190,7 +190,7 @@ func _pick_skill(e: Node3D) -> bool:
 		return true
 	var dx := absf(e.position.x - position.x)
 	# 振り向かせ：前 8m に 2 体以上（ボスは除く）いて、ラナかリリィがその近くにいるとき（背中を殴れる味方がいる。2026-11-16）
-	if sk_tab.has("lure") and float(sk_cd.get("lure", 1.0)) <= 0.0 and not e.boss and dx < 8.0:
+	if not tactic_manual and sk_tab.has("lure") and float(sk_cd.get("lure", 1.0)) <= 0.0 and not e.boss and dx < 8.0:
 		var front := 0
 		for x in foes:
 			if not x.boss and (x.position.x - position.x) * face > 0.0 and absf(x.position.x - position.x) < 8.0:

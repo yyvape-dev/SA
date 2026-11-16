@@ -377,7 +377,7 @@ func _capture_party() -> void:
 	if OS.has_environment("PARTY_FIGHT"):   # 2026-11-16：つなぎ・背中・浮かせ・コンボ表示の確認。決まった入力で戦って撮る（captures/fight_NNN.png）
 		battle.hp_max = 9999.0
 		battle.hp = 9999.0
-		var plan := ["approach", "atkA", "atkB", "rift", "approach", "atkA", "shadow", "flurry", "vortex", "approach", "atkA", "atkB", "atkC", "approach", "rift", "atkA", "atkB", "approach", "shadow", "flurry", "rift"]
+		var plan := ["approach", "atkA", "atkB", "rift", "atkA", "atkA", "approach", "call_ranka", "atkA", "atkA", "shadow", "atkA", "flurry", "approach", "call_lily", "atkA", "atkB", "atkC", "approach", "rift", "atkA", "atkB", "approach", "shadow", "flurry", "rift"]
 		var pi := 0
 		var wait := 0
 		var nf: int = int(OS.get_environment("PARTY_FRAMES")) if OS.has_environment("PARTY_FRAMES") else 900
@@ -405,6 +405,11 @@ func _capture_party() -> void:
 							player.face = 1 if near.position.x >= player.position.x else -1
 						player.attack()
 						pi += 1; wait = 0
+				"call_lily", "call_ranka":
+					var a2 = battle.ally if act == "call_lily" else battle.ranka
+					var ok2: bool = a2 != null and a2.call_tactic("flank" if act == "call_lily" else "lure")
+					print("FIGHT f=", f, " ", act, " ok=", ok2)
+					pi += 1; wait = 0
 				_:
 					if player.can_use_skill(act):
 						if near != null and player.state != "skill":
@@ -423,7 +428,7 @@ func _capture_party() -> void:
 				for e in battle.enemies:
 					if e.back_lock > 0.0: bk += 1
 					if e.airborne(): air += 1
-				if f % 30 == 0 or air > 0 or OS.has_environment("FIGHT_ALL"): print("FIGHT f=", f, " combo=", battle.style.hits, " rank=", battle.style.rank, " pts=", snappedf(battle.style.pts, 0.1), " back_lock=", bk, " air=", air, " foes=", battle.alive_count())
+				if f % 30 == 0 or air > 0 or OS.has_environment("FIGHT_ALL") or player.context_move() != "": print("FIGHT f=", f, " ctx=", player.context_move(), " combo=", battle.style.hits, " rank=", battle.style.rank, " pts=", snappedf(battle.style.pts, 0.1), " back_lock=", bk, " air=", air, " foes=", battle.alive_count())
 		get_tree().quit()
 		return
 	for n in 8:
