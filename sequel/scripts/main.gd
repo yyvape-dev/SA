@@ -351,7 +351,7 @@ func _capture_party() -> void:
 				for e in battle.enemies:
 					if e.back_lock > 0.0: bk += 1
 					if e.airborne(): air += 1
-				if f % 30 == 0 or air > 0: print("FIGHT f=", f, " combo=", battle.style.hits, " rank=", battle.style.rank, " pts=", snappedf(battle.style.pts, 0.1), " back_lock=", bk, " air=", air, " foes=", battle.alive_count())
+				if f % 30 == 0 or air > 0 or OS.has_environment("FIGHT_ALL"): print("FIGHT f=", f, " combo=", battle.style.hits, " rank=", battle.style.rank, " pts=", snappedf(battle.style.pts, 0.1), " back_lock=", bk, " air=", air, " foes=", battle.alive_count())
 		get_tree().quit()
 		return
 	for n in 8:

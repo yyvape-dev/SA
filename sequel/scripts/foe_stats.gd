@@ -47,6 +47,15 @@ const AIR_G_ADD := 0.12      # 空中で 1 回当たるごとに重さ +12％（
 const JUGGLE_V := 3.2        # 空中で当たった時に浮き直す速さ（m/秒、仮。2.4→3.2）
 const JUGGLE_DECAY := 0.82   # 浮き直しは当たるごとに弱く
 const LAND_STUN := 0.35      # 着地して倒れている秒数（仮）
+# 撃破の手応え（2026-11-16 B。数値は仮）
+const KILL_VX := 5.0         # 吹き飛ぶ横の速さ（m/秒。前は 1.4 の滑りだけ）
+const KILL_VX_STRONG := 8.0
+const KILL_VY := 3.5         # 吹き飛ぶ上の速さ（約 0.45m の弧）
+const KILL_VY_STRONG := 5.5  # 約 1.1m の弧
+const KILL_HS := 0.10        # 撃破の止め（秒。普通の当たりは 0.05）
+const KILL_HS_ADD := 0.03    # 1 回で 2 体以上倒したら 1 体ごとに足す
+const KILL_HS_MAX := 0.19
+const KILL_HS_LAST := 0.26   # 部屋の最後の 1 体
 const BREAK_K := 0.28        # ボスのブレイク：最大体力のこの割合の傷で帯が満ちる（仮。60〜90 秒で 2〜3 回を狙う）
 const BREAK_T := 3.0         # ブレイクで倒れている秒数
 const BREAK_DMG := 1.5       # ブレイク中に受ける傷の倍率

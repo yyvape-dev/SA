@@ -363,6 +363,7 @@ func _attack_from(p: Node3D, spec: Dictionary, mul: float) -> int:
 		shape = "seek"
 	var ally_hit: bool = p != player
 	var staggered := 0   # のけぞった数（全員アーマーで受けたら止めを短く）
+	var kills := 0   # この当たりで倒した数（撃破の手応え）
 	for e in enemies:
 		if e.state == "dying":
 			continue
@@ -393,8 +394,11 @@ func _attack_from(p: Node3D, spec: Dictionary, mul: float) -> int:
 			var d: float = spec.dmg * mul * randf_range(0.9, 1.1)
 			stat_dmg += d
 			var edir := 1 if e.position.x >= pp.x else -1
+			var was_alive: bool = e.state != "dying"
 			if e.take_hit(d, edir, spec.strong, ally_hit) or e.boss:   # のけぞった（ボスは今どおりの止め）
 				staggered += 1
+			if was_alive and e.state == "dying" and not e.boss:
+				kills += 1
 			if spec.has("kb"):   # 吹き飛ばしの強さ（倍）
 				e.kx *= float(spec.kb)
 			if spec.has("pull") and not e.boss and e.last_st:   # アーマーで受けた敵は寄せない（2026-11-15）。寄せる（スキル）：front＝ラナの前 1.5m へ、in＝ラナへ、out＝外へ押す（派生 反転）
@@ -478,6 +482,17 @@ func _attack_from(p: Node3D, spec: Dictionary, mul: float) -> int:
 				freeze = maxf(freeze, (HS_BIG if spec.strong else HS_NORMAL) + float(spec.get("freeze_add", 0.0)))
 			else:   # 全員アーマーで受けた：止めは短く（2026-11-15、手応えは残し硬い敵だけ軽く）
 				freeze = maxf(freeze, FoeStats.HS_ARMOR)
+		if kills > 0:   # 撃破の手応え（2026-11-16 B）：倒した一撃は長く止めて揺らす。まとめて倒すほど強く、部屋の最後の 1 体は一番強く
+			var last: bool = alive_count() == 0
+			var hs: float = minf(FoeStats.KILL_HS + FoeStats.KILL_HS_ADD * (kills - 1), FoeStats.KILL_HS_MAX)
+			if last:
+				hs = FoeStats.KILL_HS_LAST
+			if ally_hit:
+				hs *= 0.6
+			freeze = maxf(freeze, hs)
+			shake = maxf(shake, minf(5.0 + 3.0 * kills, 14.0) + (6.0 if last else 0.0))
+			if (kills >= 2 or last) and not ally_hit:
+				chroma_hit(0.5 + 0.15 * mini(kills, 3))
 			shake = maxf(shake, float(spec.get("shake", SHAKE_BIG if spec.strong else SHAKE_NORMAL)))
 		combo += hits
 		combo_t = 2.4

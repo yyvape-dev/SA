@@ -39,6 +39,7 @@ var flash := 0.0
 var bar_t := 0.0
 var die_t := 0.0
 var die_dir := 1
+var die_v := 0.0          # 撃破で吹き飛ぶ横の速さ（2026-11-16 B 撃破の手応え）
 var lift_y := 0.0         # 浮かされた高さ（m）。絵だけを持ち上げる（空中の状態は別の作業）
 var lift_v := 0.0
 var air_hits := 0         # 浮いている間に受けた当たりの数（多いほど早く落ちる。specs/combat_tactics.md 4.）
@@ -208,7 +209,7 @@ func _physics_process(delta: float) -> void:
 		"dying":
 			die_t += dt
 			var k := die_t / (1.2 if boss else (0.45 if battle.fx.legacy else 0.75))   # 溶け消えは少し長く（縁が燃えるのを見せる）
-			position.x += die_dir * 1.4 * dt * (1.0 - k)
+			position.x += die_dir * (1.4 + die_v) * dt * pow(1.0 - minf(k, 1.0), 1.5)
 			mat.set_shader_parameter("rot", -die_dir * 1.25 * (1.0 - pow(1.0 - minf(k * 1.6, 1.0), 3.0)))
 			mat.set_shader_parameter("tint", Color(1, 1, 1, 1.0 - k))
 			shadow.transparency = k
@@ -466,6 +467,9 @@ func take_hit(d: float, dir: int, strong: bool, ally := false) -> bool:
 		state = "dying"
 		die_t = 0.0
 		die_dir = dir
+		# 撃破の一撃：弧を描いて吹き飛ぶ（強い当たりほど遠く・高く）
+		die_v = FS.KILL_VX_STRONG if strong else FS.KILL_VX
+		lift_v = maxf(lift_v, FS.KILL_VY_STRONG if strong else FS.KILL_VY)
 		battle.fx.kill(position, dir, height())
 		if battle.fx2d and not battle.fx.legacy:
 			battle.fx2d.kill(position + Vector3(0, height() * 0.5, 0), battle.fx, position)
