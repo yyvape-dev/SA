@@ -54,7 +54,7 @@ static func table() -> Dictionary:
 		["atk_jabkick", 17], ["atk_jabkick", 18], ["atk_jabkick", 19], ["atk_jabkick", 20], ["atk_jabkick", 21], ["atk_jabkick", 22]]
 	t["flank"] = {"clip": "atk_rush", "frames": ff, "fps": 30.0, "cd": 8.0, "dash": [1, 6], "behind": true,
 		"ev": [[9, {"shape": "fwd", "side": 1, "r": 2.4, "lane": 1.0, "k": 0.8, "strong": false, "kb": 0.2, "fx": "jab", "n": 0, "shake": 3.0}],
-			[14, {"shape": "fwd", "side": 1, "r": 2.4, "lane": 1.1, "k": 1.8, "strong": true, "kb": 1.2, "fx": "kick", "n": 2, "shake": 8.0}]]}
+			[14, {"shape": "fwd", "side": 1, "r": 2.4, "lane": 1.1, "k": 2.3, "strong": true, "kb": 1.2, "fx": "kick", "n": 2, "freeze_add": 0.05, "shake": 11.0}]]}
 	# 必殺技 天雷（てんらい）：狙った1体の横へ瞬間移動 → 6 回の連打（毎回その敵に空から稲妻）→ かかと落としで巨大な雷の柱。当たるのはその1体だけ
 	var u := _barrage(6, 1.2)
 	var uev: Array = u.ev

@@ -35,8 +35,11 @@ static func table() -> Dictionary:
 	t["vortex"] = {"clip": "hold", "spd": 1.25, "cd": 12.0, "total": 1.45, "ev": vx}
 	# 回り込み（2026-11-16 ユーザー決定、specs/combat_tactics.md 3.・9.）：回避の動きで近い敵（前後 6.5m）の背後へ抜け、振り返って斬り下ろし。
 	#   behind＝回り込む技（player.gd）。dash_t 秒で背後へ（当たらない）、着いたら敵は BACK_WRAP_T 秒背中を見せたまま。敵がいなければ前へ 3m 走って斬る
-	t["shadow"] = {"clip": "atkB", "spd": 1.5, "cd": 6.0, "total": 0.62, "behind": true, "dash_t": 0.16, "range": 6.5,
-		"ev": [[0.26, {"shape": "fwd", "side": 1, "r": 2.3, "lane": 1.0, "k": 1.5, "strong": true, "kb": 0.6, "fx": "flurry_end", "shake": 9.0}]]}
+	# 2026-11-16 ユーザー「背後攻撃をもっと強く・派手に」：背後へ抜けたら、斬り上げ（小）→溜めの一閃（大・金の斬撃・長い止め・大きな揺れ）の 2 段。
+	#   回り込んだ相手は背中を向けているので、2 段とも背中の当たり（傷 1.2 倍・ダウン値 2 倍・金の数字）
+	t["shadow"] = {"clip": "atkB", "spd": 1.3, "cd": 6.0, "total": 0.86, "behind": true, "dash_t": 0.16, "range": 6.5,
+		"ev": [[0.24, {"shape": "fwd", "side": 1, "r": 2.2, "lane": 1.0, "k": 0.9, "strong": false, "kb": 0.2, "fx": "flurry", "shake": 4.0}],
+			[0.46, {"shape": "fwd", "side": 1, "r": 2.8, "lane": 1.2, "k": 2.6, "strong": true, "kb": 1.0, "fx": "flurry_end", "freeze_add": 0.08, "lift": 3.0, "shake": 15.0}]]}
 	# 必殺技（当たりの流れは player.gd の _ult_process）。ツリーの技レベルで k_hit・k_end と cost_mul が変わる（skill_tree.gd）
 	t["ult"] = {"k_hit": 0.8, "k_end": 4.0}
 	return t

@@ -78,8 +78,8 @@ static func first_step(layout: Dictionary, from: Vector2i, to: Vector2i) -> Stri
 	return ""
 
 static func _room(rng: RandomNumberGenerator, c: Vector2i, ex: Dictionary, dist: int) -> Dictionary:
-	# 幅：2〜3 画面（rw は半分の幅。横持ちの画面の幅 ≈ 19m）
-	var rw := rng.randf_range(19.0, 29.0)
+	# 幅：1.5〜2 画面（rw は半分の幅。横持ちの画面の幅 ≈ 19m）。2026-11-16 ユーザー決定（前は 2〜3 画面＝19〜29。「一部屋が不用意に広すぎる」）
+	var rw := rng.randf_range(14.0, 19.0)
 	# 建物：9.6m おきに、カメラが端まで動いても切れない数だけ（同じ建物を隣に並べない）
 	var k := int(ceil((rw + 10.3 - 4.8) / 9.6))
 	var slots := []
