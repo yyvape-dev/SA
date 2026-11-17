@@ -22,6 +22,7 @@ var first_clear_paid := {}   # "テーマ_難易度" → 初回クリアの SP �
 var gold := 0                # お金（G）。2026-11-16 ②（specs/money_recovery.md）
 var pot_s := 2               # 回復薬（小）の数。はじめに 2 個（Claude の仮）
 var pot_l := 0               # 回復薬（大）の数
+var quality := "std"         # 画質：high＝高・std＝標準・eco＝省電力（2026-11-17、スマホが熱くなる件。main.apply_quality）
 
 func reset() -> void:
 	lv = 1
@@ -191,7 +192,7 @@ func to_dict() -> Dictionary:
 	return {"lv": lv, "xp": xp, "weapon": weapon, "hard_open": hard_open, "best": best.duplicate(true), "clears": clears.duplicate(true),
 		"skills_owned": skills_owned.duplicate(), "skill_slots": skill_slots.duplicate(),
 		"sp": sp.duplicate(true), "skill_lv": skill_lv.duplicate(true), "deriv": deriv.duplicate(true), "first_clear_paid": first_clear_paid.duplicate(true),
-		"gold": gold, "pot_s": pot_s, "pot_l": pot_l}
+		"gold": gold, "pot_s": pot_s, "pot_l": pot_l, "quality": quality}
 
 func from_dict(d: Dictionary) -> void:
 	lv = int(d.get("lv", 1))
@@ -200,6 +201,7 @@ func from_dict(d: Dictionary) -> void:
 	gold = int(d.get("gold", 0))
 	pot_s = int(d.get("pot_s", 2))
 	pot_l = int(d.get("pot_l", 0))
+	quality = str(d.get("quality", "std"))
 	best = _rekey(d.get("best", {}))
 	clears = _rekey(d.get("clears", {}))
 	hard_open = bool(d.get("hard_open", false)) or diff_open("t1", "hard")

@@ -348,7 +348,21 @@ func tree_tap(pos: Vector2) -> void:
 			return
 
 ## 一覧の技を選ぶ → 枠を押すと入れる（同じ技が他の枠にあれば入れ替え）
+## 画質の切り替え（2026-11-17）：育成の画面の上の帯、閉じるの左。高→標準→省電力→高
+func quality_rect() -> Rect2:
+	var u: float = view.size.y / 720.0
+	var r: Dictionary = TreeArt.rects(view.size, "rana")
+	var cl: Rect2 = r.close
+	return Rect2(Vector2(cl.position.x - 300 * u, cl.position.y + 8 * u), Vector2(284 * u, 68 * u))
+
 func slot_tap(pos: Vector2) -> void:
+	if quality_rect().has_point(pos):
+		var order := ["high", "std", "eco"]
+		var pr = main.progress
+		pr.quality = order[(order.find(pr.quality) + 1) % 3]
+		main.apply_quality()
+		pr.save()
+		return
 	if slot_mode == "tree":
 		tree_tap(pos)
 		return
@@ -634,6 +648,12 @@ class _View extends Control:
 				_tree()
 			else:
 				_slots()
+			# 画質（2026-11-17）
+			var qr: Rect2 = hud.quality_rect()
+			var qn := {"high": "画質：高", "std": "画質：標準", "eco": "画質：省電力"}
+			draw_rect(qr, Color(0.06, 0.07, 0.1, 0.92))
+			draw_rect(qr, Color(0.85, 0.68, 0.36), false, 2 * u)
+			draw_string(ThemeDB.fallback_font, qr.position + Vector2(0, qr.size.y * 0.66), str(qn.get(m.progress.quality, "")), HORIZONTAL_ALIGNMENT_CENTER, qr.size.x, int(26 * u), Color(1, 0.95, 0.85))
 		if hud.result_t >= 0.0:
 			_result()
 		if hud.shop_open:

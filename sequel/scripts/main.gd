@@ -595,9 +595,10 @@ func _perf(delta: float) -> void:
 	perf_frames.clear()
 	if perf_label:
 		# 日本語のフォントがまだ無いので英数字だけ（frame＝1コマの時間、GPU＝Godot が数える映像のメモリ）
-		perf_label.text = "%.0f fps\nframe avg %.0f ms / max %.0f ms\nGPU mem ~%.0f MB\nfx2d %s%s" % [Engine.get_frames_per_second(), avg,
+		perf_label.text = "%.0f fps\nframe avg %.0f ms / max %.0f ms\nGPU mem ~%.0f MB\nfx2d %s%s\nwin %dx%d  3D %d%%  %s  dpr %s" % [Engine.get_frames_per_second(), avg,
 			arr[-1] if arr.size() > 0 else 0.0, Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED) / 1e6,
-			"ON" if fx2d and fx2d.active else "OFF", " (half)" if fx2d and fx2d.half else ""]
+			"ON" if fx2d and fx2d.active else "OFF", " (half)" if fx2d and fx2d.half else "",
+			win.x, win.y, int(round(get_viewport().scaling_3d_scale * 100.0)), progress.quality, str(JavaScriptBridge.eval("window.devicePixelRatio")) if OS.has_feature("web") else "-"]
 
 ## エフェクトの絵（地区 pck「fx1」：焼いた REEBO・Kenney の粒）。起動の後に読み、読み終えるまで 2D の層と絵の板は出さない
 func _load_fx() -> void:
@@ -3779,6 +3780,20 @@ func _check_shop() -> void:
 	elif not near:
 		shop_armed = true
 
+## 画質（2026-11-17 ユーザー了承）：高＝今まで（3D の細かさ 100%・MSAA 2 倍・コマ数の上限なし）、
+##   標準＝3D の細かさ 70%・MSAA なし（初期値）、省電力＝3D 55%・MSAA なし・毎秒 30 コマ。文字・ボタン（2D）はいつも細かいまま
+const QUALITY := {"high": {"s3d": 1.0, "msaa": Viewport.MSAA_2X, "fps": 0},
+	"std": {"s3d": 0.7, "msaa": Viewport.MSAA_DISABLED, "fps": 0},
+	"eco": {"s3d": 0.55, "msaa": Viewport.MSAA_DISABLED, "fps": 30}}
+func apply_quality() -> void:
+	var qn: String = OS.get_environment("QUALITY") if OS.has_environment("QUALITY") else (progress.quality if progress else "std")   # 撮影用に QUALITY= で上書き
+	var q: Dictionary = QUALITY.get(qn, QUALITY.std)
+	var vp := get_viewport()
+	vp.scaling_3d_mode = Viewport.SCALING_3D_MODE_BILINEAR
+	vp.scaling_3d_scale = float(q.s3d)
+	vp.msaa_3d = int(q.msaa)
+	Engine.max_fps = int(q.fps)
+
 func _check_gate() -> void:
 	if gate == null or dungeon != null or player == null or town_floor_busy or hud == null:
 		return
@@ -3894,6 +3909,7 @@ func leave_dungeon() -> void:
 
 ## 成長をラナと戦闘に反映する
 func apply_progress() -> void:
+	apply_quality()
 	var r: float = battle.hp / battle.hp_max
 	battle.hp_max = progress.hp_max()
 	battle.hp = battle.hp_max * r
