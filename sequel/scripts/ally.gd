@@ -592,7 +592,7 @@ func call_tactic(id: String) -> bool:
 func _start_skill(id: String, e: Node3D) -> void:
 	sk_id = id
 	sk = sk_tab[id]
-	sk_cd[id] = float(sk.get("cd", 0.0))
+	sk_cd[id] = float(sk.get("cd", 0.0)) * float(world.g_ally.get("ranka" if str(get("ult_key")) == "ranka_ult" else "lily", [1.0, 1.0])[1])
 	sk_used[id] = int(sk_used.get(id, 0)) + 1
 	target = e
 	chain_left = int(sk.get("chain_n", 1)) - 1

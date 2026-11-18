@@ -73,6 +73,16 @@ var combo := 0
 var combo_t := 0.0
 var auto_spawn := true
 var atk_mul := 1.0        # ラナの攻撃の倍率（レベル・武器。progress.gd）
+## 装備の効果（③ specs/gear.md。main.apply_progress が入れる）
+var g_crit := 0.0         # 会心の確率（0〜1）。会心は 1.5 倍
+var g_cd := 1.0           # ラナの技の待ちの倍率
+var g_down := 1.0         # ラナのダウン値の倍率
+var g_cut := 0.0          # 受ける傷 −（0〜1）
+var g_heal := 1.0         # 回復量の倍率
+var g_gold := 1.0         # お金の倍率
+var g_ult := 1.0          # 必殺技のたまりの倍率
+var g_ally := {}          # "lily"/"ranka" → [技の強さ, 技の待ち]
+const CRIT_K := 1.5
 var foe_hp_mul := 1.0     # 敵の体力・攻撃の倍率（ダンジョンのハード）
 var foe_dmg_mul := 1.0
 var stat_hits := 0        # 確認用：味方の当たった数・与えたダメージの合計（撮影・自動の4周で数える）
@@ -392,6 +402,13 @@ func _attack_from(p: Node3D, spec: Dictionary, mul: float) -> int:
 				inside = dx > -0.42 and dx < spec.r and dz < spec.lane
 		if inside:
 			var d: float = spec.dmg * mul * randf_range(0.9, 1.1)
+			var crit := false
+			if p == player and g_crit > 0.0 and randf() < g_crit:
+				d *= CRIT_K
+				crit = true
+			elif p != player and p.get("ult_key") != null:
+				d *= float(g_ally.get("ranka" if str(p.get("ult_key")) == "ranka_ult" else "lily", [1.0, 1.0])[0])
+			e.hit_down_k = g_down if p == player else 1.0
 			stat_dmg += d
 			var edir := 1 if e.position.x >= pp.x else -1
 			var was_alive: bool = e.state != "dying"
@@ -430,7 +447,7 @@ func _attack_from(p: Node3D, spec: Dictionary, mul: float) -> int:
 				fx.hit(hp_pos, edir, spec.strong, hits < 4)
 			if spec.get("zap", false):   # 当たった所で稲妻が弾ける（リリィ）
 				fx.zap(hp_pos, 6 if spec.strong else 4, 0.9 if spec.strong else 0.6)
-			fx.number(e.position + Vector3(0, e.height() + 0.5, 0), int(round(d * (FoeStats.BACK_DMG if e.last_back else 1.0))), "back" if e.last_back else ("strong" if spec.strong else ""))
+			fx.number(e.position + Vector3(0, e.height() + 0.5, 0), int(round(d * (FoeStats.BACK_DMG if e.last_back else 1.0))), "back" if e.last_back else ("strong" if spec.strong or crit else ""))
 			if p == player and p != manual_ally:
 				style.hit(e.last_back, e.last_air)
 			hits += 1
@@ -468,7 +485,7 @@ func _attack_from(p: Node3D, spec: Dictionary, mul: float) -> int:
 		lingers.append({"p": p, "spec": ls, "mul": mul, "n": int(L.get("n", 4)), "gap": float(L.get("gap", 0.4)), "t": float(L.get("gap", 0.4)), "band": String(L.get("band", "gold"))})
 	stat_hits += hits
 	if hits > 0 and p == player and ult_gain:
-		ult = minf(ULT_MAX, ult + hits * 1.5)
+		ult = minf(ULT_MAX, ult + hits * 1.5 * g_ult)
 	if hits > 0 and (p == ally or p == ranka or p == manual_ally):   # 仲間ごとのゲージ（ult_key：リリィ ally_ult・ランカ ranka_ult）
 		var key: String = str(p.get("ult_key")) if p.get("ult_key") != null else "ally_ult"
 		if bool(get(key + "_gain")):
@@ -604,7 +621,7 @@ func enemy_hits_player(e) -> void:
 	var p: Node3D = player
 	if not p.can_be_hit():
 		return
-	var d: int = e.dmg
+	var d: int = maxi(1, int(round(float(e.dmg) * (1.0 - g_cut))))
 	hits_taken += 1
 	style.hurt()
 	ult = minf(ULT_MAX, ult + 5.0)

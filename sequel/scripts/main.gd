@@ -5,6 +5,7 @@ extends Node3D
 ##   CAPTURE_PLAY=1  … 動作確認の画面を captures/ に書き出して終了
 
 const City := preload("res://scripts/city_block1.gd")
+const GearUI_ := preload("res://scripts/gear_ui.gd")
 const BT := preload("res://scripts/backtown_block.gd")
 const GamehallFloor := preload("res://scripts/gamehall_floor.gd")
 var town_floor := "backtown"
@@ -248,6 +249,8 @@ func _ready() -> void:
 		_capture_foe.call_deferred()
 	elif OS.has_environment("CAPTURE_SHOP"):
 		_capture_shop.call_deferred()
+	elif OS.has_environment("CAPTURE_GEAR"):
+		_capture_gear.call_deferred()
 	elif OS.has_environment("CAPTURE_PARTY"):
 		_capture_party.call_deferred()
 	elif OS.has_environment("CAPTURE_ROOM"):
@@ -267,6 +270,61 @@ func _ready() -> void:
 
 ## 撮影・再現：実機と同じ道（街で控え→選択画面で仲間を選ぶ→入場→となりの部屋で戦う）。PARTY=ranka 等、FOE_THEME。captures/party_<n>.png
 ## 2026-11-16 ②：お金と回復の確認。裏の町の薬屋 → 店の画面で買う → ダンジョン（回復薬のボタン・お金）→ 倒れて「立ち直る」→ クリアの後に動ける所
+## 装備の撮影（③ CAPTURE_GEAR=1）：裏の町の工房と、育成の画面の「装備」タブ。物は種を固定して作る
+func _capture_gear() -> void:
+	var dir := ProjectSettings.globalize_path("res://captures")
+	DirAccess.make_dir_recursive_absolute(dir)
+	progress.unlock_all = true
+	progress.gold = 1480
+	progress.mats = {"t1": 6, "t2": 3}
+	var G = load("res://scripts/gear.gd")
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 11
+	for i in 13:
+		var sl: String = G.roll_slot(rng)
+		var it: Dictionary = G.make(rng, progress.next_uid, sl, G.roll_tier(rng, "hard", i == 0), [7, 13], "t1" if i % 2 == 0 else "t2")
+		progress.next_uid += 1
+		progress.items.append(it)
+	apply_progress()
+	for i in 240:
+		await get_tree().process_frame
+	var shot := func(n: String):
+		for k in 4:
+			await get_tree().process_frame
+		get_viewport().get_texture().get_image().save_png(dir + "/gear_%s.png" % n)
+		print("GEAR ", n, " gold=", progress.gold, " bag=", progress.bag_count(), " w=", progress.weapon_pow())
+	var sx := 0.0
+	for s2 in BT.STALLS:
+		if s2.id == "stall_parts":
+			sx = float(s2.x)
+	player.position = Vector3(sx, 0, BELT_Z.x + 0.4)
+	for i in 30:
+		await get_tree().process_frame
+	await shot.call("1_workshop")
+	var lst: Array = GearUI_.ws_list(progress)
+	hud.ws_sel = int(lst[0].uid)
+	await shot.call("2_ws_selected")
+	var r: Dictionary = GearUI_.ws_rects(hud.view.size, progress)
+	GearUI_.ws_tap(hud, r.up.get_center())
+	await shot.call("3_enhanced")
+	hud.close_workshop()
+	player.position.x = sx - 4.0
+	hud.open_slots()
+	hud.slot_mode = "gear"
+	await shot.call("4_equip_tab")
+	var bag: Array = GearUI_.bag_list(progress)
+	for it in bag:
+		if progress.is_better(it):
+			hud.gear_sel = int(it.uid)
+			break
+	await shot.call("5_equip_sel")
+	var er: Dictionary = GearUI_.equip_rects(hud.view.size, progress)
+	GearUI_.equip_tap(hud, er.wear.get_center())
+	await shot.call("6_equipped")
+	hud.slot_mode = "slot"
+	await shot.call("7_slot_tab")
+	get_tree().quit()
+
 func _capture_shop() -> void:
 	var dir := ProjectSettings.globalize_path("res://captures")
 	DirAccess.make_dir_recursive_absolute(dir)
@@ -816,6 +874,7 @@ func _process(delta: float) -> void:
 	_check_town_edge()
 	_check_gate()
 	_check_shop()
+	_check_workshop()
 	if fx_demo >= 0.0:
 		fx_demo -= delta
 		if fx_demo <= 0.0:
@@ -3780,6 +3839,22 @@ func _check_shop() -> void:
 	elif not near:
 		shop_armed = true
 
+## 裏の町の工房（部品の屋台、stall_parts）に近づくと開く（③ specs/gear.md、ユーザー「裏の町の別の屋台を工房に」）
+var ws_armed := true
+func _check_workshop() -> void:
+	if town != "back" or dungeon != null or player == null or town_floor_busy or hud == null:
+		return
+	var sx := 0.0
+	for s2 in BT.STALLS:
+		if s2.id == "stall_parts":
+			sx = float(s2.x)
+	var near: bool = absf(player.position.x - sx) < 1.3 and player.position.z < BELT_Z.x + 0.9
+	if near and ws_armed and not hud.menu_open and not hud.slot_open and not hud.shop_open and not hud.ws_open and not player.locked:
+		ws_armed = false
+		hud.open_workshop(false)
+	elif not near:
+		ws_armed = true
+
 ## 画質（2026-11-17 ユーザー了承）：高＝今まで（3D の細かさ 100%・MSAA 2 倍・コマ数の上限なし）、
 ##   標準＝3D の細かさ 70%・MSAA なし（初期値）、省電力＝3D 55%・MSAA なし・毎秒 30 コマ。文字・ボタン（2D）はいつも細かいまま
 const QUALITY := {"high": {"s3d": 1.0, "msaa": Viewport.MSAA_2X, "fps": 0},
@@ -3914,6 +3989,15 @@ func apply_progress() -> void:
 	battle.hp_max = progress.hp_max()
 	battle.hp = battle.hp_max * r
 	battle.atk_mul = progress.atk_mul()
+	progress.weapon = int(round(progress.weapon_pow()))   # 結果の画面などの「武器の数字」
+	battle.g_crit = progress.trait_pct("crit") / 100.0
+	battle.g_cd = maxf(0.5, 1.0 - progress.trait_pct("cd") / 100.0)
+	battle.g_down = 1.0 + progress.trait_pct("down") / 100.0
+	battle.g_cut = progress.armor_cut()
+	battle.g_heal = 1.0 + progress.trait_pct("heal") / 100.0
+	battle.g_gold = 1.0 + progress.trait_pct("gold") / 100.0
+	battle.g_ult = 1.0 + progress.trait_pct("ult") / 100.0
+	battle.g_ally = {"lily": progress.ally_k("lily"), "ranka": progress.ally_k("ranka")}
 	for a in [player, battle.ally, battle.ranka]:   # スキルツリーの技レベル・派生を読み直す（specs/skill_tree.md）
 		if a != null and is_instance_valid(a) and a.has_method("refresh_skills"):
 			a.refresh_skills()

@@ -424,6 +424,15 @@ func _maybe_dodge() -> bool:
 
 func _record(d) -> void:
 	var r: Dictionary = d.result
+	# 装備（③）：人が街で付け替える代わりに、枠ごとに一番強い物を付ける。持ち物・素材の数も記録
+	var pr = main.progress
+	var Gear = load("res://scripts/gear.gd")
+	for it in pr.items:
+		var cur: Dictionary = pr.equipped(str(it.slot))
+		if cur.is_empty() or Gear.score(it) > Gear.score(cur):
+			pr.equip[str(it.slot)] = int(it.uid)
+	main.apply_progress()
+	summary.append("装備 拾った %d 素材 %d 持ち物 %d 武器 %.0f 体力 %.0f 会心 %.0f%%" % [int(r.get("items", 0)), int(r.get("mats", 0)), pr.bag_count(), pr.weapon_pow(), pr.hp_max(), pr.trait_pct("crit")])
 	var mx := 0.0
 	for c in room_t:
 		mx = maxf(mx, float(room_t[c]))

@@ -13,6 +13,7 @@ const ATK_REACH := 1.45    # 当たりの瞬間に、この距離までなら当
 const ATK_LANE := 0.45     # 奥行きのずれがこれ以内なら当たる（奥行きをずらして避けられる）
 const STOP := 0.95         # これより近くへは歩かない
 
+var hit_down_k := 1.0   # 装備（武器の特性「ダウン値」）の倍率。battle が当てる直前に入れる
 var battle               # battle.gd
 var kind := "1"
 var clips: Dictionary
@@ -438,7 +439,7 @@ func take_hit(d: float, dir: int, strong: bool, ally := false) -> bool:
 			battle.on_kill(self)
 		return false
 	# ダウン値：通常 1・強い 3（仲間は半分）をため、種類の値に達したらのけぞる
-	down_acc += (FS.DOWN_STRONG if strong else FS.DOWN_NORMAL) * (FS.DOWN_ALLY_K if ally else 1.0) * (FS.BACK_DOWN if last_back else 1.0)
+	down_acc += (FS.DOWN_STRONG if strong else FS.DOWN_NORMAL) * (FS.DOWN_ALLY_K if ally else 1.0) * (FS.BACK_DOWN if last_back else 1.0) * hit_down_k
 	down_t = 0.0
 	var stagger: bool = down_acc >= float(fst.down) - 0.001
 	last_air = airborne()

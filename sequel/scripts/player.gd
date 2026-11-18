@@ -296,7 +296,7 @@ func use_skill(id: String) -> bool:
 	queued = false
 	queued_hold = false
 	atk_next = "atkA"
-	skill_cd[id] = float(sk.cd)
+	skill_cd[id] = float(sk.cd) * float(world.g_cd)
 	skill_uses[id] = int(skill_uses.get(id, 0)) + 1
 	chain_used[id] = true
 	wrap = {}
@@ -534,6 +534,7 @@ func use_potion() -> bool:
 		k = Eco.POT_L_HEAL
 	else:
 		return false
+	k *= float(world.g_heal)
 	world.hp = minf(world.hp_max, world.hp + world.hp_max * k)
 	pot_cd = Eco.POT_CD
 	world.fx.number(position + Vector3(0, 2.3, 0), int(round(world.hp_max * k)), "pot")

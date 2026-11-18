@@ -56,3 +56,7 @@ static func key(theme: String, diff: String) -> String:
 ## このテーマの部品の絵があるか（無ければ歓楽街の部品＋画面の色で仮置き）
 static func has_parts(theme: String) -> bool:
 	return theme != "t1" and ResourceLoader.exists("res://assets/dungeon/%s/%s_b1.webp" % [theme, theme])
+
+## 素材の鍵（③ specs/gear.md）：テーマの順番 1〜4 → "t1"〜"t4"
+static func mat_key(theme_id: String) -> String:
+	return "t%d" % (index_of(theme_id) + 1)

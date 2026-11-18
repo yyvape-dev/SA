@@ -11,6 +11,7 @@ const COL_GOLD := Color(1.0, 0.78, 0.3)
 const COL_HOME := Color(0.72, 0.5, 1.0)   # 戻る扉（街の入口の扉と同じ紫）
 const Themes := preload("res://scripts/dungeon_themes.gd")
 const Eco := preload("res://scripts/economy.gd")
+const Gear := preload("res://scripts/gear.gd")
 const FoeStats := preload("res://scripts/foe_stats.gd")
 const HOME_HOLD := 1.2     # 戻る扉の上にこの秒数立つと街へ（うっかり出ないように）
 
@@ -34,6 +35,8 @@ var fail_t := 0.0
 var coins := []          # 床の硬貨・回復薬：{node, val, kind("gold"/"pot"), t, v(Vector3)}（2026-11-16 ②）
 var revived := false     # この周で立ち直ったか（1 周 1 回）
 var gold0 := 0           # 入った時のお金（結果の画面の「得たお金」）
+var items_got := 0       # この回で拾った装備・素材の数（結果の画面）
+var mats_got := 0
 var finished := false    # クリアした（結果の画面のあと、ボス部屋で少し動ける＝アラド風。2026-11-16 ユーザー）
 var shop_spot = null     # クリア後の店の場所（金の扉＋浮かぶ小瓶）
 var shop_x := 0.0
@@ -78,6 +81,8 @@ func start() -> void:
 		cap = int(OS.get_environment("DG_CAP"))
 	snapshot = main.progress.to_dict()
 	gold0 = main.progress.gold
+	items_got = 0
+	mats_got = 0
 	layout = Map.generate(rng)
 	main.set_theme_tint(Color(1, 1, 1, 0) if Themes.has_parts(theme) else Themes.THEMES[Themes.index_of(theme)].tint)
 	main.room_theme = theme
@@ -235,9 +240,11 @@ func _open_room() -> void:
 	# 部屋を片付けた：体力 10% 戻る、床の硬貨はラナへ集まる（2026-11-16 ②。集まるのは Claude の仮）
 	var b = main.battle
 	if b.hp > 0.0:
-		b.hp = minf(b.hp_max, b.hp + b.hp_max * Eco.ROOM_HEAL)
+		b.hp = minf(b.hp_max, b.hp + b.hp_max * Eco.ROOM_HEAL * b.g_heal)
 	for c in coins:
 		c.magnet = true
+	for d in drops:   # 装備も集まる（拾い忘れ防止。Claude の仮）
+		d.magnet = true
 	log_ev("clear", cur)
 
 # ---------- 毎コマ ----------
@@ -449,11 +456,19 @@ func on_foe_killed(e) -> void:
 		_coin(Vector3(e.position.x, 0, e.position.z), share, "gold", float(i) / maxf(1.0, n - 1.0) * 2.0 - 1.0 if n > 1 else 0.0)
 	if not e.boss and rng.randf() < Eco.POT_DROP:
 		_coin(Vector3(e.position.x, 0, e.position.z), 1, "pot", 0.4)
+	# 装備（③ specs/gear.md）：雑魚は難易度ごとの割合、ボスは必ず 1 つ（1 段上）
 	var drop: bool = e.boss or rng.randf() < float(c.drop)
 	if drop:
 		var r: Array = c.bw if e.boss else c.w
-		var val: int = rng.randi_range(int(r[0]), int(r[1])) + (0 if e.boss else int(room.dist) * 2)
-		_drop(Vector3(e.position.x, 0, e.position.z), val)
+		var add: int = 0 if e.boss else int(room.dist) * 2
+		var pr = main.progress
+		var it: Dictionary = Gear.make(rng, pr.next_uid, Gear.roll_slot(rng), Gear.roll_tier(rng, diff, e.boss), [int(r[0]) + add, int(r[1]) + add], Themes.mat_key(theme))
+		pr.next_uid += 1
+		_drop(Vector3(e.position.x, 0, e.position.z), it)
+	# 素材（そのテーマのもの）：雑魚は 8/10/12%、ボスは 3〜5 個
+	var mn: int = rng.randi_range(3, 5) if e.boss else (1 if rng.randf() < float(Gear.MAT_P.get(diff, 0.08)) else 0)
+	for i in mn:
+		_coin(Vector3(e.position.x, 0, e.position.z), 1, "mat", float(i) / maxf(1.0, mn - 1.0) * 2.0 - 1.0 if mn > 1 else -0.4)
 
 ## 立ち直る（ユーザーが選んだ）：お金を払い、体力を戻してその場で続ける
 func revive_yes() -> void:
@@ -480,7 +495,12 @@ func _coin(pos: Vector3, val: int, kind: String, spread: float) -> void:
 	var mi := MeshInstance3D.new()
 	var m := StandardMaterial3D.new()
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	if kind == "pot":   # 回復薬：淡い緑の小瓶（箱）
+	if kind == "mat":   # 素材：紫がかった小さな結晶（仮の形）
+		var pm2 := PrismMesh.new()
+		pm2.size = Vector3(0.2, 0.26, 0.12)
+		mi.mesh = pm2
+		m.albedo_color = Color(0.78, 0.66, 1.0)
+	elif kind == "pot":   # 回復薬：淡い緑の小瓶（箱）
 		var bm := BoxMesh.new()
 		bm.size = Vector3(0.18, 0.28, 0.1)
 		mi.mesh = bm
@@ -532,44 +552,57 @@ func _update_coins(delta: float) -> void:
 func _take_coin(c: Dictionary) -> void:
 	var pr = main.progress
 	var pos: Vector3 = main.player.position + Vector3(0, 2.3, 0)
-	if c.kind == "pot":
+	if c.kind == "mat":
+		var key: String = Themes.mat_key(theme)
+		pr.mats[key] = int(pr.mats.get(key, 0)) + 1
+		mats_got += 1
+		main.fx.number(pos, 1, "mat")
+	elif c.kind == "pot":
 		if pr.pot_s < Eco.POT_S_MAX:
 			pr.pot_s += 1
 		else:
 			pr.gold += Eco.POT_S_PRICE / 2   # 持ちきれない：半値のお金に（仮）
 		main.fx.number(pos, 1, "pot")
 	else:
-		pr.gold += int(c.val)
-		main.fx.number(pos, int(c.val), "gold")
+		var gv: int = int(round(float(c.val) * main.battle.g_gold))
+		pr.gold += gv
+		main.fx.number(pos, gv, "gold")
 	if main.fx2d and not main.fx.legacy:
 		main.fx2d.pickup(main.player.position + Vector3(0, 0.6, 0))
 	log_ev("coin", c.val)
 
-## 武器の落とし物：床に浮かぶ菱形と攻撃力の数字。今の武器より強ければ金、弱ければ灰色。
-func _drop(pos: Vector3, val: int) -> void:
+## 装備の落とし物：床に浮かぶ菱形（等級の数だけ）。付けている物より強ければ金、そうでなければ灰色。武器は攻撃力の数字も出す
+func _drop(pos: Vector3, it: Dictionary) -> void:
 	var root := Node3D.new()
 	var x: float = clampf(pos.x, -float(room.rw) + 0.8, float(room.rw) - 0.8)
 	root.position = Vector3(x, 0, clampf(pos.z, main.BELT_Z.x + 0.3, main.BELT_Z.y - 0.3))
-	var mi := MeshInstance3D.new()
-	var bm := BoxMesh.new()
-	bm.size = Vector3(0.32, 0.32, 0.08)
-	mi.mesh = bm
-	mi.rotation.z = PI * 0.25
 	var m := StandardMaterial3D.new()
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mi.material_override = m
-	mi.position.y = 0.55
-	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	root.add_child(mi)
+	var gems := Node3D.new()
+	gems.position.y = 0.55
+	root.add_child(gems)
+	var n: int = int(it.tier)
+	for k in n:
+		var mi := MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		var s0: float = 0.3 if k == 0 else 0.16
+		bm.size = Vector3(s0, s0, 0.07)
+		mi.mesh = bm
+		mi.rotation.z = PI * 0.25
+		mi.material_override = m
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		if k > 0:   # 2 つ目からは小さく、上に並べる
+			mi.position = Vector3((float(k) - float(n) * 0.5) * 0.22, 0.34, 0)
+		gems.add_child(mi)
 	var l := Label3D.new()
-	l.text = str(val)
+	l.text = str(int(round(Gear.weapon_pow(it)))) if str(it.slot) == "weapon" else ""
 	l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	l.no_depth_test = true
 	l.pixel_size = 0.005
 	l.font_size = 56
 	l.outline_size = 18
 	l.outline_modulate = Color(0, 0, 0, 0.85)
-	l.position.y = 1.0
+	l.position.y = 1.15
 	l.render_priority = 9
 	root.add_child(l)
 	var glow := MeshInstance3D.new()
@@ -584,40 +617,47 @@ func _drop(pos: Vector3, val: int) -> void:
 	glow.position.y = 0.03
 	root.add_child(glow)
 	main.level.add_child(root)
-	drops.append({"node": root, "mesh": mi, "label": l, "glow": gm, "val": val, "t": 0.0})
-	log_ev("drop", val)
+	var better: bool = main.progress.is_better(it)
+	drops.append({"node": root, "mesh": gems, "mat": m, "label": l, "glow": gm, "item": it, "better": better, "t": 0.0, "magnet": false})
+	log_ev("drop", int(it.tier))
 
 func _update_drops(delta: float) -> void:
 	var p: Node3D = main.player
 	for i in range(drops.size() - 1, -1, -1):
 		var d: Dictionary = drops[i]
 		d.t += delta
-		var better: bool = int(d.val) > int(main.progress.weapon)
-		var col: Color = COL_GOLD if better else Color(0.62, 0.62, 0.68)
-		d.mesh.material_override.albedo_color = col
+		var col: Color = COL_GOLD if d.better else Color(0.62, 0.62, 0.68)
+		d.mat.albedo_color = col
 		d.label.modulate = col
 		d.glow.albedo_color = Color(col.r, col.g, col.b, 0.35 + 0.15 * sin(d.t * 5.0))
 		d.mesh.rotation.y = d.t * 2.4
 		d.mesh.position.y = 0.55 + sin(d.t * 3.0) * 0.06
+		if (d.magnet or room_open or state == "after") and d.t > 1.0:   # 部屋を片付けた後：ラナへ寄る（硬貨と同じ）
+			var to: Vector3 = p.position - d.node.position
+			to.y = 0.0
+			d.node.position += to.normalized() * minf(to.length(), 7.0 * delta)
 		if d.t > 0.5 and absf(p.position.x - d.node.position.x) < 0.75 and absf(p.position.z - d.node.position.z) < 0.6:
 			_pickup(d)
 			drops.remove_at(i)
 
-## 拾う：今の武器と比べて、強ければ持ち替える（数字を金で出す）。弱ければ捨てる（灰色の数字）
+## 拾う：持ち物へ（付け替えは街の「装備」で）。強い物は金の数字（等級）、持ち物がいっぱいなら売った値段のお金に
 func _pickup(d: Dictionary) -> void:
-	var val: int = d.val
+	var it: Dictionary = d.item
+	var pr = main.progress
 	var pos: Vector3 = d.node.position + Vector3(0, 1.6, 0)
 	if main.fx2d and not main.fx.legacy:
 		main.fx2d.pickup(d.node.position + Vector3(0, 0.5, 0))
-	if val > main.progress.weapon:
-		main.progress.weapon = val
-		main.apply_progress()
-		main.progress.save()
-		main.fx.number(pos, val, "strong")
-		main.hud.flash_weapon()
-		log_ev("equip", val)
+	if pr.add_item(it):
+		items_got += 1
+		main.fx.number(pos, int(it.tier), "strong" if d.better else "")
+		if d.better:
+			main.hud.flash_weapon()
+		log_ev("item", int(it.tier))
 	else:
-		log_ev("discard", val)
+		var g: int = Gear.sell_price(it)
+		pr.gold += g
+		main.fx.number(pos, g, "gold")
+		log_ev("bag_full", g)
 	d.node.queue_free()
 
 # ---------- クリア ----------
@@ -641,7 +681,7 @@ func _finish() -> void:
 	var theme_unlocked: bool = ti + 1 < Themes.THEMES.size() and not before_t and pr.theme_open(ti + 1)
 	pr.hard_open = pr.diff_open("t1", "hard")
 	pr.save()
-	result = {"time": t_run, "hits": hits, "lv0": lv0, "lv": pr.lv, "w0": w0, "w": pr.weapon, "best": nb, "diff": diff, "theme": theme, "gold": pr.gold - gold0,
+	result = {"time": t_run, "hits": hits, "lv0": lv0, "lv": pr.lv, "w0": w0, "w": pr.weapon, "best": nb, "diff": diff, "theme": theme, "gold": pr.gold - gold0, "items": items_got, "mats": mats_got,
 		"unlocked": unlocked, "unlocked_diff": nd, "theme_unlocked": theme_unlocked, "sp_paid": sp_paid, "kills": kills}
 	log_ev("result", result)
 	main.hud.show_result(result)
@@ -679,6 +719,8 @@ func _start_after() -> void:
 	home_t = 0.0
 	for c in coins:
 		c.magnet = true
+	for d in drops:
+		d.magnet = true
 	log_ev("after", t_run)
 
 func _after_step(delta: float) -> void:

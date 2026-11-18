@@ -1,6 +1,7 @@
 extends RefCounted
 ## 成長（最小）とセーブ：レベル・経験値・武器1枠・ハードの解放・最速の記録。端末に保存（Web は IndexedDB の user://）。
 
+const Gear := preload("res://scripts/gear.gd")
 var path := "user://sa2_save.json"
 var lv := 1
 var xp := 0
@@ -22,6 +23,10 @@ var first_clear_paid := {}   # "テーマ_難易度" → 初回クリアの SP �
 var gold := 0                # お金（G）。2026-11-16 ②（specs/money_recovery.md）
 var pot_s := 2               # 回復薬（小）の数。はじめに 2 個（Claude の仮）
 var pot_l := 0               # 回復薬（大）の数
+var items: Array = []        # 持ち物（③ 装備、scripts/gear.gd。装備中の物も含む）
+var equip := {}              # 枠 → 付けている物の uid（weapon・armor・acc・lily・ranka）
+var mats := {}               # 素材 "t1"〜"t4" → 数
+var next_uid := 1
 var quality := "std"         # 画質：high＝高・std＝標準・eco＝省電力（2026-11-17、スマホが熱くなる件。main.apply_quality）
 
 func reset() -> void:
@@ -40,6 +45,10 @@ func reset() -> void:
 	gold = 0
 	pot_s = 2
 	pot_l = 0
+	items = []
+	equip = {}
+	mats = {}
+	next_uid = 1
 
 ## ---------- スキルツリー ----------
 ## 戦闘のボタンの技：枠 1〜3＋4 つ目（回り込み、固定）
@@ -173,11 +182,74 @@ func add_exp(n: int) -> int:
 	return up
 
 func hp_max() -> float:
-	return 100.0 + 12.0 * (lv - 1)
+	return 100.0 + 12.0 * (lv - 1) + armor_hp()
 
 ## 攻撃の倍率：レベル1つで +6％、武器の攻撃力1で +2％
 func atk_mul() -> float:
-	return 1.0 + 0.06 * (lv - 1) + 0.02 * weapon
+	return 1.0 + 0.06 * (lv - 1) + 0.02 * weapon_pow()
+
+## ---------- 装備（③）----------
+func item_by_uid(uid: int) -> Dictionary:
+	for it in items:
+		if int(it.uid) == uid:
+			return it
+	return {}
+
+func equipped(slot: String) -> Dictionary:
+	return item_by_uid(int(equip.get(slot, -1)))
+
+func is_equipped(it: Dictionary) -> bool:
+	return int(equip.get(str(it.slot), -1)) == int(it.uid)
+
+## 付けている武器の攻撃力（強化込み）。今までの weapon（数字）と同じ尺度。weapon にも写す（結果の画面など）
+func weapon_pow() -> float:
+	var w := equipped("weapon")
+	if w.is_empty():
+		return 0.0
+	return float(w.pow) * (1.0 + 0.08 * int(w.get("plus", 0)))
+
+## 付けている物の特性の値（%）。武器の crit/cd/down、装飾品の heal/gold/ult
+func trait_pct(t: String) -> float:
+	var v := 0.0
+	for sl in ["weapon", "acc"]:
+		var it := equipped(sl)
+		if not it.is_empty() and str(it.trait) == t:
+			v += float(it.tv) * (1.0 if sl == "weapon" else (1.0 + 0.08 * int(it.get("plus", 0))))
+	return v
+
+func armor_hp() -> float:
+	var a := equipped("armor")
+	return 0.0 if a.is_empty() else float(a.pow) * (1.0 + 0.08 * int(a.get("plus", 0)))
+
+func armor_cut() -> float:   # 受ける傷 −%（0〜1）
+	var a := equipped("armor")
+	return 0.0 if a.is_empty() else minf(0.6, float(a.tv) * (1.0 + 0.08 * int(a.get("plus", 0))) / 100.0)
+
+## 仲間の装備：[技の強さの倍率, 技の待ちの倍率]
+func ally_k(who: String) -> Array:
+	var g := equipped(who)
+	if g.is_empty():
+		return [1.0, 1.0]
+	var k := 1.0 + 0.08 * int(g.get("plus", 0))
+	return [1.0 + float(g.tv) * k / 100.0, maxf(0.5, 1.0 - float(g.pow) * k / 100.0)]
+
+## 同じ枠に付けている物より強いか（金の印）
+func is_better(it: Dictionary) -> bool:
+	var cur := equipped(str(it.slot))
+	return cur.is_empty() or Gear.score(it) > Gear.score(cur) + 0.01
+
+func bag_count() -> int:
+	var n := 0
+	for it in items:
+		if not is_equipped(it):
+			n += 1
+	return n
+
+func add_item(it: Dictionary) -> bool:
+	if bag_count() >= Gear.BAG_MAX:   # 持ち物 30 個（付けている物は数えない）
+		return false
+	items.append(it)
+	return true
 
 func load_save() -> void:
 	if not FileAccess.file_exists(path):
@@ -192,7 +264,8 @@ func to_dict() -> Dictionary:
 	return {"lv": lv, "xp": xp, "weapon": weapon, "hard_open": hard_open, "best": best.duplicate(true), "clears": clears.duplicate(true),
 		"skills_owned": skills_owned.duplicate(), "skill_slots": skill_slots.duplicate(),
 		"sp": sp.duplicate(true), "skill_lv": skill_lv.duplicate(true), "deriv": deriv.duplicate(true), "first_clear_paid": first_clear_paid.duplicate(true),
-		"gold": gold, "pot_s": pot_s, "pot_l": pot_l, "quality": quality}
+		"gold": gold, "pot_s": pot_s, "pot_l": pot_l, "quality": quality,
+		"items": items.duplicate(true), "equip": equip.duplicate(), "mats": mats.duplicate(), "next_uid": next_uid}
 
 func from_dict(d: Dictionary) -> void:
 	lv = int(d.get("lv", 1))
@@ -202,6 +275,15 @@ func from_dict(d: Dictionary) -> void:
 	pot_s = int(d.get("pot_s", 2))
 	pot_l = int(d.get("pot_l", 0))
 	quality = str(d.get("quality", "std"))
+	items = (d.get("items", []) as Array).duplicate(true)
+	equip = (d.get("equip", {}) as Dictionary).duplicate()
+	mats = (d.get("mats", {}) as Dictionary).duplicate()
+	next_uid = int(d.get("next_uid", 1))
+	if items.is_empty() and weapon > 0:   # 前の保存（武器の数字だけ）：その数字の ◆1 の剣を持たせる（0 なら武器なし）
+		var w0 := {"uid": next_uid, "slot": "weapon", "tier": 1, "pow": weapon, "trait": "", "tv": 0.0, "plus": 0, "theme": "t1"}
+		next_uid += 1
+		items.append(w0)
+		equip["weapon"] = int(w0.uid)
 	best = _rekey(d.get("best", {}))
 	clears = _rekey(d.get("clears", {}))
 	hard_open = bool(d.get("hard_open", false)) or diff_open("t1", "hard")

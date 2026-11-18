@@ -270,7 +270,7 @@ func number(p: Vector3, val: int, kind: String) -> void:
 	l.fixed_size = false
 	l.pixel_size = 0.0062
 	l.font_size = 64 if kind != "strong" else 86
-	if kind == "gold" or kind == "pot":
+	if kind == "gold" or kind == "pot" or kind == "mat":
 		l.font_size = 48
 	if kind == "back":
 		l.font_size = 80
@@ -282,6 +282,7 @@ func number(p: Vector3, val: int, kind: String) -> void:
 		"hurt": l.modulate = Color8(255, 107, 107)
 		"gold": l.modulate = Color8(255, 210, 90)
 		"pot": l.modulate = Color8(140, 255, 160)
+		"mat": l.modulate = Color8(200, 170, 255)   # 素材（装備の強化）
 		_: l.modulate = Color(1, 1, 1)
 	# 重ならないように（2026-11-07、game-vfx-juice）：横にランダムにずらし、近くの新しい数字と重なる位置は避ける。それでも重なれば少し上へ
 	var pos := p + Vector3(0, 0, 0.3)

@@ -13,11 +13,17 @@ const SkillTree := preload("res://scripts/skill_tree.gd")
 const TreeArt := preload("res://scripts/skill_tree_art.gd")
 const SelectArt := preload("res://scripts/dungeon_select_art.gd")
 const ShopUI := preload("res://scripts/shop_ui.gd")
+const GearUI := preload("res://scripts/gear_ui.gd")
 const Eco := preload("res://scripts/economy.gd")
 ## お金と回復（2026-11-16 ②）：店（回復薬）と「立ち直る」の確認
 var shop_open := false
 var shop_t := 0.0
 var shop_flash := {}
+var gear_sel := -1         # 育成の画面「装備」のタブで選んだ物（uid）
+var ws_open := false       # 工房（③ specs/gear.md）
+var ws_sel := -1
+var ws_sell_only := false  # クリア後の店から：売るだけ
+var ws_t := 0.0
 var revive_open := false
 var revive_cost := 0
 var revive_t := 0.0
@@ -76,6 +82,7 @@ func _process(delta: float) -> void:
 	menu_feedback_t = maxf(0.0, menu_feedback_t - delta)
 	shop_t += delta
 	revive_t += delta
+	ws_t += delta
 	for k in shop_flash.keys():
 		shop_flash[k] = maxf(0.0, float(shop_flash[k]) - delta)
 	if result_t >= 0.0:
@@ -101,7 +108,7 @@ func edge_warn(dir: int, d: float) -> void:
 
 ## The map is opaque. Skip hidden 3D drawing, restore the exact previous visibility.
 func _sync_menu_world() -> void:
-	var covered: bool = menu_open or slot_open or (main != null and "loading" in main and is_instance_valid(main.loading) and main.loading.visible)
+	var covered: bool = menu_open or slot_open or ws_open or (main != null and "loading" in main and is_instance_valid(main.loading) and main.loading.visible)
 	if covered and not is_instance_valid(_covered_viewport):
 		_covered_viewport = get_viewport()
 		_viewport_3d_was_disabled = _covered_viewport.disable_3d
@@ -356,6 +363,17 @@ func quality_rect() -> Rect2:
 	return Rect2(Vector2(cl.position.x - 300 * u, cl.position.y + 8 * u), Vector2(284 * u, 68 * u))
 
 func slot_tap(pos: Vector2) -> void:
+	if slot_mode == "gear":
+		var res: String = GearUI.equip_tap(self, pos)
+		if res == "close":
+			close_slots()
+		elif res != "":
+			slot_mode = res
+		return
+	if GearUI.tab_gear(view.size).has_point(pos):
+		slot_mode = "gear"
+		gear_sel = -1
+		return
 	if quality_rect().has_point(pos):
 		var order := ["high", "std", "eco"]
 		var pr = main.progress
@@ -389,6 +407,25 @@ func slot_tap(pos: Vector2) -> void:
 		if r.has("own%d" % i) and r["own%d" % i].has_point(pos):
 			slot_pick = "" if slot_pick == str(pr.skills_owned[i]) else str(pr.skills_owned[i])
 			return
+
+# ---------- 工房（③ specs/gear.md）：裏の町の部品の屋台。クリア後の店からは売るだけ ----------
+func open_workshop(sell_only: bool) -> void:
+	if ws_open:
+		return
+	ws_open = true
+	ws_sell_only = sell_only
+	ws_sel = -1
+	ws_t = 0.0
+	if main.player:
+		main.player.locked = true
+		main.player.move_in = Vector2.ZERO
+
+func close_workshop() -> void:
+	ws_open = false
+	if main.player and not shop_open:
+		main.player.locked = false
+	if main.progress:
+		main.progress.save()
 
 # ---------- 店・立ち直る（2026-11-16 ②） ----------
 func open_shop() -> void:
@@ -455,6 +492,15 @@ func confirm_result() -> void:
 		main.dungeon.close_result()
 
 func _input(e: InputEvent) -> void:
+	if ws_open:
+		if e is InputEventKey and e.pressed and not e.echo and (e.keycode == KEY_K or e.keycode == KEY_X or e.keycode == KEY_ESCAPE):
+			get_viewport().set_input_as_handled()
+			close_workshop()
+		elif e is InputEventScreenTouch and e.pressed:
+			get_viewport().set_input_as_handled()
+			if ws_t > 0.2 and GearUI.ws_tap(self, e.position) == "close":
+				close_workshop()
+		return
 	if shop_open or revive_open:
 		var k2 := -1
 		if e is InputEventKey and e.pressed and not e.echo:
@@ -479,6 +525,8 @@ func _input(e: InputEvent) -> void:
 			buy(0)
 		elif k2 == KEY_2 or (tp.x >= 0 and sr.buy1.has_point(tp)):
 			buy(1)
+		elif main.dungeon != null and tp.x >= 0 and sr.sell.has_point(tp):
+			open_workshop(true)
 		elif k2 == KEY_K or k2 == KEY_ESCAPE or k2 == KEY_X or (tp.x >= 0 and (sr.close.has_point(tp) or not sr.panel.has_point(tp))):
 			close_shop()
 		return
@@ -644,20 +692,26 @@ class _View extends Control:
 		if hud.menu_open:
 			_menu()
 		if hud.slot_open:
-			if hud.slot_mode == "tree":
-				_tree()
+			if hud.slot_mode == "gear":
+				GearUI.draw_equip(self, hud)
 			else:
-				_slots()
+				if hud.slot_mode == "tree":
+					_tree()
+				else:
+					_slots()
+				TreeArt.button(self, GearUI.tab_gear(size), "装備", false)
 			# 画質（2026-11-17）
 			var qr: Rect2 = hud.quality_rect()
 			var qn := {"high": "画質：高", "std": "画質：標準", "eco": "画質：省電力"}
 			draw_rect(qr, Color(0.06, 0.07, 0.1, 0.92))
 			draw_rect(qr, Color(0.85, 0.68, 0.36), false, 2 * u)
-			draw_string(ThemeDB.fallback_font, qr.position + Vector2(0, qr.size.y * 0.66), str(qn.get(m.progress.quality, "")), HORIZONTAL_ALIGNMENT_CENTER, qr.size.x, int(26 * u), Color(1, 0.95, 0.85))
+			draw_string(TreeArt.FONT, qr.position + Vector2(0, qr.size.y * 0.66), str(qn.get(m.progress.quality, "")), HORIZONTAL_ALIGNMENT_CENTER, qr.size.x, int(26 * u), Color(1, 0.95, 0.85))
 		if hud.result_t >= 0.0:
 			_result()
 		if hud.shop_open:
-			ShopUI.draw_shop(self, size, int(m.progress.gold), hud.shop_items(), hud.shop_flash)
+			ShopUI.draw_shop(self, size, int(m.progress.gold), hud.shop_items(), hud.shop_flash, m.dungeon != null)
+		if hud.ws_open:
+			GearUI.draw_workshop(self, hud)
 		if hud.revive_open:
 			ShopUI.draw_revive(self, size, hud.revive_cost, int(m.progress.gold), hud.revive_t)
 		if hud.warn_t > 0.0 and m.dungeon != null:   # 増援の予告：画面の端に赤い山形が3つ、外へ向かって点滅

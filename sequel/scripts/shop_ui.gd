@@ -2,6 +2,7 @@ extends RefCounted
 ## 店（回復薬）と「立ち直る」の確認の絵と押す所（2026-11-16 ②、specs/money_recovery.md）。
 ## 描くのは dungeon_hud.gd の view（Control）。色：金＝お金・決着、淡い緑＝回復、青＝味方の決定、灰＝押せない。
 
+const TreeFont := preload("res://assets/event_idle/sa2_t6_ja.otf")   # UI の日本語（抜き出し。字は tools/extend_ja_font.py で足す）
 const GOLD := Color("ffc94d")
 const GREEN := Color(0.55, 1.0, 0.65)
 const BLUE := Color("3d8bff")
@@ -21,13 +22,14 @@ static func shop_rects(size: Vector2) -> Dictionary:
 		r["row%d" % i] = Rect2(p.position + Vector2(30 * u, (100 + i * 120) * u), Vector2(w - 60 * u, 104 * u))
 		r["buy%d" % i] = Rect2(p.position + Vector2(w - 210 * u, (116 + i * 120) * u), Vector2(170 * u, 72 * u))
 	r["close"] = Rect2(p.position + Vector2(w - 74 * u, 16 * u), Vector2(58 * u, 58 * u))
+	r["sell"] = Rect2(p.position + Vector2(30 * u, 340 * u), Vector2(260 * u, 62 * u))   # クリア後だけ：装備を売る（③）
 	return r
 
 ## 店。items＝[{heal, price, have, max}]（小・大）
-static func draw_shop(c: Control, size: Vector2, gold: int, items: Array, flash: Dictionary) -> void:
+static func draw_shop(c: Control, size: Vector2, gold: int, items: Array, flash: Dictionary, sell: bool = false) -> void:
 	var u := size.y / 720.0
 	var r := shop_rects(size)
-	var font := ThemeDB.fallback_font
+	var font: Font = TreeFont
 	c.draw_rect(Rect2(Vector2.ZERO, size), Color(0, 0, 0, 0.45))
 	var p: Rect2 = r.panel
 	c.draw_rect(p, DIM)
@@ -49,6 +51,11 @@ static func draw_shop(c: Control, size: Vector2, gold: int, items: Array, flash:
 		var fl: float = float(flash.get("buy%d" % i, 0.0))
 		c.draw_rect(b, (BLUE if ok else Color(0.3, 0.32, 0.36)).lerp(Color.WHITE, fl * 2.0))
 		c.draw_string(font, b.position + Vector2(0, 48 * u), "買う", HORIZONTAL_ALIGNMENT_CENTER, b.size.x, int(SZ_TEXT * u), Color(1, 1, 1, 1.0 if ok else 0.5))
+	if sell:
+		var sb: Rect2 = r.sell
+		c.draw_rect(sb, Color(1, 1, 1, 0.06))
+		c.draw_rect(sb, GOLD, false, 2 * u)
+		c.draw_string(font, sb.position + Vector2(0, 42 * u), "装備を売る", HORIZONTAL_ALIGNMENT_CENTER, sb.size.x, int(SZ_TEXT * u), GOLD)
 	var cl: Rect2 = r.close
 	c.draw_rect(cl, Color(1, 1, 1, 0.08))
 	c.draw_line(cl.position + Vector2(16, 16) * u, cl.end - Vector2(16, 16) * u, Color(1, 1, 1, 0.9), 4 * u)
@@ -67,7 +74,7 @@ static func revive_rects(size: Vector2) -> Dictionary:
 static func draw_revive(c: Control, size: Vector2, cost: int, gold: int, t: float) -> void:
 	var u := size.y / 720.0
 	var r := revive_rects(size)
-	var font := ThemeDB.fallback_font
+	var font: Font = TreeFont
 	c.draw_rect(Rect2(Vector2.ZERO, size), Color(0, 0, 0, clampf(t / 0.3, 0.0, 1.0) * 0.55))
 	var p: Rect2 = r.panel
 	c.draw_rect(p, DIM)
