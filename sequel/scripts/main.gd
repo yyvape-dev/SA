@@ -387,11 +387,16 @@ func _capture_shop() -> void:
 	for i in 60:
 		await get_tree().process_frame
 	await shot.call("8_after")
-	player.position.x = dungeon.shop_x
-	player.position.z = BELT_Z.x + 0.4
+	dungeon.after_cmd("shop")   # 命令の列の「店」
 	for i in 30:
 		await get_tree().process_frame
 	await shot.call("9_after_shop")
+	hud.close_shop()
+	dungeon.after_cmd(OS.get_environment("AFTER_CMD") if OS.has_environment("AFTER_CMD") else "town")
+	for i in 120:
+		await get_tree().process_frame
+	await shot.call("10_town")
+	print("AFTER dungeon=", dungeon != null, " menu=", hud.menu_open, " stage=", hud.menu_stage)
 	get_tree().quit()
 
 func _capture_party() -> void:

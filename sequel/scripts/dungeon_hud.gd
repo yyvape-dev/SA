@@ -518,7 +518,47 @@ func confirm_result() -> void:
 	if main.dungeon:
 		main.dungeon.close_result()
 
+## ---------- クリア後の命令の列（2026-11-18、アラド戦記風） ----------
+## 画面の上の真ん中（ボスの体力の帯があった所）に 4 つ：店・もう一度・別のダンジョン・街へ戻る
+const AFTER_CMDS := [["shop", "店"], ["retry", "もう一度"], ["other", "別のダンジョン"], ["town", "街へ戻る"]]
+func after_on() -> bool:
+	return main != null and main.dungeon != null and main.dungeon.state == "after" and not shop_open and not ws_open and result_t < 0.0
+
+func after_rects() -> Array:
+	var u: float = view.size.y / 720.0
+	var w := [150.0, 190.0, 250.0, 220.0]
+	var gap := 14.0
+	var tot := gap * 3.0
+	for x in w:
+		tot += x
+	var x0: float = view.size.x * 0.5 - tot * 0.5 * u
+	var out := []
+	for i in 4:
+		out.append(Rect2(Vector2(x0, 96 * u), Vector2(w[i], 74) * u))
+		x0 += (w[i] + gap) * u
+	return out
+
+## 押された命令の番号（無ければ -1）。touch_ui もこれで押した所を避ける
+func after_hit(pos: Vector2) -> int:
+	if not after_on():
+		return -1
+	var rs: Array = after_rects()
+	for i in rs.size():
+		if (rs[i] as Rect2).grow(6).has_point(pos):
+			return i
+	return -1
+
 func _input(e: InputEvent) -> void:
+	if after_on():
+		var ai := -1
+		if e is InputEventScreenTouch and e.pressed:
+			ai = after_hit(e.position)
+		elif e is InputEventKey and e.pressed and not e.echo and e.keycode >= KEY_F1 and e.keycode <= KEY_F4:
+			ai = e.keycode - KEY_F1
+		if ai >= 0:
+			get_viewport().set_input_as_handled()
+			main.dungeon.after_cmd(str(AFTER_CMDS[ai][0]))
+			return
 	if ws_open:
 		if e is InputEventKey and e.pressed and not e.echo and (e.keycode == KEY_K or e.keycode == KEY_X or e.keycode == KEY_ESCAPE):
 			get_viewport().set_input_as_handled()
@@ -617,7 +657,7 @@ func _input(e: InputEvent) -> void:
 				if dr["dun%d" % n].has_point(tap):
 					choose_dun(n + 1)
 					return
-			if dr.close.has_point(tap):
+			if dr.close.has_point(tap) or dr.back.has_point(tap):
 				menu_back()
 		return
 	match key:
@@ -753,6 +793,8 @@ class _View extends Control:
 			_result()
 		if hud.shop_open:
 			ShopUI.draw_shop(self, size, int(m.progress.gold), hud.shop_items(), hud.shop_flash, m.dungeon != null)
+		if hud.after_on():
+			_after_cmds()
 		if hud.ws_open:
 			GearUI.draw_workshop(self, hud)
 		if hud.revive_open:
@@ -830,6 +872,20 @@ class _View extends Control:
 			3:
 				var pts := PackedVector2Array([c + Vector2(0, -0.62) * s, c + Vector2(0.3, -0.1) * s, c + Vector2(0.18, 0.55) * s, c + Vector2(-0.18, 0.55) * s, c + Vector2(-0.3, -0.1) * s])
 				draw_colored_polygon(pts, col)
+
+	## クリア後の命令の列。街へ戻るは金（決着）、ほかは暗い札に白い字
+	func _after_cmds() -> void:
+		var u := _u()
+		var rs: Array = hud.after_rects()
+		for i in rs.size():
+			var rc: Rect2 = rs[i]
+			var main_btn: bool = hud.AFTER_CMDS[i][0] == "town"
+			draw_rect(rc, Color(0.16, 0.12, 0.05, 0.92) if main_btn else Color(0.04, 0.06, 0.1, 0.88))
+			draw_rect(rc, GOLD if main_btn else Color(0.75, 0.75, 0.82, 0.8), false, (3 if main_btn else 2) * u)
+			var fs: int = int(28 * u)
+			var tx: String = hud.AFTER_CMDS[i][1]
+			var tw: float = TreeArt.FONT.get_string_size(tx, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+			draw_string(TreeArt.FONT, Vector2(rc.get_center().x - tw * 0.5, rc.get_center().y + fs * 0.36), tx, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, GOLD if main_btn else Color.WHITE)
 
 	func _menu() -> void:
 		if hud.menu_stage == "dun":

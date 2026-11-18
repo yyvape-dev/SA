@@ -8,12 +8,14 @@ const Themes := preload("res://scripts/dungeon_themes.gd")
 const GOLD := Color("e7bd72")
 const RED := Color("ef666b")
 const INK := Color("080e18")
+const FONT := preload("res://assets/event_idle/sa2_t6_ja.otf")
 
 static func rects(sz: Vector2, t: float) -> Dictionary:
 	var r: Dictionary = SA.rects(sz, "diff", t)
 	var slide: float = (1.0 - smoothstep(0.0, 0.18, t)) * 10.0 * sz.y / 720.0
 	for i in Themes.DN:
 		r["dun%d" % i] = Rect2(Vector2(sz.x * (0.405 + (i % 2) * 0.265) + slide, sz.y * (0.18 + (i / 2) * 0.30)), Vector2(sz.x * 0.255, sz.y * 0.28))
+	r["back"] = Rect2(Vector2(sz.x * 0.405, sz.y * 0.80), Vector2(sz.x * 0.20, sz.y * 0.13))   # 地図へ戻る（ユーザー「戻るボタンがない」）
 	return r
 
 ## 敵の 1 コマ目（歩き）を rc に収めて描く。コマを切り出して ImageTexture にして持つ
@@ -91,3 +93,10 @@ static func draw(v, h, sz: Vector2) -> void:
 		if not open_:
 			SA.chained(v, Rect2(rc.get_center() - Vector2(22, 32) * u, Vector2(44, 64) * u))
 	SA.close(v, r.close, u, true)
+	var bk: Rect2 = r.back
+	v.draw_rect(bk, Color(0.04, 0.06, 0.1, 0.9))
+	v.draw_rect(bk, GOLD, false, 2 * u)
+	var c: Vector2 = bk.position + Vector2(34 * u, bk.size.y * 0.5)
+	v.draw_polyline(PackedVector2Array([c + Vector2(9, -14) * u, c + Vector2(-7, 0) * u, c + Vector2(9, 14) * u]), GOLD, 4 * u, true)
+	var fs: int = int(28 * u)
+	v.draw_string(FONT, Vector2(bk.position.x + 58 * u, bk.get_center().y + fs * 0.36), "地図へ", HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color.WHITE)

@@ -693,60 +693,52 @@ func close_result() -> void:
 		return
 	_leave_now()
 
-## クリアの後：店の場所（金）と戻る扉（紫）を出し、ラナを動けるように
+## クリアの後（2026-11-18 ユーザー「アラド戦記を参考に」）：ボス部屋で動ける（落とし物は寄ってくる）。
+## 画面の上に命令の列「店・もう一度・別のダンジョン・街へ」（アラドのクリア後の命令：もう一度・別のダンジョン・街へ戻る、と店）。
+## 前の金と紫の扉は、街へ戻る道が分からなかった（ユーザー）ので外した
 func _start_after() -> void:
 	state = "after"
 	main.player.locked = false
-	var bz: Vector2 = main.BELT_Z
-	var rw: float = room.rw
-	shop_x = clampf(main.player.position.x - 4.0, -rw + 3.0, rw - 3.0)
-	home_x = clampf(main.player.position.x + 4.0, -rw + 3.0, rw - 3.0)
-	if absf(shop_x - home_x) < 5.0:
-		shop_x = home_x - 6.0 if home_x > 0.0 else home_x + 6.0
-	shop_spot = main.make_portal(Vector3(shop_x, 0, bz.x - 0.15), true, 2.2, COL_GOLD)
-	var fl := MeshInstance3D.new()   # 浮かぶ小瓶（店の印。絵は後で）
-	var bm := BoxMesh.new()
-	bm.size = Vector3(0.36, 0.56, 0.2)
-	fl.mesh = bm
-	var fm := StandardMaterial3D.new()
-	fm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	fm.albedo_color = Color(0.55, 1.0, 0.65)
-	fl.material_override = fm
-	fl.position = Vector3(0, 2.0, 0.3)
-	fl.name = "flask"
-	shop_spot.add_child(fl)
-	home = main.make_portal(Vector3(home_x, 0, bz.x - 0.15), true, 2.6, COL_HOME)
-	home_t = 0.0
 	for c in coins:
 		c.magnet = true
 	for d in drops:
 		d.magnet = true
 	log_ev("after", t_run)
 
-func _after_step(delta: float) -> void:
-	var p: Node3D = main.player
-	if shop_spot != null:
-		var fl = shop_spot.get_node_or_null("flask")
-		if fl:
-			fl.position.y = 2.0 + sin(Time.get_ticks_msec() * 0.004) * 0.12
-			fl.rotation.y += delta * 1.5
-		main.set_portal_color(shop_spot, COL_GOLD, 0.45 + 0.25 * sin(Time.get_ticks_msec() * 0.005))
-		var near: bool = absf(p.position.x - shop_x) < 1.3 and p.position.z <= main.BELT_Z.x + 0.9
-		if near and shop_armed and not main.hud.shop_open:
-			shop_armed = false
-			main.hud.open_shop()
-		elif not near:
-			shop_armed = true
-	if main.hud.shop_open:
+func _after_step(_delta: float) -> void:
+	pass
+
+## 命令の列から："shop"・"retry"・"other"・"town"
+func after_cmd(id: String) -> void:
+	if state != "after":
 		return
-	var on: bool = p.position.z <= main.BELT_Z.x + 0.35 and absf(p.position.x - home_x) < 1.3
-	home_t = home_t + delta if on else maxf(0.0, home_t - delta * 2.0)
-	main.set_portal_color(home, COL_HOME.lerp(Color.WHITE, home_t / HOME_HOLD * 0.6), 0.4 + 0.6 * home_t / HOME_HOLD)
-	if home_t >= HOME_HOLD:
-		state = "result"
-		main.player.locked = true
-		main.progress.save()
-		_leave_now()
+	match id:
+		"shop":
+			main.hud.open_shop()
+			return
+	_collect_all()
+	state = "result"
+	main.player.locked = true
+	main.progress.save()
+	var th: String = theme
+	var df: String = diff
+	_leave_now()
+	match id:
+		"retry":
+			main.enter_dungeon(df, main.dungeon_seed(), th, main.party_last.duplicate())
+		"other":
+			main.hud.open_menu()
+
+## 出る前に、床に残った物を拾う（拾い忘れ防止）
+func _collect_all() -> void:
+	for c in coins.duplicate():
+		if is_instance_valid(c.node):
+			_take_coin(c)
+			c.node.queue_free()
+	coins.clear()
+	for d in drops.duplicate():
+		_pickup(d)
+	drops.clear()
 
 func _leave_now() -> void:
 	main.player.locked = false

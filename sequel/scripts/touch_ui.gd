@@ -165,6 +165,8 @@ class _Pad extends Control:
 			return
 		else:
 			return
+		if pressed and ui.main != null and ui.main.hud != null and ui.main.hud.has_method("after_hit") and ui.main.hud.after_hit(pos) >= 0:
+			return   # クリア後の命令の列を押した（dungeon_hud が受ける）
 		if pressed:
 			# 判定は半径×1.15。重なったら近い方
 			var b := _btns()
