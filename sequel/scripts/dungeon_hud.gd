@@ -14,6 +14,7 @@ const TreeArt := preload("res://scripts/skill_tree_art.gd")
 const SelectArt := preload("res://scripts/dungeon_select_art.gd")
 const ShopUI := preload("res://scripts/shop_ui.gd")
 const GearUI := preload("res://scripts/gear_ui.gd")
+const DunUI := preload("res://scripts/dungeon_pick_ui.gd")
 const Eco := preload("res://scripts/economy.gd")
 ## お金と回復（2026-11-16 ②）：店（回復薬）と「立ち直る」の確認
 var shop_open := false
@@ -194,6 +195,7 @@ func open_menu() -> void:
 	for i in Themes.THEMES.size():   # いちばん奥の開いているテーマを選んでおく
 		if main.progress.theme_open(i):
 			menu_theme = i
+	_pick_latest_dn()
 	main.player.locked = true
 	main.battle.process_mode = Node.PROCESS_MODE_DISABLED
 
@@ -202,18 +204,41 @@ func close_menu() -> void:
 	main.player.locked = false
 	main.battle.process_mode = Node.PROCESS_MODE_INHERIT
 
-## 地図でダンジョンを選ぶ（0〜3）。前のテーマのノーマルのクリアで開く。開いていれば右に札が出る
+## 1 ステージ 4 ダンジョン（2026-11-18）：選んでいるダンジョン（1〜4）と、その id（"t1d2" など）
+var menu_dn := 1
+func menu_did() -> String:
+	return Themes.dungeon_id(menu_theme, menu_dn)
+
+func _pick_latest_dn() -> void:   # 開いている中でいちばん奥
+	menu_dn = 1
+	for n in range(1, Themes.DN + 1):
+		if main.progress.dungeon_open(Themes.dungeon_id(menu_theme, n)):
+			menu_dn = n
+
+## 地図でステージを選ぶ（0〜3）。前のステージの D4 のノーマルのクリアで開く。開いていれば右に 4 つのダンジョンの札
 func choose_theme(i: int) -> bool:
 	if not main.progress.theme_open(i):
 		shake_hard = 0.4
 		shake_i = 10 + i
 		return false
 	menu_theme = i
+	_pick_latest_dn()
+	menu_stage = "dun"
+	menu_t = 0.0
+	return true
+
+## 札でダンジョンを選ぶ（1〜4）→ 難易度。順番に開く（D(n) は D(n-1) のノーマル）
+func choose_dun(n: int) -> bool:
+	if not main.progress.dungeon_open(Themes.dungeon_id(menu_theme, n)):
+		shake_hard = 0.4
+		shake_i = 40 + n - 1
+		return false
+	menu_dn = n
 	menu_stage = "diff"
 	menu_t = 0.0
 	menu_sel = 0
 	for k in range(last_diff, -1, -1):   # 前に選んだ難易度（開いていなければ下へ）。最初はノーマル
-		if main.progress.diff_open(Themes.THEMES[i].id, Themes.DIFF_ORDER[k]):
+		if main.progress.diff_open(menu_did(), Themes.DIFF_ORDER[k]):
 			menu_sel = k
 			break
 	return true
@@ -223,7 +248,7 @@ var last_diff := 0
 ## 難易度を決めて仲間の選択へ（撮影・自動テストでは仲間を全員つれて、そのまま入る）。
 ## 0＝ノーマル 1＝ハード 2＝エキスパート。ハードはノーマル、エキスパートはハードのクリアで開く
 func choose(i: int) -> bool:
-	var th: String = Themes.THEMES[menu_theme].id
+	var th: String = menu_did()
 	var dk: String = Themes.DIFF_ORDER[i]
 	if not main.progress.diff_open(th, dk):
 		shake_hard = 0.4
@@ -270,13 +295,15 @@ func go() -> void:
 	last_diff = menu_sel
 	close_menu()
 	fade(0.6)
-	main.enter_dungeon(Themes.DIFF_ORDER[menu_sel], main.dungeon_seed(), Themes.THEMES[menu_theme].id, pick.duplicate())
+	main.enter_dungeon(Themes.DIFF_ORDER[menu_sel], main.dungeon_seed(), menu_did(), pick.duplicate())
 
 func menu_back() -> void:
 	menu_t = 0.0
 	if menu_stage == "party":
 		menu_stage = "diff"
 	elif menu_stage == "diff":
+		menu_stage = "dun"
+	elif menu_stage == "dun":
 		menu_stage = "theme"
 	else:
 		close_menu()
@@ -577,6 +604,22 @@ func _input(e: InputEvent) -> void:
 			elif r.close.has_point(tap):
 				menu_back()
 		return
+	if menu_stage == "dun":
+		match key:
+			KEY_1, KEY_2, KEY_3, KEY_4: choose_dun(key - KEY_1 + 1)
+			KEY_A, KEY_LEFT: menu_dn = maxi(1, menu_dn - 1)
+			KEY_D, KEY_RIGHT: menu_dn = mini(Themes.DN, menu_dn + 1)
+			KEY_J, KEY_Z, KEY_ENTER, KEY_SPACE: choose_dun(menu_dn)
+			KEY_ESCAPE, KEY_K, KEY_X: menu_back()
+		if tap.x >= 0:
+			var dr: Dictionary = DunUI.rects(view.size, menu_t)
+			for n in Themes.DN:
+				if dr["dun%d" % n].has_point(tap):
+					choose_dun(n + 1)
+					return
+			if dr.close.has_point(tap):
+				menu_back()
+		return
 	match key:
 		KEY_A, KEY_LEFT: menu_theme = maxi(0, menu_theme - 1); menu_stage = "theme"
 		KEY_D, KEY_RIGHT: menu_theme = mini(Themes.THEMES.size() - 1, menu_theme + 1); menu_stage = "theme"
@@ -597,7 +640,7 @@ func _input(e: InputEvent) -> void:
 		if menu_stage == "diff":
 			for i in 3:
 				if r["diff%d" % i].has_point(tap):
-					if not main.progress.diff_open(Themes.THEMES[menu_theme].id, Themes.DIFF_ORDER[i]):
+					if not main.progress.diff_open(menu_did(), Themes.DIFF_ORDER[i]):
 						shake_hard = 0.4
 						shake_i = i
 					else:
@@ -789,6 +832,9 @@ class _View extends Control:
 				draw_colored_polygon(pts, col)
 
 	func _menu() -> void:
+		if hud.menu_stage == "dun":
+			DunUI.draw(self, hud, size)
+			return
 		SelectArt.map(self, hud, size)
 
 	func _dg_panel(r: Dictionary) -> void:

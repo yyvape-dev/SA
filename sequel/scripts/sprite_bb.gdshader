@@ -28,6 +28,8 @@ uniform float bg_layer = 0.0;
 global uniform float bg_dim;
 // 2026-11-15：敵のアーマー（攻撃の間はのけぞらない）を知らせる白い縁取り（輪郭の内側を一周。a＝強さ）
 uniform vec4 armor_col = vec4(1.0, 1.0, 1.0, 0.0);
+// 2026-11-18：ボスにした雑魚の色替え（明るさを保って rgb の色へ寄せる。a＝量）
+uniform vec4 recol = vec4(1.0, 1.0, 1.0, 0.0);
 
 void vertex() {
 	float c = cos(rot);
@@ -54,6 +56,10 @@ void fragment() {
 		c = acc / 9.0;
 	}
 	vec3 col = c.rgb * tint.rgb * body_dim;
+	if (recol.a > 0.0) {
+		float rl = dot(col, vec3(0.299, 0.587, 0.114));
+		col = mix(col, rl * recol.rgb * 1.7, recol.a);
+	}
 	if (night_dim < 1.0) {
 		float mx = max(col.r, max(col.g, col.b));
 		float srel = (mx - min(col.r, min(col.g, col.b))) / max(mx, 0.001);

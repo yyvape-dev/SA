@@ -25,9 +25,60 @@ const DIFFS := {
 ## 2026-11-16 ②：雑魚の経験値を 2 倍（3/5/8→6/10/16。敵の数を半分にした分）、お金の難易度の倍率 gold（1/1.5/2）。テーマの倍率は各テーマの xp（1/1.5/2.2/3）をお金にも使う
 const DIFF_ORDER := ["normal", "hard", "expert"]
 
+## ---------- 1 ステージ 4 ダンジョン（2026-11-18 ユーザー決定、specs/dungeon_themes.md 4.） ----------
+## ダンジョンの id＝"t1d1"〜"t4d4"（ステージ t1〜t4 ＋ d1〜d4）。順番に開く（D4＝今のボス。D4 のノーマルで次のステージ）。
+## 違い＝敵の顔ぶれ・背景の色合い（ユーザー決定）。強さ D1→D4 ×1.0／1.1／1.2／1.3（案のとおり）。
+## D1〜D3 のボス＝雑魚を大きくして色を変えた物（boss_col＝体の色、boss_size）。D4＝今のボス（顔ぶれ・色は今のまま）。
+## 色：青は味方の色なので、敵の色・背景の色合いに使わない。顔ぶれ・色は Claude の仮（遊んで直す）。
+const DN := 4
+const D_K := [1.0, 1.1, 1.2, 1.3]
+const DUNGEONS := [
+	[   # T1 歓楽街の入口
+		{"foes": ["t1e1", "t1e2", "bf"], "boss": "t1e1", "boss_col": Color(1.0, 0.45, 0.25), "boss_size": 1.45, "bg": Color(1.0, 0.62, 0.35, 0.42)},
+		{"foes": ["bf", "bc", "bm", "t1e2"], "boss": "bm", "boss_col": Color(0.85, 0.4, 1.0), "boss_size": 1.45, "bg": Color(0.85, 0.45, 1.0, 0.42)},
+		{"foes": ["ef", "em", "t1e1"], "boss": "em", "boss_col": Color(1.0, 0.25, 0.3), "boss_size": 1.4, "bg": Color(1.0, 0.4, 0.4, 0.42)},
+		{},
+	],
+	[   # T2 奥の路地
+		{"foes": ["t2e2", "bf", "bc"], "boss": "t2e2", "boss_col": Color(1.0, 0.5, 0.2), "boss_size": 1.4, "bg": Color(1.0, 0.7, 0.4, 0.42)},
+		{"foes": ["ef", "em", "t2e1"], "boss": "ef", "boss_col": Color(0.9, 0.3, 0.9), "boss_size": 1.5, "bg": Color(0.95, 0.45, 0.85, 0.42)},
+		{"foes": ["t2e1", "t2e2", "bm"], "boss": "bc", "boss_col": Color(0.55, 1.0, 0.35), "boss_size": 1.5, "bg": Color(0.6, 1.0, 0.5, 0.42)},
+		{},
+	],
+	[   # T3 門の手前の廃墟
+		{"foes": ["t3e1", "bf", "bc"], "boss": "bf", "boss_col": Color(1.0, 0.3, 0.3), "boss_size": 1.5, "bg": Color(1.0, 0.45, 0.4, 0.42)},
+		{"foes": ["t3e1", "bm", "t2e2"], "boss": "t2e2", "boss_col": Color(0.6, 1.0, 0.4), "boss_size": 1.45, "bg": Color(0.6, 1.0, 0.45, 0.42)},
+		{"foes": ["t3e1", "bc", "em"], "boss": "bc", "boss_col": Color(1.0, 0.6, 0.15), "boss_size": 1.5, "bg": Color(1.0, 0.65, 0.3, 0.42)},
+		{},
+	],
+	[   # T4 地下の採掘坑
+		{"foes": ["mo", "t3e1"], "boss": "mo", "boss_col": Color(1.0, 0.35, 0.25), "boss_size": 1.35, "bg": Color(1.0, 0.5, 0.35, 0.42)},
+		{"foes": ["gm", "t2e2"], "boss": "gm", "boss_col": Color(0.85, 0.35, 1.0), "boss_size": 1.35, "bg": Color(0.85, 0.5, 1.0, 0.42)},
+		{"foes": ["mo", "gm", "t3e1"], "boss": "t3e1", "boss_col": Color(0.95, 0.2, 0.25), "boss_size": 1.45, "bg": Color(1.0, 0.35, 0.35, 0.42)},
+		{},
+	],
+]
+
+## "t2d3" → "t2"（前の id "t2" はそのまま）
+static func stage_id(id: String) -> String:
+	var i: int = id.find("d")
+	return id if i < 0 else id.substr(0, i)
+
+## "t2d3" → 3（前の id "t2" は D4＝今のボスのダンジョン）
+static func dnum(id: String) -> int:
+	var i: int = id.find("d")
+	return DN if i < 0 else clampi(int(id.substr(i + 1)), 1, DN)
+
+static func dungeon_id(stage_i: int, n: int) -> String:
+	return "%sd%d" % [THEMES[stage_i].id, n]
+
+static func dspec(id: String) -> Dictionary:
+	return DUNGEONS[index_of(id)][dnum(id) - 1]
+
 static func index_of(id: String) -> int:
+	var sid: String = stage_id(id)
 	for i in THEMES.size():
-		if THEMES[i].id == id:
+		if THEMES[i].id == sid:
 			return i
 	return 0
 
@@ -35,10 +86,11 @@ static func index_of(id: String) -> int:
 static func cfg(theme: String, diff: String) -> Dictionary:
 	var t: Dictionary = THEMES[index_of(theme)]
 	var d: Dictionary = DIFFS[diff].duplicate(true)
-	d.hp = float(d.hp) * float(t.hp)
-	d.dmg = float(d.dmg) * float(t.dmg)
-	d.boss_hp = float(d.boss_hp) * float(t.hp)
-	d.boss_dmg = int(round(float(d.boss_dmg) * float(t.dmg)))
+	var dk: float = D_K[dnum(theme) - 1]   # D1→D4 の強さ
+	d.hp = float(d.hp) * float(t.hp) * dk
+	d.dmg = float(d.dmg) * float(t.dmg) * dk
+	d.boss_hp = float(d.boss_hp) * float(t.hp) * dk
+	d.boss_dmg = int(round(float(d.boss_dmg) * float(t.dmg) * dk))
 	d.xp = maxi(1, int(round(float(d.xp) * float(t.xp))))
 	d.boss_xp = int(round(float(d.boss_xp) * float(t.xp)))
 	d.theme_mul = float(t.xp)                       # お金のテーマの倍率（2026-11-16 ②）
@@ -46,15 +98,27 @@ static func cfg(theme: String, diff: String) -> Dictionary:
 	var tw: int = index_of(theme) * 6   # 奥のテーマほど武器の数字も上がる
 	d.w = [int(d.w[0]) + tw, int(d.w[1]) + tw]
 	d.bw = [int(d.bw[0]) + tw, int(d.bw[1]) + tw]
-	d.foes = t.foes
-	d.boss = t.boss
+	var ds: Dictionary = dspec(theme)
+	d.foes = ds.get("foes", t.foes)
+	d.boss = ds.get("boss", t.boss)
+	d.boss_col = ds.get("boss_col", Color(1, 1, 1, 0))
+	d.boss_size = float(ds.get("boss_size", 0.0))   # 0＝enemy.gd の BOSS_SIZE のまま
+	d.dn = dnum(theme)
 	return d
+
+## 画面の色合い：D4 はステージの色（今のまま）、D1〜D3 はダンジョンの色
+static func tint_of(id: String) -> Color:
+	var ds: Dictionary = dspec(id)
+	if ds.has("bg"):
+		return ds.bg
+	return Color(1, 1, 1, 0) if has_parts(id) else THEMES[index_of(id)].tint
 
 static func key(theme: String, diff: String) -> String:
 	return "%s_%s" % [theme, diff]
 
 ## このテーマの部品の絵があるか（無ければ歓楽街の部品＋画面の色で仮置き）
-static func has_parts(theme: String) -> bool:
+static func has_parts(theme0: String) -> bool:
+	var theme: String = stage_id(theme0)
 	return theme != "t1" and ResourceLoader.exists("res://assets/dungeon/%s/%s_b1.webp" % [theme, theme])
 
 ## 素材の鍵（③ specs/gear.md）：テーマの順番 1〜4 → "t1"〜"t4"

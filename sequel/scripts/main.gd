@@ -406,6 +406,7 @@ func _capture_party() -> void:
 	var th: String = OS.get_environment("FOE_THEME") if OS.has_environment("FOE_THEME") else "t3"
 	hud.open_menu()
 	hud.choose_theme(["t1", "t2", "t3", "t4"].find(th))
+	hud.choose_dun(int(OS.get_environment("FOE_DN")) if OS.has_environment("FOE_DN") else 4)   # 1 ステージ 4 ダンジョン（D4＝今のボス）
 	hud.choose(0)
 	hud.pick = (OS.get_environment("PARTY") if OS.has_environment("PARTY") else "ranka").split(",")
 	hud.go()
@@ -536,9 +537,14 @@ func _capture_menu() -> void:
 			await get_tree().process_frame
 		get_viewport().get_texture().get_image().save_png(dir + "/menu_%s.png" % n)
 	await shot.call("0_town")
+	if OS.has_environment("MENU_CLEARS"):   # 例 "t1d1_normal,t1d2_normal"：札の開き方・クリアの輪を撮る
+		for k in OS.get_environment("MENU_CLEARS").split(","):
+			progress.clears[k] = 1
 	hud.open_menu()
 	await shot.call("1_map")
 	hud.choose_theme(hud.menu_theme)
+	await shot.call("2_dungeons")
+	hud.choose_dun(hud.menu_dn)
 	await shot.call("2_panel")
 	hud.choose(1 if progress.unlock_all else 0)
 	await shot.call("3_party")

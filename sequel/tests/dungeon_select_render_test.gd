@@ -11,6 +11,8 @@ class HudState extends RefCounted:
  var menu_t=1.0
  var menu_theme=1
  var menu_sel=1
+ var menu_dn=4
+ func menu_did():return "t%dd%d"%[menu_theme+1,menu_dn]
  var menu_feedback_t=0.0
  var menu_feedback_pos=Vector2.ZERO
  var shake_i=-1
@@ -30,7 +32,7 @@ class Surface extends Control:
  func _num(p,s,fs,col):draw_string(font,p,s,HORIZONTAL_ALIGNMENT_LEFT,-1,int(fs*size.y/720),col)
 func _initialize():call_deferred("run")
 func run():
- var m=Model.new();m.progress=Progress.new();m.progress.unlock_all=true;m.progress.lv=12;m.progress.best["t2_hard"]=158.0
+ var m=Model.new();m.progress=Progress.new();m.progress.unlock_all=true;m.progress.lv=12;m.progress.best["t2d4_hard"]=158.0
  var h=HudState.new();h.main=m
  var v=Surface.new();v.hud=h;v.set_anchors_preset(Control.PRESET_FULL_RECT);root.add_child(v)
  for stage in ["theme","diff","party","loading"]:

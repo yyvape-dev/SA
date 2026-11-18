@@ -84,8 +84,8 @@ func start() -> void:
 	items_got = 0
 	mats_got = 0
 	layout = Map.generate(rng)
-	main.set_theme_tint(Color(1, 1, 1, 0) if Themes.has_parts(theme) else Themes.THEMES[Themes.index_of(theme)].tint)
-	main.room_theme = theme
+	main.set_theme_tint(Themes.tint_of(theme))
+	main.room_theme = Themes.stage_id(theme)
 	main.battle.foe_hp_mul = cfg().hp
 	main.battle.foe_dmg_mul = cfg().dmg
 	hits0 = main.battle.hits_taken
@@ -413,7 +413,7 @@ func _spawn_boss() -> void:
 	var x: float = (room.rw - 3.0) * (-1.0 if p.position.x > 0.0 else 1.0)
 	x = clampf(x, p.position.x - 12.0, p.position.x + 12.0)   # 広い部屋で遠すぎないように
 	boss = b.spawn(str(cfg().boss), Vector3(x, 0, 0.2))
-	boss.make_boss(cfg().boss_hp, int(cfg().boss_dmg))
+	boss.make_boss(cfg().boss_hp, int(cfg().boss_dmg), float(cfg().get("boss_size", 0.0)), cfg().get("boss_col", Color(1, 1, 1, 0)))
 	log_ev("boss", null)
 	if not b.boss_break.is_connected(_on_boss_break):
 		b.boss_break.connect(_on_boss_break)

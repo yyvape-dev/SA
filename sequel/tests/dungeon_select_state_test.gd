@@ -37,17 +37,19 @@ func run():
  h.menu_t=1.0
  var touch=InputEventScreenTouch.new();touch.pressed=true;touch.position=h.view.menu_rects().badge0.get_center()
  var input_start=Time.get_ticks_usec();h._input(touch)
- assert(h.menu_stage=="diff" and h.menu_theme==0,"enemy report must select the same dungeon")
+ assert(h.menu_stage=="dun" and h.menu_theme==0,"enemy report must select the same stage")
+ assert(not h.choose_dun(2) and h.shake_i==41,"D2 opens after D1 normal (2026-11-18)")
+ assert(h.choose_dun(1) and h.menu_stage=="diff" and h.menu_did()=="t1d1")
  assert(h.menu_feedback_t>0 and Time.get_ticks_usec()-input_start<100000,"tap feedback must begin synchronously")
- assert(h.choose_theme(0));assert(h.menu_stage=="diff");assert(not h.choose(1))
+ assert(h.choose_theme(0));assert(h.menu_stage=="dun");assert(h.choose_dun(1));assert(h.menu_stage=="diff");assert(not h.choose(1))
  assert(h.choose(0));assert(h.menu_stage=="party");assert(h.party_cap()==2)
  h.toggle_ally(0);assert(h.pick==["lily"])
  h.toggle_ally(1);assert(h.pick==["lily"]);assert(h.shake_i==30)
  h.toggle_ally(0);assert(h.pick.is_empty())
  m.unavailable=true;h.toggle_ally(0);assert(h.pick.is_empty());assert(h.shake_i==20)
  h.toggle_ally(2);assert(h.shake_i==22)
- h.menu_back();assert(h.menu_stage=="diff");h.menu_back();assert(h.menu_stage=="theme")
- m.progress.unlock_all=true;assert(h.choose_theme(3));assert(h.choose(2));assert(h.party_cap()==3)
+ h.menu_back();assert(h.menu_stage=="diff");h.menu_back();assert(h.menu_stage=="dun");h.menu_back();assert(h.menu_stage=="theme")
+ m.progress.unlock_all=true;assert(h.choose_theme(3));assert(h.choose_dun(4));assert(h.choose(2));assert(h.party_cap()==3)
  m.unavailable=false;h.toggle_ally(0);h.toggle_ally(1);assert(h.pick.size()==2)
  var loading=Loading.new();m.loading=loading;m.add_child(loading);loading.show_now()
  assert("_chosen" in loading,"loading must snapshot the chosen expedition")
@@ -60,7 +62,7 @@ func run():
  m.town_floor_busy=false
  loading.error_text="dg1 8 200";await process_frame;await process_frame
  assert(not loading._err.text.contains("dg"));assert(loading._err.text.contains("200"))
- h.menu_back();h.menu_back();h.menu_back();await process_frame;await process_frame;assert(not m.level.visible and root.disable_3d,"loading must keep 3D disabled after menu closes")
+ h.menu_back();h.menu_back();h.menu_back();h.menu_back();await process_frame;await process_frame;assert(not m.level.visible and root.disable_3d,"loading must keep 3D disabled after menu closes")
  loading.hide_soon();await create_timer(0.4).timeout;await process_frame
  assert(m.level.visible,"world visibility must restore");assert(m.ui.visible,"combat controls must restore");assert(m.post_rect.visible,"postprocess must restore");assert(root.disable_3d==old_3d,"restore previous viewport setting")
  print("SELECT_STATE PASS locks, party cap, unavailable/future allies, back navigation, real loading progress")

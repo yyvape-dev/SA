@@ -84,9 +84,11 @@ func setup(b, k: String, c: Dictionary, level: int) -> void:
 	atk_cd = randf_range(0.05, 0.6)
 
 ## ボスにする（spawn の直後に呼ぶ）
-func make_boss(hp_val: float, dmg_val: int) -> void:
+func make_boss(hp_val: float, dmg_val: int, size_k: float = 0.0, col: Color = Color(1, 1, 1, 0)) -> void:
 	boss = true
-	size = float(BOSS_SIZE.get(kind, 1.0))
+	size = size_k if size_k > 0.0 else float(BOSS_SIZE.get(kind, 1.0))
+	if col.a > 0.0 and mat:   # D1〜D3 のボス：雑魚の絵の色を変える（specs/dungeon_themes.md 4.）
+		mat.set_shader_parameter("recol", Color(col.r, col.g, col.b, 0.6))
 	var bk := 1.0   # 雑魚の絵を使うボスは、雑魚の倍率を掛けない（体力・攻撃は難易度の表どおり）
 	if str(fst.role) == "ボス":
 		bk = float(fst.hp)

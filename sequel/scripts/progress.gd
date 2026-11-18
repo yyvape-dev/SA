@@ -138,15 +138,26 @@ func pay_first_clear(k: String) -> bool:
 ## T(n) は T(n-1) のノーマルのクリアで開く。ハードはそのテーマのノーマル、エキスパートはハードのクリアで開く
 var unlock_all := false   # 確認用：?unlock=1（環境変数 UNLOCK_ALL）で全テーマ・全難易度を開く（セーブには残らない）
 
+## T(n) は T(n-1) の D4（ボス）のノーマルで開く
 func theme_open(i: int) -> bool:
 	if i <= 0 or unlock_all:
 		return true
-	return int(clears.get(Themes.key(Themes.THEMES[i - 1].id, "normal"), 0)) >= 1
+	return int(clears.get(Themes.key(Themes.dungeon_id(i - 1, Themes.DN), "normal"), 0)) >= 1
+
+## ステージの中は順番に：D(n) は D(n-1) のノーマルで開く（2026-11-18 ユーザー決定）
+func dungeon_open(id: String) -> bool:
+	if unlock_all:
+		return true
+	var i: int = Themes.index_of(id)
+	if not theme_open(i):
+		return false
+	var n: int = Themes.dnum(id)
+	return n <= 1 or int(clears.get(Themes.key(Themes.dungeon_id(i, n - 1), "normal"), 0)) >= 1
 
 func diff_open(theme: String, diff: String) -> bool:
 	if unlock_all:
 		return true
-	if not theme_open(Themes.index_of(theme)):
+	if not dungeon_open(theme):
 		return false
 	match diff:
 		"hard": return int(clears.get(Themes.key(theme, "normal"), 0)) >= 1
@@ -163,8 +174,22 @@ static func _rekey(d: Dictionary) -> Dictionary:
 		var nk: String = str(k)
 		if nk == "normal" or nk == "hard":
 			nk = "t1_" + nk
+		var sid: String = nk.get_slice("_", 0)
+		if not sid.contains("d"):   # 2026-11-18：1 ステージ 4 ダンジョン。前のテーマのクリア＝D4（今のボス）
+			nk = sid + "d4_" + nk.get_slice("_", 1)
 		out[nk] = d[k]
 	return out
+
+## 前のクリア（D4）は D1〜D3 もクリア済みにする（順番に開くので、続きから遊べるように）
+static func _fill_clears(d: Dictionary) -> Dictionary:
+	for k in d.keys():
+		var sid: String = str(k).get_slice("_", 0)
+		if sid.ends_with("d4"):
+			for n in 3:
+				var nk: String = sid.substr(0, sid.length() - 2) + "d%d_" % (n + 1) + str(k).get_slice("_", 1)
+				if not d.has(nk):
+					d[nk] = 1
+	return d
 
 ## 次のレベルまでに要る経験値
 func need() -> int:
@@ -263,7 +288,7 @@ func load_save() -> void:
 func to_dict() -> Dictionary:
 	return {"lv": lv, "xp": xp, "weapon": weapon, "hard_open": hard_open, "best": best.duplicate(true), "clears": clears.duplicate(true),
 		"skills_owned": skills_owned.duplicate(), "skill_slots": skill_slots.duplicate(),
-		"sp": sp.duplicate(true), "skill_lv": skill_lv.duplicate(true), "deriv": deriv.duplicate(true), "first_clear_paid": first_clear_paid.duplicate(true),
+		"sp": sp.duplicate(true), "skill_lv": skill_lv.duplicate(true), "deriv": deriv.duplicate(true), "first_clear_paid": first_clear_paid.duplicate(true), "d4_moved": true,
 		"gold": gold, "pot_s": pot_s, "pot_l": pot_l, "quality": quality,
 		"items": items.duplicate(true), "equip": equip.duplicate(), "mats": mats.duplicate(), "next_uid": next_uid}
 
@@ -286,6 +311,8 @@ func from_dict(d: Dictionary) -> void:
 		equip["weapon"] = int(w0.uid)
 	best = _rekey(d.get("best", {}))
 	clears = _rekey(d.get("clears", {}))
+	if not bool(d.get("d4_moved", false)):
+		clears = _fill_clears(clears)
 	hard_open = bool(d.get("hard_open", false)) or diff_open("t1", "hard")
 	var so = d.get("skills_owned", null)
 	if so is Array and not so.is_empty():

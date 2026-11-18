@@ -17,6 +17,7 @@ var main
 var rng := RandomNumberGenerator.new()
 var shots := false
 var run_i := 0
+var bot_dn := 4
 var phase := "city"
 var t := 0.0
 var t_phase := 0.0
@@ -43,6 +44,11 @@ func _ready() -> void:
 		RenderingServer.render_loop_enabled = false   # 描くのは撮る瞬間だけ（ソフト描画は遅いので）
 	main.battle.auto_spawn = false
 	main.player.position = Vector3(8.0, 0, 0.8)
+	# 1 ステージ 4 ダンジョン（2026-11-18）：周回は D4（今のボス）。BOT_DN=1〜4 で選ぶ。前のダンジョンのクリアを足して開く
+	bot_dn = int(OS.get_environment("BOT_DN")) if OS.has_environment("BOT_DN") else 4
+	for ti in 4:
+		for n in range(1, bot_dn):
+			main.progress.clears["t%dd%d_normal" % [ti + 1, n]] = 1
 	# BOT_RUNS=2,4 … 周回を選ぶ（0 から数える）。T2 などが開いていない時は、前のテーマのクリアを足して開く（撮影の時短）
 	if OS.has_environment("BOT_RUNS"):
 		var pick := []
@@ -51,9 +57,9 @@ func _ready() -> void:
 		RUNS = pick
 		for r in RUNS:
 			for ti in int(r[0]):
-				main.progress.clears["t%d_normal" % (ti + 1)] = 1
+				main.progress.clears["t%dd4_normal" % (ti + 1)] = 1
 			if int(r[1]) >= 1:
-				main.progress.clears["t%d_normal" % (int(r[0]) + 1)] = 1
+				main.progress.clears["t%dd%d_normal" % [int(r[0]) + 1, bot_dn]] = 1
 	if OS.has_environment("BOT_LV"):   # 深いテーマを測るときのレベル（例：推奨の仮値 T3 18・T4 26）
 		main.progress.lv = int(OS.get_environment("BOT_LV"))
 		main.apply_progress()
@@ -160,6 +166,11 @@ func _city() -> void:
 						return
 				if not hud.choose_theme(int(run[0])):
 					notes.append("run %d：テーマ %d を選べなかった" % [run_i + 1, int(run[0])])
+					_finish()
+				return
+			if hud.menu_stage == "dun":
+				if not hud.choose_dun(bot_dn):
+					notes.append("run %d：ダンジョン %d を選べなかった" % [run_i + 1, bot_dn])
 					_finish()
 				return
 			if run_i == 0 and not OS.has_environment("BOT_RUNS"):

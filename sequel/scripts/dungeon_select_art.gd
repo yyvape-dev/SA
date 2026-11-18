@@ -117,7 +117,7 @@ static func map(v,h,sz:Vector2)->void:
    if h.menu_theme==i:halo(v,badge.end-Vector2(15,15)*u,10*u,GOLD,2)
    if not open_:chained(v,Rect2(rc.get_center()-Vector2(30,20)*u,Vector2(60,90)*u))
    # A worn wax-like rim records a cleared theme without abstract difficulty pips.
-   if h.main.progress.cleared(THEMES.THEMES[i].id,"normal"):v.draw_arc(badge.end-Vector2(20,20)*u,9*u,0,TAU,24,GOLD,3*u,true)
+   if h.main.progress.cleared(THEMES.dungeon_id(i,THEMES.DN),"normal"):v.draw_arc(badge.end-Vector2(20,20)*u,9*u,0,TAU,24,GOLD,3*u,true)
   var current=Rect2(Vector2(sz.x*0.85,sz.y*0.045),Vector2(150,70)*u)
   paper(v,current)
   fit(v,HUD_ART.RANA,Rect2(current.position+Vector2(12,13)*u,Vector2(45,45)*u))
@@ -169,7 +169,7 @@ static func panel(v,h,r:Dictionary,sz:Vector2)->void:
  mission(v,h,r.hero)
  for i in 3:
   var rc:Rect2=r["diff%d"%i]
-  var opened:bool=h.main.progress.diff_open(THEMES.THEMES[h.menu_theme].id,THEMES.DIFF_ORDER[i])
+  var opened:bool=h.main.progress.diff_open(h.menu_did(),THEMES.DIFF_ORDER[i])
   # A single report sleeve encloses the scene, portrait capacity and actual numeric record.
   var sleeve=StyleBoxTexture.new();sleeve.texture=M.REPORT
   sleeve.texture_margin_left=85;sleeve.texture_margin_right=90;sleeve.texture_margin_top=32;sleeve.texture_margin_bottom=32
@@ -190,7 +190,7 @@ static func panel(v,h,r:Dictionary,sz:Vector2)->void:
    var face:Texture2D=[HUD_ART.RANA,HUD_ART.LILY,HUD_ART.RANKA][j]
    medallion(v,face,Rect2(rc.position+Vector2(rc.size.x*(0.60+j*0.075),rc.size.y*0.20),Vector2(25,25)*u),BRASS)
   number(v,Rect2(rc.position+rc.size*Vector2(0.65,0.50),rc.size*Vector2(0.12,0.42)),str(count),INK,30*u)
-  var key=THEMES.key(THEMES.THEMES[h.menu_theme].id,THEMES.DIFF_ORDER[i])
+  var key=THEMES.key(h.menu_did(),THEMES.DIFF_ORDER[i])
   var best=float(h.main.progress.best.get(key,0))
   var text=("%d:%02d"%[int(best/60),int(best)%60]) if h.main.progress.best.has(key) else "-"
   var clock_rc=Rect2(rc.position+rc.size*Vector2(0.80,0.05),rc.size*Vector2(0.16,0.90))
