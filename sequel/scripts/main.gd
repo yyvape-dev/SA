@@ -391,6 +391,9 @@ func _capture_shop() -> void:
 	for i in 30:
 		await get_tree().process_frame
 	await shot.call("9_after_shop")
+	hud.open_workshop(true)   # 「装備を売る」（売るだけの工房）
+	await shot.call("9b_after_sell")
+	hud.close_workshop()
 	hud.close_shop()
 	dungeon.after_cmd(OS.get_environment("AFTER_CMD") if OS.has_environment("AFTER_CMD") else "town")
 	for i in 120:
