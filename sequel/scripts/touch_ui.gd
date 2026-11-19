@@ -2,6 +2,7 @@ extends CanvasLayer
 ## 横持ちのタッチ操作。左半分＝触った所に出るスティック（倒しきると走る）。右下＝攻撃（大）・回避。
 ## 文字は使わない（日本語フォントを入れるまでは図形のアイコン）。
 
+const AfterArt := preload("res://scripts/after_clear_art.gd")
 const Art := preload("res://scripts/t6_hud_art.gd")
 const CombatArt := preload("res://scripts/combat_hud_art.gd")
 var main          # main.gd（スキルの枠・街かどうか）
@@ -89,7 +90,7 @@ class _Pad extends Control:
 		# 回復薬（2026-11-16 ②）：攻撃ボタンの右上（スキルの弧と画面の右端の間）。右の親指から一番近い空き。
 		#   前は左上に置いたが、ユーザー「頻繁に触る物を一番押しづらい場所にするのはどうなん」→ 移した
 		if not ui.lily_controls and ui.main and ui.main.dungeon != null:
-			b["pot"] = [Vector2(s.x - 48 * u, s.y - 246 * u), 40 * u]
+			b["pot"] = [Vector2(s.x - 48 * u, s.y - 246 * u), 42 * u]
 			# 仲間を呼ぶ（2026-11-16）：回復薬の下に縦に並べる（右の親指の列）。連れている仲間だけ
 			var bt = ui.main.battle
 			var cy := s.y - 150 * u
@@ -279,13 +280,15 @@ class _Pad extends Control:
 		var empty: bool = n_s + n_l <= 0
 		Art.button(self, c, r, pressed)
 		var a: float = 0.35 if empty or float(pl.pot_cd) > 0.0 else 1.0
-		var liq := Color(0.55, 1.0, 0.65, a)
-		var glass := Color(0.9, 0.97, 1.0, 0.85 * a)
-		# 瓶：丸い胴＋首＋栓
-		draw_circle(c + Vector2(0, 6 * u), r * 0.42, glass)
-		draw_circle(c + Vector2(0, 6 * u), r * 0.36, liq)
-		draw_rect(Rect2(c + Vector2(-r * 0.13, -r * 0.5), Vector2(r * 0.26, r * 0.3)), glass)
-		draw_rect(Rect2(c + Vector2(-r * 0.17, -r * 0.62), Vector2(r * 0.34, r * 0.14)), Color(0.75, 0.55, 0.32, a))
+		var bottle := "potion_large" if n_s == 0 and n_l > 0 else "potion_small"
+		if not AfterArt.draw_art(self, bottle, Rect2(c - Vector2.ONE * r * 0.72, Vector2.ONE * r * 1.44), Color(1, 1, 1, a)):
+			var liq := Color(0.55, 1.0, 0.65, a)
+			var glass := Color(0.9, 0.97, 1.0, 0.85 * a)
+			# 瓶：丸い胴＋首＋栓
+			draw_circle(c + Vector2(0, 6 * u), r * 0.42, glass)
+			draw_circle(c + Vector2(0, 6 * u), r * 0.36, liq)
+			draw_rect(Rect2(c + Vector2(-r * 0.13, -r * 0.5), Vector2(r * 0.26, r * 0.3)), glass)
+			draw_rect(Rect2(c + Vector2(-r * 0.17, -r * 0.62), Vector2(r * 0.34, r * 0.14)), Color(0.75, 0.55, 0.32, a))
 		if float(pl.pot_cd) > 0.0:
 			var Eco = load("res://scripts/economy.gd")
 			var f: float = float(pl.pot_cd) / float(Eco.POT_CD)

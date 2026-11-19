@@ -5,6 +5,7 @@ extends RefCounted
 ## 色：金＝お金・付けている物より強い印、青＝味方の決定（付ける・強化）、紫＝素材、灰＝押せない。
 ## 等級の ◆ は字ではなく図形で描く（UI の字は抜き出しのフォント）。
 const TreeArt := preload("res://scripts/skill_tree_art.gd")
+const AfterArt := preload("res://scripts/after_clear_art.gd")
 const Gear := preload("res://scripts/gear.gd")
 const GOLD := Color("ffc94d")
 const BLUE := Color("3d8bff")
@@ -195,6 +196,9 @@ static func ws_rects(sz: Vector2, pr) -> Dictionary:
 	return r
 
 static func draw_workshop(v, hud) -> void:
+	if hud.ws_sell_only:
+		draw_after_sell(v, hud)
+		return
 	var u: float = v.size.y / 720.0
 	var pr = hud.main.progress
 	var sell_only: bool = hud.ws_sell_only
@@ -263,6 +267,8 @@ static func draw_workshop(v, hud) -> void:
 
 ## 押した。戻り値 "close" で閉じる
 static func ws_tap(hud, pos: Vector2) -> String:
+	if hud.ws_sell_only:
+		return after_sell_tap(hud, pos)
 	var pr = hud.main.progress
 	var r: Dictionary = ws_rects(hud.view.size, pr)
 	if r.close.has_point(pos) or not r.panel.has_point(pos):
@@ -306,4 +312,136 @@ static func ws_tap(hud, pos: Vector2) -> String:
 		if r["it%d" % i].has_point(pos):
 			hud.ws_sel = -1 if hud.ws_sel == int(lst[i].uid) else int(lst[i].uid)
 			return ""
+	return ""
+
+static func after_sell_rects(size: Vector2) -> Dictionary:
+	var u := size.y / 720.0
+	var content := Rect2(Vector2(66, 42) * u, size - Vector2(132, 84) * u)
+	var origin := content.position
+	var details_x := origin.x + content.size.x * 0.515
+	var details_width := content.end.x - details_x
+	var cell_w := (details_x - origin.x - 40 * u) / 7.0 - 7 * u
+	var layout := {
+		"close": Rect2(Vector2(content.end.x - 182 * u, origin.y), Vector2(182, 84) * u),
+		"mode": Rect2(Vector2(details_x, origin.y + 112 * u), Vector2(details_width, 84 * u)),
+		"detail": Rect2(Vector2(details_x, origin.y + 220 * u), Vector2(details_width, 240 * u)),
+		"sell": Rect2(Vector2(details_x, content.end.y - 92 * u), Vector2(details_width, 92 * u)),
+	}
+	for i in Gear.BAG_MAX + Gear.SLOTS.size():
+		layout["it%d" % i] = Rect2(origin + Vector2((i % 7) * (cell_w + 7 * u), (106 + int(i / 7.0) * 92) * u), Vector2(cell_w, 85 * u))
+	return layout
+
+static func sale_items(hud) -> Array:
+	var pr = hud.main.progress
+	var items := []
+	var ids: Array = hud.ws_selected if hud.ws_multi else [int(hud.ws_sel)]
+	for uid in ids:
+		var item: Dictionary = pr.item_by_uid(uid)
+		if not item.is_empty() and not pr.is_equipped(item):
+			items.append(item)
+	return items
+
+static func sale_total(items: Array) -> int:
+	var total := 0
+	for item in items:
+		total += Gear.sell_price(item)
+	return total
+
+static func draw_after_sell(v, hud) -> void:
+	var pr = hud.main.progress
+	var u: float = v.size.y / 720.0
+	var r := after_sell_rects(v.size)
+	TreeArt.backing(v)
+	var origin := Vector2(66, 42) * u
+	TreeArt.label(v, Rect2(origin, Vector2(260, 84) * u), "装備を売る", 32, TEXT)
+	coin(v, origin + Vector2(278, 42) * u, 13 * u)
+	TreeArt.label(v, Rect2(origin + Vector2(301, 0) * u, Vector2(180, 84) * u), str(pr.gold), 30, GOLD)
+	TreeArt.button(v, r.close, "店へ戻る", false)
+	TreeArt.button(v, r.mode, "一つ選ぶ" if hud.ws_multi else "まとめて選ぶ", false)
+	var list := ws_list(pr)
+	for i in Gear.BAG_MAX + Gear.SLOTS.size():
+		var rect: Rect2 = r["it%d" % i]
+		var item: Dictionary = list[i] if i < list.size() else {}
+		var uid := int(item.get("uid", -1))
+		var chosen: bool = not item.is_empty() and (uid in hud.ws_selected if hud.ws_multi else uid == hud.ws_sel)
+		TreeArt.box(v, rect, Color("233846") if chosen else INK, GOLD if chosen else Color("454639"), 2 if chosen else 1)
+		if item.is_empty():
+			continue
+		var image := Rect2(rect.position + Vector2((rect.size.x - 58 * u) * 0.5, 4 * u), Vector2(58, 58) * u)
+		if not AfterArt.draw_art(v, str(item.slot), image):
+			TreeArt.label(v, image, SHORT[str(item.slot)], 17, TEXT, true)
+		diamonds(v, rect.position + Vector2(rect.size.x * 0.5, 70 * u), int(item.tier), 5.5 * u, GOLD)
+		if pr.is_equipped(item):
+			v.draw_rect(Rect2(rect.end - Vector2(rect.size.x, 6 * u), Vector2(rect.size.x, 6 * u)), BLUE)
+	var sale := sale_items(hud)
+	var detail_rect: Rect2 = r.detail
+	var sel: Dictionary = pr.item_by_uid(hud.ws_sel)
+	if hud.ws_multi:
+		var summary := "%d 点  +%d" % [sale.size(), sale_total(sale)]
+		if hud.ws_confirm:
+			summary = "%d 点を売りますか？  +%d" % [sale.size(), sale_total(sale)]
+		TreeArt.label(v, Rect2(detail_rect.position, Vector2(detail_rect.size.x, 56 * u)), summary, 28, GOLD)
+		for i in mini(sale.size(), 4):
+			TreeArt.label(v, Rect2(detail_rect.position + Vector2(0, (56 + i * 32) * u), Vector2(detail_rect.size.x, 32 * u)), Gear.name_of(sale[i]), 21, TEXT)
+		if sale.size() > 4:
+			TreeArt.label(v, Rect2(detail_rect.position + Vector2(0, 184 * u), Vector2(detail_rect.size.x, 32 * u)), "残り %d 点" % (sale.size() - 4), 21, TEXT)
+	elif not sel.is_empty():
+		detail(v, detail_rect, sel, {})
+		if pr.is_equipped(sel):
+			TreeArt.label(v, Rect2(detail_rect.position + Vector2(0, 195 * u), Vector2(detail_rect.size.x, 40 * u)), "装備中", 24, BLUE.lightened(0.25))
+	else:
+		var hint := "物を押して選ぶ"
+		if list.is_empty():
+			hint = "売れる装備がありません"
+		if hud.ws_received > 0:
+			hint = "受け取り  +%d" % hud.ws_received
+		TreeArt.label(v, Rect2(detail_rect.position, Vector2(detail_rect.size.x, 56 * u)), hint, 27, MUTED)
+	if not sale.is_empty():
+		var action := "売る  +%d" % sale_total(sale)
+		if hud.ws_multi:
+			action = "売る・確定  +%d" % sale_total(sale) if hud.ws_confirm else "%d 点を売る" % sale.size()
+		TreeArt.box(v, r.sell, Color("2e2a1c"), GOLD, 2)
+		TreeArt.label(v, r.sell, action, 28, GOLD, true)
+
+static func after_sell_tap(hud, pos: Vector2) -> String:
+	var pr = hud.main.progress
+	var r := after_sell_rects(hud.view.size)
+	if r.close.has_point(pos):
+		return "close"
+	if r.mode.has_point(pos):
+		hud.ws_multi = not hud.ws_multi
+		hud.ws_confirm = false
+		hud.ws_sel = -1
+		hud.ws_selected.clear()
+		return ""
+	if r.sell.has_point(pos):
+		var sale := sale_items(hud)
+		if sale.is_empty():
+			return ""
+		if hud.ws_multi and not hud.ws_confirm:
+			hud.ws_confirm = true
+			return ""
+		hud.ws_received = sale_total(sale)
+		pr.gold += hud.ws_received
+		for item in sale:
+			pr.items.erase(item)
+		hud.ws_sel = -1
+		hud.ws_selected.clear()
+		hud.ws_confirm = false
+		hud.ws_multi = false
+		pr.save()
+		return ""
+	var list := ws_list(pr)
+	for i in list.size():
+		if not r["it%d" % i].has_point(pos):
+			continue
+		var uid := int(list[i].uid)
+		hud.ws_confirm = false
+		if not hud.ws_multi:
+			hud.ws_sel = uid if hud.ws_sel != uid else -1
+		elif uid in hud.ws_selected:
+			hud.ws_selected.erase(uid)
+		elif not pr.is_equipped(list[i]):
+			hud.ws_selected.append(uid)
+		break
 	return ""

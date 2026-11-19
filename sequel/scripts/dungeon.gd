@@ -4,6 +4,7 @@ extends Node
 ## 2026-11-14（specs/dungeon_themes.md）：テーマ×難易度 3 段、1 部屋 3 群れ（進む先から来る）、ラナが倒れたら失敗、
 ## 入口の部屋に戻る扉。失敗・戻る扉では入る前の状態（レベル・経験値・SP・武器・技）へ戻す。
 
+const AfterArt := preload("res://scripts/after_clear_art.gd")
 const Map := preload("res://scripts/dungeon_map.gd")
 const COL_OPEN := Color(0.16, 0.88, 1.0)
 const COL_SHUT := Color(1.0, 0.2, 0.2)
@@ -38,9 +39,8 @@ var gold0 := 0           # 入った時のお金（結果の画面の「得た�
 var items_got := 0       # この回で拾った装備・素材の数（結果の画面）
 var mats_got := 0
 var finished := false    # クリアした（結果の画面のあと、ボス部屋で少し動ける＝アラド風。2026-11-16 ユーザー）
-var shop_spot = null     # クリア後の店の場所（金の扉＋浮かぶ小瓶）
-var shop_x := 0.0
-var shop_armed := true
+var merchant: Sprite3D
+var after_time := 0.0
 var perf_n := 0          # 重さの計測：敵をこの数だけ出し続ける（倒れない）
 var rng := RandomNumberGenerator.new()
 var layout := {}
@@ -254,7 +254,7 @@ func _physics_process(delta: float) -> void:
 		return
 	if state == "after":   # クリアの後：硬貨を拾い、店に寄り、戻る扉から街へ
 		_update_coins(delta)
-		_after_step(delta)
+		after_time += delta
 		return
 	if state != "won":
 		t_run += delta
@@ -698,6 +698,8 @@ func close_result() -> void:
 ## 前の金と紫の扉は、街へ戻る道が分からなかった（ユーザー）ので外した
 func _start_after() -> void:
 	state = "after"
+	after_time = 0.0
+	_spawn_merchant()
 	main.player.locked = false
 	for c in coins:
 		c.magnet = true
@@ -705,8 +707,19 @@ func _start_after() -> void:
 		d.magnet = true
 	log_ev("after", t_run)
 
-func _after_step(_delta: float) -> void:
-	pass
+func _spawn_merchant() -> void:
+	var art := AfterArt.texture("merchant")
+	if art == null:
+		return
+	var player_pos: Vector3 = main.player.position
+	var half_width: float = float(room.rw)
+	var offset := -2.6 if player_pos.x > -half_width + 4.0 else 2.6
+	merchant = Sprite3D.new()
+	merchant.texture = art
+	merchant.pixel_size = 2.1 / art.get_height()
+	merchant.shaded = false
+	merchant.position = Vector3(clampf(player_pos.x + offset, -half_width + 0.7, half_width - 0.7), 1.05, main.BELT_Z.x + 0.45)
+	main.level.add_child(merchant)
 
 ## 命令の列から："shop"・"retry"・"other"・"town"
 func after_cmd(id: String) -> void:

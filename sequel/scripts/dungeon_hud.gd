@@ -12,6 +12,7 @@ const CombatArt := preload("res://scripts/combat_hud_art.gd")
 const SkillTree := preload("res://scripts/skill_tree.gd")
 const TreeArt := preload("res://scripts/skill_tree_art.gd")
 const SelectArt := preload("res://scripts/dungeon_select_art.gd")
+const AfterArt := preload("res://scripts/after_clear_art.gd")
 const ShopUI := preload("res://scripts/shop_ui.gd")
 const GearUI := preload("res://scripts/gear_ui.gd")
 const DunUI := preload("res://scripts/dungeon_pick_ui.gd")
@@ -21,6 +22,10 @@ var shop_open := false
 var shop_t := 0.0
 var shop_flash := {}
 var gear_sel := -1         # 育成の画面「装備」のタブで選んだ物（uid）
+var ws_selected: Array[int] = []
+var ws_multi := false
+var ws_confirm := false
+var ws_received := 0
 var ws_open := false       # 工房（③ specs/gear.md）
 var ws_sel := -1
 var ws_sell_only := false  # クリア後の店から：売るだけ
@@ -442,6 +447,10 @@ func open_workshop(sell_only: bool) -> void:
 	ws_open = true
 	ws_sell_only = sell_only
 	ws_sel = -1
+	ws_selected.clear()
+	ws_multi = false
+	ws_confirm = false
+	ws_received = 0
 	ws_t = 0.0
 	if main.player:
 		main.player.locked = true
@@ -526,7 +535,7 @@ func after_on() -> bool:
 
 func after_rects() -> Array:
 	var u: float = view.size.y / 720.0
-	var w := [150.0, 190.0, 250.0, 220.0]
+	var w := [155.0, 199.0, 292.0, 244.0]
 	var gap := 14.0
 	var tot := gap * 3.0
 	for x in w:
@@ -534,7 +543,7 @@ func after_rects() -> Array:
 	var x0: float = view.size.x * 0.5 - tot * 0.5 * u
 	var out := []
 	for i in 4:
-		out.append(Rect2(Vector2(x0, 96 * u), Vector2(w[i], 74) * u))
+		out.append(Rect2(Vector2(x0, (116 - (1.0 - clampf(float(main.dungeon.after_time) / 0.18, 0.0, 1.0)) * 11.0) * u), Vector2(w[i], 88) * u))
 		x0 += (w[i] + gap) * u
 	return out
 
@@ -544,9 +553,28 @@ func after_hit(pos: Vector2) -> int:
 		return -1
 	var rs: Array = after_rects()
 	for i in rs.size():
-		if (rs[i] as Rect2).grow(6).has_point(pos):
+		if (rs[i] as Rect2).has_point(pos):
 			return i
+	if merchant_rect().has_point(pos):
+		return 0
 	return -1
+
+func merchant_rect() -> Rect2:
+	var m: Sprite3D = main.dungeon.merchant
+	var camera := get_viewport().get_camera_3d()
+	if not is_instance_valid(m) or camera == null:
+		return Rect2()
+	if camera.is_position_behind(m.global_position) or main.player.global_position.distance_to(m.global_position - Vector3.UP * 1.05) > 3.3:
+		return Rect2()
+	var u: float = view.size.y / 720.0
+	var screen_pos := camera.unproject_position(m.global_position + Vector3.UP * 1.15)
+	var rect := Rect2(screen_pos - Vector2(51, 87) * u, Vector2(102, 84) * u)
+	if not Rect2(Vector2.ZERO, view.size).has_point(rect.position) or not Rect2(Vector2.ZERO, view.size).has_point(rect.end):
+		return Rect2()
+	for button in after_rects():
+		if rect.intersects(button):
+			return Rect2()
+	return rect
 
 func _input(e: InputEvent) -> void:
 	if after_on():
@@ -587,7 +615,7 @@ func _input(e: InputEvent) -> void:
 			return
 		if shop_t < 0.2:
 			return
-		var sr: Dictionary = ShopUI.shop_rects(view.size)
+		var sr: Dictionary = ShopUI.shop_rects(view.size, main.dungeon != null)
 		if k2 == KEY_1 or (tp.x >= 0 and sr.buy0.has_point(tp)):
 			buy(0)
 		elif k2 == KEY_2 or (tp.x >= 0 and sr.buy1.has_point(tp)):
@@ -881,11 +909,16 @@ class _View extends Control:
 			var rc: Rect2 = rs[i]
 			var main_btn: bool = hud.AFTER_CMDS[i][0] == "town"
 			draw_rect(rc, Color(0.16, 0.12, 0.05, 0.92) if main_btn else Color(0.04, 0.06, 0.1, 0.88))
-			draw_rect(rc, GOLD if main_btn else Color(0.75, 0.75, 0.82, 0.8), false, (3 if main_btn else 2) * u)
+			draw_rect(rc, GOLD if main_btn else Color("927a59"), false, (3 if main_btn else 2) * u)
+			AfterArt.draw_art(self, str(hud.AFTER_CMDS[i][0]), Rect2(rc.position + Vector2(10, 18) * u, Vector2(48, 48) * u))
 			var fs: int = int(28 * u)
 			var tx: String = hud.AFTER_CMDS[i][1]
 			var tw: float = TreeArt.FONT.get_string_size(tx, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
-			draw_string(TreeArt.FONT, Vector2(rc.get_center().x - tw * 0.5, rc.get_center().y + fs * 0.36), tx, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, GOLD if main_btn else Color.WHITE)
+			draw_string(TreeArt.FONT, Vector2(rc.get_center().x - tw * 0.5 + 24 * u, rc.get_center().y + fs * 0.36), tx, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, GOLD if main_btn else Color.WHITE)
+
+		var merchant_button: Rect2 = hud.merchant_rect()
+		if merchant_button.has_area():
+			TreeArt.button(self, merchant_button, "店", true)
 
 	func _menu() -> void:
 		if hud.menu_stage == "dun":
@@ -964,6 +997,12 @@ class _View extends Control:
 			_num(Vector2(fx1, frow), str(res.get("kills", 0)), 44, Color.WHITE)
 			_next_mark(p, w, h)
 			return
+		var loot_pos := p + Vector2(w * 0.5, 100 * u)
+		if not AfterArt.draw_art(self, "armor", Rect2(loot_pos + Vector2(-100, -13) * u, Vector2(24, 24) * u)):
+			_sword(loot_pos + Vector2(-88, 0) * u, 10 * u, GOLD)
+		_num(loot_pos + Vector2(-65, 8) * u, str(int(res.get("items", 0))), 23, GOLD)
+		GearUI.gem(self, loot_pos + Vector2(25, 0) * u, 10 * u)
+		_num(loot_pos + Vector2(47, 8) * u, str(int(res.get("mats", 0))), 23, Color.WHITE)
 		var x0 := p.x + 110 * u
 		var x1 := p.x + 160 * u
 		var row := p.y + 150 * u
