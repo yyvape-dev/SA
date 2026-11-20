@@ -949,8 +949,9 @@ func _rana_setup_room() -> void:
     ui.basic_combat_only = false
     ui.set_controls_enabled(true)
     hud.hide()
-    t2_label.text = "敵の確認" if foes_test_room else "ラナ戦闘テスト"
+    t2_label.text = "実戦テスト" if foes_test_room else "ラナ戦闘テスト"
     var font: Font = t2_dialogue.dialogue_font
+    t2_label.add_theme_font_override("font", font)   # 既定のフォントは Web で日本語が出ない
     rana_reset_button = Button.new()
     rana_reset_button.text = "すべてリセット"
     rana_reset_button.position = Vector2(20, 140)
