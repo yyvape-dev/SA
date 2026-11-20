@@ -1,3 +1,6 @@
+# 2026-11-20 SA2 敵 第1弾（9体）
+- 正本：`sequel/docs/sa2_foes_handoff_20261120.md`、設定資料 `sequel/docs/sa2_enemies_settings.md`。試し版：https://yyvape-dev.github.io/SA/previews/sa2-foes/?mode=foes
+
 ## 2026-11-12 19:15 SA2 ランカ導入とエフェクト刷新（ブランチ feat/sa2-ranka-20261112、main 未マージ）
 - 正本：ブランチの `sequel/docs/sa2_ranka_handoff_20261112.md`。プレビュー：https://yyvape-dev.github.io/SA/previews/sa2-ranka/?mode=ranka（?mode=rana・?mode=lily）
 - 済：ランカ（3人同時・自己操作・技・天照）、大技の締めを焼いた連番に（3人）、締めは当たる所、リリィ雷連打の強化、必殺技の寄り（顔へ・中の深さ・ラナ4B・リリィ2B・溜め）、ラナの点滅を止めた。
