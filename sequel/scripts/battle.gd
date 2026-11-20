@@ -68,6 +68,14 @@ func _ready() -> void:
 	add_child(combat_audio)
 	var d = JSON.parse_string(FileAccess.get_file_as_string("res://assets/foe/foe.json"))
 	foe_clips = d
+	# 敵 第1弾（tools/make_enemies.py → assets/foe2/foe2.json。絵は地区 pck en1）
+	if FileAccess.file_exists("res://assets/foe2/foe2.json"):
+		var d2 = JSON.parse_string(FileAccess.get_file_as_string("res://assets/foe2/foe2.json"))
+		for k in d2:
+			for c in d2[k]:
+				for f in d2[k][c].frames:
+					f[0] = "foe2/" + str(f[0])
+			foe_clips[k] = d2[k]
 	shadow_mat = StandardMaterial3D.new()
 	shadow_mat.albedo_color = Color(0, 0, 0, 0.8)   # 足元の影（濃いめ）
 	var gt := GradientTexture2D.new()

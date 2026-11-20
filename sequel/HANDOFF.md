@@ -1,3 +1,8 @@
+# 敵 第1弾（9体）を SA2 に組み込み（2026-11-20）
+
+- `art/enemies/` の9体を連番→アトラス（`tools/make_enemies.py` → `assets/foe2/`、地区 pck en1）→ `enemy.gd` に登録。テスト部屋 `?mode=foes`。テスト `tests/sa2_foes_room_test.gd` PASS。
+- 体力・攻撃力・背・テーマ・被弾の見せ方は仮（ユーザー判定待ち）。焼き込みの軌跡の消去も判定待ち。詳細は [docs/sa2_foes_handoff_20261120.md](docs/sa2_foes_handoff_20261120.md)。
+
 # 前半素材の本番画風への改訂 batch10
 
 - 今回：t3_b3_r2、t3_b4_r2、t3_f1_r2。保存先 art/incoming/dungeon_20261114/batch10/。旧版を残し_r2で追加。

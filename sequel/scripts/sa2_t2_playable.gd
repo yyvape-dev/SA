@@ -31,6 +31,10 @@ var street_snapshot := {}
 @export var rana_test_room := false
 var rana_test_ready := false
 var rana_live_enemies := false
+## 敵 第1弾（9体）を並べる部屋（?mode=foes。ラナの戦闘テストの部屋を使い回す。2026-11-20）
+@export var foes_test_room := false
+const FOES9 := ["hammer_arm", "hover_sentry", "maintenance_soldier", "mechanical_lancer", "mechanical_spine_dancer",
+    "prosthetic_arm_bouncer", "prosthetic_leg_raider", "quadruped_sentry", "steam_shield"]
 var rana_reset_button: Button
 var rana_enemy_button: Button
 @export var t5_training_preview := false
@@ -109,7 +113,11 @@ func _ready() -> void:
     t2_manual.locked = true
     add_child(t2_manual)
     _t2_build_ui()
-    if t5_training_preview and (rana_test_room or _q("mode=rana") or OS.has_environment("SA2_RANA_TEST")):
+    if t5_training_preview and (foes_test_room or _q("mode=foes") or OS.has_environment("SA2_FOES_TEST")):
+        foes_test_room = true
+        if OS.has_feature("web") and not await district.ensure("en1"):
+            push_error("敵の絵 en1 を読めない: " + district.last_error)
+    if t5_training_preview and (foes_test_room or rana_test_room or _q("mode=rana") or OS.has_environment("SA2_RANA_TEST")):
         _rana_setup_room()
         if waiting_for_lily:
             loading.hide_soon()
@@ -941,7 +949,7 @@ func _rana_setup_room() -> void:
     ui.basic_combat_only = false
     ui.set_controls_enabled(true)
     hud.hide()
-    t2_label.text = "ラナ戦闘テスト"
+    t2_label.text = "敵の確認" if foes_test_room else "ラナ戦闘テスト"
     var font: Font = t2_dialogue.dialogue_font
     rana_reset_button = Button.new()
     rana_reset_button.text = "すべてリセット"
@@ -994,8 +1002,16 @@ func _rana_reset_room() -> void:
     battle.cam_zoom = 0.0
     for foe in battle.enemies.duplicate():
         battle.remove_enemy(foe)
-    for at in [Vector3(2.1, 0, 0), Vector3(3.5, 0, -0.45), Vector3(5.2, 0, 0.4)]:
-        battle.spawn("1", at)
+    var spots := []
+    if foes_test_room:   # ラナ（中央）の左に4体・右に5体、奥と手前に交互（左から FOES9 の順）
+        for i in FOES9.size():
+            var x: float = -6.4 + i * 1.6 + (1.6 if i >= 4 else 0.0)
+            spots.append([FOES9[i], Vector3(x, 0, -1.3 if i % 2 == 0 else 1.1)])
+    else:
+        for at in [Vector3(2.1, 0, 0), Vector3(3.5, 0, -0.45), Vector3(5.2, 0, 0.4)]:
+            spots.append(["1", at])
+    for sp_ in spots:
+        battle.spawn(sp_[0], sp_[1])
         var foe = battle.enemies.back()
         foe.hp_max = 600.0
         foe.hp = foe.hp_max

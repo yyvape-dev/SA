@@ -4,7 +4,20 @@ extends Node3D
 ## 数値は前作 battle/ の値を、ラナの背（205px＝1.85m）で m に直したもの。
 
 const SPR := preload("res://scripts/sprite_bb.gdshader")
-const HEIGHT := {"1": 2.10, "3": 2.03, "g1": 2.7}   # 前作の HEIGHT（f1 233・f3 225 px）÷205×1.85。g1＝ボス（前作の敵将。大きめに）
+const HEIGHT := {"1": 2.10, "3": 2.03, "g1": 2.7,   # 前作の HEIGHT（f1 233・f3 225 px）÷205×1.85。g1＝ボス（前作の敵将。大きめに）
+	# 敵 第1弾（assets/foe2、2026-11-20）。背は仮（ユーザー判定待ち。身長の確認資料を作って決める方針）
+	"hammer_arm": 2.6, "hover_sentry": 2.0, "maintenance_soldier": 1.8, "mechanical_lancer": 1.85,
+	"mechanical_spine_dancer": 1.8, "prosthetic_arm_bouncer": 1.85, "prosthetic_leg_raider": 1.8,
+	"quadruped_sentry": 1.5, "steam_shield": 1.95}
+## 敵 第1弾の仮の値（ユーザー判定待ち）：hp・dmg＝一般兵の何倍か。heal＝その攻撃は味方の敵を回復する（整備兵の攻撃1。ユーザー指定）
+const FOE2 := {
+	"hammer_arm": {"hp": 1.6, "dmg": 1.4}, "hover_sentry": {"hp": 0.8, "dmg": 1.0},
+	"maintenance_soldier": {"hp": 0.9, "dmg": 0.8, "heal": "atk1"}, "mechanical_lancer": {"hp": 1.0, "dmg": 1.1},
+	"mechanical_spine_dancer": {"hp": 0.9, "dmg": 1.0}, "prosthetic_arm_bouncer": {"hp": 1.2, "dmg": 1.2},
+	"prosthetic_leg_raider": {"hp": 1.0, "dmg": 1.0}, "quadruped_sentry": {"hp": 1.1, "dmg": 1.0},
+	"steam_shield": {"hp": 1.5, "dmg": 0.9}}
+const HEAL_R := 4.0        # 回復の届く距離（m、仮）
+const HEAL_K := 0.25       # 回復量＝体力の最大の何割か（仮）
 const FOE_SPD := 2.4       # 攻撃の連番の速さ（一騎打ちの何倍か。前作は3.3。予兆を読めるよう少し遅く）
 const ATK_START := 1.15    # この左右の距離で攻撃を始める
 const ATK_REACH := 1.45    # 当たりの瞬間に、この距離までなら当たる
@@ -60,6 +73,20 @@ func setup(b, k: String, c: Dictionary, level: int) -> void:
 	yo = randf_range(-1.0, 1.0) * 1.1
 	t = randf_range(0.0, 6.0)
 	atk_cd = randf_range(0.05, 0.6)
+	if FOE2.has(k):
+		var f: Dictionary = FOE2[k]
+		hp_max *= float(f.hp)
+		hp = hp_max
+		dmg = int(round(dmg * float(f.dmg)))
+
+## 敵 第1弾：攻撃ごとの届く距離（当たりのコマで前へ出た分＋0.3m。一般兵の 1.45m より短くはしない。仮）
+func _reach_of(cl: Dictionary) -> float:
+	if cl.has("fwd"):
+		return maxf(reach, float(cl.fwd) * height() + 0.3)
+	return reach
+
+func _heal_clip(c: String) -> bool:
+	return FOE2.has(kind) and str(FOE2[kind].get("heal", "")) == c
 
 ## ボスにする（spawn の直後に呼ぶ）
 func make_boss(hp_val: float, dmg_val: int) -> void:
@@ -103,7 +130,7 @@ func height() -> float:
 
 func _tex(name: String) -> Texture2D:
 	if not pages.has(name):
-		pages[name] = load("res://assets/foe/" + name)
+		pages[name] = load(("res://assets/" + name) if name.contains("/") else ("res://assets/foe/" + name))
 	return pages[name]
 
 func _show(c: String, i: int) -> void:
@@ -173,6 +200,9 @@ func _physics_process(delta: float) -> void:
 			while fi + 1 < st.size() and st[fi + 1] <= atk.t:
 				fi += 1
 			_show(atk.clip, fi)
+			if not atk.done and atk.t >= atk.hit_t and atk.get("heal", false):
+				atk.done = true
+				_heal_friends()
 			if not atk.done and atk.t >= atk.hit_t:
 				atk.done = true
 				atk.warn = null
@@ -236,15 +266,32 @@ func _start_atk() -> void:
 			hit_t = acc / 1000.0 / s_
 		acc += float(cl.durs[i])
 	state = "atk"
-	var r: float = (3.4 if wide else reach) * size
+	var r: float = (3.4 * size) if wide else _reach_of(cl) * (1.0 if cl.has("fwd") else size)
 	var ln: float = 1.25 if wide else lane
 	atk = {"clip": c, "t": 0.0, "starts": starts, "hit_t": hit_t, "end_t": acc / 1000.0 / s_, "done": false,
 		"wide": wide, "reach": r, "lane": ln}
+	if _heal_clip(c):   # 回復：床の赤い予兆は出さない（当たらないので）
+		atk.heal = true
+		atk.warn = null
+		return
 	# 床の予兆：当たる範囲（前へ reach、奥行き ±lane。大振りは左右両側）
 	var cx := position.x if wide else position.x + face * r * 0.5
 	var w := r * 2.0 if wide else r
 	atk.area = Rect2(cx - w * 0.5, position.z - ln, w, ln * 2.0)
 	atk.warn = battle.fx.warn(Vector3(cx, 0, position.z), Vector2(w, ln * 2.0), hit_t)
+
+## 整備兵の回復（仮）：自分を含め、近くの敵の体力を最大の HEAL_K 割だけ戻す。数字は緑ではなく赤系（敵の色）で出す
+func _heal_friends() -> void:
+	for e in battle.enemies:
+		if e.state == "dying" or e.position.distance_to(position) > HEAL_R:
+			continue
+		var v: float = minf(e.hp_max - e.hp, e.hp_max * HEAL_K)
+		e.hp += v
+		e.hpbar.material_override.set_shader_parameter("ratio", e.hp / e.hp_max)
+		e.bar_t = 1.6
+		battle.fx.charge(e.position + Vector3(0, e.height() * 0.5, 0), 1.2, 0.5)
+		if v >= 1.0:
+			battle.fx.number(e.position + Vector3(0, e.height() + 0.4, 0), int(round(v)), "heal")
 
 ## 浮かせる（リリィの上段・ジャブの2発目）：v＝上向きの速さ（m/秒）。ボスは浮かない
 func lift_up(v: float) -> void:

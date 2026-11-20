@@ -24,6 +24,8 @@ DISTRICTS = {
             "files": []},
     "fx1": {"res": ["assets/vfx/*.png", "assets/vfx/kenney/*.png"],    # エフェクトの絵（焼いた REEBO・Kenney の粒。起動の後に読む。2026-11-07）
             "files": ["assets/vfx/reeboo.json"]},
+    "en1": {"res": ["assets/foe2/*.webp"],                           # 敵 第1弾（9体。tools/make_enemies.py）。?mode=foes の部屋で読む（2026-11-20）
+            "files": []},
     "al1": {"res": ["assets/lily/*.webp"],                           # 仲間リリィ（起動の後に読む。読み終えてから出てくる）
             "files": []},
 }
