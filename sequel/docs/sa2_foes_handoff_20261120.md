@@ -13,6 +13,14 @@
 - テスト：`tests/sa2_foes_room_test.gd`（9体が出る・両方の攻撃が最後まで流れる・回復で体力が戻りラナは被弾しない・リセット）PASS。`sa2_t6_rana_test_room_test` も PASS。`FOES_CAPTURE=<フォルダ>` で撮影。
 - 画像：`docs/sa2_foes_img/foes_grid.jpg`（名前｜歩き｜攻撃1｜攻撃2）、`trail_*.jpg`（焼き込みの軌跡、8fps のコマに番号）。
 
+## 2回目（2026-11-20 ユーザーの答え）
+- 軌跡：ランサーの攻撃2だけ消した（`make_enemies.py` の `FX_BOX`。枠の中の明るいピンク〜黄緑だけを消し、槍は残す）。義足の襲撃者は残す。`ONLY=<敵>` でその敵だけ作り直せる。
+- テーマ：雑魚2＋ボス1。ボス候補＝ハンマーアーム・四脚の番兵（割り当ては未決）。
+- 体力・攻撃力：今の値で可。
+- 被弾：B（絵を傾けて揺らす。`enemy.gd` の `_hurt_pose`）。撮影 `docs/sa2_foes_img/foes_hurt.jpg`。
+- 設定資料：[sa2_enemies_settings.md](sa2_enemies_settings.md)、身長の並び `docs/sa2_foes_img/height_lineup.jpg`。
+- Web の試し版：`previews/sa2-foes/?mode=foes`。
+
 ## 未決（ユーザー判定待ち）
 - 焼き込みの軌跡を消すか：ランサー攻撃2 のコマ 10〜14（ピンクの弧、12〜13 は緑の土煙も）、義足の襲撃者 攻撃1 コマ 6・攻撃2 コマ 9（光の筋）。
 - テーマの割り当て・ボス、体力・攻撃力、背の高さ、被弾の見せ方。

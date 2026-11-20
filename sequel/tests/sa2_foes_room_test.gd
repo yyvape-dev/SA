@@ -71,8 +71,17 @@ func _run():
                     var g := FileAccess.open("%s/%s.json" % [cap, k], FileAccess.WRITE)
                     g.store_string(JSON.stringify([q0.x, q0.y, q0.y - q1.y]))
                     g.close()
-        # 実際に攻撃を最後まで流す（両方の攻撃。止まらず walk に戻る）
+        # 被弾（動画なし → 絵を傾けて揺らす）：強い当たりの 0.07 秒後に撮る。終われば傾きが 0 に戻る
         e.set_physics_process(true)
+        e.hp = 99999.0
+        e.take_hit(1.0, 1, true)
+        assert(e.hurt_t > 0.0)
+        for frame in 4: await physics_frame
+        if cap != "":
+            _shot("%s/%s_hurt.png" % [cap, k])
+        for frame in 40: await physics_frame
+        assert(e.hurt_t == 0.0 and e.mat.get_shader_parameter("rot") == 0.0)
+        # 実際に攻撃を最後まで流す（両方の攻撃。止まらず walk に戻る）
         for c in ["atk1", "atk2"]:
             if not e.clips.has(c):
                 continue

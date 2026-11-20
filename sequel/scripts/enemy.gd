@@ -52,6 +52,10 @@ var die_t := 0.0
 var die_dir := 1
 var lift_y := 0.0         # 浮かされた高さ（m）。絵だけを持ち上げる（空中の状態は別の作業）
 var lift_v := 0.0
+# 被弾の見せ方（敵 第1弾：被弾の動画が無い。2026-11-20 ユーザー決定 B＝絵を傾けて揺らす）
+var hurt_t := 0.0         # 残り時間（秒）
+var hurt_len := 0.0
+var hurt_dir := 1
 # ボス（前作の敵将を仮置き）：体力が大きい・のけぞらない・3回に1回は左右両側の大振り（床の予兆が長い）
 var boss := false
 var reach := ATK_REACH
@@ -175,8 +179,11 @@ func _physics_process(delta: float) -> void:
 	if boss:   # 立ち絵1枚の歩き＝構えの揺れ（前作と同じ）
 		sprite.position.y = absf(sin(t * 3.2)) * 0.05 if state == "walk" else 0.0
 	var pl: Node3D = battle.player
+	if state != "dying":
+		_hurt_pose(dt)   # のけぞりは ひるみ が明けても最後まで（攻撃・歩きの間も）
 	match state:
 		"dying":
+			sprite.position.x = 0.0
 			die_t += dt
 			var k := die_t / (1.2 if boss else (0.45 if battle.fx.legacy else 0.75))   # 溶け消えは少し長く（縁が燃えるのを見せる）
 			position.x += die_dir * 1.4 * dt * (1.0 - k)
@@ -300,10 +307,30 @@ func lift_up(v: float) -> void:
 	lift_v = maxf(lift_v, v)
 	stun = maxf(stun, 0.45)
 
+## 被弾の姿勢（敵 第1弾だけ）：足元を軸に、打たれた向きへのけぞる（強いほど深い）→ 小刻みに揺れて戻る
+func _hurt_pose(dt: float) -> void:
+	if hurt_t <= 0.0:
+		return
+	hurt_t = maxf(0.0, hurt_t - dt)
+	var k: float = 1.0 - hurt_t / hurt_len          # 0→1
+	var amp: float = (0.22 if hurt_len > 0.3 else 0.13) * pow(1.0 - k, 1.6)
+	var lean: float = amp * minf(k * 8.0, 1.0)      # 最初の 1/8 で一気に傾く
+	var wob: float = sin(k * 26.0) * amp * 0.35     # 揺れ
+	# 画面の向きで符号が変わる（絵が反転していても、打たれた側の反対へ倒れる）
+	mat.set_shader_parameter("rot", -hurt_dir * (lean + wob))
+	sprite.position.x = hurt_dir * 0.05 * sin(k * 40.0) * (1.0 - k)
+	if hurt_t <= 0.0:
+		mat.set_shader_parameter("rot", 0.0)
+		sprite.position.x = 0.0
+
 ## ラナの攻撃が当たった
 func take_hit(d: float, dir: int, strong: bool) -> void:
 	if state == "dying":
 		return
+	if FOE2.has(kind) and not boss:
+		hurt_len = 0.45 if strong else 0.26
+		hurt_t = hurt_len
+		hurt_dir = dir
 	hp -= d
 	flash = 0.1
 	bar_t = 0.0 if boss else 1.6
