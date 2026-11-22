@@ -93,9 +93,9 @@ class _Pad extends Control:
 		if not ui.lily_controls and ui.main and ui.main.dungeon != null:
 			b["pot"] = [Vector2(s.x - 48 * u, s.y - 246 * u), 42 * u]
 			# 仲間を呼ぶ（2026-11-16）：回復薬の下に縦に並べる（右の親指の列）。連れている仲間だけ
-			var bt = ui.main.battle
+			var bt = ui.main.get("battle")   # 試験用の代役（MainStub）には battle が無い
 			var cy := s.y - 150 * u
-			for who in ["lily", "ranka"]:
+			for who in (["lily", "ranka"] if bt != null else []):
 				var a2 = bt.ally if who == "lily" else bt.ranka
 				if a2 != null and is_instance_valid(a2):
 					b["call_" + who] = [Vector2(s.x - 48 * u, cy), 41 * u]
@@ -281,11 +281,12 @@ class _Pad extends Control:
 	func _draw_pot(c: Vector2, r: float, pressed: bool, u: float) -> void:
 		var pr = ui.main.progress
 		var pl = ui.player
+		var pcd: float = float(pl.get("pot_cd")) if pl.get("pot_cd") != null else 0.0   # リリィ操作・試験の代役には無い
 		var n_s: int = int(pr.pot_s)
 		var n_l: int = int(pr.pot_l)
 		var empty: bool = n_s + n_l <= 0
 		Art.button(self, c, r, pressed)
-		var a: float = 0.35 if empty or float(pl.pot_cd) > 0.0 else 1.0
+		var a: float = 0.35 if empty or pcd > 0.0 else 1.0
 		var bottle := "potion_large" if n_s == 0 and n_l > 0 else "potion_small"
 		if not AfterArt.draw_art(self, bottle, Rect2(c - Vector2.ONE * r * 0.72, Vector2.ONE * r * 1.44), Color(1, 1, 1, a)):
 			var liq := Color(0.55, 1.0, 0.65, a)
@@ -295,9 +296,9 @@ class _Pad extends Control:
 			draw_circle(c + Vector2(0, 6 * u), r * 0.36, liq)
 			draw_rect(Rect2(c + Vector2(-r * 0.13, -r * 0.5), Vector2(r * 0.26, r * 0.3)), glass)
 			draw_rect(Rect2(c + Vector2(-r * 0.17, -r * 0.62), Vector2(r * 0.34, r * 0.14)), Color(0.75, 0.55, 0.32, a))
-		if float(pl.pot_cd) > 0.0:
+		if pcd > 0.0:
 			var Eco = load("res://scripts/economy.gd")
-			var f: float = float(pl.pot_cd) / float(Eco.POT_CD)
+			var f: float = pcd / float(Eco.POT_CD)
 			draw_arc(c, r * 0.92, -PI * 0.5, -PI * 0.5 + TAU * f, 40, Color(0, 0, 0, 0.55), r * 0.16)
 		var font := ThemeDB.fallback_font
 		var txt: String = str(n_s) if n_l <= 0 else "%d+%d" % [n_s, n_l]

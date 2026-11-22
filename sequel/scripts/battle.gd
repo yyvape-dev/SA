@@ -602,7 +602,8 @@ func just_guard(p: Node3D, e) -> void:
 	e.atk.done = true
 	if p == player:
 		style.bonus("guard")
-		player.jg_window = 1.0   # 反撃が出せる（攻撃ボタンが金に光る）
+		if "jg_window" in player:   # リリィを操作している場面（T2）には無い
+			player.jg_window = 1.0   # 反撃が出せる（攻撃ボタンが金に光る）
 	e.state = "stun"
 	e.stun = maxf(e.stun, FoeStats.JG_STUN)   # 2026-11-15：0.8→1.2 秒、アーマーを 3 秒外す（ユーザー決定）
 	if e.has_method("armor_break"):

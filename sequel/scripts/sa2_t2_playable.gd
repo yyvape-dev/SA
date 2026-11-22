@@ -184,6 +184,10 @@ func _ready() -> void:
     if t2_demo:
         call_deferred("_t2_movie_demo")
 
+## T2・T5 の場面とテスト部屋（?mode=foes・rana・lily）は、自分でリリィを使う。街の「パーティの流れ」（リリィを控えに回す）は使わない（2026-11-22 統合で発覚）
+func party_flow() -> bool:
+    return false
+
 func _load_ally() -> void:
     # main._ready() calls this override. Keep its existing asset/actor creation unchanged.
     await super._load_ally()
