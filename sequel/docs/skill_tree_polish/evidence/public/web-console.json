@@ -1,0 +1,71 @@
+{
+  "errors": [],
+  "logs": [
+    "Failed to load resource: the server responded with a status of 404 ()",
+    "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org",
+    "OpenGL API OpenGL ES 3.0 (WebGL 2.0 (OpenGL ES 3.0 Chromium)) - Compatibility - Using Device: WebKit - WebKit WebGL",
+    "Build configuration: Emscripten 4.0.20, single-threaded, no GDExtension support.",
+    "BOOT main_ready 1369ms",
+    "BOOT before_d1 1373ms",
+    "DL d1.pck start 1375ms",
+    "DL d1.pck +2002ms got=1.6MB total=-0.0MB frames=74 status=7",
+    "DL d1.pck +4013ms got=12.6MB total=-0.0MB frames=150 status=7",
+    "DL d1.pck done +5017ms result=0 code=200 size=17.5MB frames=180",
+    "DL d1.pck written +5025ms",
+    "DL d1.pck load_resource_pack 1ms ok=true",
+    "BOOT after_d1 6405ms",
+    "DL bt1.pck start 6407ms",
+    "DL bt1.pck +2026ms got=0.3MB total=-0.0MB frames=83 status=7",
+    "DL bt1.pck +4028ms got=10.0MB total=-0.0MB frames=164 status=7",
+    "DL bt1.pck +6034ms got=21.5MB total=-0.0MB frames=245 status=7",
+    "DL bt1.pck done +6964ms result=0 code=200 size=27.0MB frames=282",
+    "DL bt1.pck written +6978ms",
+    "DL bt1.pck load_resource_pack 1ms ok=true",
+    "BOOT after_build_city 14157ms",
+    "CAMV D2 belt=(-2.0, 2.0) ofs=(0.0, 3.2, 15.3) fov=16.80",
+    "BOOT before_player 14180ms",
+    "BOOT after_player 15015ms",
+    "DL al1.pck start 15017ms",
+    "DL fx1.pck start 15048ms",
+    "DL al1.pck +2377ms got=0.0MB total=-0.0MB frames=9 status=7",
+    "DL fx1.pck +2346ms got=0.0MB total=-0.0MB frames=9 status=7",
+    "DL fx1.pck done +3657ms result=0 code=200 size=10.3MB frames=30",
+    "DL fx1.pck written +3688ms",
+    "DL fx1.pck load_resource_pack 1ms ok=true",
+    "BOOT fx1_loaded 18737ms",
+    "DL al1.pck +4380ms got=17.6MB total=-0.0MB frames=50 status=7",
+    "DL al1.pck done +5267ms result=0 code=200 size=20.5MB frames=72",
+    "DL al1.pck written +5338ms",
+    "DL al1.pck load_resource_pack 1ms ok=true",
+    "BOOT ally_loaded 21058ms",
+    "DL al2.pck start 21071ms",
+    "DL al2.pck +2060ms got=3.5MB total=-0.0MB frames=61 status=7",
+    "DL al2.pck +4089ms got=8.9MB total=-0.0MB frames=78 status=7"
+  ],
+  "packs": [
+    {
+      "url": "https://yyvape-dev.github.io/SA/previews/sa2-dungeon/index.pck?v=20261115143944-ca26202-g4.7.2",
+      "status": 200
+    },
+    {
+      "url": "https://yyvape-dev.github.io/SA/previews/sa2-dungeon/districts/d1.pck?v=20261115143944-ca26202-g4.7.2",
+      "status": 200
+    },
+    {
+      "url": "https://yyvape-dev.github.io/SA/previews/sa2-dungeon/districts/bt1.pck?v=20261115143944-ca26202-g4.7.2",
+      "status": 200
+    },
+    {
+      "url": "https://yyvape-dev.github.io/SA/previews/sa2-dungeon/districts/fx1.pck?v=20261115143944-ca26202-g4.7.2",
+      "status": 200
+    },
+    {
+      "url": "https://yyvape-dev.github.io/SA/previews/sa2-dungeon/districts/al1.pck?v=20261115143944-ca26202-g4.7.2",
+      "status": 200
+    },
+    {
+      "url": "https://yyvape-dev.github.io/SA/previews/sa2-dungeon/districts/al2.pck?v=20261115143944-ca26202-g4.7.2",
+      "status": 200
+    }
+  ]
+}

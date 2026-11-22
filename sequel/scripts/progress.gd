@@ -1,16 +1,33 @@
 extends RefCounted
 ## 成長（最小）とセーブ：レベル・経験値・武器1枠・ハードの解放・最速の記録。端末に保存（Web は IndexedDB の user://）。
 
+const Gear := preload("res://scripts/gear.gd")
 var path := "user://sa2_save.json"
 var lv := 1
 var xp := 0
 var weapon := 0          # 武器の攻撃力（0＝素手相当の初期の剣）
 var hard_open := false
-var best := {}           # diff -> 最速のクリア時間（秒）
-var clears := {}         # diff -> クリア回数
+var best := {}           # "テーマ_難易度"（例 t1_normal）-> 最速のクリア時間（秒）
+var clears := {}         # "テーマ_難易度" -> クリア回数（開く条件もここから決める。specs/dungeon_themes.md）
+const Themes := preload("res://scripts/dungeon_themes.gd")
 const SKILLS_DEFAULT := ["flurry", "rift", "vortex"]
+const SLOT4 := "shadow"   # 2026-11-16：4 つ目の枠＝回り込み（固定。技のセットの入れ替えには出さない。specs/combat_tactics.md）
 var skills_owned: Array = SKILLS_DEFAULT.duplicate()   # 持っている技（今は最初から3つ）
-var skill_slots: Array = SKILLS_DEFAULT.duplicate()    # 枠1〜3 の技の id
+var skill_slots: Array = SKILLS_DEFAULT.duplicate()    # 枠1〜3 の技の id（4 つ目は SLOT4 固定。battle_slots()）
+## スキルツリー（specs/skill_tree.md、2026-11-14）。キャラ＝"rana"・"lily"・"ranka"
+const SkillTree := preload("res://scripts/skill_tree.gd")
+var sp := {"rana": 0, "lily": 0, "ranka": 0}   # 残りの SP（キャラごと）
+var skill_lv := {}           # キャラ → 技 id → 技レベル（無ければ最初の技は 1、ほかは持っていない）
+var deriv := {}              # キャラ → 技 id → 派生 id
+var first_clear_paid := {}   # "テーマ_難易度" → 初回クリアの SP を渡したか
+var gold := 0                # お金（G）。2026-11-16 ②（specs/money_recovery.md）
+var pot_s := 2               # 回復薬（小）の数。はじめに 2 個（Claude の仮）
+var pot_l := 0               # 回復薬（大）の数
+var items: Array = []        # 持ち物（③ 装備、scripts/gear.gd。装備中の物も含む）
+var equip := {}              # 枠 → 付けている物の uid（weapon・armor・acc・lily・ranka）
+var mats := {}               # 素材 "t1"〜"t4" → 数
+var next_uid := 1
+var quality := "std"         # 画質：high＝高・std＝標準・eco＝省電力（2026-11-17、スマホが熱くなる件。main.apply_quality）
 
 func reset() -> void:
 	lv = 1
@@ -21,6 +38,158 @@ func reset() -> void:
 	clears = {}
 	skills_owned = SKILLS_DEFAULT.duplicate()
 	skill_slots = SKILLS_DEFAULT.duplicate()
+	sp = {"rana": 0, "lily": 0, "ranka": 0}
+	skill_lv = {}
+	deriv = {}
+	first_clear_paid = {}
+	gold = 0
+	pot_s = 2
+	pot_l = 0
+	items = []
+	equip = {}
+	mats = {}
+	next_uid = 1
+
+## ---------- スキルツリー ----------
+## 戦闘のボタンの技：枠 1〜3＋4 つ目（回り込み、固定）
+func battle_slots() -> Array:
+	return skill_slots.slice(0, 3) + [SLOT4]
+
+func skill_level(ch: String, id: String) -> int:
+	var d: Dictionary = skill_lv.get(ch, {})
+	if d.has(id):
+		return int(d[id])
+	return 1 if SkillTree.BASE_SKILLS.get(ch, []).has(id) else 0
+
+func deriv_of(ch: String, id: String) -> String:
+	return str(deriv.get(ch, {}).get(id, ""))
+
+func sp_of(ch: String) -> int:
+	return int(sp.get(ch, 0))
+
+func _add_sp_all(n: int) -> void:
+	for ch in SkillTree.CHARS:
+		sp[ch] = sp_of(ch) + n
+
+## 技レベルを1つ上げる（SP 1）。持っていない技は取る（need_lv・need を満たすとき）
+func can_level(ch: String, id: String) -> bool:
+	var r: Dictionary = SkillTree.rows(ch).get(id, {})
+	if r.is_empty() or sp_of(ch) < 1:
+		return false
+	var cur := skill_level(ch, id)
+	if cur >= int(r.max_lv):
+		return false
+	if cur == 0:   # 新しい技の解放
+		if lv < int(r.need_lv):
+			return false
+		var nd: Array = r.need
+		if nd.size() == 2 and skill_level(ch, str(nd[0])) < int(nd[1]):
+			return false
+	return true
+
+func level_up(ch: String, id: String) -> bool:
+	if not can_level(ch, id):
+		return false
+	if not skill_lv.has(ch):
+		skill_lv[ch] = {}
+	skill_lv[ch][id] = skill_level(ch, id) + 1
+	sp[ch] = sp_of(ch) - 1
+	if ch == "rana" and id != "ult" and not skills_owned.has(id):
+		skills_owned.append(id)
+	return true
+
+## 派生を選ぶ（技レベル 3 以上、SP は使わない）。同じものを選ぶと外す（元の技に戻す）
+func set_deriv(ch: String, id: String, did: String) -> bool:
+	var r: Dictionary = SkillTree.rows(ch).get(id, {})
+	if skill_level(ch, id) < SkillTree.DERIV_LV or not r.get("derivs", {}).has(did) or r.derivs[did].get("todo", false):
+		return false
+	if not deriv.has(ch):
+		deriv[ch] = {}
+	if deriv_of(ch, id) == did:
+		deriv[ch].erase(id)
+	else:
+		deriv[ch][id] = did
+	return true
+
+## 振り直し（街でだけ）：そのキャラの技レベルを最初へ戻し、使った SP を全部戻す。派生も外す
+func respec(ch: String) -> void:
+	var back := 0
+	for id in skill_lv.get(ch, {}):
+		var base := 1 if SkillTree.BASE_SKILLS.get(ch, []).has(id) else 0
+		back += maxi(0, int(skill_lv[ch][id]) - base)
+	skill_lv[ch] = {}
+	deriv[ch] = {}
+	sp[ch] = sp_of(ch) + back
+	if ch == "rana":
+		skills_owned = skills_owned.filter(func(x): return SKILLS_DEFAULT.has(x))
+		for i in mini(3, skill_slots.size()):
+			if not skills_owned.has(skill_slots[i]):
+				skill_slots[i] = SKILLS_DEFAULT[i]
+
+## 各テーマ×難易度の初回クリア：3人それぞれ +2（1回だけ）。渡したら true。k＝"テーマ_難易度"
+func pay_first_clear(k: String) -> bool:
+	if bool(first_clear_paid.get(k, false)):
+		return false
+	first_clear_paid[k] = true
+	_add_sp_all(2)
+	return true
+
+## ---------- テーマと難易度の開き方（specs/dungeon_themes.md 3.3） ----------
+## T(n) は T(n-1) のノーマルのクリアで開く。ハードはそのテーマのノーマル、エキスパートはハードのクリアで開く
+var unlock_all := false   # 確認用：?unlock=1（環境変数 UNLOCK_ALL）で全テーマ・全難易度を開く（セーブには残らない）
+
+## T(n) は T(n-1) の D4（ボス）のノーマルで開く
+func theme_open(i: int) -> bool:
+	if i <= 0 or unlock_all:
+		return true
+	return int(clears.get(Themes.key(Themes.dungeon_id(i - 1, Themes.DN), "normal"), 0)) >= 1
+
+## ステージの中は順番に：D(n) は D(n-1) のノーマルで開く（2026-11-18 ユーザー決定）
+func dungeon_open(id: String) -> bool:
+	if unlock_all:
+		return true
+	var i: int = Themes.index_of(id)
+	if not theme_open(i):
+		return false
+	var n: int = Themes.dnum(id)
+	return n <= 1 or int(clears.get(Themes.key(Themes.dungeon_id(i, n - 1), "normal"), 0)) >= 1
+
+func diff_open(theme: String, diff: String) -> bool:
+	if unlock_all:
+		return true
+	if not dungeon_open(theme):
+		return false
+	match diff:
+		"hard": return int(clears.get(Themes.key(theme, "normal"), 0)) >= 1
+		"expert": return int(clears.get(Themes.key(theme, "hard"), 0)) >= 1
+	return true
+
+func cleared(theme: String, diff: String) -> bool:
+	return int(clears.get(Themes.key(theme, diff), 0)) >= 1
+
+## 前のセーブ（テーマが無い）の鍵 normal・hard を t1_normal・t1_hard に読み替える
+static func _rekey(d: Dictionary) -> Dictionary:
+	var out := {}
+	for k in d:
+		var nk: String = str(k)
+		if nk == "normal" or nk == "hard":
+			nk = "t1_" + nk
+		var sid: String = nk.get_slice("_", 0)
+		if not sid.contains("d"):   # 2026-11-18：1 ステージ 4 ダンジョン。前のテーマのクリア＝D4（今のボス）
+			nk = sid + "d4_" + nk.get_slice("_", 1)
+		out[nk] = d[k]
+	return out
+
+## 前のクリア（D4）は D1〜D3 もクリア済みにする（順番に開くので、続きから遊べるように）
+static func _fill_clears(d: Dictionary) -> Dictionary:
+	for k in d.keys():
+		var sid: String = str(k).get_slice("_", 0)
+		if sid.ends_with("d4"):
+			for n in 3:
+				var nk: String = sid.substr(0, sid.length() - 2) + "d%d_" % (n + 1) + str(k).get_slice("_", 1)
+				if not d.has(nk):
+					d[nk] = 1
+	return d
 
 ## 次のレベルまでに要る経験値
 func need() -> int:
@@ -34,14 +203,78 @@ func add_exp(n: int) -> int:
 		xp -= need()
 		lv += 1
 		up += 1
+	_add_sp_all(up)   # レベルが1つ上がるごとに 3人それぞれ SP +1
 	return up
 
 func hp_max() -> float:
-	return 100.0 + 12.0 * (lv - 1)
+	return 100.0 + 12.0 * (lv - 1) + armor_hp()
 
 ## 攻撃の倍率：レベル1つで +6％、武器の攻撃力1で +2％
 func atk_mul() -> float:
-	return 1.0 + 0.06 * (lv - 1) + 0.02 * weapon
+	return 1.0 + 0.06 * (lv - 1) + 0.02 * weapon_pow()
+
+## ---------- 装備（③）----------
+func item_by_uid(uid: int) -> Dictionary:
+	for it in items:
+		if int(it.uid) == uid:
+			return it
+	return {}
+
+func equipped(slot: String) -> Dictionary:
+	return item_by_uid(int(equip.get(slot, -1)))
+
+func is_equipped(it: Dictionary) -> bool:
+	return int(equip.get(str(it.slot), -1)) == int(it.uid)
+
+## 付けている武器の攻撃力（強化込み）。今までの weapon（数字）と同じ尺度。weapon にも写す（結果の画面など）
+func weapon_pow() -> float:
+	var w := equipped("weapon")
+	if w.is_empty():
+		return 0.0
+	return float(w.pow) * (1.0 + 0.08 * int(w.get("plus", 0)))
+
+## 付けている物の特性の値（%）。武器の crit/cd/down、装飾品の heal/gold/ult
+func trait_pct(t: String) -> float:
+	var v := 0.0
+	for sl in ["weapon", "acc"]:
+		var it := equipped(sl)
+		if not it.is_empty() and str(it.trait) == t:
+			v += float(it.tv) * (1.0 if sl == "weapon" else (1.0 + 0.08 * int(it.get("plus", 0))))
+	return v
+
+func armor_hp() -> float:
+	var a := equipped("armor")
+	return 0.0 if a.is_empty() else float(a.pow) * (1.0 + 0.08 * int(a.get("plus", 0)))
+
+func armor_cut() -> float:   # 受ける傷 −%（0〜1）
+	var a := equipped("armor")
+	return 0.0 if a.is_empty() else minf(0.6, float(a.tv) * (1.0 + 0.08 * int(a.get("plus", 0))) / 100.0)
+
+## 仲間の装備：[技の強さの倍率, 技の待ちの倍率]
+func ally_k(who: String) -> Array:
+	var g := equipped(who)
+	if g.is_empty():
+		return [1.0, 1.0]
+	var k := 1.0 + 0.08 * int(g.get("plus", 0))
+	return [1.0 + float(g.tv) * k / 100.0, maxf(0.5, 1.0 - float(g.pow) * k / 100.0)]
+
+## 同じ枠に付けている物より強いか（金の印）
+func is_better(it: Dictionary) -> bool:
+	var cur := equipped(str(it.slot))
+	return cur.is_empty() or Gear.score(it) > Gear.score(cur) + 0.01
+
+func bag_count() -> int:
+	var n := 0
+	for it in items:
+		if not is_equipped(it):
+			n += 1
+	return n
+
+func add_item(it: Dictionary) -> bool:
+	if bag_count() >= Gear.BAG_MAX:   # 持ち物 30 個（付けている物は数えない）
+		return false
+	items.append(it)
+	return true
 
 func load_save() -> void:
 	if not FileAccess.file_exists(path):
@@ -49,22 +282,72 @@ func load_save() -> void:
 	var d = JSON.parse_string(FileAccess.get_file_as_string(path))
 	if not (d is Dictionary):
 		return
+	from_dict(d)
+
+## セーブの中身（ダンジョンに入る時の写しにも使う＝失敗・戻る扉で入る前へ戻す）
+func to_dict() -> Dictionary:
+	return {"lv": lv, "xp": xp, "weapon": weapon, "hard_open": hard_open, "best": best.duplicate(true), "clears": clears.duplicate(true),
+		"skills_owned": skills_owned.duplicate(), "skill_slots": skill_slots.duplicate(),
+		"sp": sp.duplicate(true), "skill_lv": skill_lv.duplicate(true), "deriv": deriv.duplicate(true), "first_clear_paid": first_clear_paid.duplicate(true), "d4_moved": true,
+		"gold": gold, "pot_s": pot_s, "pot_l": pot_l, "quality": quality,
+		"items": items.duplicate(true), "equip": equip.duplicate(), "mats": mats.duplicate(), "next_uid": next_uid}
+
+func from_dict(d: Dictionary) -> void:
 	lv = int(d.get("lv", 1))
 	xp = int(d.get("xp", 0))
 	weapon = int(d.get("weapon", 0))
-	hard_open = bool(d.get("hard_open", false))
-	best = d.get("best", {})
-	clears = d.get("clears", {})
+	gold = int(d.get("gold", 0))
+	pot_s = int(d.get("pot_s", 2))
+	pot_l = int(d.get("pot_l", 0))
+	quality = str(d.get("quality", "std"))
+	items = (d.get("items", []) as Array).duplicate(true)
+	equip = (d.get("equip", {}) as Dictionary).duplicate()
+	mats = (d.get("mats", {}) as Dictionary).duplicate()
+	next_uid = int(d.get("next_uid", 1))
+	if items.is_empty() and weapon > 0:   # 前の保存（武器の数字だけ）：その数字の ◆1 の剣を持たせる（0 なら武器なし）
+		var w0 := {"uid": next_uid, "slot": "weapon", "tier": 1, "pow": weapon, "trait": "", "tv": 0.0, "plus": 0, "theme": "t1"}
+		next_uid += 1
+		items.append(w0)
+		equip["weapon"] = int(w0.uid)
+	best = _rekey(d.get("best", {}))
+	clears = _rekey(d.get("clears", {}))
+	if not bool(d.get("d4_moved", false)):
+		clears = _fill_clears(clears)
+	hard_open = bool(d.get("hard_open", false)) or diff_open("t1", "hard")
 	var so = d.get("skills_owned", null)
 	if so is Array and not so.is_empty():
-		skills_owned = so
+		skills_owned = so.duplicate()
 	var ss = d.get("skill_slots", null)
-	if ss is Array and ss.size() == 3:
-		skill_slots = ss
+	if ss is Array and ss.size() >= 3:
+		skill_slots = ss.duplicate()
+		skill_slots.resize(3)   # 前の版（2026-11-16 の途中）は 4 つ目も保存していた
+	skills_owned = skills_owned.filter(func(x): return x != SLOT4)
+	if d.has("sp") and d.sp is Dictionary:
+		for ch in SkillTree.CHARS:
+			sp[ch] = int(d.sp.get(ch, 0))
+		skill_lv = d.get("skill_lv", {}).duplicate(true)
+		deriv = d.get("deriv", {}).duplicate(true)
+		first_clear_paid = _rekey(d.get("first_clear_paid", {}))
+	else:
+		migrate_sp()
+
+## 前のセーブ（sp が無い）からの移行：SP ＝（今のレベル −1）＋ 2 ×（クリアが1回以上の難易度の数）。技レベルは全部1、派生はなし
+## 初回クリアを済ませた難易度は「渡した」にする（二重に渡さない）
+func migrate_sp() -> void:
+	var n := 0
+	first_clear_paid = {}
+	for k in clears:
+		if int(clears[k]) >= 1:
+			n += 1
+			first_clear_paid[k] = true
+	for ch in SkillTree.CHARS:
+		sp[ch] = (lv - 1) + 2 * n
+	skill_lv = {}
+	deriv = {}
 
 func save() -> void:
 	var f := FileAccess.open(path, FileAccess.WRITE)
 	if f == null:
 		return
-	f.store_string(JSON.stringify({"lv": lv, "xp": xp, "weapon": weapon, "hard_open": hard_open, "best": best, "clears": clears, "skills_owned": skills_owned, "skill_slots": skill_slots}))
+	f.store_string(JSON.stringify(to_dict()))
 	f.close()

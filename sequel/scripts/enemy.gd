@@ -4,19 +4,14 @@ extends Node3D
 ## 数値は前作 battle/ の値を、ラナの背（205px＝1.85m）で m に直したもの。
 
 const SPR := preload("res://scripts/sprite_bb.gdshader")
-const HEIGHT := {"1": 2.10, "3": 2.03, "g1": 2.7,   # 前作の HEIGHT（f1 233・f3 225 px）÷205×1.85。g1＝ボス（前作の敵将。大きめに）
-	# 敵 第1弾（assets/foe2、2026-11-20）。背は仮（ユーザー判定待ち。身長の確認資料を作って決める方針）
+const FS := preload("res://scripts/foe_stats.gd")   # 種類ごとの体力・攻撃・アーマー・ダウン値（2026-11-15）
+const HEIGHT := {"1": 2.10, "3": 2.03, "g1": 2.7, "ef": 1.90, "em": 2.00, "bf": 1.85, "bc": 2.00, "bm": 1.95, "mo": 2.4, "gm": 2.5, "hr": 2.8, "t1b": 2.9, "t2e1": 2.1, "t1e1": 1.95, "t1e2": 1.8, "t2e2": 2.0, "t3e1": 2.35,
+	# 敵 第1弾（assets/foe2、tools/make_enemies.py、2026-11-20）。背は仮（ユーザー判定待ち）
 	"hammer_arm": 2.6, "hover_sentry": 2.0, "maintenance_soldier": 1.8, "mechanical_lancer": 1.85,
 	"mechanical_spine_dancer": 1.8, "prosthetic_arm_bouncer": 1.85, "prosthetic_leg_raider": 1.8,
-	"quadruped_sentry": 1.5, "steam_shield": 1.95}
-## 敵 第1弾の仮の値（ユーザー判定待ち）：hp・dmg＝一般兵の何倍か。heal＝その攻撃は味方の敵を回復する（整備兵の攻撃1。ユーザー指定）
-const FOE2 := {
-	"hammer_arm": {"hp": 1.6, "dmg": 1.4}, "hover_sentry": {"hp": 0.8, "dmg": 1.0},
-	"maintenance_soldier": {"hp": 0.9, "dmg": 0.8, "heal": "atk1"}, "mechanical_lancer": {"hp": 1.0, "dmg": 1.1},
-	"mechanical_spine_dancer": {"hp": 0.9, "dmg": 1.0}, "prosthetic_arm_bouncer": {"hp": 1.2, "dmg": 1.2},
-	"prosthetic_leg_raider": {"hp": 1.0, "dmg": 1.0}, "quadruped_sentry": {"hp": 1.1, "dmg": 1.0},
-	"steam_shield": {"hp": 1.5, "dmg": 0.9}}
-const HEAL_R := 4.0        # 回復の届く距離（m、仮）
+	"quadruped_sentry": 1.5, "steam_shield": 1.95}   # ef/em＝帝国兵 女・男（tools/make_imperial_foes.py）、bf/bc/bm＝盗賊 女・爪・男、mo＝爪の怪物・gm＝ガトリングの機兵・hr＝馬型の機兵（深層のボス）、t1b＝遊技場の鉄腕支配人（T1 のボス）・t2e1＝継ぎ腕の住人・t1e1＝徴収屋・t1e2＝仕込み銃の客引き・t2e2＝裂晶の運び手・t3e1＝壁喰い（設計書の背）（tools/make_foes.py）。背は仮（2026-11-14）   # 前作の HEIGHT（f1 233・f3 225 px）÷205×1.85。g1＝ボス（前作の敵将。大きめに）
+const BOSS_SIZE := {"t2e1": 1.4, "t3e1": 1.3}   # 雑魚の絵をボスに使うときの大きさ（2026-11-15。T2・T3 のボス）
+const HEAL_R := 4.0        # 回復の届く距離（m、仮。敵 第1弾の整備兵。体力・攻撃の倍率は foe_stats.gd に統合）
 const HEAL_K := 0.25       # 回復量＝体力の最大の何割か（仮）
 const FOE_SPD := 2.4       # 攻撃の連番の速さ（一騎打ちの何倍か。前作は3.3。予兆を読めるよう少し遅く）
 const ATK_START := 1.15    # この左右の距離で攻撃を始める
@@ -24,6 +19,7 @@ const ATK_REACH := 1.45    # 当たりの瞬間に、この距離までなら当
 const ATK_LANE := 0.45     # 奥行きのずれがこれ以内なら当たる（奥行きをずらして避けられる）
 const STOP := 0.95         # これより近くへは歩かない
 
+var hit_down_k := 1.0   # 装備（武器の特性「ダウン値」）の倍率。battle が当てる直前に入れる
 var battle               # battle.gd
 var kind := "1"
 var clips: Dictionary
@@ -50,8 +46,11 @@ var flash := 0.0
 var bar_t := 0.0
 var die_t := 0.0
 var die_dir := 1
+var die_v := 0.0          # 撃破で吹き飛ぶ横の速さ（2026-11-16 B 撃破の手応え）
 var lift_y := 0.0         # 浮かされた高さ（m）。絵だけを持ち上げる（空中の状態は別の作業）
 var lift_v := 0.0
+var air_hits := 0         # 浮いている間に受けた当たりの数（多いほど早く落ちる。specs/combat_tactics.md 4.）
+var last_air := false     # 直前の当たりが空中だったか（コンボの加点）
 # 被弾の見せ方（敵 第1弾：被弾の動画が無い。2026-11-20 ユーザー決定 B＝絵を傾けて揺らす）
 var hurt_t := 0.0         # 残り時間（秒）
 var hurt_len := 0.0
@@ -64,24 +63,35 @@ var atk_start := ATK_START
 var stop_d := STOP
 var atk_n := 0
 var spd := FOE_SPD
+const WAKE_D := 4.5   # 待っている敵が動き出す距離（画面の中。立っている姿が先に見える。仲間の攻撃が当たっても動き出す）
+var force_atk := ""     # 撮影用：攻撃の種類を固定（CAPTURE_FOE）
+# のけぞり・アーマー・ブレイク（2026-11-15、foe_stats.gd）
+var fst := {}            # 種類の数値（foe_stats.gd）
+var down_acc := 0.0      # たまったダウン値
+var down_t := 9.0        # 最後に当たってからの秒数
+var gap_t := 0.0         # 攻撃の後の大きな隙の残り
+var last_st := true      # 直前の当たりでのけぞったか（浮かせる・寄せるの判定）
+var brk := 0.0           # ブレイクの帯（ボス。たまった傷）
+var brk_max := 1.0
+var broken_t := 0.0      # ブレイクで倒れている残り
+var brk_pending := false # 突進中に満ちた（突進が終わったら倒れる）
+var unarmor_t := 0.0     # ジャストガードでアーマーが外れている残り（秒）
+var back_lock := 0.0     # 背中を見せたまま振り向かない残り（秒。回避ですり抜けられた・寄せられた・回り込まれた。specs/combat_tactics.md 3.）
+var last_back := false   # 直前の当たりが背中だったか（数字を金にする）
 
 func setup(b, k: String, c: Dictionary, level: int) -> void:
 	battle = b
 	kind = k
 	clips = c
 	size = randf_range(0.94, 1.06)
-	hp_max = (60.0 + level * 10.0) * b.foe_hp_mul   # 前作（22+5n）は2振りで倒れ、連携を見せる前に終わったので硬く
+	fst = FS.get_k(k)
+	hp_max = (60.0 + level * 10.0) * b.foe_hp_mul * float(fst.hp)   # 前作（22+5n）は2振りで倒れ、連携を見せる前に終わったので硬く。種類の倍率（foe_stats.gd）
 	hp = hp_max
-	dmg = int(round((7 + level) * b.foe_dmg_mul))
+	dmg = int(round((7 + level) * b.foe_dmg_mul * float(fst.atk)))
 	sp = (1.13 + randf_range(0.0, 0.38) + level * 0.03)
 	yo = randf_range(-1.0, 1.0) * 1.1
 	t = randf_range(0.0, 6.0)
 	atk_cd = randf_range(0.05, 0.6)
-	if FOE2.has(k):
-		var f: Dictionary = FOE2[k]
-		hp_max *= float(f.hp)
-		hp = hp_max
-		dmg = int(round(dmg * float(f.dmg)))
 
 ## 敵 第1弾：攻撃ごとの届く距離（当たりのコマで前へ出た分＋0.3m。一般兵の 1.45m より短くはしない。仮）
 func _reach_of(cl: Dictionary) -> float:
@@ -90,15 +100,24 @@ func _reach_of(cl: Dictionary) -> float:
 	return reach
 
 func _heal_clip(c: String) -> bool:
-	return FOE2.has(kind) and str(FOE2[kind].get("heal", "")) == c
+	return str(fst.get("heal", "")) == c
 
 ## ボスにする（spawn の直後に呼ぶ）
-func make_boss(hp_val: float, dmg_val: int) -> void:
+func make_boss(hp_val: float, dmg_val: int, size_k: float = 0.0, col: Color = Color(1, 1, 1, 0)) -> void:
 	boss = true
-	size = 1.0
-	hp_max = hp_val
-	hp = hp_val
-	dmg = dmg_val
+	size = size_k if size_k > 0.0 else float(BOSS_SIZE.get(kind, 1.0))
+	if col.a > 0.0 and mat:   # D1〜D3 のボス：雑魚の絵の色を変える（specs/dungeon_themes.md 4.）
+		mat.set_shader_parameter("recol", Color(col.r, col.g, col.b, 0.6))
+	var bk := 1.0   # 雑魚の絵を使うボスは、雑魚の倍率を掛けない（体力・攻撃は難易度の表どおり）
+	if str(fst.role) == "ボス":
+		bk = float(fst.hp)
+	hp_max = hp_val * bk
+	hp = hp_max
+	dmg = int(round(dmg_val * (float(fst.atk) if str(fst.role) == "ボス" else 1.0)))
+	fst.erase("gap")   # ボスは攻撃後の大きな隙を持たない
+	if hpbar:
+		hpbar.position.y = HEIGHT[kind] * size + 0.25
+	brk_max = hp_max * FS.BREAK_K
 	sp = 1.05
 	reach = 2.6
 	lane = 0.75
@@ -108,7 +127,7 @@ func make_boss(hp_val: float, dmg_val: int) -> void:
 	spd = 2.0
 	yo = 0.0
 	if shadow:
-		shadow.scale = Vector3(1.6, 1, 1.6)
+		shadow.scale = Vector3(1.6, 1, 1.6) * maxf(1.0, size)
 
 func _ready() -> void:
 	sprite = Sprite3D.new()
@@ -164,37 +183,88 @@ func _physics_process(delta: float) -> void:
 		mat.set_shader_parameter("flash_mix", Color(1, 1, 1, 0.0))
 		mat.set_shader_parameter("flash", Color(1.0, 1.0, 1.0, 0.5) if white else Color(0.75, 0.88, 1.0, 0.2 * flash / 0.1))
 	battle.apply_light(sprite, mat, refl, position)
+	var arm_a: float = 0.85 if (armored() and state != "dying" and not boss) else 0.0
+	if unarmor_t > FS.JG_UNARMOR - 0.25:   # ジャストガードで外れた瞬間：金の縁取りが強く光って消える（砕ける）
+		arm_a = (unarmor_t - (FS.JG_UNARMOR - 0.25)) / 0.25
+		mat.set_shader_parameter("armor_col", Color(1.0, 0.8, 0.35, arm_a))
+	elif airborne() and state != "dying":   # 浮いている：淡い金の縁取り＋少し後ろへ反る＋影が小さくなる（2026-11-16）
+		mat.set_shader_parameter("armor_col", FS.AIR_COL)
+		mat.set_shader_parameter("rot", -face * 0.32 * clampf(lift_y / 1.2, 0.0, 1.0))
+	else:
+		mat.set_shader_parameter("armor_col", Color(1, 1, 1, arm_a))   # アーマー中は白い縁取り（ボスは出さない＝いつも硬い）
+	if shadow and not boss:
+		var hk: float = 1.0 - 0.45 * clampf(lift_y / 1.8, 0.0, 1.0)
+		shadow.scale = Vector3(hk, 1, hk)
 	bar_t = maxf(0.0, bar_t - delta)
 	hpbar.visible = bar_t > 0.0 and state != "dying"
 	if dt <= 0.0:
 		return
 	t += dt
+	down_t += dt
+	unarmor_t = maxf(0.0, unarmor_t - dt)
+	back_lock = maxf(0.0, back_lock - dt)
+	if down_t > FS.DOWN_RESET:
+		down_acc = 0.0
 	if lift_y > 0.0 or lift_v > 0.0:
-		lift_v -= 16.0 * dt
+		lift_v -= FS.AIR_G * (1.0 + FS.AIR_G_ADD * air_hits) * dt   # 当てるほど落ちるのが速い
 		lift_y = maxf(0.0, lift_y + lift_v * dt)
 		if lift_y <= 0.0:
 			lift_v = 0.0
+			if air_hits > 0 or state == "stun":   # 着地：少し倒れたまま
+				stun = maxf(stun, FS.LAND_STUN)
+			air_hits = 0
+			if state != "dying" and state != "broken":
+				mat.set_shader_parameter("rot", 0.0)
 		sprite.position.y = lift_y
 		refl.position.y = -lift_y
 	if boss:   # 立ち絵1枚の歩き＝構えの揺れ（前作と同じ）
 		sprite.position.y = absf(sin(t * 3.2)) * 0.05 if state == "walk" else 0.0
 	var pl: Node3D = battle.player
-	if state != "dying":
+	if state != "dying" and not airborne():
 		_hurt_pose(dt)   # のけぞりは ひるみ が明けても最後まで（攻撃・歩きの間も）
 	match state:
+		"idle":   # 部屋に最初から立っている（2026-11-15 ユーザー）：ラナが WAKE_D m に入るか、攻撃を受けるまで待つ
+			var ix: float = pl.position.x - position.x
+			if back_lock <= 0.0:
+				face = 1 if ix >= 0 else -1
+			_show("walk", 0)
+			if absf(ix) < WAKE_D:
+				state = "walk"
 		"dying":
 			sprite.position.x = 0.0
 			die_t += dt
 			var k := die_t / (1.2 if boss else (0.45 if battle.fx.legacy else 0.75))   # 溶け消えは少し長く（縁が燃えるのを見せる）
-			position.x += die_dir * 1.4 * dt * (1.0 - k)
+			position.x += die_dir * (1.4 + die_v) * dt * pow(1.0 - minf(k, 1.0), 1.5)
 			mat.set_shader_parameter("rot", -die_dir * 1.25 * (1.0 - pow(1.0 - minf(k * 1.6, 1.0), 3.0)))
 			mat.set_shader_parameter("tint", Color(1, 1, 1, 1.0 - k))
 			shadow.transparency = k
 			if k >= (3.0 if boss else 1.0):
 				battle.remove_enemy(self)
 			return
+		"rush":
+			_rush_step(dt, pl)
+			if state != "rush" and brk_pending:
+				_break_down()
+			return
+		"broken":   # ブレイク：倒れて BREAK_T 秒（受ける傷 1.5 倍）。足元を軸に後ろへ倒し、起き上がる
+			broken_t -= dt
+			var bk: float = clampf(minf((FS.BREAK_T - broken_t) / 0.25, broken_t / 0.35), 0.0, 1.0)
+			mat.set_shader_parameter("rot", face * 1.15 * (1.0 - pow(1.0 - bk, 3.0)))
+			_show("walk", 0)
+			if broken_t <= 0.0:
+				mat.set_shader_parameter("rot", 0.0)
+				brk = 0.0
+				state = "walk"
+				atk_cd = 0.6
+			return
+		"gap":   # 重い敵の攻撃の後の大きな隙（ここではどの当たりでものけぞる）
+			gap_t -= dt
+			if gap_t <= 0.0:
+				state = "walk"
 		"stun":
 			stun -= dt
+			if airborne():   # 浮いている間はのけぞったまま
+				stun = maxf(stun, 0.05)
 			position.x += kx * dt
 			kx *= pow(0.0005, dt)
 			if stun <= 0.0:
@@ -210,16 +280,35 @@ func _physics_process(delta: float) -> void:
 			if not atk.done and atk.t >= atk.hit_t and atk.get("heal", false):
 				atk.done = true
 				_heal_friends()
+			# 溜めの型（atk1 の "charge"＝止めるコマ）：そのコマに入ったら赤い溜めの光（2026-11-14 帝国兵）
+			var acl: Dictionary = clips[atk.clip]
+			if acl.has("charge") and not atk.get("charged", false) and fi >= int(acl.charge):
+				atk.charged = true
+				var ch_life: float = (float(st[mini(int(acl.charge) + 1, st.size() - 1)]) - float(st[int(acl.charge)])) * 1.1
+				battle.fx.charge(position + Vector3(face * 0.35 * size, float(acl.get("charge_y", 1.4)) * size, 0.1), 0.9, maxf(ch_life, 0.25), battle.fx.RED)
 			if not atk.done and atk.t >= atk.hit_t:
 				atk.done = true
 				atk.warn = null
+				if acl.has("shot"):   # 撃つ型：銃口から届く所まで赤い弾の筋（n 本、gap 秒おき）
+					var sh: Dictionary = acl.shot
+					var y_: float = float(sh.get("y", 1.4)) * size
+					for k in int(sh.get("n", 1)):
+						var p0 := position + Vector3(face * float(sh.get("x", 0.8)) * size, y_ + randf_range(-0.06, 0.06), 0.05)
+						var p1 := position + Vector3(face * float(atk.reach), float(sh.get("y1", float(sh.get("y", 1.4)))) * size + randf_range(-0.12, 0.12), 0.05)
+						battle.fx.bolt([p0, p1], float(sh.get("w", 0.07)), battle.fx.RED[1], 0.12, k * float(sh.get("gap", 0.07)), 0.0, false, 0)
+				if acl.has("slash"):   # 溜めの型の当たり：ラナと同じ弧を赤で
+					var sp_: Dictionary = (acl.slash as Dictionary).duplicate()
+					sp_["pal"] = battle.fx.RED
+					sp_["r"] = float(sp_.r) * size
+					battle.fx.slash(position, face, sp_)
+					battle.shake = maxf(battle.shake, 4.0)
 				var dx: float = (pl.position.x - position.x) * face
 				var dz: float = absf(pl.position.z - position.z)
 				if atk.wide:
 					dx = absf(pl.position.x - position.x)
 				if dx > -0.3 and dx < float(atk.reach) and dz < float(atk.lane):
 					battle.enemy_hits_player(self)
-				# 仲間（リリィ）も同じ範囲にいれば当たる（体力は無い。揺れて押し戻されるだけ。2026-11-06）
+				# 仲間（リリィ）も同じ範囲にいれば当たる（2026-11-14 から体力あり。倒れる）
 				for al in battle.ally_list():   # 2026-11-12：仲間が2人（リリィ・ランカ）
 					if not al.can_be_hit():
 						continue
@@ -229,14 +318,21 @@ func _physics_process(delta: float) -> void:
 					if adx > -0.3 and adx < float(atk.reach) and absf(al.position.z - position.z) < float(atk.lane):
 						var ad := 1 if al.position.x >= position.x else -1
 						battle.fx.hurt(al.position + Vector3(0, 1.0, 0), ad)
-						al.on_hurt(ad)
+						if al.has_method("take_damage"):   # 2026-11-14：仲間も体力を持ち、倒れる（specs/dungeon_themes.md 3.4）
+							al.take_damage(float(dmg), ad)
+						else:
+							al.on_hurt(ad)
 			if atk.t >= atk.end_t:
 				state = "walk"
 				atk_cd = 0.8 if boss else 1.0
+				if float(fst.get("gap", 0.0)) > 0.0:
+					state = "gap"
+					gap_t = float(fst.gap)
 		"walk":
 			var dx: float = pl.position.x - position.x
-			face = 1 if dx >= 0 else -1
-			if absf(dx) > stop_d * size:
+			if back_lock <= 0.0:
+				face = 1 if dx >= 0 else -1
+			if absf(dx) > stop_d * size and back_lock <= 0.0:
 				position.x += signf(dx) * sp * dt
 			# 遠いほど奥行きにばらけ、近づくとラナの奥行きへ寄る
 			var fk := clampf((absf(dx) - 0.5) / 2.2, 0.25, 1.0)
@@ -245,8 +341,8 @@ func _physics_process(delta: float) -> void:
 			if absf(dz) > 0.05:
 				position.z += signf(dz) * minf(absf(dz), sp * 0.6 * dt)
 			atk_cd -= dt
-			if absf(dx) < atk_start * size and absf(pl.position.z - position.z) < lane * 0.8 and atk_cd <= 0.0 and battle.player_alive():
-				_start_atk()
+			if back_lock <= 0.0 and absf(dx) < _max_start() * size and absf(pl.position.z - position.z) < lane * 0.8 and atk_cd <= 0.0 and battle.player_alive():
+				_start_atk(absf(dx))
 			else:
 				var wc: Dictionary = clips.walk
 				var moving: bool = absf(dx) > stop_d * size or absf(dz) > 0.05
@@ -255,15 +351,31 @@ func _physics_process(delta: float) -> void:
 	position.z = clampf(position.z, battle.BELT_Z.x - 0.1, battle.BELT_Z.y + 0.1)
 	position.x = clampf(position.x, battle.ROOM_X.x - 0.6, battle.ROOM_X.y + 0.6)
 
-func _start_atk() -> void:
-	var names := []
+## 攻撃を始める距離（clip の "start"＝m。無ければ atk_start）。遠くから撃つ・突進する型のため（2026-11-14）
+func _clip_start(cl: Dictionary) -> float:
+	return float(cl.get("start", atk_start / size))
+
+func _max_start() -> float:
+	var m := 0.0
 	for k in clips:
 		if str(k).begins_with("atk"):
+			m = maxf(m, _clip_start(clips[k]))
+	return m
+
+func _start_atk(dist: float = 0.0) -> void:
+	var names := []
+	for k in clips:
+		if str(k).begins_with("atk") and _clip_start(clips[k]) * size >= dist:
 			names.append(k)
-	var c: String = names[randi() % names.size()]
+	if names.is_empty():
+		return
+	var c: String = force_atk if force_atk != "" and clips.has(force_atk) else names[randi() % names.size()]
 	var cl: Dictionary = clips[c]
 	atk_n += 1
-	var wide := boss and atk_n % 3 == 0
+	if cl.has("rush"):
+		_start_rush(c, cl)
+		return
+	var wide := boss and atk_n % 3 == 0 and not cl.has("reach")
 	var s_: float = spd * (0.7 if wide else 1.0)   # 大振りは遅い（予兆が長い）
 	var acc := 0.0
 	var starts := []
@@ -274,8 +386,8 @@ func _start_atk() -> void:
 			hit_t = acc / 1000.0 / s_
 		acc += float(cl.durs[i])
 	state = "atk"
-	var r: float = (3.4 * size) if wide else _reach_of(cl) * (1.0 if cl.has("fwd") else size)
-	var ln: float = 1.25 if wide else lane
+	var r: float = (3.4 if wide else float(cl.get("reach", _reach_of(cl) / size))) * size
+	var ln: float = 1.25 if wide else float(cl.get("lane", lane))
 	atk = {"clip": c, "t": 0.0, "starts": starts, "hit_t": hit_t, "end_t": acc / 1000.0 / s_, "done": false,
 		"wide": wide, "reach": r, "lane": ln}
 	if _heal_clip(c):   # 回復：床の赤い予兆は出さない（当たらないので）
@@ -303,10 +415,13 @@ func _heal_friends() -> void:
 
 ## 浮かせる（リリィの上段・ジャブの2発目）：v＝上向きの速さ（m/秒）。ボスは浮かない
 func lift_up(v: float) -> void:
-	if boss or state == "dying":
+	if boss or state == "dying" or not last_st:
 		return
-	lift_v = maxf(lift_v, v)
+	var was_air := airborne()
+	lift_v = minf(maxf(lift_v, v * FS.LIFT_K), FS.LIFT_MAX)
 	stun = maxf(stun, 0.45)
+	if not was_air and battle.fx2d and battle.fx2d.enabled and not battle.fx.legacy:   # 打ち上げた瞬間：足元に金の衝撃
+		battle.fx2d.hit(position + Vector3(0, 0.15, 0), face, true, "gold")
 
 ## 被弾の姿勢（敵 第1弾だけ）：足元を軸に、打たれた向きへのけぞる（強いほど深い）→ 小刻みに揺れて戻る
 func _hurt_pose(dt: float) -> void:
@@ -324,11 +439,38 @@ func _hurt_pose(dt: float) -> void:
 		mat.set_shader_parameter("rot", 0.0)
 		sprite.position.x = 0.0
 
-## ラナの攻撃が当たった
-func take_hit(d: float, dir: int, strong: bool) -> void:
+## アーマー中か（この間はダウン値がたまっても、のけぞらない）
+func armored() -> bool:
+	if boss:
+		return true
+	if gap_t > 0.0 and state == "gap":
+		return false
+	if unarmor_t > 0.0:
+		return false
+	match str(fst.get("armor", "none")):
+		"always":
+			return true
+		"attack":   # 予兆が出てから当たりまで（armor_atk があればその攻撃だけ＝大技）
+			if fst.has("armor_atk") and not (fst.armor_atk as Array).has(str(atk.get("clip", ""))):
+				return false
+			return state == "atk" and not atk.is_empty() and not atk.get("done", true)
+		"charge":   # 溜めのコマに入ってから当たりまで
+			return state == "atk" and not atk.is_empty() and atk.get("charged", false) and not atk.get("done", true)
+	return false
+
+## ラナ・仲間の攻撃が当たった。戻り値＝のけぞったか（止めの長さに使う）。ally＝仲間の技（ダウン値を半分だけ積む）
+func take_hit(d: float, dir: int, strong: bool, ally := false) -> bool:
 	if state == "dying":
-		return
-	if FOE2.has(kind) and not boss:
+		return false
+	if state == "idle":
+		state = "walk"
+	if state == "broken":
+		d *= FS.BREAK_DMG
+	# 背中：当てた側（dir＝当てた者から敵への向き）と敵の向きが同じ＝後ろから。傷 1.2 倍・ダウン値 2 倍（2026-11-16 ユーザー了承）
+	last_back = dir == face
+	if last_back:
+		d *= FS.BACK_DMG
+	if str(fst.get("hurt", "")) == "tilt" and not boss:   # 被弾の動画が無い敵（第1弾）：絵を傾けて揺らす
 		hurt_len = 0.45 if strong else 0.26
 		hurt_t = hurt_len
 		hurt_dir = dir
@@ -336,12 +478,22 @@ func take_hit(d: float, dir: int, strong: bool) -> void:
 	flash = 0.1
 	bar_t = 0.0 if boss else 1.6
 	hpbar.material_override.set_shader_parameter("ratio", maxf(0.0, hp / hp_max))
-	if boss:   # のけぞらない（少しだけ押される）
-		position.x += dir * (0.12 if strong else 0.04)
+	last_st = false
+	if boss:   # のけぞらない（少しだけ押される）。傷がブレイクの帯にたまり、満ちると倒れる
+		if state != "broken" and hp > 0.0:
+			position.x += dir * (0.12 if strong else 0.04)
+			brk += d
+			if brk >= brk_max:
+				brk = brk_max
+				if state == "rush":
+					brk_pending = true   # 突進中は止まらない
+				else:
+					_break_down()
 		if hp <= 0.0:
 			if atk.get("warn") != null and not atk.done:
 				battle.fx.drop(atk.warn)
 			atk = {}
+			mat.set_shader_parameter("rot", 0.0)
 			state = "dying"
 			die_t = 0.0
 			die_dir = dir
@@ -349,18 +501,155 @@ func take_hit(d: float, dir: int, strong: bool) -> void:
 			if battle.fx2d and not battle.fx.legacy:
 				battle.fx2d.kill(position + Vector3(0, height() * 0.5, 0), battle.fx, position)
 			battle.on_kill(self)
-		return
+		return false
+	# ダウン値：通常 1・強い 3（仲間は半分）をため、種類の値に達したらのけぞる
+	down_acc += (FS.DOWN_STRONG if strong else FS.DOWN_NORMAL) * (FS.DOWN_ALLY_K if ally else 1.0) * (FS.BACK_DOWN if last_back else 1.0) * hit_down_k
+	down_t = 0.0
+	var stagger: bool = down_acc >= float(fst.down) - 0.001
+	last_air = airborne()
+	if state == "gap" or unarmor_t > 0.0 or last_air:   # 隙・アーマー解除・空中はどの当たりでものけぞる
+		stagger = true
+	if last_air:   # 追い打ち：少し浮き直す（当てるほど弱く）
+		air_hits += 1
+		lift_v = minf(maxf(lift_v, FS.JUGGLE_V * pow(FS.JUGGLE_DECAY, air_hits)), FS.LIFT_MAX)
+	elif str(fst.armor) == "always":
+		stagger = stagger and strong
+	elif armored():
+		stagger = false
+	if hp > 0.0 and not stagger:   # アーマーで受けた：攻撃は止まらない。白い光は出さず淡い青だけ（当たり続けて体が白く飛ぶのを防ぐ）
+		flash = 0.06
+		return false
+	down_acc = 0.0
+	last_st = true
+	gap_t = 0.0
 	if atk.get("warn") != null and not atk.done:
 		battle.fx.drop(atk.warn)
 	atk = {}
 	stun = maxf(stun, 0.5 if strong else 0.16)
-	kx = dir * (3.9 if strong else 1.6)
+	kx = dir * (3.9 if strong else 1.6) * float(fst.get("kb", 1.0))
 	state = "stun"
 	if hp <= 0.0:
 		state = "dying"
 		die_t = 0.0
 		die_dir = dir
+		# 撃破の一撃：弧を描いて吹き飛ぶ（強い当たりほど遠く・高く）
+		die_v = FS.KILL_VX_STRONG if strong else FS.KILL_VX
+		lift_v = maxf(lift_v, FS.KILL_VY_STRONG if strong else FS.KILL_VY)
 		battle.fx.kill(position, dir, height())
 		if battle.fx2d and not battle.fx.legacy:
 			battle.fx2d.kill(position + Vector3(0, height() * 0.5, 0), battle.fx, position)
 		battle.on_kill(self)
+	return true
+
+func airborne() -> bool:
+	return lift_y > 0.01 or lift_v > 0.0
+
+## 背中を見せさせる：to_face＝向かせる向き（+1 右）、t 秒は振り向かない（ボスは向きだけ変えて止めない）
+func turn_back(to_face: int, t: float) -> void:
+	if state == "dying" or state == "broken":
+		return
+	face = to_face
+	if boss:
+		return
+	back_lock = maxf(back_lock, t)
+	if state == "atk" and not armored():   # 構えの途中なら取り消す（アーマー中の大技は止まらない）
+		if atk.get("warn") != null and not atk.get("done", true):
+			battle.fx.drop(atk.warn)
+		atk = {}
+		state = "walk"
+
+## ジャストガードを受けた：アーマーを JG_UNARMOR 秒外す（ボスは外さない＝ブレイクで崩す）
+func armor_break() -> void:
+	if boss or state == "dying":
+		return
+	unarmor_t = FS.JG_UNARMOR
+	down_acc = 0.0
+	if battle.fx2d and battle.fx2d.enabled and not battle.fx.legacy:
+		battle.fx2d.hit(position + Vector3(0, height() * 0.55, 0), face, true, "gold")
+
+## ボスのブレイク：攻撃を止めて BREAK_T 秒倒れる（受ける傷 1.5 倍）。帯は倒れている間に空へ戻る
+func _break_down() -> void:
+	brk_pending = false
+	if atk.get("warn") != null and not atk.get("done", true):
+		battle.fx.drop(atk.warn)
+	atk = {}
+	state = "broken"
+	broken_t = FS.BREAK_T
+	battle.shake = maxf(battle.shake, 10.0)
+	battle.freeze = maxf(battle.freeze, 0.12)
+	if battle.fx2d and battle.fx2d.enabled and not battle.fx.legacy:
+		battle.fx2d.hit(position + Vector3(0, height() * 0.5, 0), face, true, "gold")
+	if battle.has_signal("boss_break"):
+		battle.emit_signal("boss_break", self)
+
+## ブレイクの帯の割合（HUD）：倒れている間は残り時間で減っていく
+func break_ratio() -> float:
+	if state == "broken":
+		return broken_t / FS.BREAK_T
+	return clampf(brk / brk_max, 0.0, 1.0)
+
+
+## 突進（clip の "rush"）：構え（wind のコマ、床に進む帯の予兆）→ 走る（loop のコマを回しながら dist m を spd m/秒で進む。通り道で1回当たる）→ 止まる（end のコマ）。
+## 馬型のロボット（2026-11-14、ユーザー「走り体当たりが攻撃」）
+var rush := {}
+
+func _start_rush(c: String, cl: Dictionary) -> void:
+	var r: Dictionary = cl.rush
+	state = "rush"
+	var dist: float = float(r.get("dist", 8.0))
+	var x1: float = clampf(position.x + face * dist, battle.ROOM_X.x - 0.4, battle.ROOM_X.y + 0.4)
+	var ln: float = float(cl.get("lane", lane))
+	rush = {"clip": c, "ph": 0, "t": 0.0, "x1": x1, "hit": false, "hit_al": [], "ln": ln}
+	var w: float = absf(x1 - position.x) + 1.6 * size
+	var cx: float = (position.x + x1) * 0.5
+	rush.warn = battle.fx.warn(Vector3(cx, 0, position.z), Vector2(w, ln * 2.0), float(r.get("wind_t", 0.8)))
+
+func _rush_step(dt: float, pl: Node3D) -> void:
+	var cl: Dictionary = clips[rush.clip]
+	var r: Dictionary = cl.rush
+	rush.t += dt
+	var wind: Array = r.wind
+	var loop: Array = r.loop
+	var endf: Array = r.end
+	match int(rush.ph):
+		0:   # 構え
+			var wt: float = float(r.get("wind_t", 0.8))
+			_show(rush.clip, int(wind[mini(int(rush.t / wt * wind.size()), wind.size() - 1)]))
+			if rush.t >= wt:
+				rush.ph = 1
+				rush.t = 0.0
+				rush.warn = null
+				battle.fx.dust(position, 1.2 * size)
+		1:   # 走る
+			var spd_: float = float(r.get("spd", 10.0))
+			var fi: int = int(rush.t * float(r.get("fps", 18.0))) % loop.size()
+			_show(rush.clip, int(loop[fi]))
+			var step: float = spd_ * dt
+			var left: float = absf(float(rush.x1) - position.x)
+			position.x += face * minf(step, left)
+			var half: float = float(r.get("half", 1.1)) * size
+			if not rush.hit and pl.can_be_hit() and absf(pl.position.x - position.x) < half and absf(pl.position.z - position.z) < float(rush.ln):
+				rush.hit = true
+				battle.enemy_hits_player(self)
+				battle.shake = maxf(battle.shake, 9.0)
+			for al in battle.ally_list():
+				if al in rush.hit_al or not al.can_be_hit():
+					continue
+				if absf(al.position.x - position.x) < half and absf(al.position.z - position.z) < float(rush.ln):
+					rush.hit_al.append(al)
+					var ad := 1 if al.position.x >= position.x else -1
+					battle.fx.hurt(al.position + Vector3(0, 1.0, 0), ad)
+					if al.has_method("take_damage"):
+						al.take_damage(float(dmg), ad)
+					else:
+						al.on_hurt(ad)
+			if left <= step:
+				rush.ph = 2
+				rush.t = 0.0
+				battle.fx.dust(position + Vector3(face * 0.8, 0, 0), 1.4 * size)
+		2:   # 止まる
+			var et: float = float(r.get("end_t", 0.5))
+			_show(rush.clip, int(endf[mini(int(rush.t / et * endf.size()), endf.size() - 1)]))
+			if rush.t >= et:
+				state = "walk"
+				atk_cd = 1.4 if boss else 1.6

@@ -1,0 +1,71 @@
+{
+  "errors": [],
+  "logs": [
+    "Failed to load resource: the server responded with a status of 404 (File not found)",
+    "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org",
+    "OpenGL API OpenGL ES 3.0 (WebGL 2.0 (OpenGL ES 3.0 Chromium)) - Compatibility - Using Device: WebKit - WebKit WebGL",
+    "Build configuration: Emscripten 4.0.20, single-threaded, no GDExtension support.",
+    "BOOT main_ready 1567ms",
+    "BOOT before_d1 1571ms",
+    "DL d1.pck start 1573ms",
+    "DL d1.pck done +1258ms result=0 code=200 size=17.5MB frames=36",
+    "DL d1.pck written +1266ms",
+    "DL d1.pck load_resource_pack 0ms ok=true",
+    "BOOT after_d1 2841ms",
+    "DL bt1.pck start 2842ms",
+    "DL bt1.pck done +1893ms result=0 code=200 size=27.0MB frames=63",
+    "DL bt1.pck written +1905ms",
+    "DL bt1.pck load_resource_pack 1ms ok=true",
+    "BOOT after_build_city 5531ms",
+    "CAMV D2 belt=(-2.0, 2.0) ofs=(0.0, 3.2, 15.3) fov=16.80",
+    "BOOT before_player 5561ms",
+    "BOOT after_player 6197ms",
+    "DL al1.pck start 6199ms",
+    "DL fx1.pck start 6217ms",
+    "DL al1.pck +2172ms got=0.0MB total=-0.0MB frames=5 status=6",
+    "DL fx1.pck +2156ms got=0.0MB total=-0.0MB frames=5 status=6",
+    "DL al1.pck +4264ms got=6.3MB total=-0.0MB frames=14 status=7",
+    "DL fx1.pck +4247ms got=8.4MB total=-0.0MB frames=14 status=7",
+    "DL fx1.pck done +4761ms result=0 code=200 size=10.3MB frames=16",
+    "DL fx1.pck written +4765ms",
+    "DL fx1.pck load_resource_pack 1ms ok=true",
+    "BOOT fx1_loaded 10987ms",
+    "DL al1.pck +6387ms got=14.7MB total=-0.0MB frames=27 status=7",
+    "DL al1.pck done +7987ms result=0 code=200 size=20.5MB frames=36",
+    "DL al1.pck written +8030ms",
+    "DL al1.pck load_resource_pack 0ms ok=true",
+    "BOOT ally_loaded 14610ms",
+    "DL al2.pck start 14629ms",
+    "DL al2.pck +2006ms got=12.6MB total=-0.0MB frames=19 status=7",
+    "DL al2.pck done +2798ms result=0 code=200 size=32.0MB frames=39",
+    "DL al2.pck written +2811ms",
+    "DL al2.pck load_resource_pack 0ms ok=true",
+    "BOOT ranka_loaded 17724ms"
+  ],
+  "packs": [
+    {
+      "url": "http://127.0.0.1:8765/index.pck?v=20261115143944-ca26202-g4.7.2",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8765/districts/d1.pck?v=20261115143944-ca26202-g4.7.2",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8765/districts/bt1.pck?v=20261115143944-ca26202-g4.7.2",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8765/districts/fx1.pck?v=20261115143944-ca26202-g4.7.2",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8765/districts/al1.pck?v=20261115143944-ca26202-g4.7.2",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8765/districts/al2.pck?v=20261115143944-ca26202-g4.7.2",
+      "status": 200
+    }
+  ]
+}

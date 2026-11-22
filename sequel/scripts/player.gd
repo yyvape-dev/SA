@@ -6,6 +6,8 @@ extends Node3D
 
 const SPR := preload("res://scripts/sprite_bb.gdshader")
 const Skills := preload("res://scripts/skills.gd")
+const SkillTree := preload("res://scripts/skill_tree.gd")
+const FoeStats := preload("res://scripts/foe_stats.gd")
 const WALK := 2.8
 const RUN := 6.2
 const DEPTH_K := 0.75        # 奥行きの移動は少し遅く（アラド型）
@@ -65,6 +67,11 @@ var skill_id := ""        # 使っている技
 var skill_uses := {}      # id -> 使った回数（確認用）
 var skill_ready_flash := {}   # id -> 使えるようになった瞬間の光（秒）
 var inv := 0.0
+var chain_used := {}   # この連携で使ったスキル（同じ技は 1 連携 1 回。specs/combat_tactics.md 2.）
+var chain_idle := 0.0  # 何もしていない時間（0.25 秒で連携が切れる）
+var wrap := {}         # 回り込み：{from, to, target}
+var pass_side := {}    # 回避の始まりの、近い敵の左右（すり抜けの判定）
+var inv_blink := true   # 当たらない間に点滅するか（必殺技の後の当たらない残りは点滅させない。2026-11-15 ユーザー「必殺後に透過っぽく点滅する」）
 var flash := 0.0
 var kb := 0.0
 var down_dir := 1
@@ -79,7 +86,7 @@ func _ready() -> void:
 	for pg in d.pages:   # 最初の攻撃で読み込みの引っかかりが出ないよう、先に全部読む
 		_tex(pg)
 	_build_tables()
-	skills = Skills.table()
+	refresh_skills()
 	sprite = Sprite3D.new()
 	sprite.region_enabled = true
 	sprite.centered = false
@@ -121,7 +128,7 @@ func _build_tables() -> void:
 	var h_hits := []
 	for f in [24, 36, 45, 57, 66]:
 		h_hits.append([f, {"side": 0, "r": 2.3, "lane": 1.3, "dmg": 14.0, "strong": false, "shake": 5.0, "slash": SL_SPIN}])
-	h_hits.append([75, {"side": 0, "r": 2.4, "lane": 1.4, "dmg": 26.0, "strong": true, "shake": 12.0, "slash": SL_SPIN}])
+	h_hits.append([75, {"side": 0, "r": 2.4, "lane": 1.4, "dmg": 26.0, "strong": true, "shake": 12.0, "slash": SL_SPIN, "lift": 3.0}])   # 2026-11-16：長押しの締めで浮かせる（溜めて浮かせる→追い打ち）
 	var h: Dictionary = mk.call("hold", h_hits, 0.08)
 	tab = {"atkA": a, "atkB": b, "atkC": c, "hold": h}
 
@@ -161,8 +168,50 @@ func _root(c: String, tt: float) -> float:
 	return lerpf(float(r[i]), float(r[j]), clampf(x - int(x), 0.0, 1.0))
 
 ## 攻撃：押した瞬間に連撃の次の技。押し続けると長押しの技（attack_press／attack_release。tap は attack()）
+var jg_window := 0.0   # ジャストガードの後、反撃が出せる残り（秒）
+
+## 今、攻撃ボタンが何に変わるか（"" ＝通常攻撃）。反撃＞背中＞浮き の順
+func context_move() -> String:
+	if world == null or locked or state == "down" or state == "hurt" or state == "ult":
+		return ""
+	if jg_window > 0.0:
+		return "ctx_counter"
+	var back := false
+	var air := false
+	for e in world.enemies:
+		if e.state == "dying":
+			continue
+		var dx: float = (e.position.x - position.x) * face
+		if dx < -0.6 or dx > 3.2 or absf(e.position.z - position.z) > 1.2:
+			continue
+		if e.airborne():
+			air = true
+		elif not e.boss and e.back_lock > 0.0 and int(e.face) == face:
+			back = true
+	var c := ""
+	if back:
+		c = "ctx_back"
+	elif air:
+		c = "ctx_air"
+	if c != "" and (chain_used.has(c) or float(skill_cd.get(c, 0.0)) > 0.0):   # 出せない時は光らせない
+		return ""
+	return c
+
+func _try_context() -> bool:
+	var c := context_move()
+	if c == "" or not skills.has(c):
+		return false
+	var ok_state: bool = state == "move" or (state == "atk" and hit_i >= 1) or (state == "skill" and hit_i >= 1 and skill_id != c)
+	if not ok_state:
+		return false
+	if c == "ctx_counter":
+		jg_window = 0.0
+	return use_skill(c)
+
 func attack() -> void:
 	if locked:
+		return
+	if _try_context():
 		return
 	if state == "atk" or state == "dodge":
 		queued = true
@@ -188,6 +237,7 @@ func _start_attack(c: String) -> void:
 		face = 1 if move_in.x > 0 else -1
 	state = "atk"
 	clip = c
+	world.style.tech_start(c)
 	if c == "atkA": atk_next = "atkB"
 	elif c == "atkB": atk_next = "atkC"
 	else: atk_next = "atkA"
@@ -204,10 +254,24 @@ func _end_attack() -> void:
 	atk_next = "atkA"
 	_show_frame(clip, 0)
 
+## スキルツリーの技レベル・派生を掛けた表を読み直す（街でツリーを閉じた時・進み具合が変わった時。main.apply_progress）
+func refresh_skills() -> void:
+	var pr = world.main.progress if world and world.main else null
+	skills = SkillTree.table_for("rana", pr)
+	skills.merge(Skills.context_table())   # 状況で変わる攻撃（2026-11-16）
+
+## 必殺技のゲージの必要量（技レベル 3 で −10％、5 で −20％）
+func ult_cost() -> float:
+	return world.ULT_COST * float(skills.get("ult", {}).get("cost_mul", 1.0))
+
 ## スキル：使えたら true。move・atk（連撃の当たりの後）から。CD 中・回避・被弾・ダウン・locked は不可
 func can_use_skill(id: String) -> bool:
 	if locked or id == "" or not skills.has(id) or float(skill_cd.get(id, 0.0)) > 0.0:
 		return false
+	if chain_used.has(id):
+		return false
+	if state == "skill":   # つなぎ：今の技が 1 回でも当たりを出した後なら、別の技で取り消せる（2026-11-16）
+		return id != skill_id and hit_i >= 1
 	if state == "move":
 		return true
 	if state == "atk" and tab.has(clip):
@@ -218,6 +282,9 @@ func use_skill(id: String) -> bool:
 	if not can_use_skill(id):
 		return false
 	var sk: Dictionary = skills[id]
+	if state == "skill":   # 技を取り消してつないだ（コンボの加点）
+		world.style.bonus("cancel")
+	world.style.tech_start(id)
 	if absf(move_in.x) > 0.3:
 		face = 1 if move_in.x > 0 else -1
 	state = "skill"
@@ -229,12 +296,40 @@ func use_skill(id: String) -> bool:
 	queued = false
 	queued_hold = false
 	atk_next = "atkA"
-	skill_cd[id] = float(sk.cd)
+	skill_cd[id] = float(sk.cd) * float(world.g_cd)
 	skill_uses[id] = int(skill_uses.get(id, 0)) + 1
 	if world.combat_audio != null:
 		world.combat_audio.play_cue("skill")
+	chain_used[id] = true
+	wrap = {}
+	if sk.get("behind", false):
+		_wrap_start(sk)
 	world.big_moment(float(sk.total) * 0.85)   # 大技の暗転（specs/vfx_overhaul.md）
 	return true
+
+## 回り込みの始まり：前後 range m のいちばん近い敵の背後（向こう側 1.0m）へ。いなければ向いている方へ 3m
+func _wrap_start(sk: Dictionary) -> void:
+	var best = null
+	var bd: float = float(sk.get("range", 6.5))
+	for e in world.enemies:
+		if not is_instance_valid(e) or e.state == "dying":
+			continue
+		var d: float = absf(e.position.x - position.x) + absf(e.position.z - position.z) * 0.5
+		if absf(e.position.z - position.z) < 2.2 and d < bd:
+			bd = d
+			best = e
+	var to := position + Vector3(face * 3.0, 0, 0)
+	var f := face
+	if best != null:
+		var side: float = signf(best.position.x - position.x)
+		if side == 0.0:
+			side = float(face)
+		to = Vector3(best.position.x + side * (1.0 + 0.35 * float(best.size)), position.y, best.position.z)
+		f = -int(side)   # 振り返って敵の背中を向く
+	to.x = clampf(to.x, room_x.x, room_x.y)
+	to.z = clampf(to.z, belt_z.x, belt_z.y)
+	wrap = {"from": position, "to": to, "target": best, "face": f}
+	ghost_t = 0.0
 
 func _skill_event(spec: Dictionary) -> void:
 	var hs := spec.duplicate()
@@ -275,16 +370,17 @@ var ult_t := 0.0
 func can_use_ult() -> bool:
 	if world.cine or world.ult_busy(self):   # 仲間（リリィ・ランカ）の必殺技の最中は出さない
 		return false
-	return not locked and world.ult >= world.ULT_COST and (state == "move" or (state == "atk" and tab.has(clip) and t >= float(tab[clip].cancel)))
+	return not locked and world.ult >= ult_cost() and (state == "move" or (state == "atk" and tab.has(clip) and t >= float(tab[clip].cancel)))
 
 func use_ult() -> bool:
 	if not can_use_ult():
 		return false
-	world.ult = maxf(0.0, world.ult - world.ULT_COST)
+	world.ult = maxf(0.0, world.ult - ult_cost())
 	world.ult_gain = false
 	if absf(move_in.x) > 0.3:
 		face = 1 if move_in.x > 0 else -1
 	state = "ult"
+	world.style.tech_start("ult")
 	ult_t = 0.0
 	ult_i = 0
 	ult_seq = false
@@ -300,6 +396,7 @@ func use_ult() -> bool:
 func _ult_process(delta: float) -> void:
 	ult_t += delta
 	inv = 0.4   # 必殺技の間は当たらない
+	inv_blink = false
 	var zt: float = ULT_T.zoom
 	if ult_t < ULT_T.cut_end:
 		world.cam_zoom = minf(1.0, ult_t / zt)
@@ -321,7 +418,7 @@ func _ult_process(delta: float) -> void:
 		sl.r = float(sl.r) * 1.6
 		sl.w = float(sl.w) * 1.3
 		sl.pal = world.GOLD_PAL
-		world._attack_from(self, {"side": 0, "shape": "both", "r": 8.0, "lane": 4.0, "dmg": 18.0 * 0.8, "strong": false, "kb": 0.2, "slash": sl}, world.atk_mul)
+		world._attack_from(self, {"side": 0, "shape": "both", "r": 8.0, "lane": 4.0, "dmg": 18.0 * float(skills.get("ult", {}).get("k_hit", 0.8)), "strong": false, "kb": 0.2, "slash": sl}, world.atk_mul)
 		if ult_i % 2 == 0:
 			fx.rift(position.x, position.x + 7.0 * (1 if ult_i % 4 == 0 else -1), position.z, 1)
 		world.shake = maxf(world.shake, 8.0)
@@ -336,7 +433,7 @@ func _ult_process(delta: float) -> void:
 		big.r = float(big.r) * 1.5
 		big.w = float(big.w) * 1.5
 		big.pal = world.GOLD_PAL
-		world._attack_from(self, {"side": 0, "shape": "both", "r": 8.0, "lane": 4.0, "dmg": 18.0 * 4.0, "strong": true, "kb": 3.0, "freeze_add": 0.2, "slash": big}, world.atk_mul)
+		world._attack_from(self, {"side": 0, "shape": "both", "r": 8.0, "lane": 4.0, "dmg": 18.0 * float(skills.get("ult", {}).get("k_end", 4.0)), "strong": true, "kb": 3.0, "freeze_add": 0.2, "slash": big}, world.atk_mul)
 		if fx.seqs.is_empty():   # 焼いた連番が無いとき（読み込み前）だけ前の見た目
 			fx.vortex_burst(position, 6.0)
 			if world.fx2d and not fx.legacy:
@@ -366,7 +463,9 @@ func guard_candidate(e) -> bool:
 func dodge() -> void:
 	if locked:
 		return
-	if state == "dodge" or state == "down" or state == "hurt":
+	if state == "dodge" or state == "down" or state == "hurt" or state == "ult":
+		return
+	if state == "skill" and hit_i < 1:   # スキルは当たりを出した後だけ回避で取り消せる（2026-11-16）
 		return
 	if state == "move" and world != null:
 		for foe in world.enemies:
@@ -382,6 +481,13 @@ func dodge() -> void:
 	dodge_t = 0.0
 	ghost_t = 0.0
 	queued = false
+	skill_id = ""
+	# すり抜けの判定用：近い敵の左右を覚える
+	pass_side = {}
+	if world != null:
+		for e in world.enemies:
+			if is_instance_valid(e) and e.state != "dying" and absf(e.position.x - position.x) < 3.5 and absf(e.position.z - position.z) < 1.0:
+				pass_side[e] = signf(e.position.x - position.x)
 
 func can_be_hit() -> bool:
 	return inv <= 0.0 and state != "dodge" and state != "down" and state != "ult"
@@ -390,7 +496,9 @@ func on_hurt(dir: int, dead: bool) -> void:
 	flash = 0.25
 	if state == "skill" and not dead:   # 技の間はのけぞらない（ダメージは受ける。無敵ではない）
 		inv = 0.35
+		inv_blink = true
 		return
+	inv_blink = true
 	inv = HURT_T + 0.3   # 被弾の動きが終わってから 0.3 秒は当たらない（囲まれて被弾し続けないように）
 	queued = false
 	queued_hold = false
@@ -405,6 +513,41 @@ func on_hurt(dir: int, dead: bool) -> void:
 	t = 0.0
 	kb = dir * 2.0
 	face = -dir
+
+## その場で立ち直る（2026-11-16 ②）：倒れた所から起き上がり、inv_t 秒は当たらない
+func revive(inv_t: float) -> void:
+	state = "move"
+	t = 0.0
+	locked = false
+	inv = inv_t
+	inv_blink = true
+	flash = 0.3
+	if world.fx2d and world.fx2d.enabled and not world.fx.legacy:
+		world.fx2d.pickup(position + Vector3(0, 0.8, 0))
+
+## 回復薬（2026-11-16 ②）：小→大の順に 1 つ使う。使った後 POT_CD 秒は使えない。体力が満タンの時は使わない
+var pot_cd := 0.0
+func use_potion() -> bool:
+	var pr = world.main.progress if world.main else null
+	if pr == null or pot_cd > 0.0 or state == "down" or world.hp <= 0.0 or world.hp >= world.hp_max:
+		return false
+	var Eco = load("res://scripts/economy.gd")
+	var k := 0.0
+	if pr.pot_s > 0:
+		pr.pot_s -= 1
+		k = Eco.POT_S_HEAL
+	elif pr.pot_l > 0:
+		pr.pot_l -= 1
+		k = Eco.POT_L_HEAL
+	else:
+		return false
+	k *= float(world.g_heal)
+	world.hp = minf(world.hp_max, world.hp + world.hp_max * k)
+	pot_cd = Eco.POT_CD
+	world.fx.number(position + Vector3(0, 2.3, 0), int(round(world.hp_max * k)), "pot")
+	if world.fx2d and world.fx2d.enabled and not world.fx.legacy:
+		world.fx2d.pickup(position + Vector3(0, 0.8, 0))
+	return true
 
 ## 回避の残像（青＝味方）：今の絵を写した板を置いて、すぐ薄れさせる
 func _ghost() -> void:
@@ -449,7 +592,7 @@ func _physics_process(delta: float) -> void:
 		mv = Vector2.ZERO
 	flash = maxf(0.0, flash - delta)
 	_update_ghosts(delta)
-	var blink := inv > 0.0 and state != "down" and state != "ult" and int(Time.get_ticks_msec() / 42) % 2 == 0
+	var blink := inv > 0.0 and inv_blink and state != "down" and state != "ult" and int(Time.get_ticks_msec() / 42) % 2 == 0
 	mat.set_shader_parameter("flash", Color(1.0, 0.25, 0.2, 0.7 if flash > 0.0 else 0.0))
 	for id in skill_cd:   # 待ちは止め（ヒットストップ）中も進める
 		if float(skill_cd[id]) > 0.0:
@@ -469,6 +612,9 @@ func _physics_process(delta: float) -> void:
 	if dt <= 0.0:
 		return
 	inv = maxf(0.0, inv - dt)
+	pot_cd = maxf(0.0, pot_cd - dt)
+	jg_window = maxf(0.0, jg_window - dt)
+	_chain_tick(dt)
 	# 長押し：押し続けて HOLD_T を超えたら回転斬り（A の当たりの前なら A を取り消して出す。それ以外は次の技にする）
 	if atk_held and not locked:
 		held_t += dt
@@ -518,21 +664,44 @@ func _physics_process(delta: float) -> void:
 				_show_frame(clip, _fidx(clip, te))
 		"skill":
 			var sk: Dictionary = skills[skill_id]
-			var te: float = t * float(sk.spd)
-			if absf(mv.x) > 0.3:   # 移動の入力は向きだけ
-				face = 1 if mv.x > 0 else -1
-			var r := _root(clip, te)
-			position.x += face * (r - root_prev) * px_size * 0.3   # その場の技：前進は 0.3 倍
-			root_prev = r
-			var ev: Array = sk.ev
-			while hit_i < ev.size() and t >= float(ev[hit_i][0]):
-				_skill_event(ev[hit_i][1])
-				hit_i += 1
-			if t >= float(sk.total) and hit_i >= ev.size():
-				skill_id = ""
-				_end_attack()
-			else:
-				_show_frame(clip, _fidx(clip, te))
+			if not wrap.is_empty() and t < float(sk.dash_t):   # 回り込み：背後へ走り抜ける（当たらない・残像）
+				var k: float = clampf(t / float(sk.dash_t), 0.0, 1.0)
+				position = (wrap.from as Vector3).lerp(wrap.to, 1.0 - pow(1.0 - k, 2.0))
+				tint = Color(0.75, 0.9, 1.0, 0.85)
+				_show_frame("run", int(t * 60.0) % _frames("run"))
+				ghost_t -= dt
+				if ghost_t <= 0.0:
+					ghost_t = 0.03
+					_ghost()
+				inv = maxf(inv, 0.1)
+				inv_blink = false
+			elif not wrap.is_empty() and not wrap.get("arrived", false):
+				wrap.arrived = true
+				position = wrap.to
+				face = int(wrap.face)
+				var tg = wrap.get("target")
+				if tg != null and is_instance_valid(tg):
+					tg.turn_back(face, FoeStats.BACK_WRAP_T)   # 敵はラナがいた側を向いたまま＝ラナに背中
+				root_prev = _root(clip, 0.0)
+			if wrap.is_empty() or wrap.get("arrived", false):
+				var te: float = maxf(0.0, t - (float(sk.dash_t) if not wrap.is_empty() else 0.0)) * float(sk.spd)
+				if absf(mv.x) > 0.3 and wrap.is_empty():   # 移動の入力は向きだけ（回り込みは敵へ向いたまま）
+					face = 1 if mv.x > 0 else -1
+				if sk.get("move_ok", false):   # 派生（歩き渦など）：使いながら動ける（速さは move_spd 倍）
+					position.x += mv.x * RUN * float(sk.get("move_spd", 0.5)) * dt
+					position.z += mv.y * RUN * float(sk.get("move_spd", 0.5)) * DEPTH_K * dt
+				var r := _root(clip, te)
+				position.x += face * (r - root_prev) * px_size * 0.3   # その場の技：前進は 0.3 倍
+				root_prev = r
+				var ev: Array = sk.ev
+				while hit_i < ev.size() and t >= float(ev[hit_i][0]):
+					_skill_event(ev[hit_i][1])
+					hit_i += 1
+				if t >= float(sk.total) and hit_i >= ev.size():
+					skill_id = ""
+					_end_attack()
+				else:
+					_show_frame(clip, _fidx(clip, te))
 		"dodge":
 			dodge_t += dt
 			var dir := mv.normalized() if mv.length() > 0.2 else Vector2(face, 0)
@@ -546,6 +715,14 @@ func _physics_process(delta: float) -> void:
 			if ghost_t <= 0.0:
 				ghost_t = 0.035
 				_ghost()
+			for e in pass_side.keys():   # すり抜けた敵：背中を見せたまま BACK_PASS_T 秒（specs/combat_tactics.md 3.）
+				if not is_instance_valid(e) or e.state == "dying":
+					pass_side.erase(e)
+					continue
+				var sd := signf(e.position.x - position.x)
+				if sd != 0.0 and sd != float(pass_side[e]) and absf(e.position.z - position.z) < 1.0:
+					e.turn_back(-int(sd), FoeStats.BACK_PASS_T)   # 敵はラナが来た側（もといた側）を向いたまま
+					pass_side.erase(e)
 			if dodge_t >= DODGE_T:
 				state = "move"
 				if queued_hold:
@@ -579,11 +756,20 @@ func _physics_process(delta: float) -> void:
 				clip = "idle"
 				t = 0.0
 				inv = 1.5
+				inv_blink = true
 				world.player_revived()
 	mat.set_shader_parameter("tint", tint)
 	world.apply_light(sprite, mat, refl, position)
 	position.x = clampf(position.x, room_x.x, room_x.y)
 	position.z = clampf(position.z, belt_z.x, belt_z.y)
+
+func _chain_tick(dt: float) -> void:
+	if state == "move":
+		chain_idle += dt
+		if chain_idle > 0.25:
+			chain_used.clear()
+	else:
+		chain_idle = 0.0
 
 func _unhandled_input(e: InputEvent) -> void:
 	if e is InputEventKey and not e.echo:
@@ -594,10 +780,16 @@ func _unhandled_input(e: InputEvent) -> void:
 			dodge()
 		elif e.pressed and e.keycode == KEY_L:
 			use_ult()
-		elif e.pressed and (e.keycode == KEY_U or e.keycode == KEY_I or e.keycode == KEY_O):
-			var slot: int = [KEY_U, KEY_I, KEY_O].find(e.keycode)
+		elif e.pressed and e.keycode == KEY_H:   # 回復薬（2026-11-16 ②）
+			use_potion()
+		elif e.pressed and (e.keycode == KEY_N or e.keycode == KEY_M):   # 仲間を呼ぶ：N＝リリィの回り込み、M＝ランカの振り向かせ
+			var a2 = world.ally if e.keycode == KEY_N else world.ranka
+			if a2 != null:
+				a2.call_tactic("flank" if e.keycode == KEY_N else "lure")
+		elif e.pressed and (e.keycode == KEY_U or e.keycode == KEY_I or e.keycode == KEY_O or e.keycode == KEY_P):
+			var slot: int = [KEY_U, KEY_I, KEY_O, KEY_P].find(e.keycode)
 			if world.main and world.main.progress:
-				use_skill(str(world.main.progress.skill_slots[slot]))
+				use_skill(str(world.main.progress.battle_slots()[slot]))
 
 ## 撮影用：状態を固定する
 func debug_state(s: String) -> void:

@@ -9,7 +9,7 @@ extends RefCounted
 ##   quake 星震＝頭に蒼い雷をまとい腕を交差 → 画面の広い範囲（前作 SA1 の星震：夜空へ暗転 → 星の雨 → 大きな一撃）
 ##   ult 天照＝必殺技。画面の全範囲へ激しい光と揺れ、朱色の花びらが舞う連続攻撃（ranka_ally.gd の _ult_process）
 
-const ORDER := ["shot", "ring", "quake"]
+const ORDER := ["shot", "ring", "quake", "lure"]
 const SCREEN_R := 9.5   # 遊ぶカメラで見える横幅の半分くらい（ally.gd の RUSH_MAX と同じ考え）
 
 static func table() -> Dictionary:
@@ -43,6 +43,13 @@ static func table() -> Dictionary:
 	qev.append([34, {"shape": "none", "k": 0.0, "fx": "quake_seq"}])   # 焼いた締めの連番を 0.22 秒前から（溜め 0.25 秒 → 38 で炸裂）
 	qev.append([38, {"shape": "screen", "side": 1, "k": 3.0, "strong": true, "kb": 2.6, "fx": "quake_end", "shake": 22.0, "wave": true, "freeze_add": 0.08}])
 	t["quake"] = {"clip": "skill_thunder", "frames": qf, "fps": 18.0, "cd": 22.0, "ev": qev}
+	# 振り向かせ（2026-11-16 ユーザー決定、specs/combat_tactics.md 9.）：指さしから、狙った敵の向こう側（2.2m 先）へ気弾を撃ち込む。
+	#   着弾の周り 3.5m の敵は着弾の方を振り向き、LURE_T 秒そのまま＝ラナ・リリィに背中を見せる（ranka_ally.gd の "lure"）。当たりは小さい
+	var lf := []
+	for i in 22:
+		lf.append(i)
+	t["lure"] = {"clip": "skill_point", "frames": lf, "fps": 16.0, "cd": 9.0, "ev": [
+		[6, {"shape": "circle", "side": 1, "r": 1.8, "cx": 0.0, "lane": 9.0, "k": 0.4, "strong": false, "kb": 0.1, "fx": "lure", "shake": 4.0}]]}
 	# 必殺技 天照：当たりは ranka_ally.gd の _ult_process（画面の敵すべてへ 8 回 1.0 倍＋決め 9.0 倍）
 	t["ult"] = {"clip": "atk_palm", "frames": [0], "fps": 12.0, "ev": [], "steps": 8, "k_step": 1.0, "k_end": 9.0}
 	return t

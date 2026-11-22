@@ -5,6 +5,10 @@
 - 正本：ブランチの `sequel/docs/sa2_ranka_handoff_20261112.md`。プレビュー：https://yyvape-dev.github.io/SA/previews/sa2-ranka/?mode=ranka（?mode=rana・?mode=lily）
 - 済：ランカ（3人同時・自己操作・技・天照）、大技の締めを焼いた連番に（3人）、締めは当たる所、リリィ雷連打の強化、必殺技の寄り（顔へ・中の深さ・ラナ4B・リリィ2B・溜め）、ラナの点滅を止めた。
 - 未決：ランカの背・威力・合流時期、main へのマージ時期、iPhone 実機確認。
+## 2026-11-14 SA2 スキルツリー（specs/skill_tree.md の実装。ブランチ claude/skill-tree-implementation-fsvlcl＝feat/sa2-ranka-20261112 の上）
+- 表 `sequel/scripts/skill_tree.gd`・SP と技レベルと派生のセーブ・歯車の画面に「スロット｜ツリー」の切り替え（仮）。派生 21 個（必殺技は枠だけ）。未決8件と数字は `sequel/HANDOFF.md` の先頭。比較画像 `sequel/docs/skill_tree_img/`。
+- Web 書き出し・Pages・iPhone は未実施（このブランチは Pages に出ない）。
+
 ## 2026-11-12 SA2 ラナ・リリィの大技の締めを焼いた連番に（ブランチ feat/sa2-ranka-20261112）
 - ラナ必殺・リリィ必殺・雷陣の締めを、ランカと同じ焼きの型（溜め→炸裂→散り→暗い土煙）で色と散る物だけ変えた。詳細は `sequel/docs/sa2_ranka_handoff_20261112.md`。
 - 確認：https://yyvape-dev.github.io/SA/previews/sa2-ranka/?mode=rana ／ ?mode=lily

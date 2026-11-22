@@ -1,0 +1,4 @@
+Chromium native screenshots: 844x390 x4
+MOCK PASS four screens; map -> difficulty -> party -> loading; below recommended level selectable; no pageerror
+Enemy sprites clipped to frame bounds, original source files unchanged.
+Prototype only; not connected to Godot progression or network.

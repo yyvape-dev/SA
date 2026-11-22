@@ -264,17 +264,25 @@ func warn(center: Vector3, size: Vector2, life: float) -> MeshInstance3D:
 # ---------- 数字 ----------
 func number(p: Vector3, val: int, kind: String) -> void:
 	var l := Label3D.new()
-	l.text = str(val)
+	l.text = ("+" + str(val)) if kind == "gold" or kind == "pot" else str(val)   # 拾ったお金・回復薬（2026-11-16 ②）
 	l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	l.no_depth_test = true
 	l.fixed_size = false
 	l.pixel_size = 0.0062
 	l.font_size = 64 if kind != "strong" else 86
+	if kind == "gold" or kind == "pot" or kind == "mat":
+		l.font_size = 48
+	if kind == "back":
+		l.font_size = 80
 	l.outline_size = 22
 	l.outline_modulate = Color(0, 0, 0, 0.85)
 	match kind:
 		"strong": l.modulate = Color8(255, 236, 165)
+		"back": l.modulate = Color8(255, 196, 60)   # 背中の当たり（金＝決着。specs/combat_tactics.md 3.）
 		"hurt": l.modulate = Color8(255, 107, 107)
+		"gold": l.modulate = Color8(255, 210, 90)
+		"pot": l.modulate = Color8(140, 255, 160)
+		"mat": l.modulate = Color8(200, 170, 255)   # 素材（装備の強化）
 		_: l.modulate = Color(1, 1, 1)
 	# 重ならないように（2026-11-07、game-vfx-juice）：横にランダムにずらし、近くの新しい数字と重なる位置は避ける。それでも重なれば少し上へ
 	var pos := p + Vector3(0, 0, 0.3)
@@ -657,14 +665,14 @@ func zap(p: Vector3, n: int, r: float) -> void:
 	_quad(p + Vector3(0, 0, 0.2), Vector2(1.6, 1.6), _mat(1, SILVER), "flash", 0.12, 0.0)
 
 ## 溜め：つま先に蒼い光が集まる（0.1〜0.15 秒）
-func charge(p: Vector3, size: float, life: float) -> void:
-	var m := _mat(1, SILVER)
+func charge(p: Vector3, size: float, life: float, pal: Array = SILVER) -> void:
+	var m := _mat(1, pal)
 	m.set_shader_parameter("core_gain", 0.9)
 	_quad(p + Vector3(0, 0, 0.15), Vector2(size, size), m, "charge", life, 0.0)
 	for i in 6:
 		var a := randf() * TAU
 		var off := Vector3(cos(a), sin(a), 0) * size * 0.8
-		_spark(p + off, -off / life, life, 0.02, SILVER[0], 0.0)
+		_spark(p + off, -off / life, life, 0.02, pal[0], 0.0)
 
 ## 溜め（2026-11-12、必殺技の寄りの間）：外から体へ集まる光の粒＋育つ芯＋閉じる床の輪。band＝色の帯の名前
 func gather(p: Vector3, band_name: String, col: Color, life: float) -> void:

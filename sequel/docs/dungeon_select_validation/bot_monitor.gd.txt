@@ -1,0 +1,14 @@
+extends SceneTree
+var main
+var last=0
+func _initialize():call_deferred("start")
+func start():
+ main=load("res://main.tscn").instantiate();root.add_child(main);current_scene=main
+func _process(_delta):
+ var now=Time.get_ticks_msec()
+ if now-last>10000 and is_instance_valid(main):
+  last=now
+  for child in main.get_children():
+   if child.get_script() and child.get_script().resource_path=="res://scripts/bot.gd":
+    print("BOT_MONITOR real=",now/1000," sim=",child.t," run=",child.run_i," phase=",child.phase," room=",main.dungeon.cur if main.dungeon else "city"," hp=",main.battle.hp," foes=",main.battle.enemies.size())
+ return false

@@ -1,0 +1,1 @@
+{"status": 200, "ready": 26726.70000000298, "pack": ["https://yyvape-dev.github.io/SA/previews/sa2-dungeon/index.pck?v=20261115130227-2f1feb4-g4.7.2"], "errors": [], "log_tail": ["DL al1.pck done +4695ms result=0 code=200 size=20.5MB frames=33", "DL al1.pck written +4822ms", "DL al1.pck load_resource_pack 1ms ok=true", "BOOT ally_loaded 25638ms", "DL al2.pck start 25694ms"]}

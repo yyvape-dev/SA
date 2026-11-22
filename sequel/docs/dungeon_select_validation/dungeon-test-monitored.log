@@ -1,0 +1,67 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+BOOT main_ready 1647ms
+BOOT before_d1 1648ms
+BOOT after_d1 1648ms
+BOOT after_build_city 2544ms
+BOOT before_player 2570ms
+BOOT after_player 4345ms
+BOOT ally_loaded 5389ms
+BOOT ranka_loaded 6427ms
+BOOT fx1_loaded 6449ms
+BOT_MONITOR real=10 sim=9.63333333333339 run=0 phase=dungeon room=(2, 3) hp=100.0 foes=5
+BOT_MONITOR real=20 sim=28.283333333333 run=0 phase=dungeon room=(2, 3) hp=100.0 foes=5
+BOT_MONITOR real=30 sim=64.3999999999976 run=0 phase=dungeon room=(0, 3) hp=101.0 foes=5
+BOT_MONITOR real=40 sim=102.366666666662 run=0 phase=dungeon room=(0, 2) hp=124.0 foes=1
+BOT_MONITOR real=50 sim=136.366666666667 run=0 phase=dungeon room=(1, 1) hp=124.0 foes=0
+BOT_MONITOR real=60 sim=168.416666666693 run=0 phase=dungeon room=(1, 2) hp=124.0 foes=6
+BOT_MONITOR real=70 sim=201.216666666719 run=0 phase=dungeon room=(2, 3) hp=136.0 foes=0
+BOT_MONITOR real=80 sim=232.350000000077 run=0 phase=dungeon room=(2, 1) hp=136.0 foes=1
+BOT_MONITOR real=90 sim=275.000000000079 run=0 phase=dungeon room=(3, 1) hp=125.0 foes=0
+BOT_MONITOR real=100 sim=327.400000000031 run=0 phase=dungeon room=(1, 4) hp=148.0 foes=4
+BOT_MONITOR real=110 sim=383.39999999998 run=0 phase=dungeon room=(0, 0) hp=134.0 foes=1
+BOT_MONITOR real=120 sim=431.13333333327 run=1 phase=dungeon room=(2, 2) hp=160.0 foes=6
+BOT_MONITOR real=130 sim=477.133333333228 run=1 phase=dungeon room=(1, 1) hp=160.0 foes=0
+BOT_MONITOR real=140 sim=526.633333333183 run=2 phase=dungeon room=(2, 3) hp=172.0 foes=0
+BOT_MONITOR real=150 sim=574.899999999806 run=2 phase=dungeon room=(2, 2) hp=172.0 foes=0
+BOT_MONITOR real=160 sim=593.083333333123 run=2 phase=dungeon room=(1, 2) hp=172.0 foes=5
+BOT_MONITOR real=170 sim=616.249999999768 run=2 phase=dungeon room=(0, 2) hp=184.0 foes=0
+BOT_MONITOR real=180 sim=633.333333333086 run=2 phase=dungeon room=(0, 3) hp=184.0 foes=5
+BOT_MONITOR real=190 sim=649.699999999738 run=2 phase=dungeon room=(0, 4) hp=184.0 foes=1
+BOT_MONITOR real=200 sim=672.299999999717 run=3 phase=dungeon room=(2, 4) hp=196.0 foes=0
+BOT_MONITOR real=210 sim=685.566666666372 run=3 phase=dungeon room=(2, 3) hp=196.0 foes=2
+BOT_MONITOR real=220 sim=705.216666666354 run=3 phase=dungeon room=(1, 3) hp=196.0 foes=6
+BOT_MONITOR real=230 sim=722.416666666338 run=3 phase=dungeon room=(1, 2) hp=196.0 foes=7
+BOT_MONITOR real=240 sim=738.716666666323 run=3 phase=dungeon room=(1, 2) hp=196.0 foes=5
+BOT_MONITOR real=250 sim=756.74999999964 run=3 phase=dungeon room=(0, 2) hp=196.0 foes=5
+BOT_MONITOR real=260 sim=782.699999999617 run=3 phase=dungeon room=(0, 3) hp=160.0 foes=1
+BOT_MONITOR real=271 sim=808.433333332927 run=4 phase=dungeon room=(3, 4) hp=1.0 foes=4
+==== DUNGEON BOT ====
+run 1 t1_normal 種101：クリア 時間 384.87秒 被弾 3 倒した 183 Lv 1→5 武器 0→15 行った部屋 14/14 ボスまで 6部屋 1部屋の最長 26.0秒 同時の最大 8
+run 2 t1_normal 種202：クリア 時間 112.88秒 被弾 1 倒した 63 Lv 5→7 武器 15→15 行った部屋 6/12 ボスまで 5部屋 1部屋の最長 23.5秒 同時の最大 8
+run 3 t2_normal 種303：クリア 時間 145.13秒 被弾 0 倒した 73 Lv 7→9 武器 15→16 行った部屋 7/14 ボスまで 6部屋 1部屋の最長 21.0秒 同時の最大 8
+run 4 t1_hard 種404：クリア 時間 113.52秒 被弾 2 倒した 78 Lv 9→10 武器 16→17 行った部屋 6/14 ボスまで 5部屋 1部屋の最長 22.2秒 同時の最大 8
+run 5 t2_normal 種505：失敗 時間 20.27秒 被弾 1 倒した 11 Lv 0→0 武器 0→0 行った部屋 2/14 ボスまで 5部屋 1部屋の最長 0.0秒 同時の最大 8
+run 6 戻る扉：街へ戻った（3.8 秒）
+note: テーマの鍵（T1 未クリア で T2）：選べない＝正しい
+note: ハードの鍵（ノーマル未クリア）：選べない＝正しい
+note: エキスパートの鍵（ハード未クリア）：選べない＝正しい
+note: 抜け道の確認（敵がいるうちに出口 F へ3秒歩く）：出られない＝正しい
+note: 失敗の確認：結果の画面＝失敗（赤）＝正しい
+note: 失敗：入る前に戻った＝正しい（Lv 10→10 経験値 282→282）
+note: 戻る扉：入る前に戻った＝正しい（Lv 10→10 経験値 302→302）
+保存：Lv 10 武器 17 最速 { "t1_normal": 112.883333333328, "t2_normal": 145.133333333341, "t1_hard": 113.516666666662 } クリア { "t1_normal": 2, "t2_normal": 1, "t1_hard": 1 }
+スキルを使った回数：{ "vortex": 41, "flurry": 42, "rift": 19 }  必殺技：13
+ツリー run 1：rana.flurry Lv5 senpu、rana.rift Lv4 sansa、rana.vortex Lv3 ouzu、rana.ult Lv3 -、lily.rush Lv5 ofuku、lily.barrage Lv3 arashi、lily.storm Lv4 tsuirai、lily.ult Lv3 -、ranka.shot Lv5 tame、ranka.ring Lv4 -、ranka.quake Lv4 -、ranka.ult Lv4 -
+ツリー run 2：rana.flurry Lv5 donkomi、rana.rift Lv5 enshin、rana.vortex Lv4 -、rana.ult Lv3 -、lily.rush Lv3 -、lily.barrage Lv4 tataki、lily.storm Lv5 sokujin、lily.ult Lv3 -、ranka.shot Lv3 tame、ranka.ring Lv3 kekkai、ranka.quake Lv4 seigun、ranka.ult Lv4 -
+ツリー run 3：rana.flurry Lv4 senpu、rana.rift Lv4 -、rana.vortex Lv5 -、rana.ult Lv5 -、lily.rush Lv4 -、lily.barrage Lv4 -、lily.storm Lv4 -、lily.ult Lv3 -、ranka.shot Lv4 tame、ranka.ring Lv4 kekkai、ranka.quake Lv5 -、ranka.ult Lv5 -
+ツリー run 4：rana.flurry Lv3 senpu、rana.rift Lv5 enshin、rana.vortex Lv3 hanten、rana.ult Lv4 -、lily.rush Lv3 rensa、lily.barrage Lv3 tataki、lily.storm Lv5 tsuirai、lily.ult Lv3 -、ranka.shot Lv5 tame、ranka.ring Lv5 hamon、ranka.quake Lv3 -、ranka.ult Lv3 -
+ツリー run 5：rana.flurry Lv3 -、rana.rift Lv4 sansa、rana.vortex Lv3 aruki、rana.ult Lv5 -、lily.rush Lv5 -、lily.barrage Lv3 -、lily.storm Lv5 -、lily.ult Lv4 -、ranka.shot Lv5 sandan、ranka.ring Lv4 hamon、ranka.quake Lv4 itten、ranka.ult Lv3 -
+ツリー run 6：rana.flurry Lv5 -、rana.rift Lv3 fukiage、rana.vortex Lv5 -、rana.ult Lv5 -、lily.rush Lv3 -、lily.barrage Lv5 tataki、lily.storm Lv5 -、lily.ult Lv3 -、ranka.shot Lv5 -、ranka.ring Lv5 -、ranka.quake Lv4 itten、ranka.ult Lv3 -
+SP（レベル＋初回クリア）：{ "rana": 15, "lily": 15, "ranka": 15 }  期待 15  初回クリア { "t1_normal": true, "t2_normal": true, "t1_hard": true }
+仲間 lily 倒れた回数 0
+仲間 ranka 倒れた回数 0
+当たった数（味方の合計） 2552  ダメージ合計 64158
+リリィの技の回数：{ "rush": 55, "barrage": 34, "storm": 33, "ult": 10 }
+ランカの技の回数：{ "shot": 60, "quake": 25, "ring": 28, "ult": 8 }
+DUNGEON DONE

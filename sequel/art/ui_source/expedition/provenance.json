@@ -1,0 +1,372 @@
+{
+  "generator": "OpenAI image_gen",
+  "references": [
+    "docs/dungeon_select_mock_v2/mock_board_world_design.png"
+  ],
+  "processing": "Native pixel crops only; lossless exact WebP; no resampling. UI border pieces may nine-slice at runtime; enemy/bust illustrations preserve aspect.",
+  "entries": [
+    {
+      "file": "paper.webp",
+      "source": "components.png",
+      "rect": [
+        8,
+        60,
+        414,
+        368
+      ],
+      "size": [
+        406,
+        308
+      ],
+      "bytes": 167572,
+      "pixels": "exact"
+    },
+    {
+      "file": "portrait_blue.webp",
+      "source": "components.png",
+      "rect": [
+        491,
+        10,
+        763,
+        404
+      ],
+      "size": [
+        272,
+        394
+      ],
+      "bytes": 78816,
+      "pixels": "exact"
+    },
+    {
+      "file": "portrait_gold.webp",
+      "source": "components.png",
+      "rect": [
+        904,
+        10,
+        1184,
+        407
+      ],
+      "size": [
+        280,
+        397
+      ],
+      "bytes": 80728,
+      "pixels": "exact"
+    },
+    {
+      "file": "portrait_shut.webp",
+      "source": "components.png",
+      "rect": [
+        63,
+        446,
+        309,
+        815
+      ],
+      "size": [
+        246,
+        369
+      ],
+      "bytes": 119552,
+      "pixels": "exact"
+    },
+    {
+      "file": "activation.webp",
+      "source": "components.png",
+      "rect": [
+        335,
+        490,
+        891,
+        764
+      ],
+      "size": [
+        556,
+        274
+      ],
+      "bytes": 203620,
+      "pixels": "exact"
+    },
+    {
+      "file": "clock.webp",
+      "source": "components.png",
+      "rect": [
+        890,
+        434,
+        1249,
+        809
+      ],
+      "size": [
+        359,
+        375
+      ],
+      "bytes": 136980,
+      "pixels": "exact"
+    },
+    {
+      "file": "lens.webp",
+      "source": "components.png",
+      "rect": [
+        0,
+        868,
+        406,
+        1244
+      ],
+      "size": [
+        406,
+        376
+      ],
+      "bytes": 130468,
+      "pixels": "exact"
+    },
+    {
+      "file": "tube.webp",
+      "source": "components.png",
+      "rect": [
+        404,
+        983,
+        847,
+        1110
+      ],
+      "size": [
+        443,
+        127
+      ],
+      "bytes": 65072,
+      "pixels": "exact"
+    },
+    {
+      "file": "risk_frame.webp",
+      "source": "components.png",
+      "rect": [
+        844,
+        895,
+        1254,
+        1204
+      ],
+      "size": [
+        410,
+        309
+      ],
+      "bytes": 129592,
+      "pixels": "exact"
+    },
+    {
+      "file": "backing.webp",
+      "source": "backing.png",
+      "rect": null,
+      "size": [
+        1843,
+        853
+      ],
+      "bytes": 1610806,
+      "pixels": "exact"
+    },
+    {
+      "file": "enemy_t1.webp",
+      "source": "assets/foe/foe_t1b_walk.webp",
+      "rect": [
+        0,
+        0,
+        370,
+        622
+      ],
+      "size": [
+        370,
+        622
+      ],
+      "bytes": 180332,
+      "pixels": "exact"
+    },
+    {
+      "file": "enemy_t2.webp",
+      "source": "assets/foe/foe_t2e1_walk.webp",
+      "rect": [
+        0,
+        0,
+        298,
+        491
+      ],
+      "size": [
+        298,
+        491
+      ],
+      "bytes": 144898,
+      "pixels": "exact"
+    },
+    {
+      "file": "enemy_t3.webp",
+      "source": "assets/foe/foe_t3e1_walk.webp",
+      "rect": [
+        0,
+        0,
+        481,
+        550
+      ],
+      "size": [
+        481,
+        550
+      ],
+      "bytes": 291182,
+      "pixels": "exact"
+    },
+    {
+      "file": "enemy_t4.webp",
+      "source": "assets/foe/foe_hr_walk.webp",
+      "rect": [
+        0,
+        0,
+        845,
+        655
+      ],
+      "size": [
+        845,
+        655
+      ],
+      "bytes": 578134,
+      "pixels": "exact"
+    },
+    {
+      "file": "bust_rana.webp",
+      "source": "assets/rana2/cutin.webp",
+      "rect": [
+        145,
+        0,
+        610,
+        670
+      ],
+      "size": [
+        465,
+        670
+      ],
+      "bytes": 403054,
+      "pixels": "exact"
+    },
+    {
+      "file": "bust_lily.webp",
+      "source": "assets/lily/cutin.webp",
+      "rect": [
+        110,
+        0,
+        470,
+        480
+      ],
+      "size": [
+        360,
+        480
+      ],
+      "bytes": 183442,
+      "pixels": "exact"
+    },
+    {
+      "file": "bust_ranka.webp",
+      "source": "assets/ranka/cutin.webp",
+      "rect": [
+        40,
+        0,
+        370,
+        470
+      ],
+      "size": [
+        330,
+        470
+      ],
+      "bytes": 193398,
+      "pixels": "exact"
+    },
+    {
+      "file": "risk_0.webp",
+      "source": "approved_board.png",
+      "rect": [
+        1340,
+        48,
+        1600,
+        114
+      ],
+      "size": [
+        260,
+        66
+      ],
+      "bytes": 30282,
+      "pixels": "exact"
+    },
+    {
+      "file": "risk_1.webp",
+      "source": "approved_board.png",
+      "rect": [
+        1337,
+        153,
+        1557,
+        217
+      ],
+      "size": [
+        220,
+        64
+      ],
+      "bytes": 25712,
+      "pixels": "exact"
+    },
+    {
+      "file": "risk_2.webp",
+      "source": "approved_board.png",
+      "rect": [
+        1325,
+        255,
+        1572,
+        313
+      ],
+      "size": [
+        247,
+        58
+      ],
+      "bytes": 27316,
+      "pixels": "exact"
+    },
+    {
+      "file": "portrait_paper.webp",
+      "source": "papers.png",
+      "rect": [
+        26,
+        109,
+        521,
+        898
+      ],
+      "size": [
+        495,
+        789
+      ],
+      "bytes": 563074,
+      "pixels": "exact"
+    },
+    {
+      "file": "report.webp",
+      "source": "papers.png",
+      "rect": [
+        543,
+        385,
+        1511,
+        618
+      ],
+      "size": [
+        968,
+        233
+      ],
+      "bytes": 285390,
+      "pixels": "exact"
+    },
+    {
+      "file": "dispatch.webp",
+      "source": "papers.png",
+      "rect": [
+        542,
+        680,
+        1512,
+        919
+      ],
+      "size": [
+        970,
+        239
+      ],
+      "bytes": 338506,
+      "pixels": "exact"
+    }
+  ]
+}

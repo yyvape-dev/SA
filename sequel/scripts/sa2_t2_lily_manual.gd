@@ -96,7 +96,7 @@ func ult_value() -> float:
     return float(battle.get(actor.ult_key)) if actor != null else 0.0
 
 func use_ult() -> void:
-    if locked or not combat_enabled or not skills_enabled or actor.state != "move" or dodge_left > 0.0 or battle.cine or ult_value() < battle.ULT_COST:
+    if locked or not combat_enabled or not skills_enabled or actor.state != "move" or dodge_left > 0.0 or battle.cine or ult_value() < (actor.ult_cost() if actor.has_method("ult_cost") else battle.ULT_COST):
         return
     var foe = actor._ult_target()
     if foe != null:

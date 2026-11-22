@@ -46,25 +46,40 @@ func setup(w, d: Dictionary) -> void:
 	for c in CLIP_FPS:
 		if data.clips.has(c):
 			data.clips[c].fps = CLIP_FPS[c]
-	sk_cd = {"shot": 2.0, "ring": 4.0, "quake": 8.0}
+	sk_cd = {"shot": 2.0, "ring": 4.0, "quake": 8.0, "lure": 3.0}
 
 func _ready() -> void:
 	super._ready()
-	sk_tab = RankaSkills.table()
+	refresh_skills()
+	_make_rfx()
+
+func _make_rfx() -> void:
 	rfx = RankaFx.new()
 	rfx.fx = world.fx
 	rfx.world = world
 	world.add_child(rfx)
 
+## 控え（パーティの選択で戦闘の木から外す）から戻った時：エフェクトの係が無ければ作り直す（2026-11-15。外した時に消していたので、戻ると消えた物を使って落ちた）
+func _enter_tree() -> void:
+	if rfx != null and not is_instance_valid(rfx) and world != null:
+		_make_rfx()
+
+## 消すのはランカ自身が消える時だけ（控えに外す＝木から外すだけ、では消さない）
 func _exit_tree() -> void:
-	if is_instance_valid(rfx):
+	if is_queued_for_deletion() and is_instance_valid(rfx):
 		rfx.queue_free()
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_PREDELETE and is_instance_valid(rfx):
+		rfx.queue_free()
+
+const LURE_T := 1.4   # 振り向かせた敵が背中を見せる秒数（仮）
 
 func slot_ids() -> Array:
 	return ["shot", "ring", "quake"]
 
 func fresh_cd() -> Dictionary:
-	return {"shot": 0.0, "ring": 0.0, "quake": 0.0}
+	return {"shot": 0.0, "ring": 0.0, "quake": 0.0, "lure": 0.0}
 
 # ---------- 通常攻撃 ----------
 func _start_atk(e: Node3D) -> void:
@@ -158,7 +173,7 @@ func _pick_skill(e: Node3D) -> bool:
 	if not skills_on:
 		return false
 	var foes := _screen_foes()
-	if float(world.get(ult_key)) >= world.ULT_COST and not world.cine and not world.ult_busy(self) and foes.size() > 0:
+	if float(world.get(ult_key)) >= ult_cost() and not world.cine and not world.ult_busy(self) and foes.size() > 0:
 		_start_ult(e)
 		return true
 	var boss := false
@@ -174,6 +189,15 @@ func _pick_skill(e: Node3D) -> bool:
 		_start_skill("ring", e)
 		return true
 	var dx := absf(e.position.x - position.x)
+	# 振り向かせ：前 8m に 2 体以上（ボスは除く）いて、ラナかリリィがその近くにいるとき（背中を殴れる味方がいる。2026-11-16）
+	if not tactic_manual and sk_tab.has("lure") and float(sk_cd.get("lure", 1.0)) <= 0.0 and not e.boss and dx < 8.0:
+		var front := 0
+		for x in foes:
+			if not x.boss and (x.position.x - position.x) * face > 0.0 and absf(x.position.x - position.x) < 8.0:
+				front += 1
+		if front >= 2 and absf(world.player.position.x - e.position.x) < 4.0:
+			_start_skill("lure", e)
+			return true
 	if sk_cd.shot <= 0.0 and dx > SHOT_MIN and dx < SHOT_MAX and absf(e.position.z - position.z) < 0.8:
 		_start_skill("shot", e)
 		return true
@@ -188,11 +212,22 @@ func _skill_hit(spec: Dictionary) -> void:
 		"shot", "shot_big":
 			var big: bool = spec.fx == "shot_big"
 			var a := position + Vector3(face * 1.05, 1.42, 0.12)
-			var b := a + Vector3(face * float(spec.r), -0.05, 0)
+			var b := a + Vector3(face * float(spec.r), -0.05, float(spec.get("z_slope", 0.0)) * float(spec.r))   # 散弾（z_slope）は斜めへ
 			hs.x0 = position.x
 			hs.x1 = position.x + face * float(spec.r)
 			rfx.ki_shot(a, b, big)
 			world.shake = maxf(world.shake, float(spec.get("shake", 3.0)))
+		"lure":   # 振り向かせ：狙った敵の向こう側へ気弾 → 着弾の周りの敵が着弾の方を向く（背中をラナたちへ）
+			var tg: Node3D = target if _alive(target) else null
+			var px: float = (tg.position.x if tg else position.x + face * 5.0) + face * 2.2
+			var pz: float = tg.position.z if tg else position.z
+			var a := position + Vector3(face * 1.05, 1.42, 0.12)
+			rfx.ki_shot(a, Vector3(px, 1.2, pz + 0.12), false)
+			rfx.ring(Vector3(px, 0, pz), 1.6, 0, false)
+			for x in world.enemies:
+				if x.state != "dying" and not x.boss and absf(x.position.x - px) < 3.5 and absf(x.position.z - pz) < 2.0:
+					x.turn_back(1 if px >= x.position.x else -1, LURE_T)
+			hs.cx = absf(px - position.x)
 		"ring", "ring_end":
 			rfx.ring(position, float(spec.r), int(spec.get("n", 0)), spec.fx == "ring_end")
 			if spec.fx == "ring_end":
@@ -208,12 +243,14 @@ func _skill_hit(spec: Dictionary) -> void:
 		"star":
 			var foes := _screen_foes()
 			var n := 0
+			var star_r: float = float(spec.get("r", RankaSkills.SCREEN_R)) if spec.get("shape", "") == "circle" else RankaSkills.SCREEN_R   # 一点：範囲の中だけ
+			var spread: float = minf(8.0, star_r - 0.5)
 			for x in foes:
-				if n < 6:
+				if n < 6 and Vector2(x.position.x - cx, (x.position.z - position.z) * 1.3).length() < star_r + 0.5:
 					rfx.star(x.position + Vector3(0, 0, 0.05), randf_range(0.0, 0.05), (int(spec.n) + n) % 4 == 0)
 					n += 1
 			for k in 2:   # 敵のいない所にも降らせる（画面全体）
-				rfx.star(Vector3(cx + randf_range(-8.0, 8.0), 0, randf_range(-2.5, 2.5)), randf_range(0.0, 0.08), k == 1)
+				rfx.star(Vector3(cx + randf_range(-spread, spread), 0, position.z + randf_range(-2.5, 2.5) * minf(1.0, spread / 8.0)), randf_range(0.0, 0.08), k == 1)
 		"quake_seq":   # 2026-11-12：締めは Godot で焼いた連番（予兆→炸裂→余韻の層）。白い板を1枚出して回す方式はやめた
 			rfx.seq("quake", position + Vector3(0, 1.3, 0), 0.6)
 			return
@@ -256,7 +293,7 @@ func _ult_process(delta: float) -> void:
 		if ult_t - delta < 0.05:
 			rfx.petals_burst(position + Vector3(0, 1.2, 0), 18, {"spd": Vector2(1.0, 3.0), "up": 0.8, "size": 0.16})
 		return
-	world.cine = false
+	# 2026-11-15 ユーザー：必殺技の演出中は止める（_end_ult まで cine のまま）
 	world.cam_zoom = maxf(0.0, 1.0 - (ult_t - ULT_CUT.cut_end) / 0.35)
 	var t2 := ult_t - ULT_CUT.cut_end
 	var steps: int = int(sk_tab.ult.steps)

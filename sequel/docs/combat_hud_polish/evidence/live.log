@@ -1,0 +1,18 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+WARNING: Could not set V-Sync mode, as changing V-Sync mode is not supported by the graphics driver.
+     at: set_use_vsync (platform/linuxbsd/x11/gl_manager_x11.cpp:372)
+OpenGL API 4.5 (Core Profile) Mesa 25.0.7-2+deb13u1 - Compatibility - Using Device: Mesa - llvmpipe (LLVM 19.1.7, 256 bits)
+
+BOOT main_ready 1909ms
+BOOT before_d1 1913ms
+BOOT after_d1 1914ms
+BOOT after_build_city 3600ms
+CAMV D2 belt=(-2.0, 2.0) ofs=(0.0, 3.2, 15.3) fov=16.80
+BOOT before_player 3629ms
+BOOT after_player 4857ms
+BOOT ally_loaded 6073ms
+BOOT ranka_loaded 6808ms
+BOOT fx1_loaded 6825ms
+LIVE_INPUT sk0 physical=(657.6282, 270.6744) virtual=(1213.963, 499.7067) state=move locked=false processing=true
+LIVE_INPUT ult physical=(789.828, 113.75) virtual=(1458.0, 210.0) state=move locked=false processing=true
+COMBAT_LIVE PASS actual dungeon, party, skill touch/cooldown, ultimate consumption

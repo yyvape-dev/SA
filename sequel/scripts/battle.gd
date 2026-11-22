@@ -6,6 +6,8 @@ const CombatAudio := preload("res://scripts/combat_audio.gd")
 var combat_audio: Node
 
 const Enemy := preload("res://scripts/enemy.gd")
+const FoeStats := preload("res://scripts/foe_stats.gd")
+const ComboStyle := preload("res://scripts/combo_style.gd")
 const HPBAR := preload("res://scripts/hpbar.gdshader")
 
 var BELT_Z := Vector2(-3.2, 3.5)
@@ -71,10 +73,24 @@ var combo := 0
 var combo_t := 0.0
 var auto_spawn := true
 var atk_mul := 1.0        # ラナの攻撃の倍率（レベル・武器。progress.gd）
+## 装備の効果（③ specs/gear.md。main.apply_progress が入れる）
+var g_crit := 0.0         # 会心の確率（0〜1）。会心は 1.5 倍
+var g_cd := 1.0           # ラナの技の待ちの倍率
+var g_down := 1.0         # ラナのダウン値の倍率
+var g_cut := 0.0          # 受ける傷 −（0〜1）
+var g_heal := 1.0         # 回復量の倍率
+var g_gold := 1.0         # お金の倍率
+var g_ult := 1.0          # 必殺技のたまりの倍率
+var g_ally := {}          # "lily"/"ranka" → [技の強さ, 技の待ち]
+const CRIT_K := 1.5
 var foe_hp_mul := 1.0     # 敵の体力・攻撃の倍率（ダンジョンのハード）
 var foe_dmg_mul := 1.0
+var stat_hits := 0        # 確認用：味方の当たった数・与えたダメージの合計（撮影・自動の4周で数える）
+var stat_dmg := 0.0
 var hits_taken := 0       # ラナが攻撃を受けた回数（数え続ける。ダンジョンは入った時との差）
 signal foe_killed(e)
+signal boss_break(e)
+var style = ComboStyle.new()   # コンボとスタイルのランク（2026-11-16、specs/combat_tactics.md 5.）   # ボスのブレイク（2026-11-15。撮影・自動の周回の記録用）
 var shadow_mat: StandardMaterial3D
 var glints: Array = []   # 看板・灯りの位置と色（assets/ground/glints.json）。キャラの縁取り・染めに使う
 const REFL := preload("res://scripts/sprite_refl.gdshader")
@@ -161,9 +177,25 @@ func apply_light(spr: Sprite3D, mat: ShaderMaterial, refl: Sprite3D, p: Vector3)
 		refl.offset = spr.offset
 		refl.material_override.set_shader_parameter("tint", mat.get_shader_parameter("tint"))
 
+## 敵が画面に映っているか（体の中ほどがカメラの視野に入っているか）
+func on_screen(e: Node3D) -> bool:
+	if main == null or main.cam == null:
+		return true
+	return main.cam.is_position_in_frustum(e.global_position + Vector3(0, 1.0, 0))
+
 ## ラナと敵が使う時間（止めている間は 0）
 func dt(delta: float) -> float:
 	return 0.0 if (freeze > 0.0 or cine) else delta
+
+## 止め（cine）の安全装置：必殺技の演出が途中で切れて cine が残っても、CINE_MAX 秒で解く（2026-11-15 実機でフリーズの報告）
+const CINE_MAX := 6.0
+var cine_t := 0.0
+func _process(delta: float) -> void:
+	cine_t = cine_t + delta if cine else 0.0
+	if cine_t > CINE_MAX:
+		push_warning("cine stuck %.1fs -> released" % cine_t)
+		cine = false
+		cine_t = 0.0
 
 ## 大技の始まり：背景を暗くし、hold 秒そのまま
 func big_moment(hold: float) -> void:
@@ -191,11 +223,14 @@ func _update_dim(delta: float) -> void:
 func _physics_process(delta: float) -> void:
 	_update_dim(delta)
 	freeze = maxf(0.0, freeze - delta)
+	if not cine:
+		style.tick(delta)
 	shake = maxf(0.0, shake - delta * 60.0)
 	combo_t = maxf(0.0, combo_t - delta)
 	if combo_t <= 0.0:
 		combo = 0
 	_separate(delta)
+	_update_lingers(delta)
 	if auto_spawn and enemies.is_empty():
 		next_t -= delta
 		if next_t <= 0.0:
@@ -285,25 +320,87 @@ func player_attack(spec: Dictionary) -> void:
 func ally_attack(a: Node3D, spec: Dictionary) -> int:
 	return _attack_from(a, spec, atk_mul)
 
+## スキルツリーの派生の汎用の項目（specs/skill_tree.md 3.）：
+##   origin＝当たりの中心を固定（結界）、z_slope＝帯・前方を斜めに（1m 進むごとに奥行きが何 m ずれるか。三叉・散弾）、
+##   seek_n・seek_r＝半径 seek_r の中の近い敵 seek_n 体だけ（追雷）、pull "out"＝外へ押す（反転）、
+##   linger＝{n, gap, k, band}：当たった後その場に残り、gap 秒ごとに n 回当たる（k＝この当たりの何倍。結界）、
+##   band_fx・burst_fx＝帯の気の筋・円の炸裂の見た目（色の帯の名前）
+var lingers := []
+func _deriv_fx(p: Node3D, spec: Dictionary, pp: Vector3, dir: int) -> void:
+	if spec.has("band_fx") and spec.get("shape", "") == "band":
+		var x0: float = float(spec.x0)
+		var x1: float = float(spec.x1)
+		var len := absf(x1 - x0)
+		var mid := Vector3((x0 + x1) * 0.5, 1.0, pp.z + 0.1)
+		fx.sx("ki_band", mid, 0.5, {"band": spec.band_fx, "size": 1.3, "aspect": len / 1.3, "raw": 2.0, "grow_x": 1.1, "ang": 0.0 if dir > 0 else PI, "erode_from": 0.25})
+		fx.sx("band_blade", mid + Vector3(dir * len * 0.1, 0.1, 0.05), 0.4, {"band": spec.band_fx, "size": 0.8, "aspect": len * 0.8 / 0.8, "raw": 1.6, "grow_x": 1.2, "ang": 0.0 if dir > 0 else PI, "erode_from": 0.2})
+		fx.sx("flare", Vector3(x1, 1.0, pp.z + 0.15), 0.3, {"band": spec.band_fx, "size": 2.0, "raw": 1.5, "grow": 1.4})
+		fx.dust(Vector3(x1, 0, pp.z), 1.0)
+	if spec.has("burst_fx") and spec.get("shape", "") == "circle":
+		var c := pp + Vector3(dir * float(spec.get("cx", 0.0)), 0, 0.1)
+		var r: float = float(spec.r)
+		fx.sx("burst", c + Vector3(0, 1.0, 0.1), 0.45, {"band": spec.burst_fx, "size": r * 1.3, "raw": 1.4, "grow": 1.3, "erode_from": 0.1})
+		fx.sx("ring", c, 0.5, {"floor": true, "band": spec.burst_fx, "size": r * 1.7, "raw": 1.4, "grow": 1.4, "erode_from": 0.12})
+		fx.sx("pillar", c + Vector3(0, 1.6, 0), 0.4, {"band": spec.burst_fx, "size": 3.2, "raw": 1.3, "grow": 1.1, "ang": 0.0, "erode_from": 0.2})
+		fx.dust(c, 1.6)
+
+## 残る当たり（linger）を進める
+func _update_lingers(delta: float) -> void:
+	for L in lingers.duplicate():
+		L.t -= delta
+		if L.t > 0.0:
+			continue
+		if not is_instance_valid(L.p):
+			lingers.erase(L)
+			continue
+		L.t = float(L.gap)
+		L.n -= 1
+		fx.sx("ring", L.spec.origin, 0.4, {"floor": true, "band": L.band, "size": float(L.spec.r) * 1.6, "raw": 1.2, "grow": 1.1, "erode_from": 0.2, "spin": 1.5})
+		_attack_from(L.p, L.spec, L.mul)
+		if L.n <= 0:
+			lingers.erase(L)
+
 func _attack_from(p: Node3D, spec: Dictionary, mul: float) -> int:
 	var dir: int = p.face * (spec.side if spec.side != 0 else 1)
 	var shape: String = spec.get("shape", "both" if spec.side == 0 else "fwd")
+	var pp: Vector3 = spec.get("origin", p.position)
+	var zs: float = float(spec.get("z_slope", 0.0))
 	var hits := 0
+	_deriv_fx(p, spec, pp, dir)
+	var seek := []
+	if spec.has("seek_n"):   # 追雷：半径の中の近い敵だけを狙う
+		var cand := []
+		for e in enemies:
+			if e.state != "dying":
+				var dd := Vector2(e.position.x - pp.x, (e.position.z - pp.z) * 1.3).length()
+				if dd < float(spec.get("seek_r", 8.0)):
+					cand.append([dd, e])
+		cand.sort_custom(func(a, b): return a[0] < b[0])
+		for i in mini(int(spec.seek_n), cand.size()):
+			seek.append(cand[i][1])
+		shape = "seek"
+	var ally_hit: bool = p != player
+	var staggered := 0   # のけぞった数（全員アーマーで受けたら止めを短く）
+	var kills := 0   # この当たりで倒した数（撃破の手応え）
 	for e in enemies:
 		if e.state == "dying":
 			continue
-		var dx: float = (e.position.x - p.position.x) * dir
-		var dz: float = absf(e.position.z - p.position.z)
+		if ally_hit and not on_screen(e):   # 仲間の技は画面の外の敵に当てない（2026-11-15 ユーザー。外の群れが走り込んでくるのを防ぐ）
+			continue
+		var dx: float = (e.position.x - pp.x) * dir
+		var dz: float = absf(e.position.z - (pp.z + zs * maxf(0.0, dx)))
 		var inside := false
 		if spec.has("only"):   # 1体だけに当てる（リリィの必殺技）
 			shape = "only"
 		match shape:
 			"only":
 				inside = e == spec.only
+			"seek":
+				inside = seek.has(e)
 			"both":   # 前後両方（回転斬り・連続斬り・回し蹴り）
-				inside = absf(e.position.x - p.position.x) < spec.r and dz < spec.lane
+				inside = absf(e.position.x - pp.x) < spec.r and dz < spec.lane
 			"circle":   # 足元の円（かかと落とし）：中心は前へ cx
-				var c: Vector3 = p.position + Vector3(dir * float(spec.get("cx", 0.0)), 0, 0)
+				var c: Vector3 = pp + Vector3(dir * float(spec.get("cx", 0.0)), 0, 0)
 				inside = Vector2(e.position.x - c.x, (e.position.z - c.z) * 1.3).length() < spec.r
 			"band":   # 通り道の帯（飛び蹴り）：x0〜x1（世界の x）
 				var lo: float = minf(float(spec.x0), float(spec.x1)) - 0.3
@@ -313,17 +410,35 @@ func _attack_from(p: Node3D, spec: Dictionary, mul: float) -> int:
 				inside = dx > -0.42 and dx < spec.r and dz < spec.lane
 		if inside:
 			var d: float = spec.dmg * mul * randf_range(0.9, 1.1)
-			var edir := 1 if e.position.x >= p.position.x else -1
-			e.take_hit(d, edir, spec.strong)
+			var crit := false
+			if p == player and g_crit > 0.0 and randf() < g_crit:
+				d *= CRIT_K
+				crit = true
+			elif p != player and p.get("ult_key") != null:
+				d *= float(g_ally.get("ranka" if str(p.get("ult_key")) == "ranka_ult" else "lily", [1.0, 1.0])[0])
+			e.hit_down_k = g_down if p == player else 1.0
+			stat_dmg += d
+			var edir := 1 if e.position.x >= pp.x else -1
+			var was_alive: bool = e.state != "dying"
+			if e.take_hit(d, edir, spec.strong, ally_hit) or e.boss:   # のけぞった（ボスは今どおりの止め）
+				staggered += 1
+			if was_alive and e.state == "dying" and not e.boss:
+				kills += 1
 			if spec.has("kb"):   # 吹き飛ばしの強さ（倍）
 				e.kx *= float(spec.kb)
-			if spec.has("pull") and not e.boss:   # 寄せる（スキル）：front＝ラナの前 1.5m へ、in＝ラナへ
-				var tx: float = p.position.x + (p.face * 1.5 if spec.pull == "front" else 0.0)
+			if spec.has("pull") and not e.boss and e.last_st:   # アーマーで受けた敵は寄せない（2026-11-15）。寄せる（スキル）：front＝ラナの前 1.5m へ、in＝ラナへ、out＝外へ押す（派生 反転）
 				var m: float = float(spec.get("pull_m", 0.3))
-				if spec.pull == "in" and absf(e.position.x - p.position.x) < 0.9:
-					m = 0.0
-				e.position.x = move_toward(e.position.x, tx, m)
-				e.position.z = move_toward(e.position.z, p.position.z, m * 0.5)
+				if spec.pull == "out":
+					e.position.x = clampf(e.position.x + edir * m, ROOM_X.x, ROOM_X.y)
+					e.position.z = clampf(e.position.z + signf(e.position.z - pp.z) * m * 0.4, BELT_Z.x, BELT_Z.y)
+				else:
+					var tx: float = pp.x + (p.face * 1.5 if spec.pull == "front" else 0.0)
+					if spec.pull == "in" and absf(e.position.x - pp.x) < 0.9:
+						m = 0.0
+					e.position.x = move_toward(e.position.x, tx, m)
+					e.position.z = move_toward(e.position.z, pp.z, m * 0.5)
+				if p == player:   # 寄せた敵は背中を見せる（ラナから外を向く。specs/combat_tactics.md 3.）
+					e.turn_back(1 if e.position.x >= p.position.x else -1, FoeStats.BACK_PULL_T)
 			if spec.has("lift") and e.has_method("lift_up"):   # 浮かせる（強めののけぞり＋絵を持ち上げる）
 				e.lift_up(float(spec.lift))
 			var hp_pos: Vector3 = e.position + Vector3(0, e.height() * 0.55, 0)
@@ -340,7 +455,9 @@ func _attack_from(p: Node3D, spec: Dictionary, mul: float) -> int:
 				fx.hit(hp_pos, edir, spec.strong, hits < 4)
 			if spec.get("zap", false):   # 当たった所で稲妻が弾ける（リリィ）
 				fx.zap(hp_pos, 6 if spec.strong else 4, 0.9 if spec.strong else 0.6)
-			fx.number(e.position + Vector3(0, e.height() + 0.5, 0), int(round(d)), "strong" if spec.strong else "")
+			fx.number(e.position + Vector3(0, e.height() + 0.5, 0), int(round(d * (FoeStats.BACK_DMG if e.last_back else 1.0))), "back" if e.last_back else ("strong" if spec.strong or crit else ""))
+			if p == player and p != manual_ally:
+				style.hit(e.last_back, e.last_air)
 			hits += 1
 	# One cue per resolved strike, regardless of how many enemies were hit.
 	if combat_audio != null:
@@ -362,8 +479,21 @@ func _attack_from(p: Node3D, spec: Dictionary, mul: float) -> int:
 				fx2d.slash(edge_at, dir, float(sl.get("r", 2.0)) * (0.8 if big else 0.6), ang + randf_range(-12.0, 12.0), col)
 	if hits > 0 and spec.strong and (fx.legacy or spec.get("wave", false)):   # 画面のゆがみは大技の一瞬だけ（2026-11-07。iPhone で重い）。前は強い当たりすべて
 		fx.shockwave(p.position + Vector3(dir * minf(spec.r, 2.0) * 0.5, 0.9, 0), 0.9 + mini(hits, 5) * 0.12)
+	if spec.has("linger") and not spec.has("origin"):   # 結界：その場に残って当たり続ける
+		var L: Dictionary = spec.linger
+		var ls: Dictionary = spec.duplicate()
+		ls.erase("linger")
+		ls.erase("wave")
+		ls.erase("freeze_add")
+		ls.origin = pp
+		ls.dmg = float(spec.dmg) * float(L.get("k", 0.3))
+		ls.strong = false
+		ls.kb = 0.15
+		ls.shake = 3.0
+		lingers.append({"p": p, "spec": ls, "mul": mul, "n": int(L.get("n", 4)), "gap": float(L.get("gap", 0.4)), "t": float(L.get("gap", 0.4)), "band": String(L.get("band", "gold"))})
+	stat_hits += hits
 	if hits > 0 and p == player and ult_gain:
-		ult = minf(ULT_MAX, ult + hits * 1.5)
+		ult = minf(ULT_MAX, ult + hits * 1.5 * g_ult)
 	if hits > 0 and (p == ally or p == ranka or p == manual_ally):   # 仲間ごとのゲージ（ult_key：リリィ ally_ult・ランカ ranka_ult）
 		var key: String = str(p.get("ult_key")) if p.get("ult_key") != null else "ally_ult"
 		if bool(get(key + "_gain")):
@@ -373,7 +503,21 @@ func _attack_from(p: Node3D, spec: Dictionary, mul: float) -> int:
 			freeze = maxf(freeze, 0.045 + mini(hits, 10) * 0.006 + (0.03 if spec.strong else 0.0) + float(spec.get("freeze_add", 0.0)))
 			shake = maxf(shake, 5.0 + mini(hits, 12) * 1.1 + (4.0 if spec.strong else 0.0))
 		else:   # 2026-11-07：通常 50ms・大技 90ms（＋必殺技などの freeze_add）、揺れは技ごと
-			freeze = maxf(freeze, (HS_BIG if spec.strong else HS_NORMAL) + float(spec.get("freeze_add", 0.0)))
+			if staggered > 0 or spec.has("freeze_add"):
+				freeze = maxf(freeze, (HS_BIG if spec.strong else HS_NORMAL) + float(spec.get("freeze_add", 0.0)))
+			else:   # 全員アーマーで受けた：止めは短く（2026-11-15、手応えは残し硬い敵だけ軽く）
+				freeze = maxf(freeze, FoeStats.HS_ARMOR)
+		if kills > 0:   # 撃破の手応え（2026-11-16 B）：倒した一撃は長く止めて揺らす。まとめて倒すほど強く、部屋の最後の 1 体は一番強く
+			var last: bool = alive_count() == 0
+			var hs: float = minf(FoeStats.KILL_HS + FoeStats.KILL_HS_ADD * (kills - 1), FoeStats.KILL_HS_MAX)
+			if last:
+				hs = FoeStats.KILL_HS_LAST
+			if ally_hit:
+				hs *= 0.6
+			freeze = maxf(freeze, hs)
+			shake = maxf(shake, minf(5.0 + 3.0 * kills, 14.0) + (6.0 if last else 0.0))
+			if (kills >= 2 or last) and not ally_hit:
+				chroma_hit(0.5 + 0.15 * mini(kills, 3))
 			shake = maxf(shake, float(spec.get("shake", SHAKE_BIG if spec.strong else SHAKE_NORMAL)))
 		combo += hits
 		combo_t = 2.4
@@ -412,24 +556,31 @@ func player_skill(spec: Dictionary, p: Node3D) -> void:
 			spec.slash = big
 			chroma_hit(0.8)
 		"rift":
-			fx.rift(float(spec.x0), float(spec.x1), p.position.z, int(spec.n))
+			# 派生 三叉（z_slope）：区間ごとに奥行きをずらして置く（3つの区間で斜めに走って見える）
+			var rz: float = p.position.z + float(spec.get("z_slope", 0.0)) * absf((float(spec.x0) + float(spec.x1)) * 0.5 - p.position.x)
+			fx.rift(float(spec.x0), float(spec.x1), rz, int(spec.n))
 			if fx2d and not fx.legacy:   # 割れ目の先端で金の火花と、上へ飛ぶ細い光（Kenney trace）
-				var tip := Vector3(float(spec.x1), 0.4, p.position.z)
+				var tip := Vector3(float(spec.x1), 0.4, rz)
 				fx2d.hit(tip, p.face, int(spec.n) == 2, "gold")
 				# 割れ目の焦げ跡と、割れ目から漏れる光（床の板＝足元・奥）
-				var mid := Vector3((float(spec.x0) + float(spec.x1)) * 0.5, 0, p.position.z)
+				var mid := Vector3((float(spec.x0) + float(spec.x1)) * 0.5, 0, rz)
 				fx.tex_quad("scorch_01", mid, 1.4, {"floor": true, "add": false, "col": Color(0.04, 0.03, 0.05, 0.65), "size": absf(float(spec.x1) - float(spec.x0)) * 0.9, "fade_in": 0.05})
 				fx.tex_quad("light_01", mid, 0.45, {"floor": true, "add": true, "col": Color(1.0, 0.72, 0.28), "raw": 1.3, "size": absf(float(spec.x1) - float(spec.x0)) * 0.8, "grow": 1.2})
 				fx2d.burst(["trace_02", "spark_06"], tip, 10, "gold", Vector2(3.0, 8.0), 0.45, Vector2(0.2, 0.5), 8.0, 1.5, true, 0.0, 0.5, 2.0)
 		"vortex":
 			if int(spec.n) == 0:
-				fx.vortex(p, 3.2, 1.25)
+				# 派生：大渦は r に合わせて大きく、反転（rev）は回る向きを逆に・外へ広がる
+				var vs: float = float(spec.r) / 3.2
+				var rv: float = -1.0 if spec.get("rev", false) else 1.0
+				fx.vortex(p, float(spec.r), 1.25)
 				# 床の渦：3D の板（キャラより先に描く＝足元・奥に見える）。Kenney の渦巻き 2 枚を逆に回す
 				# 2026-11-12：渦の素材（GPT、白黒）を2枚、逆に回しながら縮める（Kenney の渦巻きから差し替え）
-				fx.sx("vortex", p.position, 1.3, {"floor": true, "band": "gold", "raw": 1.6, "size": 7.0, "grow": 0.5, "spin": -6.0, "follow": p, "erode_from": 0.55})
-				fx.sx("vortex", p.position, 1.2, {"floor": true, "band": "gold", "raw": 1.2, "size": 4.8, "grow": 0.55, "spin": 4.5, "follow": p, "erode_from": 0.5})
+				fx.sx("vortex", p.position, 1.3, {"floor": true, "band": "gold", "raw": 1.6, "size": 7.0 * vs * (0.55 if rv < 0 else 1.0), "grow": 0.5 if rv > 0 else 1.9, "spin": -6.0 * rv, "follow": p, "erode_from": 0.55})
+				fx.sx("vortex", p.position, 1.2, {"floor": true, "band": "gold", "raw": 1.2, "size": 4.8 * vs * (0.55 if rv < 0 else 1.0), "grow": 0.55 if rv > 0 else 1.9, "spin": 4.5 * rv, "follow": p, "erode_from": 0.5})
+			if spec.get("rev", false):   # 反転：毎回、外へ押す輪
+				fx.sx("ring", p.position, 0.3, {"floor": true, "band": "gold", "size": 2.0, "grow": float(spec.r) * 0.8, "raw": 1.2, "erode_from": 0.15, "follow": p})
 		"vortex_end":
-			fx.vortex_burst(p.position, 3.4)
+			fx.vortex_burst(p.position, float(spec.r))
 			if fx2d and not fx.legacy:
 				fx2d.big(p.position + Vector3(0, 1.0, 0), fx2d.GOLD, fx, p.position)
 			chroma_hit(1.0)
@@ -449,8 +600,13 @@ func just_guard(p: Node3D, e) -> void:
 		fx.drop(e.atk.warn)
 		e.atk.warn = null
 	e.atk.done = true
+	if p == player:
+		style.bonus("guard")
+		player.jg_window = 1.0   # 反撃が出せる（攻撃ボタンが金に光る）
 	e.state = "stun"
-	e.stun = maxf(e.stun, 0.8)
+	e.stun = maxf(e.stun, FoeStats.JG_STUN)   # 2026-11-15：0.8→1.2 秒、アーマーを 3 秒外す（ユーザー決定）
+	if e.has_method("armor_break"):
+		e.armor_break()
 	e.kx = (-1 if e.position.x < p.position.x else 1) * 1.2
 	e.flash = maxf(e.flash, 0.1)
 	p.inv = maxf(p.inv, 0.6)
@@ -473,8 +629,9 @@ func enemy_hits_player(e) -> void:
 	var p: Node3D = player
 	if not p.can_be_hit():
 		return
-	var d: int = e.dmg
+	var d: int = maxi(1, int(round(float(e.dmg) * (1.0 - g_cut))))
 	hits_taken += 1
+	style.hurt()
 	ult = minf(ULT_MAX, ult + 5.0)
 	hp = maxf(0.0, hp - d)
 	var dir := 1 if p.position.x >= e.position.x else -1
@@ -486,4 +643,6 @@ func enemy_hits_player(e) -> void:
 
 ## 倒れたあと起き上がった
 func player_revived() -> void:
+	if main and main.dungeon and main.dungeon.state in ["failed", "result"]:   # ダンジョンで倒れた＝失敗（起き上がっても回復しない）
+		return
 	hp = hp_max

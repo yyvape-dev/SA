@@ -1,6 +1,6 @@
 extends CanvasLayer
-## ダンジョンまわりの画面：レベル・経験値・武器（いつも）、右上の小さな地図・時間・ボスの体力（ダンジョンの中）、
-## 難易度を選ぶ画面、結果の画面、暗転。文字は使わず、数字と色と記号だけ。
+## ダンジョン選択・戦闘情報・結果・暗転、および街でのスキル育成。
+## 遠征盤・戦闘は数字と絵、育成・技セットは日本語の説明を使用。
 ## 色：青＝味方・ノーマル、赤＝敵・ハード、金＝物資・決着。
 
 var main
@@ -8,7 +8,56 @@ var menu_open := false
 var slot_open := false     # スキルのスロット設定（街だけ）
 var slot_pick := ""        # 一覧で選んだ技
 const SkillIcons := preload("res://scripts/skill_icons.gd")
-var menu_sel := 0          # 0＝ノーマル 1＝ハード
+const CombatArt := preload("res://scripts/combat_hud_art.gd")
+const SkillTree := preload("res://scripts/skill_tree.gd")
+const TreeArt := preload("res://scripts/skill_tree_art.gd")
+const SelectArt := preload("res://scripts/dungeon_select_art.gd")
+const AfterArt := preload("res://scripts/after_clear_art.gd")
+const ShopUI := preload("res://scripts/shop_ui.gd")
+const GearUI := preload("res://scripts/gear_ui.gd")
+const DunUI := preload("res://scripts/dungeon_pick_ui.gd")
+const Eco := preload("res://scripts/economy.gd")
+## お金と回復（2026-11-16 ②）：店（回復薬）と「立ち直る」の確認
+var shop_open := false
+var shop_t := 0.0
+var shop_flash := {}
+var gear_sel := -1         # 育成の画面「装備」のタブで選んだ物（uid）
+var ws_selected: Array[int] = []
+var ws_multi := false
+var ws_confirm := false
+var ws_received := 0
+var ws_open := false       # 工房（③ specs/gear.md）
+var ws_sel := -1
+var ws_sell_only := false  # クリア後の店から：売るだけ
+var ws_t := 0.0
+var revive_open := false
+var revive_cost := 0
+var revive_t := 0.0
+var menu_feedback_pos := Vector2.ZERO
+var menu_feedback_t := 0.0
+var _covered_world: Node3D
+var _covered_world_visible := true
+var _covered_viewport: Viewport
+var _viewport_3d_was_disabled := false
+var _covered_controls: CanvasLayer
+var _controls_were_visible := true
+var _controls_pad: Node
+var _pad_was_processing_input := true
+var _covered_postprocess: CanvasItem
+var _postprocess_was_visible := true
+const Art := preload("res://scripts/t6_hud_art.gd")
+## スキル育成（specs/skill_tree.md）：街の歯車から。技セットと切り替え。
+var slot_mode := "tree"    # "slot"＝スロット設定、"tree"＝スキルツリー
+var tree_ch := "rana"      # 選んでいるキャラのタブ
+var tree_skill := "flurry"  # 説明を表示する技（選択ではSPを使わない）
+var tree_deriv := ""        # 効果を確認する派生候補
+var respec_arm := 0.0      # 振り直しの確認（1回目を押してから 3 秒の間に、もう1回で実行）
+var tree_flash := {}       # 押した所の光（キー → 残り秒）
+var menu_sel := 0          # 難易度の画面：0＝ノーマル 1＝ハード 2＝エキスパート／テーマの画面：0〜3＝T1〜T4
+var menu_stage := "theme"  # "theme"＝テーマの札（specs/dungeon_themes.md 3.3）→ "diff"＝難易度の札
+var menu_theme := 0        # 選んだテーマ
+var shake_i := -1          # 揺らす札（錠で選べない）
+const Themes := preload("res://scripts/dungeon_themes.gd")
 var menu_t := 0.0
 var in_dungeon := false
 var result := {}
@@ -34,14 +83,100 @@ func _ready() -> void:
 	add_child(view)
 
 func _process(delta: float) -> void:
+	_sync_menu_world()
 	menu_t += delta
+	menu_feedback_t = maxf(0.0, menu_feedback_t - delta)
+	shop_t += delta
+	revive_t += delta
+	ws_t += delta
+	for k in shop_flash.keys():
+		shop_flash[k] = maxf(0.0, float(shop_flash[k]) - delta)
 	if result_t >= 0.0:
 		result_t += delta
 	fade_t = maxf(0.0, fade_t - delta)
+	warn_t = maxf(0.0, warn_t - delta)
+	respec_arm = maxf(0.0, respec_arm - delta)
+	for k in tree_flash.keys():
+		tree_flash[k] = float(tree_flash[k]) - delta
+		if tree_flash[k] <= 0.0:
+			tree_flash.erase(k)
 	lv_flash = maxf(0.0, lv_flash - delta)
 	w_flash = maxf(0.0, w_flash - delta)
 	shake_hard = maxf(0.0, shake_hard - delta)
 	view.queue_redraw()
+
+## 増援の予告：進む先の画面の端に赤い山形（敵＝赤）。dir＝+1 右・-1 左（2026-11-15 ユーザー）
+var warn_t := 0.0
+var warn_dir := 1
+func edge_warn(dir: int, d: float) -> void:
+	warn_dir = dir
+	warn_t = d
+
+## The map is opaque. Skip hidden 3D drawing, restore the exact previous visibility.
+func _sync_menu_world() -> void:
+	var covered: bool = menu_open or slot_open or ws_open or (main != null and "loading" in main and is_instance_valid(main.loading) and main.loading.visible)
+	if covered and not is_instance_valid(_covered_viewport):
+		_covered_viewport = get_viewport()
+		_viewport_3d_was_disabled = _covered_viewport.disable_3d
+		_covered_viewport.disable_3d = true
+	elif not covered and is_instance_valid(_covered_viewport):
+		_release_viewport()
+	var controls: CanvasLayer = main.ui if covered and main != null and "ui" in main else null
+	if is_instance_valid(_covered_controls) and _covered_controls != controls:
+		_release_controls()
+	if controls != null and controls != _covered_controls:
+		_covered_controls = controls
+		_controls_were_visible = controls.visible
+		_controls_pad = controls.get("pad") if "pad" in controls else null
+		if is_instance_valid(_controls_pad):
+			_pad_was_processing_input = _controls_pad.is_processing_input()
+		if controls.has_method("set_controls_enabled"):
+			controls.set_controls_enabled(false)
+		else:
+			controls.visible = false
+	if covered and not is_instance_valid(_covered_postprocess) and main != null and "vignette_mat" in main and main.vignette_mat != null:
+		for layer_node in main.get_children():
+			if layer_node is CanvasLayer:
+				for item in layer_node.get_children():
+					if item is CanvasItem and item.material == main.vignette_mat:
+						_covered_postprocess = item
+						_postprocess_was_visible = item.visible
+						item.visible = false
+	elif not covered:
+		_release_postprocess()
+	var wanted: Node3D = main.level if covered and main != null and "level" in main else null
+	if is_instance_valid(_covered_world) and _covered_world != wanted:
+		_covered_world.visible = _covered_world_visible
+		_covered_world = null
+	if wanted != null and wanted != _covered_world:
+		_covered_world = wanted
+		_covered_world_visible = wanted.visible
+		wanted.visible = false
+
+func _release_postprocess() -> void:
+	if is_instance_valid(_covered_postprocess):
+		_covered_postprocess.visible = _postprocess_was_visible
+	_covered_postprocess = null
+
+func _release_controls() -> void:
+	if is_instance_valid(_covered_controls):
+		_covered_controls.visible = _controls_were_visible
+	if is_instance_valid(_controls_pad):
+		_controls_pad.set_process_input(_pad_was_processing_input)
+	_covered_controls = null
+	_controls_pad = null
+
+func _release_viewport() -> void:
+	if is_instance_valid(_covered_viewport):
+		_covered_viewport.disable_3d = _viewport_3d_was_disabled
+	_covered_viewport = null
+
+func _exit_tree() -> void:
+	_release_postprocess()
+	_release_controls()
+	_release_viewport()
+	if is_instance_valid(_covered_world):
+		_covered_world.visible = _covered_world_visible
 
 func fade(d: float) -> void:
 	fade_d = d
@@ -60,7 +195,12 @@ func show_dungeon(on: bool) -> void:
 func open_menu() -> void:
 	menu_open = true
 	menu_t = 0.0
+	menu_stage = "theme"   # "theme"＝地図（ダンジョンを選ぶ）→ "diff"＝地図＋右の札（難易度と入場）→ "party"＝仲間の選択
 	menu_sel = 0
+	for i in Themes.THEMES.size():   # いちばん奥の開いているテーマを選んでおく
+		if main.progress.theme_open(i):
+			menu_theme = i
+	_pick_latest_dn()
 	main.player.locked = true
 	main.battle.process_mode = Node.PROCESS_MODE_DISABLED
 
@@ -69,15 +209,109 @@ func close_menu() -> void:
 	main.player.locked = false
 	main.battle.process_mode = Node.PROCESS_MODE_INHERIT
 
-## 0＝ノーマル 1＝ハード。ハードはノーマルのクリアで開く
-func choose(i: int) -> bool:
-	if i == 1 and not main.progress.hard_open:
+## 1 ステージ 4 ダンジョン（2026-11-18）：選んでいるダンジョン（1〜4）と、その id（"t1d2" など）
+var menu_dn := 1
+func menu_did() -> String:
+	return Themes.dungeon_id(menu_theme, menu_dn)
+
+func _pick_latest_dn() -> void:   # 開いている中でいちばん奥
+	menu_dn = 1
+	for n in range(1, Themes.DN + 1):
+		if main.progress.dungeon_open(Themes.dungeon_id(menu_theme, n)):
+			menu_dn = n
+
+## 地図でステージを選ぶ（0〜3）。前のステージの D4 のノーマルのクリアで開く。開いていれば右に 4 つのダンジョンの札
+func choose_theme(i: int) -> bool:
+	if not main.progress.theme_open(i):
 		shake_hard = 0.4
+		shake_i = 10 + i
 		return false
+	menu_theme = i
+	_pick_latest_dn()
+	menu_stage = "dun"
+	menu_t = 0.0
+	return true
+
+## 札でダンジョンを選ぶ（1〜4）→ 難易度。順番に開く（D(n) は D(n-1) のノーマル）
+func choose_dun(n: int) -> bool:
+	if not main.progress.dungeon_open(Themes.dungeon_id(menu_theme, n)):
+		shake_hard = 0.4
+		shake_i = 40 + n - 1
+		return false
+	menu_dn = n
+	menu_stage = "diff"
+	menu_t = 0.0
+	menu_sel = 0
+	for k in range(last_diff, -1, -1):   # 前に選んだ難易度（開いていなければ下へ）。最初はノーマル
+		if main.progress.diff_open(menu_did(), Themes.DIFF_ORDER[k]):
+			menu_sel = k
+			break
+	return true
+
+var last_diff := 0
+
+## 難易度を決めて仲間の選択へ（撮影・自動テストでは仲間を全員つれて、そのまま入る）。
+## 0＝ノーマル 1＝ハード 2＝エキスパート。ハードはノーマル、エキスパートはハードのクリアで開く
+func choose(i: int) -> bool:
+	var th: String = menu_did()
+	var dk: String = Themes.DIFF_ORDER[i]
+	if not main.progress.diff_open(th, dk):
+		shake_hard = 0.4
+		shake_i = i
+		return false
+	menu_sel = i
+	if not main.party_flow():
+		close_menu()
+		fade(0.6)
+		main.enter_dungeon(dk, main.dungeon_seed(), th)
+		return true
+	menu_stage = "party"
+	menu_t = 0.0
+	pick = []
+	for id in main.party_last:   # 前の組み合わせ（人数の上限で切る）
+		if main.ally_ready(id) and pick.size() < party_cap() - 1:
+			pick.append(id)
+	return true
+
+## 入れる人数（ラナを含む）：ノーマル 2 人、ハード以上 3 人（2026-11-15 ユーザー）
+func party_cap() -> int:
+	return 2 if menu_sel == 0 else 3
+
+const ALLY_IDS := ["lily", "ranka", "", ""]   # 空＝今後の仲間（錠）
+var pick: Array = []
+
+func toggle_ally(k: int) -> void:
+	var id: String = ALLY_IDS[k]
+	if id == "" or not main.ally_ready(id):
+		shake_hard = 0.4
+		shake_i = 20 + k
+		return
+	if id in pick:
+		pick.erase(id)
+	elif pick.size() < party_cap() - 1:
+		pick.append(id)
+	else:
+		shake_hard = 0.4
+		shake_i = 30   # 人数の点を揺らす
+	menu_t = maxf(menu_t, 0.3)
+
+func go() -> void:
+	main.party_last = pick.duplicate()
+	last_diff = menu_sel
 	close_menu()
 	fade(0.6)
-	main.enter_dungeon("hard" if i == 1 else "normal", main.dungeon_seed())
-	return true
+	main.enter_dungeon(Themes.DIFF_ORDER[menu_sel], main.dungeon_seed(), menu_did(), pick.duplicate())
+
+func menu_back() -> void:
+	menu_t = 0.0
+	if menu_stage == "party":
+		menu_stage = "diff"
+	elif menu_stage == "diff":
+		menu_stage = "dun"
+	elif menu_stage == "dun":
+		menu_stage = "theme"
+	else:
+		close_menu()
 
 # ---------- スキルのスロット設定（specs/skill_ui.md 2.） ----------
 func open_slots() -> void:
@@ -85,6 +319,7 @@ func open_slots() -> void:
 		return
 	slot_open = true
 	slot_pick = ""
+	respec_arm = 0.0
 	menu_t = 0.0
 	main.player.locked = true
 	main.battle.process_mode = Node.PROCESS_MODE_DISABLED
@@ -94,10 +329,98 @@ func close_slots() -> void:
 	main.player.locked = false
 	main.battle.process_mode = Node.PROCESS_MODE_INHERIT
 	main.progress.save()
+	main.apply_progress()   # ツリーで変えた技レベル・派生を3人の技の表へ
+
+## ツリーの画面を押した
+func tree_tap(pos: Vector2) -> void:
+	if main.dungeon != null:
+		return
+	var r: Dictionary = view.tree_rects()
+	if r.close.has_point(pos) or not r.panel.has_point(pos):
+		close_slots()
+		return
+	if r.tab_slot.has_point(pos):
+		slot_mode = "slot"
+		respec_arm = 0.0
+		return
+	var pr = main.progress
+	for i in SkillTree.CHARS.size():
+		if r["ch%d" % i].has_point(pos):
+			tree_ch = SkillTree.CHARS[i]
+			tree_skill = SkillTree.order(tree_ch)[0]
+			tree_deriv = pr.deriv_of(tree_ch, tree_skill)
+			respec_arm = 0.0
+			return
+	if r.respec.has_point(pos):
+		if TreeArt.Info.refund(pr, tree_ch) <= 0:
+			return
+		if respec_arm > 0.0:
+			pr.respec(tree_ch)
+			respec_arm = 0.0
+			tree_deriv = ""
+			tree_flash["respec"] = 0.4
+		else:
+			respec_arm = 3.0
+		return
+	respec_arm = 0.0
+	if r.upgrade.has_point(pos):
+		if pr.level_up(tree_ch, tree_skill):
+			tree_flash["lv_" + tree_skill] = 0.35
+		else:
+			tree_flash["no_" + tree_skill] = 0.3
+		return
+	if r.apply_deriv.has_point(pos):
+		if pr.set_deriv(tree_ch, tree_skill, tree_deriv):
+			tree_flash["deriv"] = 0.35
+		return
+	var rows: Dictionary = SkillTree.rows(tree_ch)
+	for id in SkillTree.order(tree_ch):
+		for did in rows[id].get("derivs", {}):
+			var k: String = "d_%s_%s" % [id, did]
+			if r.has(k) and r[k].has_point(pos):
+				tree_skill = id
+				tree_deriv = did
+				return
+		if r["row_" + id].has_point(pos):
+			tree_skill = id
+			tree_deriv = pr.deriv_of(tree_ch, id)
+			return
 
 ## 一覧の技を選ぶ → 枠を押すと入れる（同じ技が他の枠にあれば入れ替え）
+## 画質の切り替え（2026-11-17）：育成の画面の上の帯、閉じるの左。高→標準→省電力→高
+func quality_rect() -> Rect2:
+	var u: float = view.size.y / 720.0
+	var r: Dictionary = TreeArt.rects(view.size, "rana")
+	var cl: Rect2 = r.close
+	return Rect2(Vector2(cl.position.x - 300 * u, cl.position.y + 8 * u), Vector2(284 * u, 68 * u))
+
 func slot_tap(pos: Vector2) -> void:
+	if slot_mode == "gear":
+		var res: String = GearUI.equip_tap(self, pos)
+		if res == "close":
+			close_slots()
+		elif res != "":
+			slot_mode = res
+		return
+	if GearUI.tab_gear(view.size).has_point(pos):
+		slot_mode = "gear"
+		gear_sel = -1
+		return
+	if quality_rect().has_point(pos):
+		var order := ["high", "std", "eco"]
+		var pr = main.progress
+		pr.quality = order[(order.find(pr.quality) + 1) % 3]
+		main.apply_quality()
+		pr.save()
+		return
+	if slot_mode == "tree":
+		tree_tap(pos)
+		return
 	var r: Dictionary = view.slot_rects()
+	if r.tab_tree.has_point(pos):
+		slot_mode = "tree"
+		slot_pick = ""
+		return
 	if r.close.has_point(pos) or not r.panel.has_point(pos):
 		close_slots()
 		return
@@ -117,6 +440,80 @@ func slot_tap(pos: Vector2) -> void:
 			slot_pick = "" if slot_pick == str(pr.skills_owned[i]) else str(pr.skills_owned[i])
 			return
 
+# ---------- 工房（③ specs/gear.md）：裏の町の部品の屋台。クリア後の店からは売るだけ ----------
+func open_workshop(sell_only: bool) -> void:
+	if ws_open:
+		return
+	ws_open = true
+	ws_sell_only = sell_only
+	ws_sel = -1
+	ws_selected.clear()
+	ws_multi = false
+	ws_confirm = false
+	ws_received = 0
+	ws_t = 0.0
+	if main.player:
+		main.player.locked = true
+		main.player.move_in = Vector2.ZERO
+
+func close_workshop() -> void:
+	ws_open = false
+	if main.player and not shop_open:
+		main.player.locked = false
+	if main.progress:
+		main.progress.save()
+
+# ---------- 店・立ち直る（2026-11-16 ②） ----------
+func open_shop() -> void:
+	if shop_open:
+		return
+	shop_open = true
+	shop_t = 0.0
+	if main.player:
+		main.player.locked = true
+		main.player.move_in = Vector2.ZERO
+
+func close_shop() -> void:
+	shop_open = false
+	if main.player:
+		main.player.locked = false
+	if main.progress:
+		main.progress.save()
+
+func shop_items() -> Array:
+	var pr = main.progress
+	return [{"heal": Eco.POT_S_HEAL, "price": Eco.POT_S_PRICE, "have": pr.pot_s, "max": Eco.POT_S_MAX},
+		{"heal": Eco.POT_L_HEAL, "price": Eco.POT_L_PRICE, "have": pr.pot_l, "max": Eco.POT_L_MAX}]
+
+func buy(i: int) -> bool:
+	var pr = main.progress
+	var it: Dictionary = shop_items()[i]
+	if pr.gold < int(it.price) or int(it.have) >= int(it.max):
+		return false
+	pr.gold -= int(it.price)
+	if i == 0:
+		pr.pot_s += 1
+	else:
+		pr.pot_l += 1
+	shop_flash["buy%d" % i] = 0.15
+	return true
+
+func show_revive(cost: int, _gold: int) -> void:
+	revive_open = true
+	revive_cost = cost
+	revive_t = 0.0
+
+func _revive_pick(yes: bool) -> void:
+	if revive_t < 0.4 or main.dungeon == null:
+		return
+	if yes and main.progress.gold < revive_cost:
+		return
+	revive_open = false
+	if yes:
+		main.dungeon.revive_yes()
+	else:
+		main.dungeon.revive_no()
+
 # ---------- 結果 ----------
 func show_result(r: Dictionary) -> void:
 	result = r
@@ -130,7 +527,104 @@ func confirm_result() -> void:
 	if main.dungeon:
 		main.dungeon.close_result()
 
+## ---------- クリア後の命令の列（2026-11-18、アラド戦記風） ----------
+## 画面の上の真ん中（ボスの体力の帯があった所）に 4 つ：店・もう一度・別のダンジョン・街へ戻る
+const AFTER_CMDS := [["shop", "店"], ["retry", "もう一度"], ["other", "別のダンジョン"], ["town", "街へ戻る"]]
+func after_on() -> bool:
+	return main != null and main.dungeon != null and main.dungeon.state == "after" and not shop_open and not ws_open and result_t < 0.0
+
+func after_rects() -> Array:
+	var u: float = view.size.y / 720.0
+	var w := [155.0, 199.0, 292.0, 244.0]
+	var gap := 14.0
+	var tot := gap * 3.0
+	for x in w:
+		tot += x
+	var x0: float = view.size.x * 0.5 - tot * 0.5 * u
+	var out := []
+	for i in 4:
+		out.append(Rect2(Vector2(x0, (116 - (1.0 - clampf(float(main.dungeon.after_time) / 0.18, 0.0, 1.0)) * 11.0) * u), Vector2(w[i], 88) * u))
+		x0 += (w[i] + gap) * u
+	return out
+
+## 押された命令の番号（無ければ -1）。touch_ui もこれで押した所を避ける
+func after_hit(pos: Vector2) -> int:
+	if not after_on():
+		return -1
+	var rs: Array = after_rects()
+	for i in rs.size():
+		if (rs[i] as Rect2).has_point(pos):
+			return i
+	if merchant_rect().has_point(pos):
+		return 0
+	return -1
+
+func merchant_rect() -> Rect2:
+	var m: Sprite3D = main.dungeon.merchant
+	var camera := get_viewport().get_camera_3d()
+	if not is_instance_valid(m) or camera == null:
+		return Rect2()
+	if camera.is_position_behind(m.global_position) or main.player.global_position.distance_to(m.global_position - Vector3.UP * 1.05) > 3.3:
+		return Rect2()
+	var u: float = view.size.y / 720.0
+	var screen_pos := camera.unproject_position(m.global_position + Vector3.UP * 1.15)
+	var rect := Rect2(screen_pos - Vector2(51, 87) * u, Vector2(102, 84) * u)
+	if not Rect2(Vector2.ZERO, view.size).has_point(rect.position) or not Rect2(Vector2.ZERO, view.size).has_point(rect.end):
+		return Rect2()
+	for button in after_rects():
+		if rect.intersects(button):
+			return Rect2()
+	return rect
+
 func _input(e: InputEvent) -> void:
+	if after_on():
+		var ai := -1
+		if e is InputEventScreenTouch and e.pressed:
+			ai = after_hit(e.position)
+		elif e is InputEventKey and e.pressed and not e.echo and e.keycode >= KEY_F1 and e.keycode <= KEY_F4:
+			ai = e.keycode - KEY_F1
+		if ai >= 0:
+			get_viewport().set_input_as_handled()
+			main.dungeon.after_cmd(str(AFTER_CMDS[ai][0]))
+			return
+	if ws_open:
+		if e is InputEventKey and e.pressed and not e.echo and (e.keycode == KEY_K or e.keycode == KEY_X or e.keycode == KEY_ESCAPE):
+			get_viewport().set_input_as_handled()
+			close_workshop()
+		elif e is InputEventScreenTouch and e.pressed:
+			get_viewport().set_input_as_handled()
+			if ws_t > 0.2 and GearUI.ws_tap(self, e.position) == "close":
+				close_workshop()
+		return
+	if shop_open or revive_open:
+		var k2 := -1
+		if e is InputEventKey and e.pressed and not e.echo:
+			k2 = e.keycode
+		var tp := Vector2(-1, -1)
+		if e is InputEventScreenTouch and e.pressed:
+			tp = e.position
+		if k2 < 0 and tp.x < 0:
+			return
+		get_viewport().set_input_as_handled()
+		if revive_open:
+			var rr: Dictionary = ShopUI.revive_rects(view.size)
+			if k2 == KEY_J or k2 == KEY_ENTER or (tp.x >= 0 and rr.yes.has_point(tp)):
+				_revive_pick(true)
+			elif k2 == KEY_K or k2 == KEY_ESCAPE or (tp.x >= 0 and rr.no.has_point(tp)):
+				_revive_pick(false)
+			return
+		if shop_t < 0.2:
+			return
+		var sr: Dictionary = ShopUI.shop_rects(view.size, main.dungeon != null)
+		if k2 == KEY_1 or (tp.x >= 0 and sr.buy0.has_point(tp)):
+			buy(0)
+		elif k2 == KEY_2 or (tp.x >= 0 and sr.buy1.has_point(tp)):
+			buy(1)
+		elif main.dungeon != null and tp.x >= 0 and sr.sell.has_point(tp):
+			open_workshop(true)
+		elif k2 == KEY_K or k2 == KEY_ESCAPE or k2 == KEY_X or (tp.x >= 0 and (sr.close.has_point(tp) or not sr.panel.has_point(tp))):
+			close_shop()
+		return
 	if slot_open:
 		if e is InputEventKey and e.pressed and not e.echo and (e.keycode == KEY_K or e.keycode == KEY_X or e.keycode == KEY_ESCAPE):
 			get_viewport().set_input_as_handled()
@@ -138,6 +632,10 @@ func _input(e: InputEvent) -> void:
 		elif e is InputEventScreenTouch and e.pressed and menu_t > 0.2:
 			get_viewport().set_input_as_handled()
 			slot_tap(e.position)
+		elif e is InputEventKey and e.pressed and not e.echo and e.keycode == KEY_T:   # T＝スロット／ツリーの切り替え（キーボード）
+			get_viewport().set_input_as_handled()
+			slot_mode = "slot" if slot_mode == "tree" else "tree"
+			respec_arm = 0.0
 		return
 	if not menu_open and result_t < 0.0:
 		return
@@ -153,21 +651,74 @@ func _input(e: InputEvent) -> void:
 	if result_t >= 0.0:
 		confirm_result()
 		return
-	if menu_t < 0.25:
+	if menu_t < 0.05:
+		return
+	if tap.x >= 0:
+		menu_feedback_pos = tap
+		menu_feedback_t = 0.14
+	var r: Dictionary = view.menu_rects()
+	if menu_stage == "party":
+		match key:
+			KEY_1, KEY_2, KEY_3, KEY_4: toggle_ally(key - KEY_1)
+			KEY_J, KEY_Z, KEY_ENTER, KEY_SPACE: go()
+			KEY_ESCAPE, KEY_K, KEY_X: menu_back()
+		if tap.x >= 0:
+			for k in 4:
+				if r["ally%d" % k].has_point(tap):
+					toggle_ally(k)
+					return
+			if r.go.has_point(tap):
+				go()
+			elif r.close.has_point(tap):
+				menu_back()
+		return
+	if menu_stage == "dun":
+		match key:
+			KEY_1, KEY_2, KEY_3, KEY_4: choose_dun(key - KEY_1 + 1)
+			KEY_A, KEY_LEFT: menu_dn = maxi(1, menu_dn - 1)
+			KEY_D, KEY_RIGHT: menu_dn = mini(Themes.DN, menu_dn + 1)
+			KEY_J, KEY_Z, KEY_ENTER, KEY_SPACE: choose_dun(menu_dn)
+			KEY_ESCAPE, KEY_K, KEY_X: menu_back()
+		if tap.x >= 0:
+			var dr: Dictionary = DunUI.rects(view.size, menu_t)
+			for n in Themes.DN:
+				if dr["dun%d" % n].has_point(tap):
+					choose_dun(n + 1)
+					return
+			if dr.close.has_point(tap) or dr.back.has_point(tap):
+				menu_back()
 		return
 	match key:
-		KEY_1, KEY_A, KEY_LEFT: menu_sel = 0
-		KEY_2, KEY_D, KEY_RIGHT: menu_sel = 1
-		KEY_J, KEY_Z, KEY_ENTER, KEY_SPACE: choose(menu_sel)
-		KEY_ESCAPE, KEY_K, KEY_X: close_menu()
+		KEY_A, KEY_LEFT: menu_theme = maxi(0, menu_theme - 1); menu_stage = "theme"
+		KEY_D, KEY_RIGHT: menu_theme = mini(Themes.THEMES.size() - 1, menu_theme + 1); menu_stage = "theme"
+		KEY_W, KEY_UP: menu_sel = maxi(0, menu_sel - 1)
+		KEY_S, KEY_DOWN: menu_sel = mini(2, menu_sel + 1)
+		KEY_1, KEY_2, KEY_3, KEY_4: choose_theme(key - KEY_1)
+		KEY_J, KEY_Z, KEY_ENTER, KEY_SPACE:
+			if menu_stage == "theme":
+				choose_theme(menu_theme)
+			else:
+				choose(menu_sel)
+		KEY_ESCAPE, KEY_K, KEY_X: menu_back()
 	if tap.x >= 0:
-		var r: Dictionary = view.menu_rects()
-		if r.normal.has_point(tap):
-			choose(0)
-		elif r.hard.has_point(tap):
-			choose(1)
-		elif r.close.has_point(tap) or not r.panel.has_point(tap):
-			close_menu()
+		for i in Themes.THEMES.size():
+			if menu_stage == "theme" and (r["node%d" % i].has_point(tap) or r["badge%d" % i].has_point(tap)):
+				choose_theme(i)
+				return
+		if menu_stage == "diff":
+			for i in 3:
+				if r["diff%d" % i].has_point(tap):
+					if not main.progress.diff_open(menu_did(), Themes.DIFF_ORDER[i]):
+						shake_hard = 0.4
+						shake_i = i
+					else:
+						menu_sel = i
+					return
+			if r.go.has_point(tap):
+				choose(menu_sel)
+				return
+		if r.close.has_point(tap):
+			menu_back()
 
 ## ---------- 描く ----------
 class _View extends Control:
@@ -225,35 +776,66 @@ class _View extends Control:
 		var m = hud.main
 		if m == null or m.progress == null:
 			return
-		var pr = m.progress
-		# レベル（金の山形＋数字）・経験値の細い帯（金）・武器（剣＋数字）。体力の帯（touch_ui）の下
-		var y := 150.0 * u   # 必殺技のゲージ（体力の帯の下）の下
-		var lvc := GOLD.lerp(Color.WHITE, hud.lv_flash) if hud.lv_flash > 0.0 else GOLD
-		_chev(Vector2(48 * u, y - 10 * u), 11 * u, lvc)
-		_num(Vector2(66 * u, y), str(pr.lv), 30, lvc)
-		var bx := 112.0 * u
-		draw_rect(Rect2(Vector2(bx, y - 16 * u), Vector2(150 * u, 8 * u)), DIM)
-		draw_rect(Rect2(Vector2(bx, y - 16 * u), Vector2(150 * u * float(pr.xp) / float(pr.need()), 8 * u)), GOLD)
-		var wc := GOLD if hud.w_flash > 0.0 and int(hud.w_flash * 8) % 2 == 0 else Color(0.9, 0.92, 1.0)
-		_sword(Vector2(296 * u, y - 10 * u), 10 * u, wc)
-		_num(Vector2(316 * u, y), str(pr.weapon), 30, wc)
+		if hud.menu_open:
+			_menu()
+			return
 		var d = m.dungeon
 		if hud.in_dungeon and d != null and not d.layout.is_empty():
 			_map(d)
 			_num(Vector2(0, 52 * u), _time_str(d.t_run), 34, Color(1, 1, 1, 0.92), HORIZONTAL_ALIGNMENT_CENTER, size.x)
+			# お金（2026-11-16 ②）：時間の右に、金の硬貨＋数
+			ShopUI.coin(self, Vector2(size.x * 0.5 + 118 * u, 40 * u), 12 * u)
+			_num(Vector2(size.x * 0.5 + 136 * u, 52 * u), str(m.progress.gold), 30, GOLD, HORIZONTAL_ALIGNMENT_LEFT, 200 * u)
 			if d.boss != null and is_instance_valid(d.boss):
-				var w := 560.0 * u
-				var p := Vector2((size.x - w) * 0.5, 70 * u)
-				var r: float = maxf(0.0, d.boss.hp / d.boss.hp_max)
-				draw_rect(Rect2(p - Vector2(4, 4) * u, Vector2(w, 18 * u) + Vector2(8, 8) * u), DIM)
-				draw_rect(Rect2(p, Vector2(w * r, 18 * u)), RED)
-				draw_rect(Rect2(p, Vector2(w * r, 6 * u)), Color(1, 1, 1, 0.25))
+				var brc: Rect2 = CombatArt.boss_rect(size)
+				CombatArt.boss(self,brc,maxf(0.0,d.boss.hp/d.boss.hp_max))
+				# ブレイクの帯（金＝決着）：Codex の真鍮の帯の下。傷がたまると満ち、満ちると倒れる。倒れている間は点滅しながら減る（2026-11-15）
+				if d.boss.has_method("break_ratio"):
+					var br: float = d.boss.break_ratio()
+					var bw: float = brc.size.x - 24 * u
+					var bp := Vector2(brc.position.x + 12 * u, brc.end.y + 4 * u)
+					var brk_on: bool = d.boss.state == "broken"
+					draw_rect(Rect2(bp - Vector2(3, 3) * u, Vector2(bw, 8 * u) + Vector2(6, 6) * u), DIM)
+					var ga: float = 1.0 if not brk_on else 0.6 + 0.4 * sin(Time.get_ticks_msec() * 0.02)
+					draw_rect(Rect2(bp, Vector2(bw * br, 8 * u)), Color(GOLD.r, GOLD.g, GOLD.b, ga))
+		if hud.in_dungeon and m.battle and m.battle.get("style") != null and not OS.has_environment("COMBO_OFF"):   # コンボとランク（ミニマップの下・必殺技のボタンの左。specs/combat_tactics.md 5.）
+			m.battle.style.draw(self, size.x - 185 * u, 178 * u, u)
 		if hud.menu_open:
 			_menu()
 		if hud.slot_open:
-			_slots()
+			if hud.slot_mode == "gear":
+				GearUI.draw_equip(self, hud)
+			else:
+				if hud.slot_mode == "tree":
+					_tree()
+				else:
+					_slots()
+				TreeArt.button(self, GearUI.tab_gear(size), "装備", false)
+			# 画質（2026-11-17）
+			var qr: Rect2 = hud.quality_rect()
+			var qn := {"high": "画質：高", "std": "画質：標準", "eco": "画質：省電力"}
+			draw_rect(qr, Color(0.06, 0.07, 0.1, 0.92))
+			draw_rect(qr, Color(0.85, 0.68, 0.36), false, 2 * u)
+			draw_string(TreeArt.FONT, qr.position + Vector2(0, qr.size.y * 0.66), str(qn.get(m.progress.quality, "")), HORIZONTAL_ALIGNMENT_CENTER, qr.size.x, int(26 * u), Color(1, 0.95, 0.85))
 		if hud.result_t >= 0.0:
 			_result()
+		if hud.shop_open:
+			ShopUI.draw_shop(self, size, int(m.progress.gold), hud.shop_items(), hud.shop_flash, m.dungeon != null)
+		if hud.after_on():
+			_after_cmds()
+		if hud.ws_open:
+			GearUI.draw_workshop(self, hud)
+		if hud.revive_open:
+			ShopUI.draw_revive(self, size, hud.revive_cost, int(m.progress.gold), hud.revive_t)
+		if hud.warn_t > 0.0 and m.dungeon != null:   # 増援の予告：画面の端に赤い山形が3つ、外へ向かって点滅
+			var a: float = clampf(hud.warn_t / 0.3, 0.0, 1.0) * (0.55 + 0.45 * sin(hud.warn_t * 14.0))
+			var ex: float = size.x - 46 * u if hud.warn_dir > 0 else 46 * u
+			var cy := size.y * 0.52
+			draw_rect(Rect2(Vector2(size.x - 14 * u if hud.warn_dir > 0 else 0.0, 0), Vector2(14 * u, size.y)), Color(RED.r, RED.g, RED.b, 0.35 * a))
+			for k in 3:
+				var cx: float = ex - hud.warn_dir * k * 24 * u
+				var s_: float = 20 * u
+				draw_polyline(PackedVector2Array([Vector2(cx - hud.warn_dir * s_ * 0.6, cy - s_), Vector2(cx + hud.warn_dir * s_ * 0.6, cy), Vector2(cx - hud.warn_dir * s_ * 0.6, cy + s_)]), Color(RED.r, RED.g, RED.b, a * (1.0 - k * 0.25)), 7 * u)
 		if hud.fade_t > 0.0 and hud.fade_d > 0.0:
 			var k: float = 1.0 - hud.fade_t / hud.fade_d
 			var a: float = 1.0 - absf(2.0 * k - 1.0)
@@ -262,9 +844,9 @@ class _View extends Control:
 	## 右上の小さな地図：今いる部屋（明るい青）・行った部屋（暗い青）・となりの知らない部屋（枠だけ）・ボス部屋（赤。最初から表示）
 	func _map(d) -> void:
 		var u := _u()
-		var cs := 26.0 * u
-		var gap := 12.0 * u
-		var n := 3
+		var cs := 17.0 * u
+		var gap := 8.0 * u
+		var n := 5
 		var org := Vector2(size.x - 30 * u - n * cs - (n - 1) * gap, 26 * u)
 		draw_rect(Rect2(org - Vector2(10, 10) * u, Vector2(n * cs + (n - 1) * gap, n * cs + (n - 1) * gap) + Vector2(20, 20) * u), DIM)
 		var known := {}
@@ -278,7 +860,7 @@ class _View extends Control:
 		for c in d.visited:
 			for k in d.layout.rooms[c].exits:
 				var nb: Vector2i = d.layout.rooms[c].exits[k]
-				draw_line(ctr.call(c), ctr.call(nb), Color(0.55, 0.7, 1.0, 0.8), 4 * u)
+				draw_line(ctr.call(c), ctr.call(nb), Color(0.55, 0.7, 1.0, 0.8), 3 * u)
 		for c in known:
 			var r := Rect2(ctr.call(c) - Vector2(cs, cs) * 0.5, Vector2(cs, cs))
 			if c == d.cur:
@@ -297,90 +879,88 @@ class _View extends Control:
 		# 入口（紫の小さな点）
 		draw_circle(ctr.call(d.layout.entrance) + Vector2(0, cs * 0.5 + 5 * u), 3.5 * u, Color(0.72, 0.5, 1.0))
 
+	## 地図（アラド戦記風）：画面いっぱいの地図に、門から奥へ続く道と 4 つのダンジョン。右に選んだダンジョンの札
+	const NODE_POS := [Vector2(250, 520), Vector2(440, 300), Vector2(640, 500), Vector2(820, 250)]
 	func menu_rects() -> Dictionary:
+		return SelectArt.rects(size, hud.menu_stage, hud.menu_t, hud.shake_i, hud.shake_hard)
+
+	func _theme_glyph(i: int, c: Vector2, s: float, col: Color) -> void:
 		var u := _u()
-		var cw := 300.0 * u
-		var ch := 230.0 * u
-		var gap := 40.0 * u
-		var c := size * 0.5
-		var panel := Rect2(c - Vector2(cw + gap * 0.5 + 30 * u, ch * 0.5 + 40 * u), Vector2(cw * 2 + gap + 60 * u, ch + 80 * u))
-		return {
-			"panel": panel,
-			"normal": Rect2(c + Vector2(-cw - gap * 0.5, -ch * 0.5), Vector2(cw, ch)),
-			"hard": Rect2(c + Vector2(gap * 0.5, -ch * 0.5), Vector2(cw, ch)),
-			"close": Rect2(panel.position + Vector2(panel.size.x - 52 * u, 8 * u), Vector2(44, 44) * u),
-		}
+		match i:
+			0:
+				for k in 3:
+					var x := (k - 1) * s * 0.55
+					var h := s * (0.9 if k == 1 else 0.65)
+					draw_rect(Rect2(c + Vector2(x - s * 0.13, -h * 0.5), Vector2(s * 0.26, h)), col)
+			1:
+				draw_polyline(PackedVector2Array([c + Vector2(-0.1, -1) * s * 0.6, c + Vector2(0.25, -0.35) * s * 0.6, c + Vector2(-0.2, 0.15) * s * 0.6, c + Vector2(0.2, 0.6) * s * 0.6, c + Vector2(0.0, 1.0) * s * 0.6]), col, 8 * u)
+			2:
+				draw_arc(c, s * 0.5, 0, TAU, 40, col, 7 * u)
+				draw_arc(c, s * 0.3, 0, TAU, 32, Color(col.r, col.g, col.b, 0.6), 4 * u)
+			3:
+				var pts := PackedVector2Array([c + Vector2(0, -0.62) * s, c + Vector2(0.3, -0.1) * s, c + Vector2(0.18, 0.55) * s, c + Vector2(-0.18, 0.55) * s, c + Vector2(-0.3, -0.1) * s])
+				draw_colored_polygon(pts, col)
+
+	## クリア後の命令の列。街へ戻るは金（決着）、ほかは暗い札に白い字
+	func _after_cmds() -> void:
+		var u := _u()
+		var rs: Array = hud.after_rects()
+		for i in rs.size():
+			var rc: Rect2 = rs[i]
+			var main_btn: bool = hud.AFTER_CMDS[i][0] == "town"
+			draw_rect(rc, Color(0.16, 0.12, 0.05, 0.92) if main_btn else Color(0.04, 0.06, 0.1, 0.88))
+			draw_rect(rc, GOLD if main_btn else Color("927a59"), false, (3 if main_btn else 2) * u)
+			AfterArt.draw_art(self, str(hud.AFTER_CMDS[i][0]), Rect2(rc.position + Vector2(10, 18) * u, Vector2(48, 48) * u))
+			var fs: int = int(28 * u)
+			var tx: String = hud.AFTER_CMDS[i][1]
+			var tw: float = TreeArt.FONT.get_string_size(tx, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+			draw_string(TreeArt.FONT, Vector2(rc.get_center().x - tw * 0.5 + 24 * u, rc.get_center().y + fs * 0.36), tx, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, GOLD if main_btn else Color.WHITE)
+
+		var merchant_button: Rect2 = hud.merchant_rect()
+		if merchant_button.has_area():
+			TreeArt.button(self, merchant_button, "店", true)
 
 	func _menu() -> void:
-		var u := _u()
-		var pr = hud.main.progress
-		draw_rect(Rect2(Vector2.ZERO, size), Color(0, 0, 0, 0.55))
-		var r := menu_rects()
-		draw_rect(r.panel, Color(0.04, 0.04, 0.09, 0.92))
-		draw_rect(r.panel, Color(0.72, 0.5, 1.0, 0.8), false, 3 * u)
-		# 閉じる（×）
-		var cc: Vector2 = r.close.get_center()
-		draw_line(cc + Vector2(-12, -12) * u, cc + Vector2(12, 12) * u, Color(1, 1, 1, 0.8), 4 * u)
-		draw_line(cc + Vector2(12, -12) * u, cc + Vector2(-12, 12) * u, Color(1, 1, 1, 0.8), 4 * u)
-		for i in 2:
-			var rect: Rect2 = r.normal if i == 0 else r.hard
-			var col := BLUE if i == 0 else RED
-			var locked: bool = i == 1 and not pr.hard_open
-			if i == 1 and hud.shake_hard > 0.0:
-				rect.position.x += sin(hud.shake_hard * 60.0) * 8 * u
-			var sel: bool = hud.menu_sel == i
-			draw_rect(rect, Color(col.r * 0.18, col.g * 0.18, col.b * 0.18, 0.95))
-			draw_rect(rect, col if not locked else Color(0.4, 0.4, 0.45), false, (6 if sel else 3) * u)
-			var c := rect.get_center() + Vector2(0, -28 * u)
-			var nd := 1 if i == 0 else 2
-			for k in nd:
-				var off := (k - (nd - 1) * 0.5) * 70 * u
-				_diamond(c + Vector2(off, 0), 44 * u, col if not locked else Color(0.3, 0.3, 0.34))
-			if locked:
-				_lock(c + Vector2(0, 6 * u), 26 * u, Color(0.85, 0.85, 0.9))
-			# 最速の記録（金の時計＋数字）
-			var key := "normal" if i == 0 else "hard"
-			if pr.best.has(key):
-				_clock(Vector2(rect.position.x + 70 * u, rect.end.y - 42 * u), 13 * u, GOLD)
-				_num(Vector2(rect.position.x + 92 * u, rect.end.y - 30 * u), _time_str(float(pr.best[key])), 32, GOLD)
+		if hud.menu_stage == "dun":
+			DunUI.draw(self, hud, size)
+			return
+		SelectArt.map(self, hud, size)
+
+	func _dg_panel(r: Dictionary) -> void:
+		SelectArt.panel(self, hud, r, size)
+
+	func _go_btn(g: Rect2) -> void:
+		SelectArt.go_button(self, g, _u(), hud.menu_t)
+
+	func _person(c: Vector2, s: float, col: Color) -> void:
+		draw_circle(c + Vector2(0, -s * 0.9), s * 0.55, col)
+		draw_colored_polygon(PackedVector2Array([c + Vector2(-s * 0.85, s * 1.1), c + Vector2(-s * 0.55, -s * 0.15), c + Vector2(s * 0.55, -s * 0.15), c + Vector2(s * 0.85, s * 1.1)]), col)
+
+	## 仲間の選択：左にラナ（固定・金）、右に仲間の札（選ぶと青）。上に人数の点。今後の仲間は錠
+	func _party(r: Dictionary) -> void:
+		SelectArt.party(self, hud, r, size)
+
+	func _face_card(rc: Rect2, tex: Texture2D, col: Color, on: bool, locked: bool) -> void:
+		SelectArt.face_card(self, rc, tex, col, on, locked, _u())
 
 	func slot_rects() -> Dictionary:
-		var u := _u()
-		var c := size * 0.5
-		var panel := Rect2(c - Vector2(330, 230) * u, Vector2(660, 460) * u)
-		var out := {"panel": panel, "close": Rect2(panel.position + Vector2(panel.size.x - 52 * u, 8 * u), Vector2(44, 44) * u)}
-		for i in 3:   # 上に3枠
-			out["slot%d" % i] = Rect2(c + Vector2((i - 1) * 170 - 65, -170) * u, Vector2(130, 130) * u)
-		var own: Array = hud.main.progress.skills_owned
-		for i in own.size():   # 下に持っている技
-			out["own%d" % i] = Rect2(c + Vector2((i - (own.size() - 1) * 0.5) * 130 - 50, 50) * u, Vector2(100, 100) * u)
-		return out
+		return TreeArt.slot_rects(size, hud.main.progress.skills_owned)
 
 	func _slots() -> void:
+		TreeArt.slots(self, hud)
+
+	func _close_x(rc: Rect2) -> void:
 		var u := _u()
-		var pr = hud.main.progress
-		draw_rect(Rect2(Vector2.ZERO, size), Color(0, 0, 0, 0.55))
-		var r := slot_rects()
-		draw_rect(r.panel, Color(0.04, 0.04, 0.09, 0.92))
-		draw_rect(r.panel, Color(0.72, 0.5, 1.0, 0.8), false, 3 * u)
-		var cc: Vector2 = r.close.get_center()
+		var cc: Vector2 = rc.get_center()
 		draw_line(cc + Vector2(-12, -12) * u, cc + Vector2(12, 12) * u, Color(1, 1, 1, 0.8), 4 * u)
 		draw_line(cc + Vector2(12, -12) * u, cc + Vector2(-12, 12) * u, Color(1, 1, 1, 0.8), 4 * u)
-		for i in 3:
-			var rc: Rect2 = r["slot%d" % i]
-			draw_rect(rc, Color(0.1, 0.12, 0.2, 0.9))
-			draw_rect(rc, GOLD if hud.slot_pick != "" else Color(1, 1, 1, 0.5), false, 3 * u)
-			_num(rc.position + Vector2(8, 28) * u, str(i + 1), 24, Color(1, 1, 1, 0.6))
-			SkillIcons.draw(self, str(pr.skill_slots[i]), rc.get_center(), rc.size.x * 0.5, Color.WHITE, u)
-		# 枠と一覧の境目に下向きの山形
-		var mid := size * 0.5 + Vector2(0, 5 * u)
-		draw_polyline(PackedVector2Array([mid + Vector2(-16, -8) * u, mid + Vector2(0, 6) * u, mid + Vector2(16, -8) * u]), Color(1, 1, 1, 0.5), 3 * u)
-		for i in pr.skills_owned.size():
-			var rc2: Rect2 = r["own%d" % i]
-			var sel: bool = hud.slot_pick == str(pr.skills_owned[i])
-			draw_rect(rc2, Color(0.08, 0.09, 0.15, 0.9))
-			draw_rect(rc2, GOLD if sel else Color(1, 1, 1, 0.35), false, (5 if sel else 2) * u)
-			SkillIcons.draw(self, str(pr.skills_owned[i]), rc2.get_center(), rc2.size.x * 0.5, Color.WHITE, u)
+
+	## スキル育成：描画とタッチ矩形を同じモジュールで管理。
+	func tree_rects() -> Dictionary:
+		return TreeArt.rects(size, hud.tree_ch)
+
+	func _tree() -> void:
+		TreeArt.draw(self, hud)
 
 	func _result() -> void:
 		var u := _u()
@@ -390,14 +970,39 @@ class _View extends Control:
 		var w := 560.0 * u
 		var h := 420.0 * u
 		var p := (size - Vector2(w, h)) * 0.5
+		var fail: bool = res.get("fail", false)
+		var frame: Color = RED if fail else GOLD
 		draw_rect(Rect2(p, Vector2(w, h)), Color(0.05, 0.04, 0.03, 0.94 * k))
-		draw_rect(Rect2(p, Vector2(w, h)), Color(GOLD.r, GOLD.g, GOLD.b, k), false, 4 * u)
-		# 上：決着の金の菱形と、難易度の印
+		draw_rect(Rect2(p, Vector2(w, h)), Color(frame.r, frame.g, frame.b, k), false, 4 * u)
+		# 上：決着の金の菱形（失敗は赤の割れた菱形）と、テーマの印・難易度の印
 		var top := p + Vector2(w * 0.5, 54 * u)
-		_diamond(top, 34 * u, GOLD)
-		var hard: bool = res.diff == "hard"
-		for j in (2 if hard else 1):
-			_diamond(top + Vector2(80 * u + j * 30 * u, 6 * u), 16 * u, RED if hard else BLUE)
+		if fail:
+			_diamond(top, 34 * u, RED, false)
+			draw_line(top + Vector2(-10, -30) * u, top + Vector2(8, 30) * u, RED, 4 * u)
+		else:
+			_diamond(top, 34 * u, GOLD)
+		var ti: int = Themes.index_of(str(res.get("theme", "t1")))
+		_theme_glyph(ti, top + Vector2(-90 * u, 0), 40 * u, Themes.THEMES[ti].col)
+		var di: int = maxi(0, Themes.DIFF_ORDER.find(str(res.diff)))
+		for j in di + 1:
+			_diamond(top + Vector2(80 * u + j * 30 * u, 6 * u), 16 * u, [BLUE, RED, RED][di])
+		if fail:   # 失敗：時間と倒した数だけ（何も持ち帰らない）
+			var fx0 := p.x + 110 * u
+			var fx1 := p.x + 160 * u
+			var frow := p.y + 170 * u
+			_clock(Vector2(fx0, frow - 12 * u), 18 * u, Color.WHITE)
+			_num(Vector2(fx1, frow), _time_str(float(res.time)), 44, Color.WHITE)
+			frow += 84 * u
+			_burst(Vector2(fx0, frow - 12 * u), 20 * u, GOLD)
+			_num(Vector2(fx1, frow), str(res.get("kills", 0)), 44, Color.WHITE)
+			_next_mark(p, w, h)
+			return
+		var loot_pos := p + Vector2(w * 0.5, 100 * u)
+		if not AfterArt.draw_art(self, "armor", Rect2(loot_pos + Vector2(-100, -13) * u, Vector2(24, 24) * u)):
+			_sword(loot_pos + Vector2(-88, 0) * u, 10 * u, GOLD)
+		_num(loot_pos + Vector2(-65, 8) * u, str(int(res.get("items", 0))), 23, GOLD)
+		GearUI.gem(self, loot_pos + Vector2(25, 0) * u, 10 * u)
+		_num(loot_pos + Vector2(47, 8) * u, str(int(res.get("mats", 0))), 23, Color.WHITE)
 		var x0 := p.x + 110 * u
 		var x1 := p.x + 160 * u
 		var row := p.y + 150 * u
@@ -417,12 +1022,27 @@ class _View extends Control:
 		row += 64 * u
 		_sword(Vector2(x0, row - 14 * u), 13 * u, Color.WHITE)
 		_num(Vector2(x1, row), "%d  >  %d" % [res.w0, res.w], 36, GOLD if res.w > res.w0 else Color.WHITE)
-		# ハードが開いた（赤の菱形2つ＋開いた錠の代わりに金の枠）
+		# 得たお金（2026-11-16 ②。ボス部屋に残った硬貨はこのあと拾える）
+		if res.has("gold"):
+			var gg: int = int(res.gold)
+			_num(Vector2(x1 + 260 * u, row), ("+%d" % gg) if gg >= 0 else str(gg), 36, GOLD if gg >= 0 else Color(0.8, 0.8, 0.85))
+			ShopUI.coin(self, Vector2(x1 + 242 * u, row - 12 * u), 11 * u)
+		# 次の難易度が開いた（その難易度の菱形＋金の枠）
 		if res.unlocked:
 			var c := Vector2(p.x + w - 90 * u, p.y + h - 120 * u)
-			draw_rect(Rect2(c - Vector2(50, 34) * u, Vector2(100, 68) * u), GOLD, false, 3 * u)
-			_diamond(c + Vector2(-18 * u, 0), 18 * u, RED)
-			_diamond(c + Vector2(18 * u, 0), 18 * u, RED)
+			var nd: int = Themes.DIFF_ORDER.find(str(res.get("unlocked_diff", "hard"))) + 1
+			draw_rect(Rect2(c - Vector2(56, 34) * u, Vector2(112, 68) * u), GOLD, false, 3 * u)
+			for j in nd:
+				_diamond(c + Vector2((j - (nd - 1) * 0.5) * 30 * u, 0), 16 * u, RED)
+		# 次のテーマが開いた（そのテーマの印＋金の枠）
+		if res.get("theme_unlocked", false) and ti + 1 < Themes.THEMES.size():
+			var c3 := Vector2(p.x + w - 90 * u, p.y + h - 200 * u)
+			draw_rect(Rect2(c3 - Vector2(40, 34) * u, Vector2(80, 68) * u), GOLD, false, 3 * u)
+			_theme_glyph(ti + 1, c3, 46 * u, Themes.THEMES[ti + 1].col)
+		_next_mark(p, w, h)
+
+	func _next_mark(p: Vector2, w: float, h: float) -> void:
+		var u := _u()
 		# 次へ（点滅する山形）
 		if hud.result_t >= 1.2:
 			var a := 0.5 + 0.5 * sin(hud.result_t * 6.0)

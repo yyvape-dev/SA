@@ -5,6 +5,7 @@ extends Node3D
 ##   CAPTURE_PLAY=1  … 動作確認の画面を captures/ に書き出して終了
 
 const City := preload("res://scripts/city_block1.gd")
+const GearUI_ := preload("res://scripts/gear_ui.gd")
 const BT := preload("res://scripts/backtown_block.gd")
 const GamehallFloor := preload("res://scripts/gamehall_floor.gd")
 var town_floor := "backtown"
@@ -102,9 +103,11 @@ func _startup_town() -> String:
 	return OS.get_environment("TOWN")
 
 func _ready() -> void:
+	if _q("unlock=1") or OS.has_environment("UNLOCK_ALL"):
+		progress_unlock_all = true
 	_boot("main_ready")
 	# 撮影・確認では乱数の種を固定する（版どうしで同じ場面・同じコマを比べるため）
-	for k in ["CAPTURE_FX", "CAPTURE_LINEUP", "CAPTURE_PLAY", "CAPTURE_DUNGEON", "DUNGEON_TEST", "CAPTURE_GUIDE", "CAPTURE_REUSE"]:
+	for k in ["CAPTURE_PARTY", "CAPTURE_ROOM", "CAPTURE_MENU", "CAPTURE_FOE", "CAPTURE_FX", "CAPTURE_LINEUP", "CAPTURE_PLAY", "CAPTURE_DUNGEON", "DUNGEON_TEST", "CAPTURE_GUIDE", "CAPTURE_REUSE"]:
 		if OS.has_environment(k):
 			seed(20261106)
 	loading = Loading.new()
@@ -121,11 +124,12 @@ func _ready() -> void:
 		loading.error_text = district.last_error
 	_load_glints()
 	progress = Progress.new()
-	if OS.has_environment("CAPTURE_DUNGEON") or OS.has_environment("DUNGEON_TEST") or OS.has_environment("CAPTURE_PLAY"):
+	if OS.has_environment("CAPTURE_DUNGEON") or OS.has_environment("DUNGEON_TEST") or OS.has_environment("CAPTURE_PLAY") or OS.has_environment("CAPTURE_MENU"):
 		progress.path = "user://sa2_capture_save.json"   # 撮影・確認は毎回まっさらなセーブ（前の回のレベルが残ると場面がずれる）
 		progress.reset()
 	else:
 		progress.load_save()
+	progress.unlock_all = progress_unlock_all
 	town = _startup_town()
 	if town == "back":
 		if not await district.ensure("bt1"):
@@ -216,6 +220,12 @@ func _ready() -> void:
 			perf_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			cl.add_child(perf_label)
 			add_child(cl)
+		# 重さの計測（specs/dungeon_themes.md 3.2）：?dgtest=N で、広い部屋に敵 N 体を出し続ける（敵は倒れない・ラナは倒れない）
+		var dgn = JavaScriptBridge.eval("new URLSearchParams(location.search).get('dgtest')")
+		if dgn != null and str(dgn).is_valid_int():
+			dg_perf_n = int(str(dgn))
+			var dgt = JavaScriptBridge.eval("new URLSearchParams(location.search).get('dgtheme')")
+			enter_dungeon.call_deferred("normal", 7, str(dgt) if dgt != null else "t1")
 		# 確認用：?at=gate で入口の前から始める
 		if str(JavaScriptBridge.eval("window.location.search")).contains("at=gate"):
 			player.position = Vector3(gate.position.x - 2.0, 0, 0.0) if gate else Vector3(GATE_X - 0.5, 0, BELT_Z.x + 1.6)
@@ -235,6 +245,18 @@ func _ready() -> void:
 		_capture_reuse.call_deferred()
 	elif OS.has_environment("CAPTURE_FX"):
 		_capture_fx.call_deferred()
+	elif OS.has_environment("CAPTURE_FOE"):
+		_capture_foe.call_deferred()
+	elif OS.has_environment("CAPTURE_SHOP"):
+		_capture_shop.call_deferred()
+	elif OS.has_environment("CAPTURE_GEAR"):
+		_capture_gear.call_deferred()
+	elif OS.has_environment("CAPTURE_PARTY"):
+		_capture_party.call_deferred()
+	elif OS.has_environment("CAPTURE_ROOM"):
+		_capture_room.call_deferred()
+	elif OS.has_environment("CAPTURE_MENU"):
+		_capture_menu.call_deferred()
 	elif OS.has_environment("CAPTURE_LINEUP"):
 		_capture_lineup.call_deferred()
 	elif OS.has_environment("CAPTURE_DUNGEON") or OS.has_environment("DUNGEON_TEST"):
@@ -245,6 +267,362 @@ func _ready() -> void:
 	if OS.has_environment("DUNGEON_LAYOUT_TEST"):
 		load("res://scripts/dungeon_map.gd").self_test()
 		get_tree().quit()
+
+## 撮影・再現：実機と同じ道（街で控え→選択画面で仲間を選ぶ→入場→となりの部屋で戦う）。PARTY=ranka 等、FOE_THEME。captures/party_<n>.png
+## 2026-11-16 ②：お金と回復の確認。裏の町の薬屋 → 店の画面で買う → ダンジョン（回復薬のボタン・お金）→ 倒れて「立ち直る」→ クリアの後に動ける所
+## 装備の撮影（③ CAPTURE_GEAR=1）：裏の町の工房と、育成の画面の「装備」タブ。物は種を固定して作る
+func _capture_gear() -> void:
+	var dir := ProjectSettings.globalize_path("res://captures")
+	DirAccess.make_dir_recursive_absolute(dir)
+	progress.unlock_all = true
+	progress.gold = 1480
+	progress.mats = {"t1": 6, "t2": 3}
+	var G = load("res://scripts/gear.gd")
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 11
+	for i in 13:
+		var sl: String = G.roll_slot(rng)
+		var it: Dictionary = G.make(rng, progress.next_uid, sl, G.roll_tier(rng, "hard", i == 0), [7, 13], "t1" if i % 2 == 0 else "t2")
+		progress.next_uid += 1
+		progress.items.append(it)
+	apply_progress()
+	for i in 240:
+		await get_tree().process_frame
+	var shot := func(n: String):
+		for k in 4:
+			await get_tree().process_frame
+		get_viewport().get_texture().get_image().save_png(dir + "/gear_%s.png" % n)
+		print("GEAR ", n, " gold=", progress.gold, " bag=", progress.bag_count(), " w=", progress.weapon_pow())
+	var sx := 0.0
+	for s2 in BT.STALLS:
+		if s2.id == "stall_parts":
+			sx = float(s2.x)
+	player.position = Vector3(sx, 0, BELT_Z.x + 0.4)
+	for i in 30:
+		await get_tree().process_frame
+	await shot.call("1_workshop")
+	var lst: Array = GearUI_.ws_list(progress)
+	hud.ws_sel = int(lst[0].uid)
+	await shot.call("2_ws_selected")
+	var r: Dictionary = GearUI_.ws_rects(hud.view.size, progress)
+	GearUI_.ws_tap(hud, r.up.get_center())
+	await shot.call("3_enhanced")
+	hud.close_workshop()
+	player.position.x = sx - 4.0
+	hud.open_slots()
+	hud.slot_mode = "gear"
+	await shot.call("4_equip_tab")
+	var bag: Array = GearUI_.bag_list(progress)
+	for it in bag:
+		if progress.is_better(it):
+			hud.gear_sel = int(it.uid)
+			break
+	await shot.call("5_equip_sel")
+	var er: Dictionary = GearUI_.equip_rects(hud.view.size, progress)
+	GearUI_.equip_tap(hud, er.wear.get_center())
+	await shot.call("6_equipped")
+	hud.slot_mode = "slot"
+	await shot.call("7_slot_tab")
+	get_tree().quit()
+
+func _capture_shop() -> void:
+	var dir := ProjectSettings.globalize_path("res://captures")
+	DirAccess.make_dir_recursive_absolute(dir)
+	progress.unlock_all = true
+	progress.gold = 520
+	for i in 240:
+		await get_tree().process_frame
+	var shot := func(n: String):
+		await get_tree().process_frame
+		get_viewport().get_texture().get_image().save_png(dir + "/shop_%s.png" % n)
+		print("SHOP ", n, " gold=", progress.gold, " pot=", progress.pot_s, "+", progress.pot_l, " dg=", dungeon.state if dungeon else "-")
+	var sx := 0.0
+	for s2 in BT.STALLS:
+		if s2.id == "stall_crystal":
+			sx = float(s2.x)
+	player.position = Vector3(sx, 0, BELT_Z.x + 0.4)
+	for i in 30:
+		await get_tree().process_frame
+	await shot.call("1_town_shop")
+	hud.buy(0)
+	hud.buy(1)
+	for i in 10:
+		await get_tree().process_frame
+	await shot.call("2_bought")
+	hud.close_shop()
+	hud.open_menu()
+	hud.choose_theme(0)
+	hud.choose(0)
+	hud.pick = ["lily"]
+	hud.go()
+	for i in 240:
+		await get_tree().process_frame
+	battle.hp = battle.hp_max * 0.4
+	for i in 20:
+		await get_tree().process_frame
+	await shot.call("3_dungeon_hud")
+	player.use_potion()
+	for i in 20:
+		await get_tree().process_frame
+	await shot.call("4_potion_used")
+	battle.hp = 0.0
+	player.on_hurt(1, true)
+	for i in 150:
+		await get_tree().process_frame
+	await shot.call("5_revive_ask")
+	hud.revive_t = 1.0
+	hud._revive_pick(true)
+	for i in 60:
+		await get_tree().process_frame
+	await shot.call("6_revived")
+	for e in battle.enemies.duplicate():
+		battle.remove_enemy(e)
+	dungeon._coin(player.position + Vector3(2, 0, 0), 37, "gold", 0.5)
+	dungeon._finish()
+	for i in 90:
+		await get_tree().process_frame
+	await shot.call("7_result")
+	hud.result_t = 2.0
+	hud.confirm_result()
+	for i in 60:
+		await get_tree().process_frame
+	await shot.call("8_after")
+	dungeon.after_cmd("shop")   # 命令の列の「店」
+	for i in 30:
+		await get_tree().process_frame
+	await shot.call("9_after_shop")
+	hud.open_workshop(true)   # 「装備を売る」（売るだけの工房）
+	await shot.call("9b_after_sell")
+	hud.close_workshop()
+	hud.close_shop()
+	dungeon.after_cmd(OS.get_environment("AFTER_CMD") if OS.has_environment("AFTER_CMD") else "town")
+	for i in 120:
+		await get_tree().process_frame
+	await shot.call("10_town")
+	print("AFTER dungeon=", dungeon != null, " menu=", hud.menu_open, " stage=", hud.menu_stage)
+	get_tree().quit()
+
+func _capture_party() -> void:
+	var dir := ProjectSettings.globalize_path("res://captures")
+	DirAccess.make_dir_recursive_absolute(dir)
+	progress.unlock_all = true
+	for i in 900:
+		await get_tree().process_frame
+		if ally_ready("lily") and ally_ready("ranka") and i > 120:
+			break
+	print("PARTY bench=", bench.keys(), " ally=", battle.ally != null, " ranka=", battle.ranka != null)
+	var th: String = OS.get_environment("FOE_THEME") if OS.has_environment("FOE_THEME") else "t3"
+	hud.open_menu()
+	hud.choose_theme(["t1", "t2", "t3", "t4"].find(th))
+	hud.choose_dun(int(OS.get_environment("FOE_DN")) if OS.has_environment("FOE_DN") else 4)   # 1 ステージ 4 ダンジョン（D4＝今のボス）
+	hud.choose(0)
+	hud.pick = (OS.get_environment("PARTY") if OS.has_environment("PARTY") else "ranka").split(",")
+	hud.go()
+	for i in 240:
+		await get_tree().process_frame
+	print("PARTY in dungeon party=", party, " ally=", battle.ally != null, " ranka=", battle.ranka != null)
+	var L: Dictionary = dungeon.layout
+	var d0: String = L.rooms[L.entrance].exits.keys()[0]
+	if OS.has_environment("PARTY_BOSS"):   # ボス部屋へ（2026-11-15：ブレイクの帯と倒れる姿の確認）。ボスの手前まで寄り、殴ってブレイクさせる
+		var bd: String = L.rooms[L.boss].exits.keys()[0]
+		dungeon._enter(L.boss, str(dungeon.Map.OPP[bd]))
+		for i in 120:
+			await get_tree().process_frame
+		for n in 8:
+			for i in 30:
+				await get_tree().process_frame
+				if dungeon.boss != null and is_instance_valid(dungeon.boss):
+					var bx: float = dungeon.boss.position.x
+					player.position.x = move_toward(player.position.x, bx - signf(bx - player.position.x) * 1.6, 0.15)
+					if n < 4 and i % 6 == 0 and dungeon.boss.state != "broken":
+						dungeon.boss.take_hit(dungeon.boss.brk_max * 0.06, 1, i % 12 == 0)
+			get_viewport().get_texture().get_image().save_png(dir + "/party_%d.png" % n)
+			print("PARTY boss t=", n, " state=", dungeon.boss.state if dungeon.boss else "-", " brk=", dungeon.boss.break_ratio() if dungeon.boss else -1.0)
+		get_tree().quit()
+		return
+	dungeon._enter(L.rooms[L.entrance].exits[d0], d0)
+	if OS.has_environment("PARTY_FIGHT"):   # 2026-11-16：つなぎ・背中・浮かせ・コンボ表示の確認。決まった入力で戦って撮る（captures/fight_NNN.png）
+		battle.hp_max = 9999.0
+		battle.hp = 9999.0
+		var plan := ["approach", "atkA", "atkB", "rift", "atkA", "atkA", "approach", "call_ranka", "atkA", "atkA", "shadow", "atkA", "flurry", "approach", "call_lily", "atkA", "atkB", "atkC", "approach", "rift", "atkA", "atkB", "approach", "shadow", "flurry", "rift"]
+		var pi := 0
+		var wait := 0
+		var nf: int = int(OS.get_environment("PARTY_FRAMES")) if OS.has_environment("PARTY_FRAMES") else 900
+		for f in nf:
+			await get_tree().process_frame
+			if pi >= plan.size():
+				pi = 0
+			var act: String = plan[pi]
+			var near: Node3D = null
+			for e in battle.enemies:
+				if e.state != "dying" and (near == null or absf(e.position.x - player.position.x) + absf(e.position.z - player.position.z) < absf(near.position.x - player.position.x) + absf(near.position.z - player.position.z)):
+					near = e
+			wait += 1
+			match act:
+				"approach":
+					if near == null or (absf(near.position.x - player.position.x) < 1.7 and absf(near.position.z - player.position.z) < 0.4) or wait > 120:
+						pi += 1; wait = 0
+					elif player.state == "move":
+						player.position.x += signf(near.position.x - player.position.x) * 0.09
+						player.position.z = move_toward(player.position.z, near.position.z, 0.06)
+						player.face = 1 if near.position.x >= player.position.x else -1
+				"atkA", "atkB", "atkC":
+					if player.state == "move" or (player.state == "atk" and player.t >= float(player.tab[player.clip].cancel)):
+						if near != null:
+							player.face = 1 if near.position.x >= player.position.x else -1
+						player.attack()
+						pi += 1; wait = 0
+				"call_lily", "call_ranka":
+					var a2 = battle.ally if act == "call_lily" else battle.ranka
+					var ok2: bool = a2 != null and a2.call_tactic("flank" if act == "call_lily" else "lure")
+					print("FIGHT f=", f, " ", act, " ok=", ok2)
+					pi += 1; wait = 0
+				_:
+					if player.can_use_skill(act):
+						if near != null and player.state != "skill":
+							player.face = 1 if near.position.x >= player.position.x else -1
+						player.use_skill(act)
+						print("FIGHT f=", f, " ", act, " from=", player.state)
+						pi += 1; wait = 0
+					elif wait > 90:
+						pi += 1; wait = 0
+			if f % 120 == 0 and OS.has_environment("PARTY_MEM"):
+				print("MEMF f=%d static=%.1fMB vid=%.1fMB tex=%.1fMB nodes=%d" % [f, Performance.get_monitor(Performance.MEMORY_STATIC) / 1048576.0, Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED) / 1048576.0, Performance.get_monitor(Performance.RENDER_TEXTURE_MEM_USED) / 1048576.0, Performance.get_monitor(Performance.OBJECT_NODE_COUNT)])
+			if f % 6 == 0 and not OS.has_environment("PARTY_MEM"):
+				get_viewport().get_texture().get_image().save_png(dir + "/fight_%03d.png" % f)
+				var bk := 0
+				var air := 0
+				for e in battle.enemies:
+					if e.back_lock > 0.0: bk += 1
+					if e.airborne(): air += 1
+				if f % 30 == 0 or air > 0 or OS.has_environment("FIGHT_ALL") or player.context_move() != "": print("FIGHT f=", f, " ctx=", player.context_move(), " combo=", battle.style.hits, " rank=", battle.style.rank, " pts=", snappedf(battle.style.pts, 0.1), " back_lock=", bk, " air=", air, " foes=", battle.alive_count())
+		get_tree().quit()
+		return
+	for n in 8:
+		for i in 60:
+			await get_tree().process_frame
+			player.position.x += dungeon.travel * 0.04
+		get_viewport().get_texture().get_image().save_png(dir + "/party_%d.png" % n)
+		print("PARTY t=", n, " foes=", battle.enemies.size(), " cine=", battle.cine, " ranka_state=", battle.ranka.state if battle.ranka else "-", " hp=", battle.hp)
+	get_tree().quit()
+
+## 撮影：入口のとなりの部屋へ入った直後（敵が最初から立っているか）→ 4m・8m 進んだ所（2026-11-15）。captures/room_<n>.png
+func _capture_room() -> void:
+	var dir := ProjectSettings.globalize_path("res://captures")
+	DirAccess.make_dir_recursive_absolute(dir)
+	for i in 30:
+		await get_tree().process_frame
+	await enter_dungeon("normal", 7, OS.get_environment("FOE_THEME") if OS.has_environment("FOE_THEME") else "t1")
+	for i in 60:
+		await get_tree().process_frame
+	var L: Dictionary = dungeon.layout
+	var d0: String = L.rooms[L.entrance].exits.keys()[0]
+	dungeon._enter(L.rooms[L.entrance].exits[d0], d0)
+	battle.hp_max = 99999.0
+	battle.hp = 99999.0
+	for n in 4:
+		if n == 3:   # 増援の予告の見え方
+			hud.edge_warn(dungeon.travel, 1.6)
+		for i in 40:
+			await get_tree().process_frame
+		get_viewport().get_texture().get_image().save_png(dir + "/room_%d.png" % n)
+		print("ROOM ", n, " travel=", dungeon.travel, " px=", snappedf(player.position.x, 0.1), " foes=", battle.enemies.map(func(e): return "%s:%.1f" % [e.state, e.position.x]))
+		for i in 30:
+			await get_tree().process_frame
+			player.position.x += dungeon.travel * 4.0 / 30.0
+	get_tree().quit()
+
+## 撮影：門の地図→右の札→仲間の選択→入場（2026-11-15）。TOWN=back。captures/menu_<n>.png。UNLOCK_ALL=1 で全部開いた地図
+func _capture_menu() -> void:
+	var dir := ProjectSettings.globalize_path("res://captures")
+	DirAccess.make_dir_recursive_absolute(dir)
+	for i in 900:   # 仲間の読み込みを待つ
+		await get_tree().process_frame
+		if ally_ready("lily") and ally_ready("ranka") and i > 120:
+			break
+	var shot := func(n: String) -> void:
+		for i in 30:
+			await get_tree().process_frame
+		get_viewport().get_texture().get_image().save_png(dir + "/menu_%s.png" % n)
+	await shot.call("0_town")
+	if OS.has_environment("MENU_CLEARS"):   # 例 "t1d1_normal,t1d2_normal"：札の開き方・クリアの輪を撮る
+		for k in OS.get_environment("MENU_CLEARS").split(","):
+			progress.clears[k] = 1
+	hud.open_menu()
+	await shot.call("1_map")
+	hud.choose_theme(hud.menu_theme)
+	await shot.call("2_dungeons")
+	hud.choose_dun(hud.menu_dn)
+	await shot.call("2_panel")
+	hud.choose(1 if progress.unlock_all else 0)
+	await shot.call("3_party")
+	hud.toggle_ally(1)
+	await shot.call("4_party_pick")
+	hud.go()
+	for i in 200:
+		await get_tree().process_frame
+	await shot.call("5_dungeon")
+	print("MENU_PARTY ", party, " ally=", battle.ally != null, " ranka=", battle.ranka != null)
+	get_tree().quit()
+
+## 撮影：新しい敵（FOE_KINDS、既定 ef,em）を T1 のダンジョンで歩かせて攻撃させる（2026-11-14 帝国兵）。
+## TOWN=back で起動（カメラ D2）。左右から1体ずつ寄せ（FOE_KINDS を順に4体分）、1巡目＝左 atk0・右 atk1、2巡目＝入れ替え。captures/foe_<巡>_<コマ>.png
+func _capture_foe() -> void:
+	var dir := ProjectSettings.globalize_path("res://captures")
+	DirAccess.make_dir_recursive_absolute(dir)
+	for i in 30:
+		await get_tree().process_frame
+	await enter_dungeon("normal", 7, OS.get_environment("FOE_THEME") if OS.has_environment("FOE_THEME") else "t1")
+	for i in 90:
+		await get_tree().process_frame
+	var kinds: PackedStringArray = (OS.get_environment("FOE_KINDS") if OS.has_environment("FOE_KINDS") else "ef,em").split(",")
+	for rnd in 2:
+		for e in battle.enemies.duplicate():
+			battle.remove_enemy(e)
+		battle.hp_max = 99999.0
+		battle.hp = 99999.0
+		var px: float = player.position.x
+		var pz: float = player.position.z
+		var made := []
+		for j in 2:
+			var e: Node3D = battle.spawn(kinds[(rnd * 2 + j) % kinds.size()], Vector3(px + (-5.0 if j == 0 else 5.0), 0, pz))
+			e.hp = 99999.0
+			e.hp_max = 99999.0
+			e.yo = 0.0
+			e.force_atk = "atk0" if (j + rnd) % 2 == 0 else "atk1"
+			made.append(e)
+		var jg_f := -1
+		for f in 380:
+			await get_tree().process_frame
+			player.position.x = px
+			if OS.has_environment("FOE_AIR"):   # 2026-11-16：浮かせの見え方。f60 で打ち上げ、14 コマごとに追い打ち、前後を撮る
+				var ea = made[0] if made.size() > 0 and is_instance_valid(made[0]) else null
+				if ea != null:
+					if f == 60:
+						ea.take_hit(1.0, 1, true)
+						ea.lift_up(3.0)
+					elif f > 60 and f < 150 and (f - 60) % 14 == 0 and ea.airborne():
+						ea.take_hit(1.0, 1, false)
+					if f in [58, 66, 74, 82, 96, 110, 124, 140, 160]:
+						get_viewport().get_texture().get_image().save_png(dir + "/air_%03d.png" % f)
+						print("AIR f=", f, " y=", snappedf(ea.lift_y, 0.01), " hits=", ea.air_hits)
+				continue
+			if OS.has_environment("FOE_JG"):   # ジャストガードでアーマーが外れる所（2026-11-15）：アーマー中の敵に1回だけ当てて前後を撮る
+				if jg_f < 0:
+					for e in made:
+						if is_instance_valid(e) and e.armored() and not e.atk.is_empty() and not e.atk.get("done", true):
+							battle.just_guard(player, e)
+							jg_f = f
+							print("FOE_JG f=", f, " kind=", e.kind)
+							break
+					if jg_f < 0 and f % 2 == 0:
+						get_viewport().get_texture().get_image().save_png(dir + "/jgpre.png")
+				elif f - jg_f in [1, 6, 30, 100, 190]:
+					get_viewport().get_texture().get_image().save_png(dir + "/jg_%d_%03d.png" % [rnd, f - jg_f])
+				continue
+			if f % 10 == 0 or (f >= 250 and f % 4 == 0):
+				get_viewport().get_texture().get_image().save_png(dir + "/foe_%d_%03d.png" % [rnd, f])
+	get_tree().quit()
 
 ## 仲間リリィ：絵（地区 pck「al1」）を読み終えたら出す。起動を待たせないよう、本体の起動の後に読む。
 func _perf(delta: float) -> void:
@@ -289,9 +667,10 @@ func _perf(delta: float) -> void:
 	perf_frames.clear()
 	if perf_label:
 		# 日本語のフォントがまだ無いので英数字だけ（frame＝1コマの時間、GPU＝Godot が数える映像のメモリ）
-		perf_label.text = "%.0f fps\nframe avg %.0f ms / max %.0f ms\nGPU mem ~%.0f MB\nfx2d %s%s" % [Engine.get_frames_per_second(), avg,
+		perf_label.text = "%.0f fps\nframe avg %.0f ms / max %.0f ms\nGPU mem ~%.0f MB\nfx2d %s%s\nwin %dx%d  3D %d%%  %s  dpr %s" % [Engine.get_frames_per_second(), avg,
 			arr[-1] if arr.size() > 0 else 0.0, Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED) / 1e6,
-			"ON" if fx2d and fx2d.active else "OFF", " (half)" if fx2d and fx2d.half else ""]
+			"ON" if fx2d and fx2d.active else "OFF", " (half)" if fx2d and fx2d.half else "",
+			win.x, win.y, int(round(get_viewport().scaling_3d_scale * 100.0)), progress.quality, str(JavaScriptBridge.eval("window.devicePixelRatio")) if OS.has_feature("web") else "-"]
 
 ## エフェクトの絵（地区 pck「fx1」：焼いた REEBO・Kenney の粒）。起動の後に読み、読み終えるまで 2D の層と絵の板は出さない
 func _load_fx() -> void:
@@ -319,6 +698,8 @@ func _load_ally() -> void:
 	battle.add_child(a)
 	_boot("ally_loaded")
 	battle.ally = a
+	if party_flow() and not ("lily" in party):   # 街ではラナ1人（パーティの流れ）
+		_bench("lily")
 	lily_cutin = Cutin.new()   # 立ち絵 assets/lily/cutin.webp（al1 に入っている）、蒼の帯
 	lily_cutin.tex_path = "res://assets/lily/cutin.webp"
 	lily_cutin.band_col = Color(0.02, 0.07, 0.16, 0.85)
@@ -333,9 +714,9 @@ func _load_ally() -> void:
 func ranka_wanted() -> bool:
 	if _q("ranka=0") or OS.get_environment("RANKA") == "0":
 		return false
-	if OS.get_environment("RANKA") == "1":
+	if OS.get_environment("RANKA") == "1" or OS.get_environment("FX_ONLY") == "tree":   # スキルツリーの撮影は3人とも
 		return true
-	for k in ["CAPTURE_PLAY", "CAPTURE_FX", "CAPTURE_GUIDE", "CAPTURE_DUNGEON", "CAPTURE_LINEUP", "CAPTURE_REUSE"]:
+	for k in ["CAPTURE_FOE", "CAPTURE_PLAY", "CAPTURE_FX", "CAPTURE_GUIDE", "CAPTURE_DUNGEON", "CAPTURE_LINEUP", "CAPTURE_REUSE"]:
 		if OS.has_environment(k):
 			return false
 	return true
@@ -359,6 +740,8 @@ func _load_ranka() -> void:
 	battle.add_child(a)
 	_boot("ranka_loaded")
 	battle.ranka = a
+	if party_flow() and not ("ranka" in party):
+		_bench("ranka")
 	ranka_cutin = Cutin.new()   # 立ち絵 assets/ranka/cutin.webp（al2）、藍の帯・朱の線
 	ranka_cutin.tex_path = "res://assets/ranka/cutin.webp"
 	ranka_cutin.band_col = Color(0.03, 0.04, 0.14, 0.86)
@@ -367,6 +750,68 @@ func _load_ranka() -> void:
 	ranka_cutin.flash_col = Color(1.0, 0.98, 0.94)
 	add_child(ranka_cutin)
 	ranka_loaded.emit(true)
+
+
+# ---------- パーティ（2026-11-15、ユーザー「ラナ1人で街から。門→地図→ダンジョン→仲間の選択→入場」） ----------
+## 街ではラナ1人。選ばなかった仲間は戦闘の木から外して控え（bench）に置く。仲間の参照はもともと「読み込み中は null」を前提にしているので、外す＝ null にする。
+var progress_unlock_all := false
+var bench := {}            # "lily"/"ranka" → 控えの仲間のノード
+var party: Array = []      # 今いっしょにいる仲間の id
+var party_last: Array = ["lily"]   # 前に選んだ組み合わせ（次の選択画面の初期値）
+
+## パーティの流れを使うか：撮影・自動テスト・重さの計測・手動の仲間の入口では、今までどおり仲間を全員出す
+func party_flow() -> bool:
+	for k in ["CAPTURE_FOE", "CAPTURE_PLAY", "CAPTURE_FX", "CAPTURE_GUIDE", "CAPTURE_DUNGEON", "CAPTURE_LINEUP", "CAPTURE_REUSE", "DUNGEON_TEST", "DG_PERF"]:
+		if OS.has_environment(k):
+			return false
+	if _q("dgtest=") or _q("mode=ranka") or _q("party=all"):
+		return false
+	return true
+
+## 読み込めている仲間の id（選択画面で選べる）
+func ally_ready(id: String) -> bool:
+	if bench.has(id):
+		return true
+	return (id == "lily" and battle.ally != null) or (id == "ranka" and battle.ranka != null)
+
+func _bench(id: String) -> void:
+	var a: Node3D = battle.ally if id == "lily" else battle.ranka
+	if a == null or not is_instance_valid(a):
+		return
+	if str(a.get("state")) == "ult" and a.has_method("_end_ult"):   # 必殺技の途中で外すと止め（cine）が残る→先に終わらせる
+		a._end_ult()
+	if a.get_parent():
+		a.get_parent().remove_child(a)
+	bench[id] = a
+	if id == "lily":
+		battle.ally = null
+	else:
+		battle.ranka = null
+
+func _unbench(id: String, i: int) -> void:
+	if not bench.has(id):
+		return
+	var a: Node3D = bench[id]
+	bench.erase(id)
+	a.position = player.position + Vector3(-player.face * (1.4 + i * 0.9), 0, 0.7 - i * 1.4)
+	battle.add_child(a)
+	if id == "lily":
+		battle.ally = a
+	else:
+		battle.ranka = a
+	if a.has_method("revive_full"):
+		a.revive_full()
+
+## 仲間をそろえる（ids にある仲間だけを出す）
+func set_party(ids: Array) -> void:
+	party = ids.duplicate()
+	for id in ["lily", "ranka"]:
+		if not (id in ids):
+			_bench(id)
+	var i := 0
+	for id in ids:
+		_unbench(id, i)
+		i += 1
 
 func _check_town_edge() -> void:
 	if town != "back" or player == null or town_floor_busy or player.locked or dungeon != null:
@@ -444,6 +889,8 @@ func _process(delta: float) -> void:
 	_place_cam(false, delta)
 	_check_town_edge()
 	_check_gate()
+	_check_shop()
+	_check_workshop()
 	if fx_demo >= 0.0:
 		fx_demo -= delta
 		if fx_demo <= 0.0:
@@ -571,8 +1018,15 @@ func _build_vignette() -> void:
 	r.material = m
 	cl.add_child(r)
 	add_child(cl)
+	vignette_mat = m
 	if fx:
 		fx.screen_mat = m   # 衝撃波の画面のゆがみ
+
+var vignette_mat: ShaderMaterial
+## ダンジョンのテーマの色（絵が届くまでの仮置き）。a 0 で無し
+func set_theme_tint(c: Color) -> void:
+	if vignette_mat:
+		vignette_mat.set_shader_parameter("theme_tint", c)
 
 func _apply_cam_variant() -> void:
 	cam_variant = OS.get_environment("CAMV")
@@ -659,8 +1113,21 @@ func _build_env() -> void:
 	sun.shadow_enabled = true
 	add_child(sun)
 
-func _build_floor() -> void:
+## テーマの床の明るさをそろえる（床の絵の平均輝度。T2 の 42.8 を基準。T3 の床は明るい石で、そのままだと建物より明るく浮いた。設計書「床は暗く」）
+const FLOOR_LUM := {"t2": 42.8, "t3": 81.3, "t4": 40.1}
+var floor_lum_k := 1.0
+
+func _build_floor(width: float = 0.0, floor_tex: Texture2D = null) -> void:
 	var street_width := 72.0 if town == "back" else 60.0
+	if width > 0.0:   # ダンジョンの広い部屋（specs/dungeon_themes.md 3.1）
+		street_width = width
+	if floor_tex != null:   # テーマの床（1 枚の繰り返し。線路なし）
+		# 奥の帯は建物の正面より奥（−7.6）まで敷く（足元のすき間から奥の地面の紫が線に見えた）
+		# 板どうしは 0.1m 重ねる（歓楽街の床は 0.05m のすき間があり、奥の紫が横の線に見えている）
+		for st in [[Vector3(0, 0.0, -4.8), Vector2(street_width, 5.6)], [Vector3(0, -0.03, 0.15), Vector2(street_width, 7.6)], [Vector3(0, 0.0, 5.55), Vector2(street_width, 3.3)]]:
+			_ground(st[0], st[1], floor_tex, THEME_FLOOR_TILE, THEME_FLOOR_DIM * floor_lum_k)
+		_far_ground_plane()
+		return
 	cobble_tex = load("res://assets/ground/cobble.png")
 	slab_tex = load("res://assets/ground/slab.png")
 	# 地面はコード（前作の教訓：AIの一枚絵は継ぎ目が苦手）。外部AIの継ぎ目の無い素材を繰り返して敷く。
@@ -673,7 +1140,10 @@ func _build_floor() -> void:
 		var rm: StandardMaterial3D = r.material_override
 		rm.metallic = 0.6
 		rm.roughness = 0.35
-	# 奥の地面（建物の後ろ〜遠景の板）：奥ほど遠景の下端の霧の色（z_skyline の地平あたりの平均 ≈ #684c53）に溶ける
+	_far_ground_plane()
+
+## 奥の地面（建物の後ろ〜遠景の板）：奥ほど遠景の下端の霧の色（z_skyline の地平あたりの平均 ≈ #684c53）に溶ける
+func _far_ground_plane() -> void:
 	var fg_mi := MeshInstance3D.new()
 	var fpm := PlaneMesh.new()
 	fpm.size = Vector2(160, 56)
@@ -689,6 +1159,8 @@ func _build_floor() -> void:
 var cobble_tex: Texture2D
 var slab_tex: Texture2D
 const COBBLE_TILE := 2.5   # 石畳 1 枚の大きさ（m）
+const THEME_FLOOR_TILE := 3.0   # テーマの床 1 枚（t2_g1 は石 4〜5 枚分）
+const THEME_FLOOR_DIM := 0.75   # テーマの床の明るさ（t2_g1 は元から暗い。歓楽街の 0.3 だと模様が消えた）
 const SLAB_TILE := 2.0     # 敷石 1 枚（石 1 枚が約 1m×0.5m）
 const FLOOR_DIM := 0.3    # 地面の明るさ（素材の色に掛ける。夜。前は 0.5）
 const GLINT_SHADER := preload("res://scripts/glint.gdshader")
@@ -710,14 +1182,14 @@ var crowd: Array = []      # 奥の歩道の人の流れ [{node, v, ph}]
 var glints: Array = []
 var fg_list: Array = []     # [{node, mat, half}]
 
-func _ground(c: Vector3, size: Vector2, tex: Texture2D, tile: float) -> void:
+func _ground(c: Vector3, size: Vector2, tex: Texture2D, tile: float, dim: float = FLOOR_DIM) -> void:
 	var mi := MeshInstance3D.new()
 	var pm := PlaneMesh.new()
 	pm.size = size
 	mi.mesh = pm
 	var m := StandardMaterial3D.new()
 	m.albedo_texture = tex
-	m.albedo_color = Color(FLOOR_DIM * 0.97, FLOOR_DIM * 0.94, FLOOR_DIM * 1.04)   # ごく弱い紫（奥行きの霧の最弱）
+	m.albedo_color = Color(dim * 0.97, dim * 0.94, dim * 1.04)   # ごく弱い紫（奥行きの霧の最弱）
 	ground_mats.append([m, m.albedo_color])
 	m.uv1_scale = Vector3(size.x / tile, size.y / tile, 1)
 	m.roughness = 0.85
@@ -1241,6 +1713,11 @@ func _capture_fx() -> void:
 		print("FX DONE")
 		get_tree().quit()
 		return
+	if OS.get_environment("FX_ONLY") == "tree":
+		await _capture_tree(dir)
+		print("FX DONE")
+		get_tree().quit()
+		return
 	if OS.get_environment("FX_ONLY") == "skill":
 		await _capture_skill_fx(dir)
 		print("FX DONE")
@@ -1556,6 +2033,168 @@ func _capture_skill_fx(dir: String) -> void:
 		await RenderingServer.frame_post_draw
 	get_viewport().get_texture().get_image().save_png(dir + "/ui_slots.png")
 	hud.close_slots()
+
+## スキルツリー（specs/skill_tree.md 5.、FX_ONLY=tree）：
+##   ツリー画面（3人のタブ）→ captures/ui_tree_<char>.png
+##   派生ごと（技レベル 3）に「最初の当たり・締めの当たり・余韻」の3枚 → captures/fx_deriv_<char>_<skill>_<deriv|base>_<1|2|3>.png
+##   数字：技レベル1・5（元の技）と派生（Lv3）の、当たった数・ダメージの合計（TREE_STAT の行）
+const TREE_SPOTS := {
+	"flurry": [[1.6, 0.0], [2.2, 0.5], [5.2, 0.0]], "rift": [[1.6, 0.0], [3.8, -0.2], [6.2, 0.2], [4.5, 1.3], [9.5, 0.0], [8.0, -1.3]],
+	"vortex": [[2.4, 0.9], [-2.8, -0.3], [1.8, -1.4], [-1.6, 1.2], [4.0, 0.0]],
+	"rush": [[7.0, 0.3], [8.0, -0.4], [10.5, 1.0]], "barrage": [[1.3, 0.0], [1.9, 0.4], [3.4, -0.6]], "storm": [[2.4, 0.9], [-2.6, -0.3], [1.6, -1.4], [-1.5, 1.2], [3.6, 0.0], [6.5, 0.4]],
+	"shot": [[4.0, 0.0], [6.5, 0.9], [7.5, -1.0]], "ring": [[2.4, 0.9], [-2.6, -0.3], [1.6, -1.4], [5.5, 0.4], [-6.0, -0.5]], "quake": [[2.4, 0.9], [-2.6, -0.3], [1.6, -1.4], [5.5, 0.4], [-6.5, 0.6]],
+}
+const TREE_CAM := {"rift": 4.5, "shot": 4.5, "rush": 4.5, "flurry": 2.0}   # 撮影のカメラの中心（技を出す位置から前へ m）
+func _tree_demo(pr) -> void:   # 画面を見せるための仮の進み具合（撮影だけ。保存しない）
+	pr.sp = {"rana": 4, "lily": 2, "ranka": 0}
+	pr.skill_lv = {"rana": {"flurry": 3, "rift": 5, "vortex": 2, "ult": 1}, "lily": {"rush": 4, "barrage": 1, "storm": 3, "ult": 2}, "ranka": {"shot": 3, "ring": 1, "quake": 5, "ult": 3}}
+	pr.deriv = {"rana": {"flurry": "iai", "rift": "enshin"}, "lily": {"rush": "rensa"}, "ranka": {"shot": "tame", "quake": "itten"}}
+
+func _capture_tree(dir: String) -> void:
+	progress.path = "user://sa2_capture_save.json"   # 撮影でセーブを変えない
+	progress.reset()
+	for w in 600:   # 仲間（al1・al2）を読み終えるまで待つ
+		if battle.ally != null and battle.ranka != null:
+			break
+		await get_tree().physics_frame
+	print("TREE 仲間 ", battle.ally != null, " ", battle.ranka != null)
+	for x in battle.enemies.duplicate():
+		battle.remove_enemy(x)
+	player.visible = true
+	player.set_physics_process(true)
+	player.position = Vector3(-1.5, 0, 0.6)
+	_place_cam(true)
+	# 1) ツリー画面
+	_tree_demo(progress)
+	hud.open_slots()
+	hud.slot_mode = "tree"
+	for ch in ["rana", "lily", "ranka"]:
+		hud.tree_ch = ch
+		for f in 8:
+			await get_tree().physics_frame
+			await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png(dir + "/ui_tree_%s.png" % ch)
+	hud.slot_mode = "slot"
+	for f in 4:
+		await get_tree().physics_frame
+		await RenderingServer.frame_post_draw
+	get_viewport().get_texture().get_image().save_png(dir + "/ui_tree_slotmode.png")
+	hud.close_slots()
+	progress.reset()
+	# 2) 派生
+	const ST := preload("res://scripts/skill_tree.gd")
+	var cam_mark := Node3D.new()
+	add_child(cam_mark)
+	var only_ch: String = OS.get_environment("TREE_CH")
+	for ch in ["rana", "lily", "ranka"]:
+		if only_ch != "" and only_ch != ch:
+			continue
+		var actor: Node3D = player if ch == "rana" else (battle.ally if ch == "lily" else battle.ranka)
+		if actor == null:
+			print("TREE ", ch, " がいない")
+			continue
+		for a in [battle.ally, battle.ranka]:
+			if a != null:
+				a.visible = a == actor
+				a.set_physics_process(a == actor)
+				a.skills_on = false
+				a.cd = 99.0
+		for id in ST.order(ch):
+			if id == "ult" or (OS.get_environment("TREE_SKILLS") != "" and not OS.get_environment("TREE_SKILLS").split(",").has(id)):
+				continue
+			var runs := [["base", 1, false], ["base", 5, false], ["base", 3, true]]
+			for did in ST.rows(ch)[id].derivs:
+				runs.append([did, 3, true])
+			for run in runs:
+				var did: String = run[0]
+				progress.reset()
+				progress.skill_lv = {ch: {id: run[1]}}
+				if did != "base":
+					progress.deriv = {ch: {id: did}}
+				apply_progress()
+				var tab: Dictionary = player.skills if ch == "rana" else actor.sk_tab
+				var sk: Dictionary = tab[id]
+				for x in battle.enemies.duplicate():
+					battle.remove_enemy(x)
+				var start := Vector3(-3.5 if id in ["rift", "rush", "shot"] else -1.0, 0, 0.5)
+				actor.position = start
+				actor.face = 1
+				actor.state = "move"
+				if ch != "rana":
+					player.position = start + Vector3(-1.4, 0, 1.3)
+					player.face = 1
+				player.state = "move"
+				# カメラ：遠くまで届く技は、当たる範囲が画面に入るよう前へずらす（撮影だけ）
+				cam_mark.position = start + Vector3(TREE_CAM.get(id, 1.2), 0, 0)
+				battle.cam_focus = cam_mark
+				_place_cam(true)
+				var first = null
+				for sp in TREE_SPOTS[id]:
+					var e = battle.spawn("3", start + Vector3(sp[0], 0, sp[1]))
+					e.atk_cd = 99.0
+					e.hp_max = 99999.0
+					e.hp = 99999.0
+					if first == null:
+						first = e
+				for f in 24:   # 出てきた時の白い光が消えるまで
+					await get_tree().physics_frame
+				battle.stat_hits = 0
+				battle.stat_dmg = 0.0
+				# 撮る時：最初の当たりを処理した直後・締め（最後の当たり）を処理した直後・その余韻（止めで技の時間が延びるので、時刻でなく当たりの番号で）
+				var ev_all: Array = sk.ev
+				var i_first := -1
+				var i_last := -1
+				for k in ev_all.size():
+					if ev_all[k][1].has("k") and float(ev_all[k][1].k) > 0.0:
+						if i_first < 0:
+							i_first = k
+						i_last = k
+				var after := 0.35
+				if did in ["kekkai", "rensa"]:
+					after = 1.6 if did == "kekkai" else 1.0
+				if ch == "rana":
+					player.skill_cd.clear()
+					player.use_skill(id)
+				else:
+					actor.sk_cd[id] = 0.0
+					actor.force_skill(id, first)
+				var n := 0
+				var shoot: bool = run[2]
+				var t_last := -1.0
+				var tt := 0.0
+				RenderingServer.render_loop_enabled = false   # 描くのは撮る瞬間だけ（ソフト描画は遅い。bot.gd と同じ）
+				for f in 600:
+					await get_tree().physics_frame
+					tt += 1.0 / 60.0
+					var done_i: int = int(player.hit_i) if ch == "rana" else int(actor.ev_i)
+					var want := false
+					if n == 0 and done_i > i_first:
+						want = true
+					elif n == 1 and done_i > i_last:
+						want = true
+					if t_last < 0.0 and done_i > i_last:
+						t_last = tt
+					if n == 2 and t_last >= 0.0 and tt >= t_last + after:
+						want = true
+					if want:
+						if shoot:
+							RenderingServer.render_loop_enabled = true
+							await RenderingServer.frame_post_draw
+							get_viewport().get_texture().get_image().save_png(dir + "/fx_deriv_%s_%s_%s_%d.png" % [ch, id, did, n + 1])
+							RenderingServer.render_loop_enabled = false
+						n += 1
+					if n >= 3:
+						break
+				RenderingServer.render_loop_enabled = false
+				for f in 90:   # 連鎖・結界の残りまで数える
+					await get_tree().physics_frame
+				RenderingServer.render_loop_enabled = true
+				print("TREE_STAT %s %s %s Lv%d 当たった数 %d ダメージ合計 %d" % [ch, id, did, run[1], battle.stat_hits, int(battle.stat_dmg)])
+				battle.lingers.clear()
+				battle.cam_focus = null
+				for f in 30:
+					await get_tree().physics_frame
+	progress.reset()
 
 ## リリィのスキル（2026-11-07）：技ごとに 3〜5 枚 → captures/fx_lskill_<id>_<n>.png
 func _capture_lily_skill(dir: String) -> void:
@@ -2945,15 +3584,26 @@ func _bt_front(dir: String) -> void:
 
 ## ダンジョンの部屋：歓楽街の部品を並べ替えて置く（ofs の使い回し）。spec は dungeon_map.gd の部屋。
 func build_room(spec: Dictionary) -> void:
+	if DgThemes.has_parts(room_theme):
+		build_room_parts(spec, room_theme)
+		return
 	_clear_level()
-	_build_floor()
+	var rw: float = spec.rw
+	_build_floor(2.0 * rw + 28.0)
 	var by_id := {}
 	for p in City.pieces():
 		by_id[p.id] = p
-	var rw: float = spec.rw
-	# 裏通りの列と遠景はそのまま（少し横へずらして毎回の見え方を変える）
+	# 裏通りの列と遠景はそのまま（少し横へずらして毎回の見え方を変える）。
+	# 部屋が広い（2〜3 画面）とカメラが ±12m より先へ動き、1 枚では端が切れる → 左右に写しを足す（2026-11-14）
+	var cam_far: float = maxf(0.0, rw - _play_half_w())
 	_build_piece(by_id["b0_backrow"], Vector3(spec.back_ofs, 0, 0), "b0_room")
+	if cam_far + 19.4 > 32.0:
+		for s in [-1, 1]:
+			_build_piece(by_id["b0_backrow"], Vector3(spec.back_ofs + s * 64.0, 0, 0), "b0_room_%d" % s)
 	_build_piece(by_id["z_skyline"])
+	if cam_far + 56.0 > FAR_W * 0.5:
+		for s in [-1, 1]:
+			_build_piece(by_id["z_skyline"], Vector3(s * FAR_W, 0, 0), "z_skyline_%d" % s)
 	glints = []
 	for i in spec.slots.size():
 		var id: String = spec.slots[i]
@@ -2973,10 +3623,109 @@ func build_room(spec: Dictionary) -> void:
 		var ext := _piece_x_range(p)
 		_build_piece(p, Vector3(float(f[1]) - (ext.x + ext.y) * 0.5, 0, 0), "%s_fg%d" % [f[0], i])
 	_build_glints()
-	cam_x = Vector2(-maxf(0.0, rw - PLAY_HALF_W), maxf(0.0, rw - PLAY_HALF_W))
+	cam_x = Vector2(-cam_far, cam_far)
 	battle.glints = glints
 	battle.ROOM_X = Vector2(-rw, rw)
 	player.room_x = Vector2(-rw, rw)
+
+## テーマの部品（外部AIの絵を切り抜いた板。assets/dungeon/<テーマ>/）で部屋を組む（2026-11-14、仮組み）。
+## 3D の下絵（箱）への投影ではなく、画面に正対する板を並べる。間取りの slots（b1〜b4）・fg（f1〜f3）の番号をそのまま使う。
+## 板の大きさ＝絵の画素 ÷ THEME_PPM（全部品で同じ割合＝部品どうしの大きさは絵のまま）。
+const THEME_PPM := 150.0        # 正面の建物・手前の物：1m あたりの画素
+const THEME_WALL_Z := -6.6      # 建物の正面の線（歓楽街の建物の正面 −6.5 に合わせる）
+const THEME_BLD_DIM := 0.55     # 建物の板の明るさ（光る画素は残す）
+func build_room_parts(spec: Dictionary, theme: String) -> void:
+	_clear_level()
+	var rw: float = spec.rw
+	var dir := "res://assets/dungeon/%s/" % theme
+	floor_lum_k = clampf(42.8 / float(FLOOR_LUM.get(theme, 42.8)), 0.4, 1.3)
+	_build_floor(2.0 * rw + 28.0, load(dir + theme + "_g1.webp"))
+	var cam_far: float = maxf(0.0, rw - _play_half_w())
+	var root := Node3D.new()
+	root.name = "theme_parts"
+	level.add_child(root)
+	# 遠景（いちばん奥・霧に沈める）と裏の列：横に繰り返して、カメラが端まで動いても切れない幅に
+	var far_tex: Texture2D = load(dir + theme + "_far1.webp")
+	var far_w := 70.0
+	var far_h := far_w * float(far_tex.get_height()) / float(far_tex.get_width())
+	var n_far := int(ceil((cam_far + 60.0) / far_w))
+	for i in range(-n_far, n_far + 1):
+		_theme_plane(root, far_tex, Vector3(i * far_w + spec.back_ofs * 2.0, -2.0, -45.0), Vector2(far_w, far_h), 0.75, Color(0.38, 0.27, 0.42, 0.55), i % 2 != 0)
+	var back_tex: Texture2D = load(dir + theme + "_back1.webp")
+	var back_w := 30.0
+	var back_h := back_w * float(back_tex.get_height()) / float(back_tex.get_width())
+	var n_back := int(ceil((cam_far + 26.0) / back_w))
+	for i in range(-n_back, n_back + 1):
+		_theme_plane(root, back_tex, Vector3(i * (back_w - 1.0) + spec.back_ofs, -0.2, -14.0), Vector2(back_w, back_h), 0.6, Color(0.38, 0.27, 0.42, 0.35), i % 2 != 0)
+	# 正面の建物：slots の順に、すき間なく（0.35m 重ねて）並べ、全体を部屋の中心にそろえる
+	var bld := []
+	var total := 0.0
+	# 大物（x1・x2：一部屋に一個）：部屋の 3 つに 1 つ、まん中の建物を大物に替える（届いたテーマだけ。2026-11-15）
+	var xs := []
+	for xi in ["x1", "x2"]:
+		if ResourceLoader.exists(dir + theme + "_" + xi + ".webp"):
+			xs.append(xi)
+	var x_at := -1
+	var seed_i := int(absf(float(spec.back_ofs)) * 1000.0)
+	if xs.size() > 0 and seed_i % 3 == 0:
+		x_at = spec.slots.size() / 2
+	for si in spec.slots.size():
+		var id = spec.slots[si]
+		var tid: String = theme + "_" + str(id).substr(0, 2)   # "b1_tavern" → "t2_b1"
+		if si == x_at:
+			tid = theme + "_" + str(xs[(seed_i / 3) % xs.size()])
+		var tex: Texture2D = load(dir + tid + ".webp")
+		var w := float(tex.get_width()) / THEME_PPM
+		bld.append([tex, w])
+		total += w - 0.35
+	var x: float = -total * 0.5 + float(spec.back_ofs) * 0.3
+	for i in bld.size():
+		var tex: Texture2D = bld[i][0]
+		var w: float = bld[i][1]
+		var h := float(tex.get_height()) / THEME_PPM
+		_theme_plane(root, tex, Vector3(x + w * 0.5, -0.06, THEME_WALL_Z - (0.02 * (i % 2))), Vector2(w, h), THEME_BLD_DIM, Color(1, 1, 1, 0.0), false)   # 足元を少し床へ沈める
+		x += w - 0.35
+	# 手前の物（f1〜f3）：ぼかして暗く。ラナと重なると透ける（fg_list）
+	for i in spec.fg.size():
+		var f: Array = spec.fg[i]
+		var tid: String = theme + "_" + str(f[0]).substr(0, 2)
+		var tex: Texture2D = load(dir + tid + ".webp")
+		var h := 5.0
+		var w := h * float(tex.get_width()) / float(tex.get_height())
+		var mi := _theme_plane(root, tex, Vector3(float(f[1]), 0.0, 5.6 - FG_PULL), Vector2(w, h), FG_DIM, Color(1, 1, 1, 0.0), false)
+		var m: ShaderMaterial = mi.material_override
+		m.set_shader_parameter("blur", FG_BLUR)
+		fg_list.append({"node": mi, "mat": m, "half": w * 0.5})
+	glints = []   # 映り込みの光の元はまだ無い（T2 の看板・灯りの位置を拾うのは後で）
+	_build_glints()
+	cam_x = Vector2(-cam_far, cam_far)
+	battle.glints = glints
+	battle.ROOM_X = Vector2(-rw, rw)
+	player.room_x = Vector2(-rw, rw)
+
+## 板 1 枚（足元＝pos.y、中心＝pos.x、奥行き＝pos.z）。night＝光る画素以外の明るさ、amb＝霧の色（a＝量）、flip＝左右反転（繰り返しの継ぎ目を目立たなくする）
+func _theme_plane(root: Node3D, tex: Texture2D, pos: Vector3, size: Vector2, night: float, amb: Color, flip: bool) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var qm := QuadMesh.new()
+	qm.size = size
+	mi.mesh = qm
+	mi.position = pos + Vector3(0, size.y * 0.5, 0)
+	if flip:
+		mi.scale.x = -1.0
+	var m := ShaderMaterial.new()
+	m.shader = SPRITE_SHADER
+	m.set_shader_parameter("tex", tex)
+	m.set_shader_parameter("night_dim", night)
+	m.set_shader_parameter("bg_layer", 1.0)
+	m.set_shader_parameter("tint", Color(1, 1, 1, 1))
+	m.set_shader_parameter("amb_col", amb)
+	mi.material_override = m
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(mi)
+	return mi
+
+func _play_half_w() -> float:
+	return DG_HALF_W if cam_variant == "D2" else PLAY_HALF_W
 
 func _piece_x_range(p: Dictionary) -> Vector2:
 	var x0 := INF
@@ -3090,6 +3839,52 @@ func _build_gate(x: float = GATE_X, straight: bool = false) -> void:
 		gate.add_child(beam)
 	glints.append({"x": x, "y": 2.0, "z": gate.position.z, "w": 1.6, "col": [GATE_COL.r, GATE_COL.g, GATE_COL.b], "p": 0.8, "len": 4.0})
 
+## 裏の町の薬屋（水晶の屋台、BT.STALLS の stall_crystal）に近づくと店を開く（2026-11-16 ②、ユーザー「屋台で」）
+var shop_armed := true
+func _check_shop() -> void:
+	if town != "back" or dungeon != null or player == null or town_floor_busy or hud == null:
+		return
+	var sx := 0.0
+	for s2 in BT.STALLS:
+		if s2.id == "stall_crystal":
+			sx = float(s2.x)
+	var near: bool = absf(player.position.x - sx) < 1.3 and player.position.z < BELT_Z.x + 0.9
+	if near and shop_armed and not hud.menu_open and not hud.slot_open and not hud.shop_open and not player.locked:
+		shop_armed = false
+		hud.open_shop()
+	elif not near:
+		shop_armed = true
+
+## 裏の町の工房（部品の屋台、stall_parts）に近づくと開く（③ specs/gear.md、ユーザー「裏の町の別の屋台を工房に」）
+var ws_armed := true
+func _check_workshop() -> void:
+	if town != "back" or dungeon != null or player == null or town_floor_busy or hud == null:
+		return
+	var sx := 0.0
+	for s2 in BT.STALLS:
+		if s2.id == "stall_parts":
+			sx = float(s2.x)
+	var near: bool = absf(player.position.x - sx) < 1.3 and player.position.z < BELT_Z.x + 0.9
+	if near and ws_armed and not hud.menu_open and not hud.slot_open and not hud.shop_open and not hud.ws_open and not player.locked:
+		ws_armed = false
+		hud.open_workshop(false)
+	elif not near:
+		ws_armed = true
+
+## 画質（2026-11-17 ユーザー了承）：高＝今まで（3D の細かさ 100%・MSAA 2 倍・コマ数の上限なし）、
+##   標準＝3D の細かさ 70%・MSAA なし（初期値）、省電力＝3D 55%・MSAA なし・毎秒 30 コマ。文字・ボタン（2D）はいつも細かいまま
+const QUALITY := {"high": {"s3d": 1.0, "msaa": Viewport.MSAA_2X, "fps": 0},
+	"std": {"s3d": 0.7, "msaa": Viewport.MSAA_DISABLED, "fps": 0},
+	"eco": {"s3d": 0.55, "msaa": Viewport.MSAA_DISABLED, "fps": 30}}
+func apply_quality() -> void:
+	var qn: String = OS.get_environment("QUALITY") if OS.has_environment("QUALITY") else (progress.quality if progress else "std")   # 撮影用に QUALITY= で上書き
+	var q: Dictionary = QUALITY.get(qn, QUALITY.std)
+	var vp := get_viewport()
+	vp.scaling_3d_mode = Viewport.SCALING_3D_MODE_BILINEAR
+	vp.scaling_3d_scale = float(q.s3d)
+	vp.msaa_3d = int(q.msaa)
+	Engine.max_fps = int(q.fps)
+
 func _check_gate() -> void:
 	if gate == null or dungeon != null or player == null or town_floor_busy or hud == null:
 		return
@@ -3102,12 +3897,48 @@ func _check_gate() -> void:
 		gate_armed = true
 
 var next_seed := -1   # 撮影の自動入力が決めた間取りの種（-1＝毎回ランダム）
+const DgThemes := preload("res://scripts/dungeon_themes.gd")
+var room_theme := "t1"   # 今のダンジョンのテーマ（build_room が部品を選ぶ）
+var dg_perf_n := 0    # ?dgtest=N（環境変数 DG_PERF でも）：重さの計測
 func dungeon_seed() -> int:
 	var s := next_seed
 	next_seed = -1
 	return s
 
-func enter_dungeon(diff: String, seed_val: int = -1) -> void:
+## ダンジョンのカメラ（2026-11-14 ユーザー決定）：入口に関係なく、新しい街（裏の町）と同じ案 D2・帯 4m（z −2〜2）。
+## 出る時に元へ戻す（古い大通りから入った時のため）
+const DG_CAM := {"belt": Vector2(-2.0, 2.0), "ofs": Vector3(0, 3.2, 15.3), "look": Vector3(0, 1.50, 0), "fov": 16.8}
+const DG_HALF_W := 4.9   # D2 で帯の中心に見える横幅の半分（m）。カメラが部屋の端まで寄る量
+var cam_saved := {}
+func _set_belt(b: Vector2) -> void:
+	BELT_Z = b
+	if battle:
+		battle.BELT_Z = b
+	if player:
+		player.belt_z = b
+
+func _dungeon_cam(on: bool) -> void:
+	if on:
+		if cam_saved.is_empty():
+			cam_saved = {"belt": BELT_Z, "ofs": play_ofs, "look": play_look, "fov": play_fov, "var": cam_variant}
+		_set_belt(DG_CAM.belt)
+		play_ofs = DG_CAM.ofs
+		play_look = DG_CAM.look
+		play_fov = DG_CAM.fov
+		cam_variant = "D2"
+	elif not cam_saved.is_empty():
+		_set_belt(cam_saved.belt)
+		play_ofs = cam_saved.ofs
+		play_look = cam_saved.look
+		play_fov = cam_saved.fov
+		cam_variant = cam_saved["var"]
+		cam_saved = {}
+	if cam:
+		cam.fov = play_fov
+
+func enter_dungeon(diff: String, seed_val: int = -1, theme: String = "t1", ids = null) -> void:
+	if ids != null and party_flow():
+		set_party(ids)
 	for e in battle.enemies.duplicate():
 		battle.remove_enemy(e)
 	battle.auto_spawn = false
@@ -3118,18 +3949,37 @@ func enter_dungeon(diff: String, seed_val: int = -1) -> void:
 		if not await district.ensure("dg1"):
 			loading.error_text = district.last_error
 		loading.hide_soon()
+	var tpck: String = DgThemes.THEMES[DgThemes.index_of(theme)].pck   # テーマの部品の pck（T2 dg_t2 など）
+	if tpck != "dg1" and not district.ensure_cached(tpck):
+		loading.show_now()
+		if not await district.ensure(tpck):
+			loading.error_text = district.last_error
+		loading.hide_soon()
 	player.locked = false
+	_dungeon_cam(true)
 	dungeon = DungeonRun.new()
 	dungeon.main = self
 	dungeon.diff = diff
+	dungeon.theme = theme
 	dungeon.seed_val = seed_val
+	if dg_perf_n <= 0 and OS.has_environment("DG_PERF"):
+		dg_perf_n = int(OS.get_environment("DG_PERF"))
+	dungeon.perf_n = dg_perf_n
 	add_child(dungeon)
 	dungeon.start()
 
 func leave_dungeon() -> void:
+	room_theme = "t1"
+	_dungeon_cam(false)
 	if dungeon:
 		dungeon.queue_free()
 		dungeon = null
+	set_theme_tint(Color(1, 1, 1, 0))
+	for a in battle.ally_list():   # 仲間の体力も戻す（specs/dungeon_themes.md 3.4）
+		if a.has_method("revive_full"):
+			a.revive_full()
+	if party_flow():   # 街へ戻ったらラナ1人（体力を戻してから控えへ）
+		set_party([])
 	battle.foe_hp_mul = 1.0
 	battle.foe_dmg_mul = 1.0
 	battle.hp = battle.hp_max
@@ -3150,10 +4000,23 @@ func leave_dungeon() -> void:
 
 ## 成長をラナと戦闘に反映する
 func apply_progress() -> void:
+	apply_quality()
 	var r: float = battle.hp / battle.hp_max
 	battle.hp_max = progress.hp_max()
 	battle.hp = battle.hp_max * r
 	battle.atk_mul = progress.atk_mul()
+	progress.weapon = int(round(progress.weapon_pow()))   # 結果の画面などの「武器の数字」
+	battle.g_crit = progress.trait_pct("crit") / 100.0
+	battle.g_cd = maxf(0.5, 1.0 - progress.trait_pct("cd") / 100.0)
+	battle.g_down = 1.0 + progress.trait_pct("down") / 100.0
+	battle.g_cut = progress.armor_cut()
+	battle.g_heal = 1.0 + progress.trait_pct("heal") / 100.0
+	battle.g_gold = 1.0 + progress.trait_pct("gold") / 100.0
+	battle.g_ult = 1.0 + progress.trait_pct("ult") / 100.0
+	battle.g_ally = {"lily": progress.ally_k("lily"), "ranka": progress.ally_k("ranka")}
+	for a in [player, battle.ally, battle.ranka]:   # スキルツリーの技レベル・派生を読み直す（specs/skill_tree.md）
+		if a != null and is_instance_valid(a) and a.has_method("refresh_skills"):
+			a.refresh_skills()
 
 func _on_foe_killed(e) -> void:
 	if dungeon:
