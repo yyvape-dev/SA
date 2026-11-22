@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "id": "P0-06",
+  "source": "claude/sa2_story_bible_20261106.md section 5; quotations plus implementation bridges, not recovered full manuscript",
+  "lines": [
+    {
+      "line_id": "P0-06-001",
+      "speaker_id": "envoy",
+      "speaker": "使節",
+      "text": "ジスパニア帝国より、陛下への招待状をお持ちしました。",
+      "provenance": "implementation_bridge"
+    },
+    {
+      "line_id": "P0-06-002",
+      "speaker_id": "rana",
+      "speaker": "ラナ",
+      "text": "正式な使節を迎えるのは、百年以上ぶりと聞いています。",
+      "provenance": "implementation_bridge"
+    },
+    {
+      "line_id": "P0-06-003",
+      "speaker_id": "envoy",
+      "speaker": "使節",
+      "text": "長らく、お目にかかる機会を持てずにおりました。此度は、多くの国の方々をお招きしております。",
+      "provenance": "implementation_bridge"
+    },
+    {
+      "line_id": "P0-06-004",
+      "speaker_id": "envoy",
+      "speaker": "使節",
+      "text": "百年の停滞を打ち破る技術革新を、ぜひご覧いただきたいのです。",
+      "provenance": "implementation_bridge"
+    },
+    {
+      "line_id": "P0-06-005",
+      "speaker_id": "rana",
+      "speaker": "ラナ",
+      "text": "式典への列席だけでなく、貿易のお話も？",
+      "provenance": "implementation_bridge"
+    },
+    {
+      "line_id": "P0-06-006",
+      "speaker_id": "envoy",
+      "speaker": "使節",
+      "text": "新しい時代には、新しい友が必要ですから",
+      "provenance": "quoted"
+    },
+    {
+      "line_id": "P0-06-007",
+      "speaker_id": "envoy",
+      "speaker": "使節",
+      "text": "失礼。こちらの印をご覧いただくには、少し明かりがあった方が。",
+      "provenance": "implementation_bridge"
+    }
+  ]
+}

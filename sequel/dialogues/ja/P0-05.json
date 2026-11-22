@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "id": "P0-05",
+  "source": "claude/sa2_story_bible_20261106.md section 5; quotations plus implementation bridges, not recovered full manuscript",
+  "lines": [
+    {
+      "line_id": "P0-05-001",
+      "speaker_id": "rana",
+      "speaker": "ラナ",
+      "text": "釣り竿も、荷物もない……。",
+      "provenance": "implementation_bridge"
+    },
+    {
+      "line_id": "P0-05-002",
+      "speaker_id": "lily",
+      "speaker": "リリィ",
+      "text": "出かけるのは、いつものことです。",
+      "provenance": "implementation_bridge"
+    },
+    {
+      "line_id": "P0-05-003",
+      "speaker_id": "lily",
+      "speaker": "リリィ",
+      "text": "ですが、今回は違います",
+      "provenance": "quoted"
+    },
+    {
+      "line_id": "P0-05-004",
+      "speaker_id": "rana",
+      "speaker": "ラナ",
+      "text": "どうして？",
+      "provenance": "quoted"
+    },
+    {
+      "line_id": "P0-05-005",
+      "speaker_id": "lily",
+      "speaker": "リリィ",
+      "text": "約束したんです",
+      "provenance": "quoted"
+    },
+    {
+      "line_id": "P0-05-006",
+      "speaker_id": "lily",
+      "speaker": "リリィ",
+      "text": "どこへ行くにしても、手紙くらいは残すと。あの子、自分でそう言ったんです",
+      "provenance": "quoted"
+    },
+    {
+      "line_id": "P0-05-007",
+      "speaker_id": "rana",
+      "speaker": "ラナ",
+      "text": "……残しているわ",
+      "provenance": "quoted"
+    },
+    {
+      "line_id": "P0-05-008",
+      "speaker_id": "lily",
+      "speaker": "リリィ",
+      "text": "ええ",
+      "provenance": "quoted"
+    },
+    {
+      "line_id": "P0-05-009",
+      "speaker_id": "lily",
+      "speaker": "リリィ",
+      "text": "だから、嫌な予感がするんです",
+      "provenance": "quoted"
+    },
+    {
+      "line_id": "P0-05-010",
+      "speaker_id": "rana",
+      "speaker": "ラナ",
+      "text": "探しましょう",
+      "provenance": "quoted"
+    },
+    {
+      "line_id": "P0-05-011",
+      "speaker_id": "lily",
+      "speaker": "リリィ",
+      "text": "いいえ",
+      "provenance": "quoted"
+    },
+    {
+      "line_id": "P0-05-012",
+      "speaker_id": "lily",
+      "speaker": "リリィ",
+      "text": "まだ、探すべき場所が分からないんです",
+      "provenance": "quoted"
+    },
+    {
+      "line_id": "P0-05-013",
+      "speaker_id": "rana",
+      "speaker": "ラナ",
+      "text": "……この紙は、ここに置いておきましょう。戻ったら、話を聞けるように。",
+      "provenance": "implementation_bridge"
+    }
+  ]
+}

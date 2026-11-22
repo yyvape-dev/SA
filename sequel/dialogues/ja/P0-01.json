@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "id": "P0-01",
+  "source": "claude/sa2_story_bible_20261106.md section 5; quotations plus implementation bridges, not recovered full manuscript",
+  "lines": [
+    {
+      "line_id": "P0-01-001",
+      "speaker_id": "sera",
+      "speaker": "セラ",
+      "text": "南の水路ですが、橋の修繕と同じ日に人を集めるのは難しそうです。",
+      "provenance": "implementation_bridge"
+    },
+    {
+      "line_id": "P0-01-002",
+      "speaker_id": "rana",
+      "speaker": "ラナ",
+      "text": "兵にも手伝ってもらえない？　見張りを減らさない範囲で。",
+      "provenance": "implementation_bridge"
+    },
+    {
+      "line_id": "P0-01-003",
+      "speaker_id": "sera",
+      "speaker": "セラ",
+      "text": "確認します。橋を先に通せれば、石材を運ぶ荷車が入れます。",
+      "provenance": "implementation_bridge"
+    },
+    {
+      "line_id": "P0-01-004",
+      "speaker_id": "rana",
+      "speaker": "ラナ",
+      "text": "では、橋から。水路の方には、日程が変わると今日中に伝えて。",
+      "provenance": "implementation_bridge"
+    },
+    {
+      "line_id": "P0-01-005",
+      "speaker_id": "sera",
+      "speaker": "セラ",
+      "text": "はい。こちらの書類にも、その順で。",
+      "provenance": "implementation_bridge"
+    },
+    {
+      "line_id": "P0-01-006",
+      "speaker_id": "rana",
+      "speaker": "ラナ",
+      "text": "……去年は、どちらにも急いでとしか言えなかったわ。",
+      "provenance": "implementation_bridge"
+    },
+    {
+      "line_id": "P0-01-007",
+      "speaker_id": "sera",
+      "speaker": "セラ",
+      "text": "今度は、職人に予定を組んでもらえますね。",
+      "provenance": "implementation_bridge"
+    }
+  ]
+}
