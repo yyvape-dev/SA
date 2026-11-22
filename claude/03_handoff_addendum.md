@@ -1,3 +1,7 @@
+# 2026-11-22 SA2 ブランチを main に1本化
+- ランカ・スキルツリー（ダンジョン16・敵の行動・お金・装備・商人）・Codex の UI 3本を main に統合。取り込み前はタグ `backup/main-20261122`。敵は1つの battle.gd・enemy.gd に統合（数値は foe_stats.gd）。
+- 正本：`sequel/HANDOFF.md`（80行以内に整理）、便ごとの記録 `sequel/docs/handoff_log.md`。本編 https://yyvape-dev.github.io/SA/sequel/web/ 、テスト部屋 https://yyvape-dev.github.io/SA/previews/sa2-rooms/?mode=foes
+
 # 2026-11-20 SA2 敵 第1弾（9体）
 - 正本：`sequel/docs/sa2_foes_handoff_20261120.md`、設定資料 `sequel/docs/sa2_enemies_settings.md`。試し版：https://yyvape-dev.github.io/SA/previews/sa2-foes/?mode=foes
 

@@ -5,6 +5,28 @@
 
 ---
 
+# 2026-11-22 ブランチを main に1本化（Claude）
+
+- ユーザー決定（2026-11-22）：ブランチを main に1本化し、HANDOFF.md を整理する。取り込み前の main はタグ `backup/main-20261122`、作業は `integrate/main-20261122`。ブランチは消していない。
+- 調べた事実（main＝19f9a23 との比較）：
+  - 取り込む：`feat/sa2-ranka-20261112`（11-14、main に無い 20、ランカ）→ `claude/skill-tree-implementation-fsvlcl`（11-19、114、スキルツリー・ダンジョン16・敵の行動 idle/rush/shot/charge・お金と回復・装備・商人）。ランカのブランチはスキルツリーのブランチに丸ごと含まれていた。
+  - 取り込み済み：`codex/skill-tree-polish`・`codex/combat-hud-polish`・`codex/dungeon-select-ui`（3本ともスキルツリーのブランチの祖先＝そこから全部入った）。main に無いコミット 0：`claude/serene-einstein`・`claude/bold-bohr`・`claude/peaceful-sagan`・`feat/sa2-audio-options`・`feat/sa2-ultimate-sfx`・`feat/sa2-t2-sequel-integration`・`test/sa2-backtown-npc-placement`・`test/sa2-t5-training-dialogue`・`test/sa2-t6-lily-touch-controls`。
+  - 古い試作（触らない）：`feat/sa2-prologue-20261114`（プロローグの絵 89 ファイル、main に無い）・`art/sa2-dungeon-missing-designs`・`feat/sa2-rana-combat-sfx`・`test/sa2-t4-gamehall-relayout`・`docs/sa2-t3-design-gate`・`feat/sa2-td-mobile-spots`・`feat/sa2-t3-street-encounter`・`story/sa2-chapter1`・`feat/sa2-t1-5-dialogue-data`・`feat/sa2-t1-common-flow`・`chore/agent-skills-gamedev`・`test/lana-idle-micro-motion`・`test/godot-neon-greybox`・`test/neon-fit-overlay`・`test/godot-viewport-capture`。
+- 衝突の扱い：
+  - `.uid` 6件はブランチ側（どの .tscn も uid で参照していない）。`sa2_t2_playable.gd` はランカと敵9体のテスト部屋の入口を両方残した。`export_presets.cfg` は除外＝ブランチ、含める＝main（music.pck）。`player.gd` はスキルの音とつなぎ（chain・回り込み）を両方。
+  - `ally.gd`：main（11-13 の音）はリリィの必殺技の瞬間移動で `cine` を解いていた。ブランチは 2026-11-15 のユーザー決定「必殺技の演出中は止める」で解かない → ユーザー決定の方を採り、音だけ残した。
+  - `enemy.gd`：ブランチの仕組み（foe_stats.gd・アーマー・浮かせ・突進・射撃・溜め）を土台に、main の第1弾9体（背・回復・届く距離 fwd・傾く被弾）を足した。9体の数値は foe_stats.gd へ（`hurt: "tilt"`・`heal: "atk1"`）。傾く被弾は浮いている間は出さない（浮きの反りと重なるため）。
+  - 文書：`dungeon_themes.md` はブランチ（main の版を含む新しい版）、`sa2_dungeon_art_handoff_20261114.md` は main（ブランチの版を含む）、`03_handoff_addendum.md`・`sa2_t7_handoff` は両方を残した。
+- 統合で見つけて直したもの（どれもブランチの時点からあったと推測。スキルツリーのブランチ単体では確かめていない）：
+  - T2/T5 の場面・テスト部屋（?mode=foes・rana・lily）で、街の「パーティの流れ」がリリィを控えに回し、最初の通し（31 本まで）で 16 本が落ちた（多くは「Lily did not load」） → `sa2_t2_playable.gd` で `party_flow()` を false。
+  - リリィ操作の場面でジャストガードが `jg_window` を書いて SCRIPT ERROR → `battle.gd` で有無を確かめる。HUD の試験の代役に `battle`・`pot_cd` が無く SCRIPT ERROR → `touch_ui.gd` で有無を確かめる。
+  - `sa2_world_integration_test`：11-09 の古い流れ（門→難易度）のまま → 今の流れ（地図→札→難易度→仲間）に合わせた。リリィは街では控えなので「控えにいる」も可に。
+  - `skill_tree_presenter_test`：古いセーブの SP の期待 7 → 今の動きは 19（11-18 に D1〜D3 もクリア済みにした分の初回クリア +2×6）。期待値を今の動きに合わせた（**意図どおりかは未決**）。
+- 確かめ（`--fixed-fps 60`）：テスト 41 本すべて PASS（xvfb＋opengl3。通しで 39 本、上の2本は直した後に個別に再実行）。DUNGEON_TEST の6周：T1D4 ノーマル 351 秒（全部屋 14/14）・88 秒、T2D4 133 秒、T1D4 ハード 120 秒、失敗の確認＝正しく失敗、戻る扉＝正しく戻る。鍵・抜け道も正しい。SCRIPT ERROR 0。
+- Web（gzip 配信＋chromium 844×390）：本編 `sequel/web` と `previews/sa2-rooms`（起動シーンを sa2_t5_training_preview にした版。project.godot はコミットしていない）の ?mode=foes・ranka・rana・lily がエラーなしで起動、en1 も読めた。撮影 `docs/integration_20261122_shots.jpg`。
+- pck（MiB）：本体 index.pck 取り込み前 38.1（sequel/web、11-09 の版）→ 72.1（previews/sa2-dungeon の 68.9 ＋ main の音 3.0）。地区込みの合計 117.3 → 271.5（ダンジョンの dg_t2〜t4・al2・en1 が増えた）。
+- 第1弾9体に halve をかけた場合（試して戻した）：en1.pck 24.7 → 10.1MiB（実測）、展開後のメモリ 420 → 105MiB（計算）。見た目の比較 `docs/integration_20261122_halve.jpg`。**未決**。
+
 <!-- ここより上に新しい便を足す -->
 
 # 2026-11-22 に HANDOFF.md から移した全文（文字は変えていない）

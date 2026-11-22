@@ -78,7 +78,14 @@ func _run() -> void:
         scene.player.position = Vector3(scene.gate.position.x - 0.5, 0, 0)
         scene._check_gate()
         check(scene.hud.menu_open, "walking straight right opens dungeon difficulty")
+        # 2026-11-15〜：門 → 地図（テーマ）→ 札（D1〜D4）→ 難易度 → 仲間の選択（ユーザー採用の選択UI）。2026-11-22 統合でこの流れに合わせた
+        if scene.hud.menu_stage == "theme":
+            check(scene.hud.choose_theme(0), "T1 chosen on the map")
+        if scene.hud.menu_stage == "dun":
+            check(scene.hud.choose_dun(1), "first dungeon card chosen")
         check(scene.hud.choose(0), "normal dungeon choice accepted")
+        if scene.hud.menu_stage == "party":
+            scene.hud.go()
         for i in 3600:
             if scene.dungeon != null and not scene.player.locked: break
             await process_frame
@@ -88,7 +95,7 @@ func _run() -> void:
         await frames(3)
         check(scene.dungeon == null and scene.town_floor == "backtown" and is_instance_valid(scene.gate), "dungeon exit restores original backtown")
         check(not scene.player.locked and scene.battle.ROOM_X == Vector2(-24,28), "return restores input/bounds")
-        check(is_instance_valid(scene.battle.ally), "ally remains live across map/dungeon changes")
+        check(is_instance_valid(scene.battle.ally) or scene.ally_ready("lily"), "ally remains live across map/dungeon changes")   # 街ではリリィは控え（パーティの流れ）
     scene.queue_free()
     await frames(2)
     print("WORLD_RESULT: ", "PASS" if failures.is_empty() else "FAIL", " failures=", failures.size())
