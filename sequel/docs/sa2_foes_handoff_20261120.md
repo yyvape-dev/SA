@@ -32,7 +32,8 @@
   - `tools/make_enemies.py` → `assets/foe2/foe2.json`＋`<敵>_<n>.webp`（第1弾9体。可逆。地区 pck `en1`）。
   - `tools/make_foes.py` → `assets/foe/foe.json`＋`foe_*.webp`（ダンジョンの敵：徴収屋・客引き・継ぎ腕・壁喰い・盗賊・爪の怪物・機兵など）。
   - `tools/make_imperial_foes.py` → `assets/foe/foe.json`＋`imp_*.webp`（帝国兵 ef・em）。
-  - `tools/halve_foes.py` → `foe_*`・`imp_*` の絵を半分に（`"res": 0.5` の印。2回は縮めない）。**foe2 にはかけていない**（未決。下）。
+  - `tools/halve_foes.py` → `foe_*`・`imp_*` の絵を半分に（`"res": 0.5` の印。2回は縮めない）。2026-11-22 ユーザー決定で **foe2（第1弾9体）にもかけた**（`assets/foe2` と `assets/foe` の両方を扱う。make_enemies.py で作り直したら、もう一度流す）。
 - battle.gd が `foe.json` と `foe2.json` を両方読み、kind で引く。clip の鍵：`reach`・`lane`・`start`・`charge`・`shot`・`slash`・`rush`（make_foes 系）と `fwd`（make_enemies 系）。どちらも同じ `_start_atk` で解釈する（届く距離＝`reach` が無ければ `fwd`＋0.3m、それも無ければ一般兵の 1.45m）。
 - 第1弾9体の行動は今は「歩く→攻撃」だけ（待ち伏せ idle は部屋の置き方で付く。突進・射撃・溜めは clip の鍵を足せば使える）。
-- 未決：foe2 にも halve をかけるか（いま 60.2MB・展開後 420MB → 半分で非可逆 10.6MB／可逆 22.2MB・展開後 105MB）。本番の出現・テーマの割り当て。
+- 半分にした結果：元の webp 60.2MB → 約11MB、展開後のメモリ 420 → 105MiB（計算）、en1.pck 24.7 → 約10MiB。比較 `docs/integration_20261122_halve.jpg`。
+- 未決：本番の出現・テーマの割り当て。

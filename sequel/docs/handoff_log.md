@@ -5,6 +5,15 @@
 
 ---
 
+# 2026-11-22 統合の続き：ユーザーの答えを反映（Claude）
+
+- ユーザーの答え（2026-11-22、6問すべて「はい」）：①第1弾9体も半分に ②古いセーブの SP は今のまま（7→19）③プロローグを取り込む ④ブランチの使い方の案を採用 ⑤バックアップをブランチで（「はち」は「はい」の打ち間違いと読んだ）⑥Skill `sa2-enemy-add` を書き直す。
+- ①：`tools/halve_foes.py` が `assets/foe2` も扱うように（make_enemies.py で作り直したら流し直す）。元の webp 60.2MB → 11MB、en1.pck 24.7 → 10.1MiB。ゲーム内の同じ場面で位置・大きさが前後で一致（`docs/integration_20261122_halve_ingame.jpg`）。
+- ③：`feat/sa2-prologue-20261114` をマージ（衝突は HANDOFF.md だけ。そのブランチの HANDOFF の記述は下の 2026-11-14 の便に文字を変えずに移した）。プロローグの絵（`assets/prologue/*.png`、約10MiB）が本体に入ったので、地区 pck `pr1` に分け、`sa2_prologue_preview.gd` が Web で入るときだけ読むようにした。そのとき子の順番に頼った `get_child(1)` がずれたので、移動ボタンを変数 `move_pad` で持つように直した。4.7.2 の Web で起動・絵・会話を確認（公開の試し版は置いていない）。scipy が無いと `tests/test_prologue_art.py` が落ちる（入れれば PASS）。
+- ⑤：リモートのブランチ `backup/main-20261122`＝旧 main 19f9a23（タグの push は 403 で拒否）。
+- 確かめ：Godot のテスト 43 本 PASS（プロローグの2本が増えた）、Python 2 本 PASS。ブラウザで本編・?mode=foes・ranka・rana・lily・プロローグがエラーなし。
+- pck（MiB）：本体 72.2（変わらず）、en1 24.7→10.1、pr1 10.2（新）。地区込みの合計 271.5→267.3。
+
 # 2026-11-22 ブランチを main に1本化（Claude）
 
 - ユーザー決定（2026-11-22）：ブランチを main に1本化し、HANDOFF.md を整理する。取り込み前の main はタグ `backup/main-20261122`、作業は `integrate/main-20261122`。ブランチは消していない。

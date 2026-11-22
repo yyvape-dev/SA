@@ -15,6 +15,7 @@ var time_scrim: ColorRect
 var action: Button
 var objective: Label
 var status: Label
+var move_pad: Control   # 左右の移動ボタン（子の順番に頼らない。2026-11-22）
 var movement := Vector2.ZERO
 var touch_axis := Vector2.ZERO
 var pad_finger := -1
@@ -25,6 +26,11 @@ var fade_tween: Tween
 var autosave_wait := 0.0
 
 func _ready() -> void:
+	if OS.has_feature("web"):   # 絵は地区 pck pr1（本体を太らせない。2026-11-22）
+		var district = preload("res://scripts/district.gd").new()
+		add_child(district)
+		if not await district.ensure("pr1"):
+			push_error("プロローグの絵 pr1 を読めない: " + district.last_error)
 	room = Room.new()
 	room.font = FONT
 	add_child(room)
@@ -76,6 +82,7 @@ func _build_ui() -> void:
 		button.button_down.connect(func(): movement.x = direction)
 		button.button_up.connect(func(): movement.x = 0)
 	pad.name = "MovePad"
+	move_pad = pad
 	var restart := _button("最初から", Vector2(-180, 88), Vector2(148, 44))
 	restart.set_anchors_preset(Control.PRESET_TOP_RIGHT)
 	ui.add_child(restart)
@@ -164,7 +171,7 @@ func present() -> void:
 	time_scrim.visible = time_title.visible
 	time_title.text = "三日後" if state.beat_id == "three_days" else "第一章\n黄金の帝都"
 	objective.text = {"office": "序章　失踪 ─ 朝の執務室", "guest": "序章　失踪 ─ ランカの客室", "audience": "序章　失踪 ─ 海の向こうから"}[state.scene_id()]
-	get_child(1).get_child(0).get_node("MovePad").visible = state.can_move()
+	move_pad.visible = state.can_move()
 	action.visible = not state.EVENTS.has(state.beat_id) and not state.is_complete()
 	action.text = {"talk_lily": "話す", "guest_door": "客室へ", "find_note": "調べる", "note": "紙を置く", "three_days": "続ける"}.get(state.beat_id, "")
 	_update_action()

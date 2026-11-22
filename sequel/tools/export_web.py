@@ -32,6 +32,8 @@ DISTRICTS = {
             "files": ["assets/vfx/reeboo.json"]},
     "en1": {"res": ["assets/foe2/*.webp"],                           # 敵 第1弾（9体。tools/make_enemies.py）。?mode=foes の部屋で読む（2026-11-20）
             "files": []},
+    "pr1": {"res": ["assets/prologue/*.png"],                         # プロローグの試し場面（sa2_prologue_preview.tscn）の絵。本編からは使わない。場面に入るときだけ読む（2026-11-22）
+            "files": []},
     "al1": {"res": ["assets/lily/*.webp"],                           # 仲間リリィ（起動の後に読む。読み終えてから出てくる）
             "files": []},
     "al2": {"res": ["assets/ranka/*.webp", "assets/vfx/ranka/*.png"],   # 仲間ランカ（2026-11-12。リリィの後に読む。json は本体）＋ランカ専用のエフェクト（花びら・焼いた連番）。共通の白黒の素材は fx1 の assets/vfx/shared
