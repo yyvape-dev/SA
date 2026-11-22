@@ -93,6 +93,11 @@ func slash(origin: Vector3, face: int, spec: Dictionary) -> void:
 	mi.material_override.set_shader_parameter("noise", noise_tex)   # 流れる模様（2026-11-06）
 	mi.material_override.set_shader_parameter("n_amt", 0.0 if legacy else spec.get("noise", 1.0))
 	mi.material_override.set_shader_parameter("seed", randf() * 10.0)
+	# 2026-11-12：帯の中の模様を白黒の素材で（SA1 の斬撃の帯）。太い＝smash、細い＝blade、他＝ink。spec.tex で指定も
+	var bt := band_tex(String(spec.get("tex", "band_smash" if float(spec.w) >= 1.0 else ("band_blade" if float(spec.w) < 0.4 else "band_ink"))))
+	if bt:
+		mi.material_override.set_shader_parameter("band_tex", bt)
+		mi.material_override.set_shader_parameter("b_amt", 1.0)
 	mi.sorting_offset = 0.05
 	# 暗い下地：少し太く、少し外側まで
 	var dk := MeshInstance3D.new()
@@ -305,6 +310,13 @@ func _spark(p: Vector3, v: Vector3, life: float, w: float, c: Color, delay: floa
 	sparks.append({"p": p, "v": v, "t": -delay, "life": life, "w": w, "c": c})
 
 func _process(delta: float) -> void:
+	_update_seqs(delta)
+	for i in range(_later_q.size() - 1, -1, -1):
+		_later_q[i][0] -= delta
+		if _later_q[i][0] <= 0.0:
+			var q: Array = _later_q[i]
+			_later_q.remove_at(i)
+			sx(q[1], q[2], q[3], q[4])
 	_update_tq(delta)
 	_update_waves(delta)
 	for i in range(items.size() - 1, -1, -1):
@@ -411,11 +423,12 @@ func _draw_sparks(delta: float) -> void:
 			continue
 		if s.t < 0.0:
 			continue
-		var dr := exp(-delta * 5.0)
-		s.v = s.v * dr + Vector3(0, -9.0 * delta, 0)
+		if not s.has("in"):   # 集まる筋（gather）は減速も重力もなし
+			var dr := exp(-delta * 5.0)
+			s.v = s.v * dr + Vector3(0, -9.0 * delta, 0)
 		s.p += s.v * delta
 		var vl: float = s.v.length()
-		var ln := minf(0.45, vl * 0.035) + 0.03
+		var ln: float = (minf(0.45, vl * 0.035) + 0.03) if not s.has("in") else minf(0.35, vl * 0.14) * (1.0 - s.t / s.life * 0.6)
 		var d: Vector3 = s.v / maxf(vl, 0.001)
 		var p0: Vector3 = s.p
 		var p1: Vector3 = s.p - d * ln
@@ -492,6 +505,10 @@ func ribbon(pts: Array, spec: Dictionary) -> void:
 	mi.material_override.set_shader_parameter("n_amt", spec.get("noise", 0.5))
 	mi.material_override.set_shader_parameter("seed", randf() * 10.0)
 	mi.material_override.set_shader_parameter("tail", spec.get("tail", 2.2))   # 尾を長く（余韻）
+	var bt := band_tex(String(spec.get("tex", "bolt_h" if pal == SILVER else "ki_band")))   # 2026-11-12：リリィ＝稲妻、他＝気の帯
+	if bt:
+		mi.material_override.set_shader_parameter("band_tex", bt)
+		mi.material_override.set_shader_parameter("b_amt", 1.0)
 	var dk := MeshInstance3D.new()
 	dk.mesh = _strip(pts, w * 1.9, 1.0)
 	dk.material_override = _dark(0, 0.55)
@@ -649,6 +666,18 @@ func charge(p: Vector3, size: float, life: float) -> void:
 		var off := Vector3(cos(a), sin(a), 0) * size * 0.8
 		_spark(p + off, -off / life, life, 0.02, SILVER[0], 0.0)
 
+## 溜め（2026-11-12、必殺技の寄りの間）：外から体へ集まる光の粒＋育つ芯＋閉じる床の輪。band＝色の帯の名前
+func gather(p: Vector3, band_name: String, col: Color, life: float) -> void:
+	for i in 16:
+		var a := randf() * TAU
+		var r := randf_range(0.8, 1.4)
+		var off := Vector3(cos(a) * r, sin(a) * r * 0.75, 0.0)
+		var lf := life * randf_range(0.55, 1.0)
+		_spark(p + off, -off / lf, lf, 0.008, col, randf_range(0.0, life * 0.35))
+		sparks.back()["in"] = true
+	sx("flare", p + Vector3(0, 0, 0.12), life, {"band": band_name, "size": 0.5, "grow": 2.2, "raw": 1.15, "fade_in": life * 0.6})
+	sx("ring", Vector3(p.x, 0.0, p.z), life, {"floor": true, "band": band_name, "size": 3.6, "grow": 0.35, "raw": 1.0, "fade_in": 0.1})
+
 ## 光の柱（かかと落とし）：上から足元へ落ちる太い稲妻の束＋縦に長い柔らかい光（加算）
 func pillar(g: Vector3, h: float) -> void:
 	for i in 3:
@@ -658,6 +687,8 @@ func pillar(g: Vector3, h: float) -> void:
 	m.set_shader_parameter("core_gain", 0.35)
 	_quad(g + Vector3(0, h * 0.45, 0.15), Vector2(0.9, h * 1.1), m, "flash", 0.26, 0.0)
 	_quad(g + Vector3(0, 0.3, 0.2), Vector2(2.6, 1.2), _mat(1, SILVER), "flash", 0.22, 0.02)
+	sx("bolt_v", g + Vector3(0, h * 0.5 - 0.15, 0.16), 0.38, {"band": "lily", "size": h * 1.1, "raw": 1.4, "erode_from": 0.2, "ang": 0.0, "grow": 1.04})
+	sx("ring", g, 0.45, {"floor": true, "band": "lily", "size": 3.2, "grow": 1.5, "raw": 1.6, "erode_from": 0.1, "spin": 1.5})
 
 ## 床を走る稲妻（かかと落としの着地）：中心から放射状に、床に寝かせた折れ線
 func floor_bolts(p: Vector3, n: int, r: float) -> void:
@@ -676,8 +707,13 @@ func rift(x0: float, x1: float, z: float, n: int) -> void:
 	var d := signf(x1 - x0)
 	var a := Vector3(x0, 0.03, z)
 	var b := Vector3(x1, 0.03, z)
-	bolt([a, a.lerp(b, 0.5), b], 0.07, GOLD[1], 0.55, 0.0, 0.25, true, 2)
-	bolt([a + Vector3(0, 0, 0.15), b + Vector3(0, 0, -0.1)], 0.04, Color8(79, 184, 255), 0.45, 0.03, 0.2, true, 1)
+	if band_tex("rift"):   # 2026-11-12：地割れは手描きの素材（線で描かない約束）。床に寝かせ、左＝割れ始めを x0 に
+		var len := absf(x1 - x0) * 1.15
+		sx("rift", a.lerp(b, 0.5), 0.75, {"floor": true, "band": "gold", "size": 3.2, "aspect": len / 3.2 * 0.55, "grow_x": 1.0 / 0.55, "grow": 1.05,
+			"raw": 2.6, "erode_from": 0.45, "prio": 0, "ang": 0.0 if d > 0 else PI, "spin": 0.0, "fade_in": 0.02})
+	else:
+		bolt([a, a.lerp(b, 0.5), b], 0.07, GOLD[1], 0.55, 0.0, 0.25, true, 2)
+		bolt([a + Vector3(0, 0, 0.15), b + Vector3(0, 0, -0.1)], 0.04, Color8(79, 184, 255), 0.45, 0.03, 0.2, true, 1)
 	for i in 9:
 		var q := a.lerp(b, randf())
 		_spark(q + Vector3(0, 0.05, randf_range(-0.3, 0.3)), Vector3(d * randf_range(-0.5, 1.5), randf_range(4.0, 8.0), randf_range(-0.4, 0.4)), randf_range(0.3, 0.55), 0.03, GOLD[2] if i % 2 else GOLD[1], 0.0)
@@ -729,6 +765,8 @@ func vortex_burst(p: Vector3, r: float) -> void:
 		_spark(p + Vector3(0, randf_range(0.3, 1.3), 0), Vector3(cos(a) * randf_range(6, 11), randf_range(0.5, 3.0), sin(a) * randf_range(3, 6)), randf_range(0.3, 0.55), 0.03, GOLD[1] if i % 2 else GOLD[2], 0.0)
 	_quad(p + Vector3(0, 0.9, 0.2), Vector2(2.6, 2.6), _mat(1, GOLD), "flash", 0.16, 0.0)
 	shockwave(p + Vector3(0, 0.8, 0), 1.5, 0.5, 0.75)
+	sx("ring", p, 0.5, {"floor": true, "band": "gold", "size": r * 1.6, "grow": 1.3, "raw": 1.7, "erode_from": 0.12, "spin": -2.0})
+	sx("burst", p + Vector3(0, 1.0, 0.2), 0.45, {"band": "gold", "size": 3.2, "raw": 1.5, "grow": 1.25, "erode_from": 0.1, "spin": 0.0})
 
 # ---------- リリィのスキル（2026-11-07） ----------
 ## 空から落ちる稲妻（雷陣・天雷）：上から足元へ太い稲妻＋落ちた所の光と床の稲妻と粒。big で太く高く
@@ -743,6 +781,8 @@ func sky_bolt(g: Vector3, delay: float = 0.0, big: bool = false) -> void:
 		m.set_shader_parameter("core_gain", 0.3)
 		_quad(g + Vector3(0, h * 0.4, 0.15), Vector2(1.0, h), m, "flash", 0.18, delay)
 	_quad(g + Vector3(0, 0.2, 0.2), Vector2(1.6 if not big else 3.6, 0.7 if not big else 1.6), _mat(1, SILVER), "flash", 0.16, delay)
+	var bh := 4.6 if not big else 7.0   # 落雷の絵（下端で地面に当たって枝が這う）
+	_later_quad(delay, "bolt_v", g + Vector3(0, bh * 0.47, 0.14), 0.3, {"band": "lily", "size": bh, "raw": 1.25, "erode_from": 0.15, "ang": 0.0, "fade_in": 0.02})
 	for i in (10 if not big else 22):
 		var a := randf() * TAU
 		_spark(g + Vector3(0, 0.1, 0), Vector3(cos(a) * randf_range(2, 6), randf_range(2.0, 6.0), sin(a) * randf_range(1, 3)), randf_range(0.25, 0.45), 0.026, SILVER[0] if i % 2 else SILVER[2], delay)
@@ -784,6 +824,7 @@ func dash_trail(a: Vector3, b: Vector3) -> void:
 	bolt([fa + Vector3(0, 0, 0.12), fb + Vector3(0, 0, -0.1)], 0.035, BOLT_VIOLET, 0.4, 0.03, 0.18, true, 1)
 	var y := Vector3(0, 1.0, 0.12)
 	ribbon([a + y, a.lerp(b, 0.5) + y + Vector3(0, 0.08, 0), b + y], {"w": 0.5, "life": 0.42, "bolts": 1})
+	sx("bolt_h", Vector3((a.x + b.x) * 0.5, 0.03, a.z), 0.5, {"floor": true, "band": "lily", "size": 1.4, "aspect": absf(b.x - a.x) * 1.1 / 1.4, "raw": 1.7, "erode_from": 0.25, "ang": 0.0 if b.x >= a.x else PI, "spin": 0.0})
 	dust(fa.lerp(fb, 0.2), 1.0)
 
 
@@ -795,6 +836,10 @@ const TQ_BANDS := {
 	"white": [[0.0, Color(1, 1, 1, 1)], [0.6, Color(0.85, 0.85, 0.85, 1)], [1.0, Color(0.5, 0.5, 0.5, 0)]],
 	"gold": [[0.0, Color(1, 1, 1, 1)], [0.35, Color(1.0, 0.86, 0.45, 1)], [0.7, Color(1.0, 0.5, 0.12, 0.9)], [1.0, Color(0.6, 0.1, 0.1, 0)]],
 	"smoke": [[0.0, Color(1, 1, 1, 1)], [0.5, Color(0.8, 0.78, 0.85, 0.9)], [1.0, Color(0.5, 0.45, 0.55, 0)]],
+	# 2026-11-12 ランカ（青・白・朱色の花・金）
+	"ranka": [[0.0, Color(0.92, 0.97, 1, 1)], [0.22, Color(0.55, 0.78, 1.0, 1)], [0.55, Color(0.22, 0.45, 1.0, 0.95)], [1.0, Color(0.06, 0.1, 0.55, 0)]],
+	"lily": [[0.0, Color(1, 1, 1, 1)], [0.3, Color(0.86, 0.92, 1.0, 1)], [0.62, Color(0.36, 0.74, 1.0, 0.95)], [1.0, Color(0.32, 0.2, 0.75, 0)]],   # 白銀→蒼→紫（リリィ）
+	"vermilion": [[0.0, Color(1, 0.97, 0.94, 1)], [0.3, Color(1.0, 0.66, 0.52, 1)], [0.65, Color(0.93, 0.29, 0.16, 0.95)], [1.0, Color(0.45, 0.05, 0.05, 0)]],
 }
 var tq_band := {}
 func band(name: String) -> GradientTexture1D:
@@ -817,15 +862,83 @@ var assets_ok := false   # 絵（地区 pck fx1）を読み終えたか
 var ken_tex := {}
 
 func ken(name: String) -> Texture2D:
-	if not ken_tex.has(name):
-		ken_tex[name] = load(KEN + name + ".png")
+	if not ken_tex.has(name):   # res:// で始まる名前はそのパス（2026-11-12：ランカの素材 assets/vfx/ranka/）
+		ken_tex[name] = load(name if name.begins_with("res://") else KEN + name + ".png")
 	return ken_tex[name]
 
 ## 板を出す。o：floor（床に寝かせる）・add（加算）・raw・col・size（m、始め）・grow（終わりの倍率）・rise（m/秒）・spin（ラジアン/秒）・
 ##   fade_in（秒）・prio（描く順。床は −2 でキャラより先＝足元・奥に見える）
-func tex_quad(name: String, pos: Vector3, life: float, o: Dictionary) -> void:
+## キャラ共通の白黒の素材（2026-11-12、Skill game-vfx-juice 12.）。名前＝assets/vfx/shared/<名前>.png、横÷縦は ASPECT
+const SHARED := "res://assets/vfx/shared/"
+const ASPECT := {"pillar": 0.393, "ki_band": 3.923, "band_blade": 5.361, "band_ink": 3.938, "band_smash": 2.909, "flare": 1.166,
+	"rift": 2.212, "bolt_h": 2.674, "bolt_v": 0.664}
+func sx(name: String, pos: Vector3, life: float, o: Dictionary) -> MeshInstance3D:
+	if not o.has("aspect") and ASPECT.has(name):
+		o["aspect"] = ASPECT[name]
+	return tex_quad(SHARED + name + ".png", pos, life, o)
+
+## 帯（斬撃・リボン）の中の模様に使う素材（読み終えていなければ null）
+# ---------- 焼いた連番（大技の締め。tools/bake_ranka_finale.gd → pack_ranka_finale.py。目録 assets/vfx/seq/seq.json） ----------
+## Sprite3D でめくるだけ（自前のシェーダーを使わない＝iPhone で確実）。at＝炸裂の中心。戻り値＝炸裂までの秒（hit_s）
+var seq_meta: Dictionary = {}
+var seqs := []
+func seq(name: String, at: Vector3, scale: float = 1.0) -> float:
+	if seq_meta.is_empty():
+		var m = JSON.parse_string(FileAccess.get_file_as_string("res://assets/vfx/seq/seq.json"))
+		if m is Dictionary:
+			seq_meta = m
+	if legacy or seq_meta.is_empty() or not seq_meta.seq.has(name) or not ResourceLoader.exists(str(seq_meta.seq[name].file)):
+		return 0.0
+	var info: Dictionary = seq_meta.seq[name]
+	var s := Sprite3D.new()
+	s.texture = load(str(info.file))
+	s.hframes = int(seq_meta.cols)
+	s.vframes = int(info.rows)
+	s.pixel_size = scale / float(seq_meta.px_per_m)
+	var cell: Array = seq_meta.cell
+	var ctr: Array = seq_meta.center
+	s.offset = Vector2(float(cell[0]) * 0.5 - float(ctr[0]), float(ctr[1]) - float(cell[1]) * 0.5)   # 中心を at に
+	s.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	s.shaded = false
+	s.transparent = true
+	s.no_depth_test = true
+	s.render_priority = 20
+	s.alpha_cut = SpriteBase3D.ALPHA_CUT_DISABLED
+	s.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
+	s.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	s.position = at + Vector3(0, 0, 0.3)
+	s.modulate = Color(0.8, 0.8, 0.8, 1.0)   # 3D の glow（閾値 0.78）で白く飛ばないよう少し落とす
+	add_child(s)
+	seqs.append({"node": s, "t": 0.0, "n": int(info.frames), "fps": float(seq_meta.fps)})
+	return float(seq_meta.hit_s)
+
+func _update_seqs(delta: float) -> void:
+	for i in range(seqs.size() - 1, -1, -1):
+		var q: Dictionary = seqs[i]
+		q.t += delta
+		var f := int(q.t * q.fps)
+		if f >= q.n or not is_instance_valid(q.node):
+			if is_instance_valid(q.node):
+				q.node.queue_free()
+			seqs.remove_at(i)
+			continue
+		q.node.frame = f
+
+var _later_q := []
+func _later_quad(delay: float, name: String, pos: Vector3, life: float, o: Dictionary) -> void:
+	if delay <= 0.0:
+		sx(name, pos, life, o)
+	else:
+		_later_q.append([delay, name, pos, life, o])
+
+func band_tex(name: String) -> Texture2D:
+	if legacy or not assets_ok or name == "":
+		return null
+	return ken(SHARED + name + ".png")
+
+func tex_quad(name: String, pos: Vector3, life: float, o: Dictionary) -> MeshInstance3D:
 	if legacy or not assets_ok:
-		return
+		return null
 	var mi := MeshInstance3D.new()
 	var floor: bool = o.get("floor", false)
 	if floor:
@@ -853,11 +966,13 @@ func tex_quad(name: String, pos: Vector3, life: float, o: Dictionary) -> void:
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mi.position = pos + (Vector3(0, 0.03, 0) if floor else Vector3.ZERO)
 	var sz: float = float(o.get("size", 1.0))
-	mi.scale = Vector3(sz, sz if not floor else 1.0, sz * (0.6 if floor else 1.0))
+	var asp: float = float(o.get("aspect", 1.0))   # 横÷縦（2026-11-12：帯・柱など正方形でない絵。size は縦の長さ）
+	mi.scale = Vector3(sz * asp, sz if not floor else 1.0, sz * (0.6 if floor else 1.0))
 	add_child(mi)
 	tq.append({"node": mi, "mat": m, "t": 0.0, "life": life * randf_range(0.85, 1.15), "size": sz, "grow": float(o.get("grow", 1.0)),
-		"rise": float(o.get("rise", 0.0)), "spin": float(o.get("spin", 0.0)), "ang": randf() * TAU, "fade_in": float(o.get("fade_in", 0.04)),
-		"floor": floor, "follow": o.get("follow", null)})
+		"rise": float(o.get("rise", 0.0)), "spin": float(o.get("spin", 0.0)), "ang": float(o.get("ang", randf() * TAU)), "fade_in": float(o.get("fade_in", 0.04)),
+		"floor": floor, "follow": o.get("follow", null), "aspect": asp, "grow_x": float(o.get("grow_x", 1.0))})
+	return mi
 
 func _update_tq(delta: float) -> void:
 	for i in range(tq.size() - 1, -1, -1):
@@ -871,7 +986,7 @@ func _update_tq(delta: float) -> void:
 			continue
 		var e := 1.0 - pow(1.0 - k, 2.0)   # 速く広がり、ゆっくり止まる
 		var sz: float = q.size * lerpf(1.0, q.grow, e)
-		q.node.scale = Vector3(sz, sz if not q.floor else 1.0, sz * (0.6 if q.floor else 1.0))
+		q.node.scale = Vector3(sz * float(q.get("aspect", 1.0)) * lerpf(1.0, float(q.get("grow_x", 1.0)), e), sz if not q.floor else 1.0, sz * (0.6 if q.floor else 1.0))
 		q.node.position.y += q.rise * delta * (1.0 - k)
 		if q.follow != null and is_instance_valid(q.follow):
 			q.node.position.x = q.follow.position.x

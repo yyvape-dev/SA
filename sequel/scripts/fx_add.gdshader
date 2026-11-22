@@ -20,6 +20,9 @@ uniform bool billboard = false;
 uniform sampler2D noise : filter_linear, repeat_enable;   // 継ぎ目の無いノイズ（fx.gd が FastNoiseLite で作る）
 uniform float n_amt = 0.0;    // 0＝従来の帯、1＝模様入り
 uniform float seed = 0.0;     // 帯ごとに模様をずらす
+// 2026-11-12：帯の中の模様を白黒の素材で（Skill game-vfx-juice 12.）。右端＝頭が太く明るい素材を、先端（head）に頭が来るよう貼る
+uniform sampler2D band_tex : filter_linear, repeat_disable;
+uniform float b_amt = 0.0;
 
 void vertex() {
 	if (billboard) {
@@ -52,6 +55,13 @@ void fragment() {
 			float dis = smoothstep(1.0 - fade - 0.12, 1.0 - fade + 0.12, nz * 0.85 + 0.15 * (1.0 - v));
 			float edge = dis * (1.0 - smoothstep(1.0 - fade, 1.0 - fade + 0.25, nz)) * step(fade, 0.98);
 			c = mix(c, c * streak * dis + col_core.rgb * edge * a * 0.6, n_amt);
+		}
+		if (b_amt > 0.0) {
+			float tx = clamp(1.0 - behind * tail / 3.2, 0.0, 1.0);          // 先端＝素材の頭（右端）、尾へ向かって左へ
+			float ty = 0.12 + UV.y * 0.76;
+			vec4 bt = texture(band_tex, vec2(tx, ty));
+			float lum = max(bt.r, max(bt.g, bt.b)) * bt.a;
+			c = mix(c, c * (0.15 + 1.9 * lum), b_amt);                         // 中の模様と、ちぎれた縁
 		}
 	} else if (mode == 1) {
 		float r = length(UV - vec2(0.5)) * 2.0;

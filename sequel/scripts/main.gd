@@ -32,6 +32,8 @@ const PLAY_HALF_W := 5.7
 ## 必殺技の寄り（battle.cam_zoom＝1 の時）：ラナの胸の高さへ近づく
 const ULT_OFS := Vector3(0.0, 1.5, 2.7)
 const ULT_LOOK := Vector3(0, 1.25, 0)
+var ult_dist := 3.8    # 必殺技の寄りの距離（m）。2026-11-12 ユーザー選択「中」（2.7 では絵の粗さが目立った）
+var ult_drop := 0.3    # 画面の中心を顔からどれだけ下げるか（m）
 const Cutin := preload("res://scripts/ult_cutin.gd")
 const Fx2D := preload("res://scripts/fx2d.gd")
 var fx2d                 # 2D のエフェクトの層（fx2d.gd、specs/vfx_overhaul.md）
@@ -46,6 +48,9 @@ var perf_t0 := 0
 var perf_last_fx := ""
 var perf_label: Label    # ?perf=1 の画面の隅の表示（iPhone で読める大きさ）
 var lily_cutin           # リリィの必殺技のカットイン（仲間の絵を読み終えてから作る）
+var ranka_cutin          # ランカの必殺技 天照のカットイン（2026-11-12）
+const RankaAlly := preload("res://scripts/ranka_ally.gd")
+signal ranka_loaded(ok: bool)
 var cutin                # 遊ぶカメラで、帯の真ん中（z=0）に見える左右の半分（横持ち 19.5:9、m）
 const CAM_FOV := 36.0
 ## カメラと奥行きの比較（specs/camera_depth.md。採用はユーザー判定）：環境変数 CAMV または URL ?cam= に A・B・C
@@ -321,6 +326,47 @@ func _load_ally() -> void:
 	lily_cutin.streak_col = Color(0.75, 0.9, 1.0, 0.35)
 	lily_cutin.flash_col = Color(0.88, 0.95, 1.0)
 	add_child(lily_cutin)
+	_load_ranka()   # 待たない（リリィの準備を遅らせない）。読み終えたら ranka_loaded
+
+## ランカを出すか（2026-11-12、ユーザー決定「同時参戦（3人）」）。?ranka=0 で出さない。撮影・比較の起動（CAPTURE_*）では
+## 前の画と変わらないよう出さない（RANKA=1 で出す）。T5/T6 の演習（sa2_t2_playable）は ranka_wanted() を上書きする
+func ranka_wanted() -> bool:
+	if _q("ranka=0") or OS.get_environment("RANKA") == "0":
+		return false
+	if OS.get_environment("RANKA") == "1":
+		return true
+	for k in ["CAPTURE_PLAY", "CAPTURE_FX", "CAPTURE_GUIDE", "CAPTURE_DUNGEON", "CAPTURE_LINEUP", "CAPTURE_REUSE"]:
+		if OS.has_environment(k):
+			return false
+	return true
+
+## 仲間ランカ：絵（地区 pck「al2」）を読み終えたら出す（リリィの後）
+func _load_ranka() -> void:
+	if not ranka_wanted():
+		return
+	if OS.has_feature("web"):
+		if not await district.ensure("al2"):
+			push_warning("仲間の絵 al2 を読めない: " + district.last_error)
+			ranka_loaded.emit(false)
+			return
+	var d = JSON.parse_string(FileAccess.get_file_as_string("res://assets/ranka/ranka.json"))
+	if not (d is Dictionary):
+		ranka_loaded.emit(false)
+		return
+	var a := RankaAlly.new()
+	a.setup(battle, d)
+	a.position = player.position + Vector3(-player.face * 2.3, 0, -0.75)
+	battle.add_child(a)
+	_boot("ranka_loaded")
+	battle.ranka = a
+	ranka_cutin = Cutin.new()   # 立ち絵 assets/ranka/cutin.webp（al2）、藍の帯・朱の線
+	ranka_cutin.tex_path = "res://assets/ranka/cutin.webp"
+	ranka_cutin.band_col = Color(0.03, 0.04, 0.14, 0.86)
+	ranka_cutin.line_col = Color(0.93, 0.33, 0.18, 0.95)
+	ranka_cutin.streak_col = Color(1.0, 0.85, 0.55, 0.38)
+	ranka_cutin.flash_col = Color(1.0, 0.98, 0.94)
+	add_child(ranka_cutin)
+	ranka_loaded.emit(true)
 
 func _check_town_edge() -> void:
 	if town != "back" or player == null or town_floor_busy or player.locked or dungeon != null:
@@ -378,6 +424,8 @@ func change_town_floor(enter_hall: bool) -> void:
 		bt_tex.erase("gamehall_approved_16m_preview")
 	if is_instance_valid(battle.ally):
 		battle.ally.position = player.position + Vector3(-1.4, 0, 0.7)
+	if is_instance_valid(battle.ranka):
+		battle.ranka.position = player.position + Vector3(-2.3, 0, -0.75)
 	battle.auto_spawn = false
 	battle.glints = glints
 	_place_cam(true)
@@ -569,9 +617,13 @@ func _place_cam(snap: bool, delta: float = 0.0) -> void:
 	if z > 0.0:   # 必殺技：ラナへ寄る（なめらかに）
 		var zz := z * z * (3.0 - 2.0 * z)
 		var fo: Node3D = battle.cam_focus if battle.cam_focus else player   # リリィの必殺技ではリリィへ寄る
-		var near := Vector3(fo.position.x + fo.face * 0.6, 0, fo.position.z) + ULT_OFS
+		# 2026-11-12：キャラごとの顔の位置へ寄る（背の高さ・向きの違いで顔が切れていた）。顔を画面のやや上に
+		var fp: Vector3 = fo.zoom_face() if fo.has_method("zoom_face") else fo.position + Vector3(0, 1.6, 0)
+		var look := Vector3(fp.x, fp.y - ult_drop, fp.z)
+		var near := look + Vector3(0, 0.22, ult_dist)
 		cam.position = want.lerp(near, zz)
-		cam.look_at(Vector3(cam.position.x, 0, fo.position.z * zz) + play_look.lerp(ULT_LOOK, zz), Vector3.UP)
+		var far_look := Vector3(cam.position.x, 0, 0) + play_look
+		cam.look_at(far_look.lerp(look, zz), Vector3.UP)
 	else:
 		cam.position = want if snap else cam.position.lerp(want, minf(1.0, delta * 5.0))
 		cam.look_at(Vector3(cam.position.x, 0, 0) + play_look, Vector3.UP)
@@ -1519,7 +1571,7 @@ func _capture_lily_skill(dir: String) -> void:
 	a.set_physics_process(true)
 	player.visible = true
 	player.set_physics_process(true)
-	var at := {"rush": [0.12, 0.25, 0.45], "barrage": [0.6, 1.0, 1.5, 1.7], "storm": [0.47, 0.8, 1.18], "ult": [0.15, 0.75, 1.42, 2.0, 2.45, 2.7]}
+	var at := {"rush": [0.12, 0.25, 0.45], "barrage": [0.5, 0.9, 1.7, 1.85, 2.0], "storm": [0.47, 0.8, 1.18], "ult": [0.15, 0.75, 1.42, 2.0, 2.45, 2.7]}
 	var spots := {"rush": [[7.0, 0.3], [8.0, -0.4]], "barrage": [[1.3, 0.0], [1.9, 0.4]], "storm": [[2.4, 0.9], [-2.6, -0.3], [1.6, -1.4], [-1.5, 1.2], [3.6, 0.0]],
 		"ult": [[4.0, 0.2], [2.4, -1.0], [5.6, 1.0]]}
 	for id in ["rush", "barrage", "storm", "ult"]:

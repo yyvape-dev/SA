@@ -25,6 +25,25 @@ const ALLY_ULT_GAIN := 1.2
 var manual_ally: Node3D
 var ally_ult := 0.0
 var ally_ult_gain := true
+## ランカ（2026-11-12、ユーザー決定「同時参戦（3人）」）：2人目の仲間。ゲージは仲間ごと（ranka_ult）。絵を読み終えるまで null
+var ranka: Node3D = null
+var ranka_ult := 0.0
+var ranka_ult_gain := true
+
+## 自動で動いている仲間（リリィ・ランカ）。手動で操作中の仲間は battle.player 側なので入らない
+func ally_list() -> Array:
+	var out := []
+	for a in [ally, ranka]:
+		if a != null and is_instance_valid(a) and a != player:
+			out.append(a)
+	return out
+
+## 誰かが必殺技の演出中か（ラナ・自動の仲間・手動の仲間）。who 自身は数えない
+func ult_busy(who: Node3D = null) -> bool:
+	for a in [player, ally, ranka, manual_ally]:
+		if a != null and a != who and is_instance_valid(a) and str(a.get("state")) == "ult":
+			return true
+	return false
 var cam_focus: Node3D = null
 var fx: Node3D
 var fx2d                  # 2D のエフェクトの層（fx2d.gd）。無ければ従来の fx.hit
@@ -310,7 +329,13 @@ func _attack_from(p: Node3D, spec: Dictionary, mul: float) -> int:
 			var hp_pos: Vector3 = e.position + Vector3(0, e.height() * 0.55, 0)
 			if fx2d and fx2d.enabled and not fx.legacy:   # 当たり：REEBO の火花＋Kenney の細い火花（2D の層で光る）
 				if hits < 4:
-					fx2d.hit(hp_pos, edir, spec.strong, "silver" if p == ally else "blue")
+					fx2d.hit(hp_pos, edir, spec.strong, str(p.get("hit_pal")) if p.get("hit_pal") != null else ("silver" if p == ally else "blue"))
+					if p != ranka and (p == player or p == ally or p == manual_ally):   # 2026-11-12：当たりの閃光（白黒の素材。ランカは自分で出す）
+						var lily: bool = p == ally or str(p.get("actor_id")) == "lily"
+						fx.sx("plasma" if lily else "flare", hp_pos + Vector3(0, 0, 0.22), 0.2 if not spec.strong else 0.28,
+							{"band": "lily" if lily else "ranka", "size": (0.9 if not spec.strong else 1.4) * (1.0 if hits < 2 else 0.7), "raw": 1.3, "grow": 1.3, "spin": randf_range(-3.0, 3.0), "erode_from": 0.1})
+						if spec.strong and hits == 0:
+							fx.sx("burst", hp_pos + Vector3(0, 0, 0.18), 0.35, {"band": "lily" if lily else "ranka", "size": 2.0, "raw": 1.1, "grow": 1.3, "erode_from": 0.1})
 			else:
 				fx.hit(hp_pos, edir, spec.strong, hits < 4)
 			if spec.get("zap", false):   # 当たった所で稲妻が弾ける（リリィ）
@@ -322,7 +347,7 @@ func _attack_from(p: Node3D, spec: Dictionary, mul: float) -> int:
 		if p == player and p != manual_ally and spec.has("slash"):
 			combat_audio.play_cue("swing")
 		if hits > 0:
-			combat_audio.play_cue("heavy" if spec.strong or p == ally or p == manual_ally else "hit")
+			combat_audio.play_cue("heavy" if spec.strong or p == ally or p == ranka or p == manual_ally else "hit")
 	if spec.has("slash"):
 		fx.slash(p.position, dir, spec.slash)
 		if fx2d and fx2d.enabled and not fx.legacy and p == player:   # 振りの弧に REEBO の三日月を重ねる（光る縁）
@@ -339,8 +364,10 @@ func _attack_from(p: Node3D, spec: Dictionary, mul: float) -> int:
 		fx.shockwave(p.position + Vector3(dir * minf(spec.r, 2.0) * 0.5, 0.9, 0), 0.9 + mini(hits, 5) * 0.12)
 	if hits > 0 and p == player and ult_gain:
 		ult = minf(ULT_MAX, ult + hits * 1.5)
-	if hits > 0 and (p == ally or p == manual_ally) and ally_ult_gain:
-		ally_ult = minf(ULT_MAX, ally_ult + hits * ALLY_ULT_GAIN)
+	if hits > 0 and (p == ally or p == ranka or p == manual_ally):   # 仲間ごとのゲージ（ult_key：リリィ ally_ult・ランカ ranka_ult）
+		var key: String = str(p.get("ult_key")) if p.get("ult_key") != null else "ally_ult"
+		if bool(get(key + "_gain")):
+			set(key, minf(ULT_MAX, float(get(key)) + hits * ALLY_ULT_GAIN))
 	if hits > 0:
 		if fx.legacy:   # 前の値（比較用）
 			freeze = maxf(freeze, 0.045 + mini(hits, 10) * 0.006 + (0.03 if spec.strong else 0.0) + float(spec.get("freeze_add", 0.0)))
@@ -398,8 +425,9 @@ func player_skill(spec: Dictionary, p: Node3D) -> void:
 			if int(spec.n) == 0:
 				fx.vortex(p, 3.2, 1.25)
 				# 床の渦：3D の板（キャラより先に描く＝足元・奥に見える）。Kenney の渦巻き 2 枚を逆に回す
-				fx.tex_quad("twirl_02", p.position, 1.3, {"floor": true, "add": true, "col": Color(1.0, 0.72, 0.28), "raw": 1.3, "size": 6.4, "grow": 0.55, "spin": -7.0, "follow": p})
-				fx.tex_quad("twirl_03", p.position, 1.2, {"floor": true, "add": true, "col": Color(1.0, 0.85, 0.5), "raw": 1.0, "size": 4.6, "grow": 0.6, "spin": 5.0, "follow": p})
+				# 2026-11-12：渦の素材（GPT、白黒）を2枚、逆に回しながら縮める（Kenney の渦巻きから差し替え）
+				fx.sx("vortex", p.position, 1.3, {"floor": true, "band": "gold", "raw": 1.6, "size": 7.0, "grow": 0.5, "spin": -6.0, "follow": p, "erode_from": 0.55})
+				fx.sx("vortex", p.position, 1.2, {"floor": true, "band": "gold", "raw": 1.2, "size": 4.8, "grow": 0.55, "spin": 4.5, "follow": p, "erode_from": 0.5})
 		"vortex_end":
 			fx.vortex_burst(p.position, 3.4)
 			if fx2d and not fx.legacy:

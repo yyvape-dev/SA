@@ -341,6 +341,8 @@ func _finish() -> void:
 	print("スキルを使った回数：", main.player.skill_uses, "  必殺技：", ult_uses)
 	if main.battle.ally:
 		print("リリィの技の回数：", main.battle.ally.sk_used)
+	if main.battle.ranka:
+		print("ランカの技の回数：", main.battle.ranka.sk_used)
 	print("DUNGEON DONE")
 	await get_tree().create_timer(0.5).timeout
 	get_tree().quit()

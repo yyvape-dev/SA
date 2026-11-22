@@ -5,8 +5,14 @@
 - 正本：ブランチの `sequel/docs/sa2_ranka_handoff_20261112.md`。プレビュー：https://yyvape-dev.github.io/SA/previews/sa2-ranka/?mode=ranka（?mode=rana・?mode=lily）
 - 済：ランカ（3人同時・自己操作・技・天照）、大技の締めを焼いた連番に（3人）、締めは当たる所、リリィ雷連打の強化、必殺技の寄り（顔へ・中の深さ・ラナ4B・リリィ2B・溜め）、ラナの点滅を止めた。
 - 未決：ランカの背・威力・合流時期、main へのマージ時期、iPhone 実機確認。
+## 2026-11-12 SA2 ラナ・リリィの大技の締めを焼いた連番に（ブランチ feat/sa2-ranka-20261112）
+- ラナ必殺・リリィ必殺・雷陣の締めを、ランカと同じ焼きの型（溜め→炸裂→散り→暗い土煙）で色と散る物だけ変えた。詳細は `sequel/docs/sa2_ranka_handoff_20261112.md`。
+- 確認：https://yyvape-dev.github.io/SA/previews/sa2-ranka/?mode=rana ／ ?mode=lily
 
 # 03 引き継ぎの追記（2026-10-31 10:30 以降）
+
+## 2026-11-12（Claude）続編：ランカの導入
+- ブランチ `feat/sa2-ranka-20261112`（T6 先頭から。main は未変更）。3人同時参戦の自動の仲間、イベント用の自己操作 `?mode=ranka`、通常攻撃4種・指弾・円環・星震・天照、会話用の立ち絵。詳しくは `sequel/docs/sa2_ranka_handoff_20261112.md`。
 
 ## 2026-11-08（Claude Code）続編：裏の町 v2 の 26章
 - 飲み屋（屋台風の小屋）の発注用の下絵 `sequel/art/guide_bt/w_bar_shack_low.png` を1枚だけ書き出した（1536×1024・10.1KB・204.8px/m）。3層の切り分けの線は spec の 26 章。発注票はまだ。

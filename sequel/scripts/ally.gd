@@ -37,6 +37,13 @@ const TRAIL_K := 1.3               # 軌跡の長さ（通り道の 1.3 倍）
 const CHARGE_T := 0.12             # 溜め（つま先に蒼い光が集まる）
 
 var normal_attack_scale := 1.0 # Manual control may accelerate normals; AI and skills retain their timing.
+## 仲間ごとに変える所（2026-11-12、ランカの追加で共通化。リリィの値は従来どおり）：絵の置き場所・必殺技のゲージ（battle の変数名）・
+## ラナについて歩く位置・名前（操作するときの HUD）
+var asset_dir := "res://assets/lily/"
+var ult_key := "ally_ult"
+var follow_ofs := Vector3(-1.4, 0, 0.7)
+var actor_id := "lily"
+var display_name := "リリィ"
 var world               # battle.gd
 var data := {}
 var pages := {}
@@ -103,6 +110,10 @@ func set_height(h: float) -> void:
 	px = h / float(data.body_px)
 	_show(clip, 0)
 
+## 必殺技の寄りで画面の中心に置く点（顔。main._place_cam）
+func zoom_face() -> Vector3:
+	return position + Vector3(face * 0.15, height_m * 0.91, 0)
+
 ## 敵の攻撃が当たった（enemy.gd から）
 func can_be_hit() -> bool:
 	return inv <= 0.0 and data.clips.has("hit") and state != "skill" and state != "ult"
@@ -122,7 +133,7 @@ func height() -> float:
 
 func _tex(p: int) -> Texture2D:
 	if not pages.has(p):
-		pages[p] = load("res://assets/lily/" + str(data.pages[p]))
+		pages[p] = load(asset_dir + str(data.pages[p]))
 	return pages[p]
 
 func _show(c: String, i: int) -> void:
@@ -197,7 +208,7 @@ func _physics_process(delta: float) -> void:
 	var pl: Node3D = world.player
 	# ラナから離れすぎたら（部屋の移動など）すぐそばへ
 	if absf(pl.position.x - position.x) > 9.0:
-		position = pl.position + Vector3(-pl.face * 1.4, 0, 0.6)
+		position = pl.position + Vector3(pl.face * follow_ofs.x, 0, follow_ofs.z - 0.1)
 		state = "move"
 	match state:
 		"move":
@@ -208,7 +219,7 @@ func _physics_process(delta: float) -> void:
 				var side := 1.0 if position.x >= e.position.x else -1.0
 				goal = Vector3(e.position.x + side * ATK_X * 0.9, 0, e.position.z)
 			else:
-				goal = pl.position + Vector3(-pl.face * 1.4, 0, 0.7)
+				goal = pl.position + Vector3(pl.face * follow_ofs.x, 0, follow_ofs.z)
 			var d := goal - position
 			var moving := absf(d.x) > 0.12 or absf(d.z) > 0.08
 			var run := Vector2(d.x, d.z).length() > RUN_D
@@ -276,13 +287,14 @@ func _physics_process(delta: float) -> void:
 					_hit_new(c, int(hits[hit_i]), hit_i, last_hit)
 				hit_i += 1
 			if i >= c.frames.size():
-				state = "move"
-				clip = "idle"
-				mv = ""
-				t = 0.0
-				cd = randf_range(0.2, 0.45)   # 次の攻撃まで（前 0.5〜1.1）
-				_show("idle", 0)
-			else:
+				if not _after_atk():   # 仲間ごとのつなぎ（ランカ：連撃の続き・構えへの戻り）
+					state = "move"
+					clip = "idle"
+					mv = ""
+					t = 0.0
+					cd = randf_range(0.2, 0.45)   # 次の攻撃まで（前 0.5〜1.1）
+					_show("idle", 0)
+			elif state == "atk":
 				_show(clip, i)
 	mat.set_shader_parameter("tint", Color(1, 1, 1, 1))
 	world.apply_light(sprite, mat, refl, position)
@@ -430,7 +442,7 @@ func _pick_skill(e: Node3D) -> bool:
 		return false
 	var pl: Node3D = world.player
 	# 必殺技：満タン・誰も演出中でない
-	if world.ally_ult >= world.ULT_COST and not world.cine and pl.state != "ult":
+	if float(world.get(ult_key)) >= world.ULT_COST and not world.cine and not world.ult_busy(self):
 		var tg := _ult_target()
 		if tg:
 			_start_ult(tg)
@@ -502,8 +514,27 @@ func _skill_step(dt: float) -> bool:
 		_show(sk.clip, int(f))
 	return false
 
+## 雷連打の1発の見た目（2026-11-12 ユーザー指摘「ラッシュが地味」）：拳の先から前へ伸びる気の帯＋先の閃光、蹴りは斜めの稲妻、2発に1回は残像
+func _rush_fx(tip: Vector3, k: float, n: int) -> void:
+	var fx = world.fx
+	var ang := 0.0 if face > 0 else PI
+	fx.sx("ki_band", tip + Vector3(face * 0.45 * k, 0, 0.02), 0.2, {"band": "lily", "size": 0.42 * k, "raw": 1.6, "grow_x": 1.6, "ang": ang + randf_range(-0.12, 0.12), "erode_from": 0.15})
+	fx.sx("flare", tip + Vector3(face * 0.6 * k, 0, 0.05), 0.15, {"band": "lily", "size": 0.75 * k, "raw": 1.25, "grow": 1.5})
+	if true:
+		fx.sx("bolt_h", tip + Vector3(face * 0.5, 0, 0.04), 0.2, {"band": "lily", "size": 0.4 * k, "raw": 1.3, "ang": ang + face * randf_range(0.35, 0.7), "grow_x": 1.3})
+	if n % 2 == 1:
+		_ghost()
+	if n % 4 == 3:
+		fx.sx("ring", position + Vector3(face * 1.3, 0, 0.1), 0.3, {"floor": true, "band": "lily", "size": 1.6, "raw": 1.0, "grow": 1.5})
+
 ## 当たり1回：見た目を出してから battle に判定させる
 func _skill_hit(spec: Dictionary) -> void:
+	if String(spec.get("fx", "")) == "seq":   # 焼いた連番を出すだけ（当たりなし）
+		# 2026-11-12 ユーザー指摘：締めは当たる所に出す。at＝target（狙った敵）／self、ofs＝[前へ m, 高さ m]
+		var base: Vector3 = target.position if spec.get("at") == "target" and _alive(target) else position
+		var o: Array = spec.get("ofs", [0.0, 1.3])
+		world.fx.seq(String(spec.seq), Vector3(base.x + face * float(o[0]), position.y + float(o[1]), base.z + 0.1), float(spec.get("s", 1.0)))
+		return
 	var hs := spec.duplicate()
 	hs.dmg = DMG * float(spec.k)
 	hs.zap = true
@@ -515,10 +546,16 @@ func _skill_hit(spec: Dictionary) -> void:
 			var a := position + Vector3(face * 0.35, y, 0.12)
 			var b := position + Vector3(face * (1.6 + randf_range(0.0, 0.3)), y + randf_range(-0.08, 0.08), 0.12)
 			fx.ribbon([a, a.lerp(b, 0.5), b], {"w": 0.3, "life": 0.22, "bolts": 0})
+			_rush_fx(b, 1.0, int(spec.get("n", 0)))
 		"kick":
 			fx.ribbon(_trail(c, 19), {"w": 0.45, "life": 0.3, "bolts": 1})
+			_rush_fx(position + Vector3(face * 1.7, 1.45, 0.12), 1.5, int(spec.get("n", 0)))
 		"kick_end":
 			fx.ribbon(_trail(c, 19), {"w": 0.75, "life": 0.5, "bolts": 3})
+			var kp := position + Vector3(face * 1.6, 1.3, 0.14)
+			fx.sx("bolt_v", kp + Vector3(0, 0.9, 0), 0.4, {"band": "lily", "size": 3.2, "raw": 1.4, "grow": 1.15, "ang": 0.0, "erode_from": 0.2})
+			fx.sx("burst", kp, 0.42, {"band": "lily", "size": 2.6, "raw": 1.2, "grow": 1.35, "erode_from": 0.1})
+			fx.sx("ring", position + Vector3(face * 1.6, 0, 0.1), 0.5, {"floor": true, "band": "lily", "size": 3.4, "raw": 1.2, "grow": 1.6})
 			fx.sky_bolt(position + Vector3(face * 1.6, 0, 0), 0.0)
 			world.shake = maxf(world.shake, 10.0)
 		"rush":
@@ -542,9 +579,10 @@ func _skill_hit(spec: Dictionary) -> void:
 				fx.sky_bolt(position + Vector3(cos(a2) * randf_range(1.5, 4.0), 0, sin(a2) * 2.2), randf_range(0.0, 0.06))
 			world.shake = maxf(world.shake, 7.0)
 		"storm_end":
-			fx.storm_ring(position, float(spec.r))
-			world.chroma_hit(0.8)
-			fx.floor_bolts(position, 14, float(spec.r))
+			if fx.seqs.is_empty():   # 焼いた連番が無いとき（読み込み前）だけ前の見た目
+				fx.storm_ring(position, float(spec.r))
+				fx.floor_bolts(position, 14, float(spec.r))
+			world.chroma_hit(0.35)
 			world.shake = maxf(world.shake, 16.0)
 		"ult_hit":
 			hs.only = target if _alive(target) else null
@@ -561,10 +599,11 @@ func _skill_hit(spec: Dictionary) -> void:
 			hs.only = target if _alive(target) else null
 			var g2: Vector3 = (target.position if _alive(target) else position + Vector3(face * 1.0, 0, 0)) + Vector3(0, 0, 0.1)
 			# The damage is locked to one target: avoid the storm's broad radial language here.
-			fx.focused_strike(g2)
-			world.chroma_hit(0.55)
-			if world.fx2d and not fx.legacy:
-				world.fx2d.target_hit(g2 + Vector3(0, 1.15, 0))
+			if fx.seqs.is_empty():
+				fx.focused_strike(g2)
+				if world.fx2d and not fx.legacy:
+					world.fx2d.target_hit(g2 + Vector3(0, 1.15, 0))
+			world.chroma_hit(0.35)
 			world.shake = maxf(world.shake, 24.0)
 	var nh: int = world.ally_attack(self, hs)
 	if OS.has_environment("LSKILL_LOG"):
@@ -585,8 +624,8 @@ func _ult_target() -> Node3D:
 	return best
 
 func _start_ult(e: Node3D) -> void:
-	world.ally_ult = maxf(0.0, world.ally_ult - world.ULT_COST)
-	world.ally_ult_gain = false
+	world.set(ult_key, maxf(0.0, float(world.get(ult_key)) - world.ULT_COST))
+	world.set(ult_key + "_gain", false)
 	sk_id = "ult"
 	sk = sk_tab["ult"]
 	sk_used["ult"] = int(sk_used.get("ult", 0)) + 1
@@ -610,7 +649,9 @@ func _ult_process(delta: float) -> void:
 		world.cam_zoom = minf(1.0, ult_t / ULT_CUT.zoom)
 		if ult_t - delta < ULT_CUT.cut_start and ult_t >= ULT_CUT.cut_start and world.main and world.main.lily_cutin:
 			world.main.lily_cutin.play()
-		_show("atk_jabkick", 13)   # 構え
+		_show("atk_jabkick", 12)   # 2026-11-12 ユーザー選択（候補 2B）：寄りの間は拳を前に構える
+		if ult_t - delta <= 0.0:
+			world.fx.gather(zoom_face() + Vector3(0, -0.5, 0), "lily", Color(0.6, 0.85, 1.0), 1.0)
 		return
 	if not ult_jumped:   # 狙った敵の横へ瞬間移動（元の場所と着いた所に蒼い光）
 		ult_jumped = true
@@ -633,7 +674,7 @@ func _ult_process(delta: float) -> void:
 		_end_ult()
 
 func _end_ult() -> void:
-	world.ally_ult_gain = true
+	world.set(ult_key + "_gain", true)
 	world.cine = false
 	world.cam_zoom = 0.0
 	world.cam_focus = null
@@ -643,6 +684,21 @@ func _end_ult() -> void:
 	t = 0.0
 	cd = 0.4
 	_show("idle", 0)
+
+## 攻撃の動画が終わったとき。true を返すと続きを自分で始めた（state はそのまま）。リリィは何もしない
+func _after_atk() -> bool:
+	return false
+
+## 手動操作（イベントの主人公格）の通常攻撃：次に出す clip。リリィは 5 本を順に
+func manual_next(index: int) -> String:
+	return PATTERNS[index % PATTERNS.size()]
+
+## スキル枠の並び（タッチの3枠）と、待ちを全部明けた表
+func slot_ids() -> Array:
+	return ["rush", "barrage", "storm"]
+
+func fresh_cd() -> Dictionary:
+	return {"rush": 0.0, "barrage": 0.0, "storm": 0.0}
 
 ## 撮影用：決まった技を出させる（id＝rush・barrage・storm・ult）
 func force_skill(id: String, e: Node3D) -> void:

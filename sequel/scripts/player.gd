@@ -248,11 +248,32 @@ func _skill_event(spec: Dictionary) -> void:
 const ULT_T := {"zoom": 0.3, "cut_start": 0.3, "cut_end": 1.35, "end": 2.45}
 const ULT_HITS := [1.42, 1.52, 1.62, 1.72, 1.82, 1.92, 2.02]
 const ULT_FINAL := 2.18
+var ult_pt := Vector3.ZERO
+
+## 必殺技の寄りで画面の中心に置く点（顔。main._place_cam）
+func zoom_face() -> Vector3:
+	return position + Vector3(face * 0.15, HEIGHT_M * 0.92, 0)
+
+## 必殺技の締めの炸裂の位置：前 4.5m 以内のいちばん近い敵の胸、いなければ剣先
+func _ult_point() -> Vector3:
+	var best: Node3D = null
+	var bd := 4.5
+	for e in world.enemies:
+		if e.state == "dying":
+			continue
+		var dx: float = (e.position.x - position.x) * face
+		if dx > -0.3 and dx < bd and absf(e.position.z - position.z) < 2.0:
+			bd = dx
+			best = e
+	if best:
+		return Vector3(best.position.x, position.y + 1.1, best.position.z)
+	return position + Vector3(face * 1.9, 1.1, 0)
 var ult_i := 0
+var ult_seq := false
 var ult_t := 0.0
 
 func can_use_ult() -> bool:
-	if world.cine or (world.ally and world.ally.state == "ult"):   # リリィの必殺技の最中は出さない
+	if world.cine or world.ult_busy(self):   # 仲間（リリィ・ランカ）の必殺技の最中は出さない
 		return false
 	return not locked and world.ult >= world.ULT_COST and (state == "move" or (state == "atk" and tab.has(clip) and t >= float(tab[clip].cancel)))
 
@@ -266,6 +287,7 @@ func use_ult() -> bool:
 	state = "ult"
 	ult_t = 0.0
 	ult_i = 0
+	ult_seq = false
 	root_prev = 0.0
 	queued = false
 	queued_hold = false
@@ -283,7 +305,9 @@ func _ult_process(delta: float) -> void:
 		world.cam_zoom = minf(1.0, ult_t / zt)
 		if ult_t - delta < ULT_T.cut_start and ult_t >= ULT_T.cut_start and world.main and world.main.cutin:
 			world.main.cutin.play()   # 寄りきってから立ち絵が差し込む
-		_show_frame("idle", 0)
+		_show_frame("flurry", 21)   # 2026-11-12 ユーザー選択（候補 4B）：寄りの間は剣を振る前の構え
+		if ult_t - delta <= 0.0:
+			world.fx.gather(zoom_face() + Vector3(0, -0.5, 0), "gold", Color(1.0, 0.8, 0.35), 1.0)
 		return
 	if ult_t - delta < ULT_T.cut_end and world.combat_audio != null:
 		world.combat_audio.play_cue("ult_release")
@@ -302,6 +326,10 @@ func _ult_process(delta: float) -> void:
 			fx.rift(position.x, position.x + 7.0 * (1 if ult_i % 4 == 0 else -1), position.z, 1)
 		world.shake = maxf(world.shake, 8.0)
 		ult_i += 1
+	if not ult_seq and ult_t >= ULT_FINAL - 0.25:   # 2026-11-12：締めは焼いた連番（炸裂の 0.25 秒前から）
+		ult_seq = true
+		ult_pt = _ult_point()   # 2026-11-12 ユーザー指摘：締めは自分中心でなく当たる所（前の敵／剣先）
+		fx.seq("rana_ult", ult_pt, 0.6)
 	if ult_i == ULT_HITS.size() and ult_t >= ULT_FINAL:
 		ult_i += 1
 		var big: Dictionary = SL_BIG.duplicate()
@@ -309,11 +337,12 @@ func _ult_process(delta: float) -> void:
 		big.w = float(big.w) * 1.5
 		big.pal = world.GOLD_PAL
 		world._attack_from(self, {"side": 0, "shape": "both", "r": 8.0, "lane": 4.0, "dmg": 18.0 * 4.0, "strong": true, "kb": 3.0, "freeze_add": 0.2, "slash": big}, world.atk_mul)
-		fx.vortex_burst(position, 6.0)
-		fx.shockwave(position + Vector3(0, 1.0, 0), 2.2, 0.6, 0.9)
-		world.chroma_hit(1.0)
-		if world.fx2d and not fx.legacy:
-			world.fx2d.big(position + Vector3(0, 1.2, 0), world.fx2d.GOLD, fx, position)
+		if fx.seqs.is_empty():   # 焼いた連番が無いとき（読み込み前）だけ前の見た目
+			fx.vortex_burst(position, 6.0)
+			if world.fx2d and not fx.legacy:
+				world.fx2d.big(position + Vector3(0, 1.2, 0), world.fx2d.GOLD, fx, position)
+		fx.shockwave(ult_pt if ult_seq else position + Vector3(0, 1.0, 0), 2.2, 0.6, 0.9)
+		world.chroma_hit(0.35)
 		world.shake = maxf(world.shake, 22.0)
 		if world.main and world.main.cutin:
 			world.main.cutin.flash_white()
@@ -420,7 +449,7 @@ func _physics_process(delta: float) -> void:
 		mv = Vector2.ZERO
 	flash = maxf(0.0, flash - delta)
 	_update_ghosts(delta)
-	var blink := inv > 0.0 and state != "down" and int(Time.get_ticks_msec() / 42) % 2 == 0
+	var blink := inv > 0.0 and state != "down" and state != "ult" and int(Time.get_ticks_msec() / 42) % 2 == 0
 	mat.set_shader_parameter("flash", Color(1.0, 0.25, 0.2, 0.7 if flash > 0.0 else 0.0))
 	for id in skill_cd:   # 待ちは止め（ヒットストップ）中も進める
 		if float(skill_cd[id]) > 0.0:

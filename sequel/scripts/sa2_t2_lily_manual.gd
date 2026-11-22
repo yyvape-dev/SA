@@ -8,6 +8,9 @@ signal attack_started(clip: String)
 const RANA := preload("res://scripts/player.gd")
 const NORMAL_SPEED: float = RANA.ATK_SPD.atkA
 const WALK_SPEED := 4.0
+const RUN_SPEED := 6.2      # 2026-11-12：スティックを強く倒す（0.9 以上）か Shift で走る（ラナの player.gd と同じ決まり・速さ）
+const RUN_STICK := 0.9
+var move_clip := "idle"     # いま流している移動の絵（idle・walk・run。確認用）
 const DEPTH_FACTOR := 0.75
 const DODGE_TIME := 0.24
 const DODGE_DISTANCE := 3.5
@@ -39,6 +42,8 @@ var attack_count := 0
 
 func setup(lily, combat) -> void:
     actor = lily
+    if "manual" in actor:   # ランカ：手動のときは連撃を自分で続けない（押した分だけ）
+        actor.manual = true
     battle = combat
     actor.set_physics_process(false)
     actor.state = "move"
@@ -67,7 +72,7 @@ func attack_press() -> void:
     var e = actor._nearest()
     if e == null:
         return
-    var clip: String = ATTACKS[attack_index % ATTACKS.size()]
+    var clip: String = actor.manual_next(attack_index) # 2026-11-12: per-actor order (Lily: ATTACKS, Ranka: c1→c2→c3→palm)
     attack_index += 1
     if not actor.data.clips.has(clip):
         return
@@ -87,8 +92,11 @@ func use_skill(id: String) -> bool:
     actor.force_skill(id, foe)
     return true
 
+func ult_value() -> float:
+    return float(battle.get(actor.ult_key)) if actor != null else 0.0
+
 func use_ult() -> void:
-    if locked or not combat_enabled or not skills_enabled or actor.state != "move" or dodge_left > 0.0 or battle.cine or battle.ally_ult < battle.ULT_COST:
+    if locked or not combat_enabled or not skills_enabled or actor.state != "move" or dodge_left > 0.0 or battle.cine or ult_value() < battle.ULT_COST:
         return
     var foe = actor._ult_target()
     if foe != null:
@@ -103,9 +111,9 @@ func reset_training() -> void:
     actor.flash = 0.0
     actor.t = 0.0
     actor.clip = "idle"
-    actor.sk_cd = {"rush": 0.0, "barrage": 0.0, "storm": 0.0}
-    battle.ally_ult = 0.0
-    battle.ally_ult_gain = true
+    actor.sk_cd = actor.fresh_cd()
+    battle.set(actor.ult_key, 0.0)
+    battle.set(actor.ult_key + "_gain", true)
     battle.cine = false
     battle.cam_focus = null
     battle.cam_zoom = 0.0
@@ -146,7 +154,7 @@ func _physics_process(delta: float) -> void:
             if actor.state == "atk":
                 var c: Dictionary = actor.data.clips[actor.clip]
                 var hits: Array = c.hits
-                var final_hit: float = float(hits.back()) / (float(c.fps) * actor.SPD * NORMAL_SPEED)
+                var final_hit: float = (float(hits.back()) if not hits.is_empty() else 0.0) / (float(c.fps) * actor.SPD * NORMAL_SPEED)
                 if actor.hit_i >= hits.size() and actor.t >= final_hit + RANA.CANCEL_AFTER:
                     actor.state = "move"
             if actor.state == "move":
@@ -173,24 +181,28 @@ func _physics_process(delta: float) -> void:
     if Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN):
         direction.y += 1.0
     direction = direction.limit_length(1.0)
-    if dodge_left > 0.0:
+    var dodging := dodge_left > 0.0
+    if dodging:
         direction = dodge_direction
         var step := minf(dodge_left, dt)
         dodge_left = maxf(0.0, dodge_left - dt)
         actor.position.x += direction.x * DODGE_DISTANCE / DODGE_TIME * step
         actor.position.z += direction.y * DODGE_DISTANCE / DODGE_TIME * step * DEPTH_FACTOR
-    else:
-        actor.position.x += direction.x * WALK_SPEED * dt
-        actor.position.z += direction.y * WALK_SPEED * dt * DEPTH_FACTOR
+    var running: bool = not dodging and direction.length() > 0.12 and (move_in.length() > RUN_STICK or Input.is_key_pressed(KEY_SHIFT))
+    if not dodging:
+        var sp := RUN_SPEED if running else WALK_SPEED
+        actor.position.x += direction.x * sp * dt
+        actor.position.z += direction.y * sp * dt * DEPTH_FACTOR
     actor.position.x = clampf(actor.position.x, battle.ROOM_X.x, battle.ROOM_X.y)
     actor.position.z = clampf(actor.position.z, battle.BELT_Z.x, battle.BELT_Z.y)
     if absf(direction.x) > 0.1:
         actor.face = 1 if direction.x > 0.0 else -1
-    var clip: String = "run" if dodge_left > 0.0 else "walk"
+    var clip: String = "run" if dodging or running else "walk"
     if direction.length() < 0.1:
         clip = "idle"
     if not actor.data.clips.has(clip):
         clip = "idle"
+    move_clip = clip
     var frames: Array = actor.data.clips[clip].frames
     var fps: float = float(actor.data.clips[clip].fps)
     actor._show(clip, int(animation_t * fps) % frames.size())
